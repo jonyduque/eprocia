@@ -1,0 +1,26 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/build/bin/
+
+# Go
+*.test
+*.out
+go.sum
+
+# Frontend
+node_modules/
+dist/
+.cache/
+.parcel-cache/
+.vite/
+frontend/wailsjs/
+
+# Environment and Config
+.env
+.DS_Store
+.idea/
+.vscode/
