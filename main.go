@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"log"
 
@@ -32,6 +33,10 @@ func main() {
 		},
 		BackgroundColour: &options.RGBA{R: 248, G: 249, B: 250, A: 1},
 		OnStartup:        app.startup,
+		OnShutdown: func(ctx context.Context) {
+			systray.Quit()
+		},
+		HideWindowOnClose: true,
 		Bind: []interface{}{
 			app,
 		},
@@ -55,13 +60,20 @@ func onReady(app *App) func() {
 		go func() {
 			for {
 				select {
-				case <-mShow.ClickedCh:
-					app.Show()
-				case <-mHide.ClickedCh:
-					app.Hide()
-				case <-mQuit.ClickedCh:
-					systray.Quit()
-					app.Quit()
+				case _, ok := <-mShow.ClickedCh:
+					if ok {
+						app.Show()
+					}
+				case _, ok := <-mHide.ClickedCh:
+					if ok {
+						app.Hide()
+					}
+				case _, ok := <-mQuit.ClickedCh:
+					if ok {
+						systray.Quit()
+						app.Quit()
+					}
+					return
 				}
 			}
 		}()
