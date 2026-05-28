@@ -148,7 +148,24 @@ func (a *App) SelectDirectory() (string, error) {
 	})
 }
 
+// SelectZipFile opens a native file dialog for selecting a ZIP file.
+func (a *App) SelectZipFile() (string, error) {
+	if a.ctx == nil {
+		return "", fmt.Errorf("context not initialized")
+	}
+	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Selecionar Arquivo ZIP do Eproc",
+		Filters: []runtime.FileFilter{
+			{
+				DisplayName: "Arquivos ZIP (*.zip)",
+				Pattern:     "*.zip",
+			},
+		},
+	})
+}
+
 // Greet returns a greeting for the given name (default Wails method)
 func (a *App) Greet(name string) string {
 	return "Olá " + name + "! Bem-vindo ao eprocIA."
 }
+

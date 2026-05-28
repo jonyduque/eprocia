@@ -10,6 +10,6 @@
     "name": "eprocIA",
     "email": "eprocia@example.com"
   },
-  "wailsjsdir": "./frontend/src/wailsjs",
+  "wailsjsdir": "./frontend/src",
   "assetdir": "frontend/dist"
 }
