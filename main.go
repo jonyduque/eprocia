@@ -61,18 +61,21 @@ func onReady(app *App) func() {
 			for {
 				select {
 				case _, ok := <-mShow.ClickedCh:
-					if ok {
-						app.Show()
+					if !ok {
+						return
 					}
+					app.Show()
 				case _, ok := <-mHide.ClickedCh:
-					if ok {
-						app.Hide()
+					if !ok {
+						return
 					}
+					app.Hide()
 				case _, ok := <-mQuit.ClickedCh:
-					if ok {
-						systray.Quit()
-						app.Quit()
+					if !ok {
+						return
 					}
+					systray.Quit()
+					app.Quit()
 					return
 				}
 			}
