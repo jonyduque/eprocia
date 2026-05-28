@@ -34,6 +34,7 @@ func main() {
 		BackgroundColour: &options.RGBA{R: 248, G: 249, B: 250, A: 1},
 		OnStartup:        app.startup,
 		OnShutdown: func(ctx context.Context) {
+			app.shutdown(ctx)
 			systray.Quit()
 		},
 		HideWindowOnClose: true,
