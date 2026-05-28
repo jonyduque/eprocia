@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -135,6 +136,16 @@ func (a *App) OpenDirectory(path string) error {
 		return exec.Command("explorer.exe", "/select,", cleanPath).Start()
 	}
 	return exec.Command("explorer.exe", cleanPath).Start()
+}
+
+// SelectDirectory opens a native open directory dialog and returns the selected path.
+func (a *App) SelectDirectory() (string, error) {
+	if a.ctx == nil {
+		return "", fmt.Errorf("context not initialized")
+	}
+	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Selecionar Pasta para Monitorar",
+	})
 }
 
 // Greet returns a greeting for the given name (default Wails method)
