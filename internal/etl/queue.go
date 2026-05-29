@@ -64,6 +64,7 @@ func (q *Queue) SetConfig(cfg *models.Config) {
 
 // AddFiles adds multiple zip files to the queue.
 func (q *Queue) AddFiles(paths []string) {
+	log.Printf("[Queue] AddFiles chamada com caminhos: %v", paths)
 	q.mu.Lock()
 	hasPending := false
 	for _, path := range paths {
@@ -76,6 +77,7 @@ func (q *Queue) AddFiles(paths []string) {
 			}
 		}
 		if duplicated {
+			log.Printf("[Queue] Arquivo duplicado ignorado: %s", path)
 			continue
 		}
 
@@ -92,13 +94,17 @@ func (q *Queue) AddFiles(paths []string) {
 		// Prepend to show newest on top
 		q.items = append([]*QueueItem{item}, q.items...)
 		hasPending = true
+		log.Printf("[Queue] Arquivo adicionado à fila: %s (Status: %s)", item.Name, item.Status)
 	}
 	q.mu.Unlock()
 
 	q.broadcast()
 
 	if hasPending {
+		log.Printf("[Queue] Fila possui novos itens pendentes. Iniciando processamento...")
 		q.startProcessing()
+	} else {
+		log.Printf("[Queue] Nenhum item novo pendente na fila.")
 	}
 }
 
@@ -211,7 +217,9 @@ func (q *Queue) Clear() {
 
 func (q *Queue) startProcessing() {
 	q.mu.Lock()
+	log.Printf("[Queue] startProcessing chamado. isPaused: %t, isWorking: %t, total_items: %d", q.isPaused, q.isWorking, len(q.items))
 	if q.isPaused || q.isWorking {
+		log.Printf("[Queue] Processador pausado ou já em execução. Retornando.")
 		q.mu.Unlock()
 		return
 	}
@@ -226,10 +234,12 @@ func (q *Queue) startProcessing() {
 	}
 
 	if nextItem == nil {
+		log.Printf("[Queue] Nenhum item pendente encontrado na fila.")
 		q.mu.Unlock()
 		return
 	}
 
+	log.Printf("[Queue] Próximo item para processamento: %s (%s)", nextItem.Name, nextItem.Path)
 	q.isWorking = true
 	q.mu.Unlock()
 
