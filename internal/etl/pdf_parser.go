@@ -1,6 +1,7 @@
 package etl
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -27,7 +28,7 @@ func NewPDFParser(filePath string) *PDFParser {
 
 // ParsePages parses the PDF page-by-page.
 // If native text is insufficient and OCR is enabled, it uses the OCR runner callback.
-func (p *PDFParser) ParsePages(ocrEnabled bool, ocrRunner func(pdfPath string, pageNum int) (string, error)) ([]PageData, error) {
+func (p *PDFParser) ParsePages(ctx context.Context, ocrEnabled bool, ocrRunner func(context.Context, string, int) (string, error)) ([]PageData, error) {
 	file, err := os.Open(p.filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open pdf: %w", err)
@@ -48,6 +49,11 @@ func (p *PDFParser) ParsePages(ocrEnabled bool, ocrRunner func(pdfPath string, p
 	var pagesData []PageData
 
 	for pageNum := 1; pageNum <= numPages; pageNum++ {
+		// Check for context cancellation
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
 		page := reader.Page(pageNum)
 		if page.V.IsNull() {
 			continue
@@ -73,7 +79,7 @@ func (p *PDFParser) ParsePages(ocrEnabled bool, ocrRunner func(pdfPath string, p
 		finalPageData.PageNum = pageNum
 
 		if needsOcr && ocrRunner != nil {
-			ocrText, err := ocrRunner(p.filePath, pageNum)
+			ocrText, err := ocrRunner(ctx, p.filePath, pageNum)
 			if err == nil {
 				finalPageData.Text = ocrText
 				finalPageData.IsOcr = true

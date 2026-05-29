@@ -20,6 +20,7 @@ type App struct {
 	ctx      context.Context
 	watcher  *watchdog.Watcher
 	pipeline *etl.Pipeline
+	queue    *etl.Queue
 	cfg      *models.Config
 }
 
@@ -27,12 +28,9 @@ type App struct {
 func NewApp() *App {
 	app := &App{}
 	app.watcher = watchdog.NewWatcher(func(filePath string) {
-		// Run processing in background goroutine to not block the file watcher
-		go func() {
-			if app.pipeline != nil && app.cfg != nil {
-				_, _ = app.pipeline.ProcessZip(filePath, app.cfg)
-			}
-		}()
+		if app.queue != nil {
+			app.queue.AddFiles([]string{filePath})
+		}
 	})
 	return app
 }
@@ -42,11 +40,14 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.pipeline = etl.NewPipeline(ctx)
+	a.queue = etl.NewQueue(a.pipeline)
+	a.queue.SetContext(ctx)
 
 	// Load configuration
 	cfg, err := config.Load()
 	if err == nil {
 		a.cfg = cfg
+		a.queue.SetConfig(cfg)
 		// Start watchdog if path is set
 		if cfg.MonitoredPath != "" {
 			_ = a.watcher.Start(cfg.MonitoredPath)
@@ -102,6 +103,9 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 		oldPath = a.cfg.MonitoredPath
 	}
 	a.cfg = cfg
+	if a.queue != nil {
+		a.queue.SetConfig(cfg)
+	}
 
 	if cfg.MonitoredPath != oldPath {
 		if cfg.MonitoredPath != "" {
@@ -114,17 +118,10 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 	return nil
 }
 
-// ProcessFile manually triggers the consolidation process for a ZIP file (e.g. from drag & drop)
+// ProcessFile adds a file to the processing queue for backward compatibility.
 func (a *App) ProcessFile(filePath string) (string, error) {
-	if a.cfg == nil {
-		cfg, err := config.Load()
-		if err != nil {
-			return "", err
-		}
-		a.cfg = cfg
-	}
-
-	return a.pipeline.ProcessZip(filePath, a.cfg)
+	a.AddFilesToQueue([]string{filePath})
+	return "", nil
 }
 
 // OpenDirectory opens the native Windows Explorer selecting the file, or opens the directory.
@@ -148,7 +145,7 @@ func (a *App) SelectDirectory() (string, error) {
 	})
 }
 
-// SelectZipFile opens a native file dialog for selecting a ZIP file.
+// SelectZipFile opens a native file dialog for selecting a ZIP file (backward compatibility).
 func (a *App) SelectZipFile() (string, error) {
 	if a.ctx == nil {
 		return "", fmt.Errorf("context not initialized")
@@ -164,8 +161,81 @@ func (a *App) SelectZipFile() (string, error) {
 	})
 }
 
+// SelectZipFiles opens a native multiple files dialog and returns the selected paths.
+func (a *App) SelectZipFiles() ([]string, error) {
+	if a.ctx == nil {
+		return nil, fmt.Errorf("context not initialized")
+	}
+	return runtime.OpenMultipleFilesDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Selecionar Arquivos ZIP do Eproc",
+		Filters: []runtime.FileFilter{
+			{
+				DisplayName: "Arquivos ZIP (*.zip)",
+				Pattern:     "*.zip",
+			},
+		},
+	})
+}
+
+// AddFilesToQueue adds files manually to the processing queue.
+func (a *App) AddFilesToQueue(filePaths []string) {
+	if a.queue != nil {
+		a.queue.AddFiles(filePaths)
+	}
+}
+
+// GetQueue returns the current list of items in the queue.
+func (a *App) GetQueue() []*etl.QueueItem {
+	if a.queue != nil {
+		return a.queue.GetItems()
+	}
+	return nil
+}
+
+// PauseQueue pauses the queue worker.
+func (a *App) PauseQueue() {
+	if a.queue != nil {
+		a.queue.Pause()
+	}
+}
+
+// ResumeQueue resumes the queue worker.
+func (a *App) ResumeQueue() {
+	if a.queue != nil {
+		a.queue.Resume()
+	}
+}
+
+// IsQueuePaused returns true if the queue is currently paused.
+func (a *App) IsQueuePaused() bool {
+	if a.queue != nil {
+		return a.queue.IsPaused()
+	}
+	return false
+}
+
+// CancelQueueItem cancels an item in the queue by its ID.
+func (a *App) CancelQueueItem(id string) {
+	if a.queue != nil {
+		a.queue.CancelItem(id)
+	}
+}
+
+// RemoveQueueItem removes an item from the queue by its ID.
+func (a *App) RemoveQueueItem(id string) {
+	if a.queue != nil {
+		a.queue.RemoveItem(id)
+	}
+}
+
+// ClearQueue cancels all processes and clears the queue list.
+func (a *App) ClearQueue() {
+	if a.queue != nil {
+		a.queue.Clear()
+	}
+}
+
 // Greet returns a greeting for the given name (default Wails method)
 func (a *App) Greet(name string) string {
 	return "Olá " + name + "! Bem-vindo ao eprocIA."
 }
-

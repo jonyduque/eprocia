@@ -32,7 +32,7 @@ func (p *Pipeline) SetContext(ctx context.Context) {
 }
 
 // ProcessZip extracts, parses, OCRs (if needed), sorts, and formats a ZIP file.
-func (p *Pipeline) ProcessZip(zipPath string, cfg *models.Config) (string, error) {
+func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(progress float64, message string)) (string, int, int, error) {
 	if p.ctx != nil {
 		runtime.EventsEmit(p.ctx, "process:start", zipPath)
 	}
@@ -46,7 +46,7 @@ func (p *Pipeline) ProcessZip(zipPath string, cfg *models.Config) (string, error
 				"error": err.Error(),
 			})
 		}
-		return "", err
+		return "", 0, 0, err
 	}
 	defer rc.Close()
 
@@ -58,7 +58,7 @@ func (p *Pipeline) ProcessZip(zipPath string, cfg *models.Config) (string, error
 				"error": errNoFiles.Error(),
 			})
 		}
-		return "", errNoFiles
+		return "", 0, 0, errNoFiles
 	}
 
 	// 2. Sort documents chronologically and naturally
@@ -68,13 +68,21 @@ func (p *Pipeline) ProcessZip(zipPath string, cfg *models.Config) (string, error
 	totalFiles := len(files)
 
 	// OCR Runner wrapper using the internal ocr module
-	ocrRunner := func(pdfPath string, pageNum int) (string, error) {
-		return ocr.RunOCR(pdfPath, pageNum, cfg.OcrMode)
+	ocrRunner := func(ctx context.Context, pdfPath string, pageNum int) (string, error) {
+		return ocr.RunOCR(ctx, pdfPath, pageNum, cfg.OcrMode)
 	}
 
 	// 3. Process each document
 	for i, f := range files {
+		// Check for context cancellation
+		if err := ctx.Err(); err != nil {
+			return "", 0, 0, err
+		}
+
 		progressMsg := fmt.Sprintf("Processando %d/%d: %s", i+1, totalFiles, f.DocName)
+		if onProgress != nil {
+			onProgress(float64(i)/float64(totalFiles), progressMsg)
+		}
 		if p.ctx != nil {
 			runtime.EventsEmit(p.ctx, "process:progress", map[string]interface{}{
 				"file":     zipPath,
@@ -112,7 +120,7 @@ func (p *Pipeline) ProcessZip(zipPath string, cfg *models.Config) (string, error
 			}
 
 			parser := NewPDFParser(tempPath)
-			pdfPages, errParse := parser.ParsePages(cfg.OcrMode != "none", ocrRunner)
+			pdfPages, errParse := parser.ParsePages(ctx, cfg.OcrMode != "none", ocrRunner)
 			os.Remove(tempPath)
 
 			if errParse != nil {
@@ -146,7 +154,7 @@ func (p *Pipeline) ProcessZip(zipPath string, cfg *models.Config) (string, error
 				"error": fmt.Sprintf("failed to save output file: %s", err.Error()),
 			})
 		}
-		return "", err
+		return "", 0, 0, err
 	}
 
 	// Count total pages
@@ -164,5 +172,6 @@ func (p *Pipeline) ProcessZip(zipPath string, cfg *models.Config) (string, error
 		})
 	}
 
-	return outputPath, nil
+	return outputPath, totalFiles, totalPages, nil
 }
+

@@ -1,6 +1,7 @@
 package ocr
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"os"
@@ -95,7 +96,7 @@ func extractFS(fs embed.FS, srcDir, destDir string) error {
 }
 
 // RunOCR runs OCR on a specific page of a PDF file using the specified mode (fast, normal, best).
-func RunOCR(pdfPath string, pageNum int, mode string) (string, error) {
+func RunOCR(ctx context.Context, pdfPath string, pageNum int, mode string) (string, error) {
 	binDir, err := InitBinaries()
 	if err != nil {
 		return "", err
@@ -127,7 +128,7 @@ func RunOCR(pdfPath string, pageNum int, mode string) (string, error) {
 
 	// Render PDF page to PNG using pdftoppm
 	imgPrefix := filepath.Join(tempDir, "page")
-	cmdPpm := exec.Command(pdfToPpmPath,
+	cmdPpm := exec.CommandContext(ctx, pdfToPpmPath,
 		"-f", fmt.Sprintf("%d", pageNum),
 		"-l", fmt.Sprintf("%d", pageNum),
 		"-png",
@@ -166,7 +167,7 @@ func RunOCR(pdfPath string, pageNum int, mode string) (string, error) {
 	txtOutputPrefix := filepath.Join(tempDir, "output")
 	
 	// Exec tesseract
-	cmdTess := exec.Command(tessPath,
+	cmdTess := exec.CommandContext(ctx, tessPath,
 		imgPath,
 		txtOutputPrefix,
 		"-l", "por",
@@ -181,7 +182,7 @@ func RunOCR(pdfPath string, pageNum int, mode string) (string, error) {
 
 	if err := cmdTess.Run(); err != nil {
 		// Fallback to default (usually English) if Portuguese model fails
-		cmdTessFallback := exec.Command(tessPath,
+		cmdTessFallback := exec.CommandContext(ctx, tessPath,
 			imgPath,
 			txtOutputPrefix,
 		)

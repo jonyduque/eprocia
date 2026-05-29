@@ -7,16 +7,22 @@
     OnFileDrop, 
     OnFileDropOff 
   } from './wailsjs/runtime/runtime.js';
-  import { GetConfig, ProcessFile, SelectZipFile, Hide } from './wailsjs/go/main/App.js';
+  import { 
+    GetConfig, 
+    AddFilesToQueue, 
+    GetQueue, 
+    SelectZipFiles, 
+    IsQueuePaused, 
+    Hide 
+  } from './wailsjs/go/main/App.js';
   import Settings from './components/Settings.svelte';
   import ProcessList from './components/ProcessList.svelte';
 
   let items = [];
   let isDarkMode = true;
   let config = null;
-  let processingCount = 0;
-  let manualProcessing = false;
-  let manualFilePath = '';
+  let isPaused = false;
+  let isWorking = false;
   
   // Sidebar State
   let sidebarWidth = 320; // Default width increased to fit all settings and buttons nicely
@@ -28,6 +34,9 @@
 
   // Unsubscribe handlers
   let unsubscribers = [];
+
+  // Reactive processing count
+  $: processingCount = items.filter(item => item.status === 'processing').length;
 
   onMount(async () => {
     // Detect system theme or storage
@@ -43,43 +52,40 @@
     // Load initial config
     await refreshConfig();
 
-    // Register Wails event listeners
+    // Load queue state
+    try {
+      items = await GetQueue() || [];
+      isPaused = await IsQueuePaused();
+    } catch (err) {
+      console.error('Erro ao carregar fila inicial:', err);
+    }
+
+    // Register Wails event listeners for queue updates
     unsubscribers.push(
-      EventsOn('process:start', (zipPath) => {
-        handleProcessStart(zipPath);
+      EventsOn('queue:update', (data) => {
+        items = data || [];
       })
     );
 
     unsubscribers.push(
-      EventsOn('process:progress', (data) => {
-        handleProcessProgress(data);
+      EventsOn('queue:status', (status) => {
+        isPaused = status.isPaused;
+        isWorking = status.isWorking;
       })
     );
 
-    unsubscribers.push(
-      EventsOn('process:success', (data) => {
-        handleProcessSuccess(data);
-      })
-    );
-
-    unsubscribers.push(
-      EventsOn('process:error', (data) => {
-        handleProcessError(data);
-      })
-    );
-
-    // Register Native Drag and Drop for the whole window
+    // Register Native Drag and Drop for the whole window (global target)
     try {
       OnFileDrop((x, y, paths) => {
         if (paths && paths.length > 0) {
-          const path = paths[0];
-          if (path.toLowerCase().endsWith('.zip')) {
-            runManualProcess(path);
+          const zipPaths = paths.filter(path => path.toLowerCase().endsWith('.zip'));
+          if (zipPaths.length > 0) {
+            AddFilesToQueue(zipPaths);
           } else {
-            alert('Por favor, envie apenas arquivos ZIP do eproc.');
+            alert('Por favor, arraste apenas arquivos ZIP do eproc.');
           }
         }
-      }, true);
+      }, false); // useDropTarget = false for global drop
     } catch (err) {
       console.warn('Wails OnFileDrop not available:', err);
     }
@@ -120,35 +126,6 @@
     }
   }
 
-  // Wails Event Handlers
-  function handleProcessStart(zipPath) {
-    const fileName = zipPath.split(/[\\/]/).pop();
-    const existingIndex = items.findIndex(item => item.path === zipPath);
-    
-    if (existingIndex !== -1) {
-      const updatedItem = {
-        ...items[existingIndex],
-        status: 'processing',
-        progress: 0,
-        message: 'Iniciando processamento...',
-        timestamp: Date.now()
-      };
-      items = [updatedItem, ...items.filter((_, idx) => idx !== existingIndex)];
-    } else {
-      const newItem = {
-        id: zipPath,
-        name: fileName,
-        path: zipPath,
-        status: 'processing',
-        progress: 0,
-        message: 'Iniciando processamento...',
-        timestamp: Date.now()
-      };
-      items = [newItem, ...items];
-    }
-    processingCount++;
-  }
-
   // Handle window close by hiding
   async function handleCloseWindow() {
     try {
@@ -158,76 +135,19 @@
     }
   }
 
-  function handleProcessProgress(data) {
-    items = items.map(item => {
-      if (item.path === data.file) {
-        return {
-          ...item,
-          progress: data.progress,
-          message: data.message
-        };
-      }
-      return item;
-    });
-  }
-
-  function handleProcessSuccess(data) {
-    items = items.map(item => {
-      if (item.path === data.file) {
-        return {
-          ...item,
-          status: 'success',
-          progress: 1.0,
-          outputPath: data.output_path,
-          docsCount: data.docs_count,
-          pagesCount: data.pages_count,
-          message: 'Concluído com sucesso!'
-        };
-      }
-      return item;
-    });
-    if (processingCount > 0) processingCount--;
-  }
-
-  function handleProcessError(data) {
-    items = items.map(item => {
-      if (item.path === data.file) {
-        return {
-          ...item,
-          status: 'error',
-          progress: 0,
-          message: data.error
-        };
-      }
-      return item;
-    });
-    if (processingCount > 0) processingCount--;
-  }
-
   // Manual Trigger
   async function triggerManualSelect() {
     try {
-      const filePath = await SelectZipFile();
-      if (filePath) {
-        runManualProcess(filePath);
+      const filePaths = await SelectZipFiles();
+      if (filePaths && filePaths.length > 0) {
+        await AddFilesToQueue(filePaths);
       }
     } catch (err) {
-      console.error('Erro ao selecionar arquivo:', err);
+      console.error('Erro ao selecionar arquivos:', err);
     }
   }
 
-  async function runManualProcess(path) {
-    try {
-      manualFilePath = path;
-      manualProcessing = true;
-      await ProcessFile(path);
-    } catch (err) {
-      console.error('Erro ao processar arquivo manual:', err);
-    } finally {
-      manualProcessing = false;
-      manualFilePath = '';
-    }
-  }
+
 
   // Sidebar Resizing Handlers
   function startResizing(e) {
@@ -373,16 +293,9 @@
               type="button" 
               class="manual-select-btn" 
               on:click={triggerManualSelect} 
-              disabled={manualProcessing}
-              class:processing={manualProcessing}
             >
-              {#if manualProcessing}
-                <div class="spinner-tiny"></div>
-                <span class="truncate">Processando {manualFilePath.split(/[\\/]/).pop()}...</span>
-              {:else}
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                <span>Selecionar arquivo ZIP...</span>
-              {/if}
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <span>Selecionar arquivos ZIP...</span>
             </button>
             <p class="manual-help">Dica: Você também pode arrastar e soltar arquivos ZIP em qualquer lugar desta janela.</p>
           </div>
@@ -414,7 +327,7 @@
 
     <!-- Right Process List Area -->
     <section class="content-area">
-      <ProcessList bind:items={items} />
+      <ProcessList bind:items={items} {isPaused} />
     </section>
   </main>
 

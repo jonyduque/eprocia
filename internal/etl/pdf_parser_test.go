@@ -2,6 +2,7 @@ package etl
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -60,7 +61,7 @@ func TestPDFParser_ParsePages_NativeText(t *testing.T) {
 	}
 
 	parser := NewPDFParser(pdfPath)
-	pages, err := parser.ParsePages(true, nil)
+	pages, err := parser.ParsePages(context.Background(), true, nil)
 	if err != nil {
 		t.Fatalf("ParsePages failed: %v", err)
 	}
@@ -108,12 +109,12 @@ func TestPDFParser_ParsePages_OcrFallback(t *testing.T) {
 	parser := NewPDFParser(pdfPath)
 
 	ocrCalled := false
-	ocrRunner := func(path string, pageNum int) (string, error) {
+	ocrRunner := func(ctx context.Context, path string, pageNum int) (string, error) {
 		ocrCalled = true
 		return "OCR Extracted Text", nil
 	}
 
-	pages, err := parser.ParsePages(true, ocrRunner)
+	pages, err := parser.ParsePages(context.Background(), true, ocrRunner)
 	if err != nil {
 		t.Fatalf("ParsePages failed: %v", err)
 	}
