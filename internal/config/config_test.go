@@ -14,8 +14,8 @@ func TestDefaultConfig(t *testing.T) {
 		t.Fatalf("DefaultConfig failed: %v", err)
 	}
 
-	if cfg.OcrEnabled != true {
-		t.Errorf("expected OcrEnabled to be true, got %t", cfg.OcrEnabled)
+	if cfg.OcrMode != "normal" {
+		t.Errorf("expected OcrMode to be 'normal', got %s", cfg.OcrMode)
 	}
 
 	if cfg.CleaningLevel != "basic" {
@@ -52,8 +52,8 @@ func TestLoad_NonExistentFile(t *testing.T) {
 	if cfg.MonitoredPath != def.MonitoredPath {
 		t.Errorf("expected default MonitoredPath, got %s", cfg.MonitoredPath)
 	}
-	if cfg.OcrEnabled != def.OcrEnabled {
-		t.Errorf("expected default OcrEnabled, got %t", cfg.OcrEnabled)
+	if cfg.OcrMode != def.OcrMode {
+		t.Errorf("expected default OcrMode, got %s", cfg.OcrMode)
 	}
 }
 
@@ -69,7 +69,7 @@ func TestSaveAndLoad(t *testing.T) {
 
 	customCfg := &models.Config{
 		MonitoredPath: "/custom/path",
-		OcrEnabled:    false,
+		OcrMode:       "fast",
 		CleaningLevel: "aggressive",
 		AutoStart:     true,
 	}
@@ -91,8 +91,8 @@ func TestSaveAndLoad(t *testing.T) {
 	if loadedCfg.MonitoredPath != customCfg.MonitoredPath {
 		t.Errorf("expected MonitoredPath %s, got %s", customCfg.MonitoredPath, loadedCfg.MonitoredPath)
 	}
-	if loadedCfg.OcrEnabled != customCfg.OcrEnabled {
-		t.Errorf("expected OcrEnabled %t, got %t", customCfg.OcrEnabled, loadedCfg.OcrEnabled)
+	if loadedCfg.OcrMode != customCfg.OcrMode {
+		t.Errorf("expected OcrMode %s, got %s", customCfg.OcrMode, loadedCfg.OcrMode)
 	}
 	if loadedCfg.CleaningLevel != customCfg.CleaningLevel {
 		t.Errorf("expected CleaningLevel %s, got %s", customCfg.CleaningLevel, loadedCfg.CleaningLevel)
@@ -125,8 +125,8 @@ func TestLoad_PartialJSON(t *testing.T) {
 	if cfg.MonitoredPath != "/some/path" {
 		t.Errorf("expected MonitoredPath to be /some/path, got %s", cfg.MonitoredPath)
 	}
-	if cfg.OcrEnabled != true {
-		t.Errorf("expected OcrEnabled to fall back to true, got %t", cfg.OcrEnabled)
+	if cfg.OcrMode != "normal" {
+		t.Errorf("expected OcrMode to fall back to normal, got %s", cfg.OcrMode)
 	}
 	if cfg.CleaningLevel != "basic" {
 		t.Errorf("expected CleaningLevel to fall back to 'basic', got %s", cfg.CleaningLevel)

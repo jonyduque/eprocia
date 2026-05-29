@@ -2,7 +2,7 @@ export namespace models {
 	
 	export class Config {
 	    monitored_path: string;
-	    ocr_enabled: boolean;
+	    ocr_mode: string;
 	    cleaning_level: string;
 	    auto_start: boolean;
 	
@@ -13,7 +13,7 @@ export namespace models {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.monitored_path = source["monitored_path"];
-	        this.ocr_enabled = source["ocr_enabled"];
+	        this.ocr_mode = source["ocr_mode"];
 	        this.cleaning_level = source["cleaning_level"];
 	        this.auto_start = source["auto_start"];
 	    }

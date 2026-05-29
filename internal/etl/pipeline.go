@@ -69,7 +69,7 @@ func (p *Pipeline) ProcessZip(zipPath string, cfg *models.Config) (string, error
 
 	// OCR Runner wrapper using the internal ocr module
 	ocrRunner := func(pdfPath string, pageNum int) (string, error) {
-		return ocr.RunOCR(pdfPath, pageNum)
+		return ocr.RunOCR(pdfPath, pageNum, cfg.OcrMode)
 	}
 
 	// 3. Process each document
@@ -112,7 +112,7 @@ func (p *Pipeline) ProcessZip(zipPath string, cfg *models.Config) (string, error
 			}
 
 			parser := NewPDFParser(tempPath)
-			pdfPages, errParse := parser.ParsePages(cfg.OcrEnabled, ocrRunner)
+			pdfPages, errParse := parser.ParsePages(cfg.OcrMode != "none", ocrRunner)
 			os.Remove(tempPath)
 
 			if errParse != nil {

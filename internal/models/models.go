@@ -5,7 +5,7 @@ import "archive/zip"
 // Config represents the application configuration settings.
 type Config struct {
 	MonitoredPath string `json:"monitored_path"`
-	OcrEnabled    bool   `json:"ocr_enabled"`
+	OcrMode       string `json:"ocr_mode"` // "none", "fast", "normal", "best"
 	CleaningLevel string `json:"cleaning_level"`
 	AutoStart     bool   `json:"auto_start"`
 }

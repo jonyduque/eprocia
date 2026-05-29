@@ -39,11 +39,10 @@ func buildTestPDF(objects []string) []byte {
 }
 
 func TestRunOCR(t *testing.T) {
-	_, errTess := FindTesseract()
-	_, errPpm := FindPdftoppm()
-
-	if errTess != nil || errPpm != nil {
-		t.Skip("Skipping OCR integration test: tesseract or pdftoppm not installed on system")
+	// Initialize and extract embedded binaries
+	binPath, errInit := InitBinaries()
+	if errInit != nil {
+		t.Skipf("Skipping OCR integration test: failed to initialize embedded binaries: %v", errInit)
 	}
 
 	tmpDir, err := os.MkdirTemp("", "ocr_test")
@@ -67,7 +66,8 @@ func TestRunOCR(t *testing.T) {
 		t.Fatalf("failed to write test pdf: %v", err)
 	}
 
-	text, err := RunOCR(pdfPath, 1)
+	// Run using the fast mode
+	text, err := RunOCR(pdfPath, 1, "fast")
 	if err != nil {
 		t.Fatalf("RunOCR failed: %v", err)
 	}
@@ -75,6 +75,6 @@ func TestRunOCR(t *testing.T) {
 	// Tesseract OCR should be able to recognize "TESSERACT" or "TEST" from the rendered image.
 	normalized := strings.ToUpper(text)
 	if !strings.Contains(normalized, "TESSERACT") && !strings.Contains(normalized, "TEST") {
-		t.Errorf("expected OCR text to contain 'TESSERACT' or 'TEST', got %q", text)
+		t.Errorf("expected OCR text to contain 'TESSERACT' or 'TEST', got %q (binPath: %s)", text, binPath)
 	}
 }

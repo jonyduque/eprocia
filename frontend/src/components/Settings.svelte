@@ -6,7 +6,7 @@
 
   let config = {
     monitored_path: '',
-    ocr_enabled: true,
+    ocr_mode: 'normal',
     cleaning_level: 'basic',
     auto_start: false
   };
@@ -106,21 +106,20 @@
         <p class="help-text">O eprocIA processará automaticamente qualquer arquivo ZIP baixado nesta pasta.</p>
       </div>
 
-      <!-- OCR Toggle -->
-      <div class="form-group toggle-group">
-        <div class="toggle-text">
-          <label for="ocr-toggle">OCR Fallback Inteligente</label>
-          <p class="help-text">Ativa OCR local (Tesseract) automaticamente em páginas de PDF digitalizadas (imagens).</p>
-        </div>
-        <label class="switch">
-          <input
-            id="ocr-toggle"
-            type="checkbox"
-            bind:checked={config.ocr_enabled}
-            on:change={handleSave}
-          />
-          <span class="slider round"></span>
-        </label>
+      <!-- OCR Settings Dropdown -->
+      <div class="form-group">
+        <label for="ocr-mode">Processamento de Imagens (OCR)</label>
+        <select
+          id="ocr-mode"
+          bind:value={config.ocr_mode}
+          on:change={handleSave}
+        >
+          <option value="none">Desativado</option>
+          <option value="fast">Rápido (tessdata fast)</option>
+          <option value="normal">Normal (tessdata normal)</option>
+          <option value="best">Preciso (tessdata mais preciso)</option>
+        </select>
+        <p class="help-text">Converte imagens em texto automaticamente usando o mecanismo Tesseract integrado.</p>
       </div>
 
       <!-- Cleaning Level -->
@@ -240,7 +239,8 @@
 
   input[type="text"] {
     flex: 1;
-    padding: 6px 10px;
+    min-width: 0; /* Prevents overflow inside flexible layouts */
+    padding: 6px 8px;
     border: 1px solid var(--border);
     border-radius: 4px;
     background-color: var(--bg-main);
@@ -271,11 +271,12 @@
     font-family: inherit;
     font-size: 12px;
     font-weight: 500;
-    padding: 6px 12px;
+    padding: 6px 10px;
     border-radius: 4px;
     cursor: pointer;
     border: none;
     transition: background-color 0.2s, transform 0.1s;
+    flex-shrink: 0; /* Keep buttons from shrinking */
   }
 
   .btn-primary {

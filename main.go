@@ -28,6 +28,7 @@ func main() {
 		Title:  "eprocIA",
 		Width:  1024,
 		Height: 768,
+		Frameless: true,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
