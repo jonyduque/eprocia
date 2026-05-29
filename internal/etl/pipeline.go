@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -80,6 +81,7 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 		}
 
 		progressMsg := fmt.Sprintf("Processando %d/%d: %s", i+1, totalFiles, f.DocName)
+		log.Printf("[Pipeline] %s", progressMsg)
 		if onProgress != nil {
 			onProgress(float64(i)/float64(totalFiles), progressMsg)
 		}
@@ -139,6 +141,7 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 		}
 
 		fileContents[f.Name] = pages
+		log.Printf("[Pipeline] Documento %s finalizado com %d páginas", f.DocName, len(pages))
 	}
 
 	// 4. Format consolidated output into XML

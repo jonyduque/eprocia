@@ -48,8 +48,8 @@ func (a *App) startup(ctx context.Context) {
 	if err == nil {
 		a.cfg = cfg
 		a.queue.SetConfig(cfg)
-		// Start watchdog if path is set
-		if cfg.MonitoredPath != "" {
+		// Start watchdog if path is set and enabled
+		if cfg.WatchdogEnabled && cfg.MonitoredPath != "" {
 			_ = a.watcher.Start(cfg.MonitoredPath)
 		}
 	}
@@ -99,16 +99,18 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 	}
 
 	oldPath := ""
+	oldEnabled := false
 	if a.cfg != nil {
 		oldPath = a.cfg.MonitoredPath
+		oldEnabled = a.cfg.WatchdogEnabled
 	}
 	a.cfg = cfg
 	if a.queue != nil {
 		a.queue.SetConfig(cfg)
 	}
 
-	if cfg.MonitoredPath != oldPath {
-		if cfg.MonitoredPath != "" {
+	if cfg.MonitoredPath != oldPath || cfg.WatchdogEnabled != oldEnabled {
+		if cfg.WatchdogEnabled && cfg.MonitoredPath != "" {
 			_ = a.watcher.Start(cfg.MonitoredPath)
 		} else {
 			a.watcher.Stop()

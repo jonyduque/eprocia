@@ -138,7 +138,7 @@
                 <span class="timestamp">{formatTime(item.timestamp)}</span>
                 {#if item.status === 'success'}
                   <span class="meta-badge success">
-                    {item.docsCount} docs | {item.pagesCount} pág
+                    {item.docs_count} docs | {item.pages_count} pág
                   </span>
                 {:else if item.status === 'processing'}
                   <span class="progress-message">{item.message || 'Processando...'}</span>
@@ -177,11 +177,11 @@
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
-              {:else if item.status === 'success' && item.outputPath}
+              {:else if item.status === 'success' && item.output_path}
                 <div class="success-actions">
                   <button 
                     class="btn-action" 
-                    on:click={() => handleOpenDir(item.outputPath)} 
+                    on:click={() => handleOpenDir(item.output_path)} 
                     title="Abrir pasta contendo o TXT"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-folder-open"><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"/></svg>

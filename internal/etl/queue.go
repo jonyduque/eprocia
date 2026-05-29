@@ -3,6 +3,7 @@ package etl
 import (
 	"context"
 	"fmt"
+	"log"
 	"path/filepath"
 	"sync"
 	"time"
@@ -236,6 +237,23 @@ func (q *Queue) startProcessing() {
 }
 
 func (q *Queue) processItem(item *QueueItem) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[Queue] ERRO CRÍTICO (panic) no processador de fila para %s: %v", item.Name, r)
+			q.mu.Lock()
+			item.cancel = nil
+			item.Status = "error"
+			item.Message = fmt.Sprintf("Erro crítico (panic): %v", r)
+			item.Error = fmt.Sprintf("Panic: %v", r)
+			q.isWorking = false
+			q.mu.Unlock()
+			q.broadcast()
+			q.startProcessing()
+		}
+	}()
+
+	log.Printf("[Queue] Iniciando processamento do arquivo: %s", item.Path)
+
 	q.mu.Lock()
 	ctx, cancel := context.WithCancel(context.Background())
 	item.cancel = cancel
@@ -247,6 +265,7 @@ func (q *Queue) processItem(item *QueueItem) {
 	q.broadcast()
 
 	onProgress := func(progress float64, message string) {
+		log.Printf("[Queue] Progresso [%s]: %.2f%% - %s", item.Name, progress*100, message)
 		q.mu.Lock()
 		if item.Status == "processing" {
 			item.Progress = progress
@@ -260,6 +279,7 @@ func (q *Queue) processItem(item *QueueItem) {
 		var err error
 		cfg, err = config.Load()
 		if err != nil {
+			log.Printf("[Queue] Erro ao carregar configurações para %s: %v", item.Name, err)
 			q.mu.Lock()
 			item.Status = "error"
 			item.Message = "Erro ao carregar configurações"
@@ -279,6 +299,7 @@ func (q *Queue) processItem(item *QueueItem) {
 	q.isWorking = false
 
 	if err != nil {
+		log.Printf("[Queue] Erro no processamento de %s: %v", item.Name, err)
 		if ctx.Err() == context.Canceled {
 			item.Status = "cancelled"
 			item.Message = "Cancelado"
@@ -289,6 +310,7 @@ func (q *Queue) processItem(item *QueueItem) {
 			item.Error = err.Error()
 		}
 	} else {
+		log.Printf("[Queue] Sucesso no processamento de %s. Docs: %d, Páginas: %d", item.Name, docsCount, pagesCount)
 		item.Status = "success"
 		item.Progress = 1.0
 		item.Message = "Concluído"

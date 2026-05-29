@@ -77,6 +77,7 @@
     // Register Native Drag and Drop for the whole window (global target)
     try {
       OnFileDrop((x, y, paths) => {
+        dragActive = false; // Reset visual overlay
         if (paths && paths.length > 0) {
           const zipPaths = paths.filter(path => path.toLowerCase().endsWith('.zip'));
           if (zipPaths.length > 0) {
@@ -189,7 +190,7 @@
   }
 
   function handleWindowDrop(e) {
-    e.preventDefault();
+    // Let the event bubble naturally so WebView2/Wails captures it.
     dragActive = false;
   }
 </script>
@@ -303,7 +304,7 @@
       {:else}
         <!-- Collapsed Sidebar Vertical Tools -->
         <div class="collapsed-tools">
-          <div class="collapsed-indicator" class:active={config && config.monitored_path} class:inactive={!config || !config.monitored_path} title={config && config.monitored_path ? `Monitorando: ${config.monitored_path}` : 'Sem monitoramento ativo'}>
+          <div class="collapsed-indicator" class:active={config && config.watchdog_enabled && config.monitored_path} class:inactive={!config || !config.watchdog_enabled || !config.monitored_path} title={config && config.watchdog_enabled && config.monitored_path ? `Monitorando: ${config.monitored_path}` : (config && !config.watchdog_enabled && config.monitored_path ? 'Monitoramento pausado' : 'Sem monitoramento ativo')}>
             <span class="collapsed-dot"></span>
           </div>
           
@@ -334,10 +335,14 @@
   <!-- Footer Status Bar -->
   <footer>
     <div class="status-item">
-      <span class="status-dot" class:active={config && config.monitored_path} class:inactive={!config || !config.monitored_path}></span>
-      {#if config && config.monitored_path}
+      <span class="status-dot" class:active={config && config.watchdog_enabled && config.monitored_path} class:inactive={!config || !config.watchdog_enabled || !config.monitored_path}></span>
+      {#if config && config.watchdog_enabled && config.monitored_path}
         <span class="status-text truncate" title={config.monitored_path}>
           Pasta monitorada: <strong>{config.monitored_path}</strong>
+        </span>
+      {:else if config && !config.watchdog_enabled && config.monitored_path}
+        <span class="status-text">
+          Monitoramento pausado (pasta configurada: <strong>{config.monitored_path}</strong>)
         </span>
       {:else}
         <span class="status-text">Monitoramento inativo. Configure uma pasta no painel ao lado.</span>

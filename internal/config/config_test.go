@@ -26,6 +26,10 @@ func TestDefaultConfig(t *testing.T) {
 		t.Errorf("expected AutoStart to be false, got %t", cfg.AutoStart)
 	}
 
+	if cfg.WatchdogEnabled != true {
+		t.Errorf("expected WatchdogEnabled to be true, got %t", cfg.WatchdogEnabled)
+	}
+
 	home, err := os.UserHomeDir()
 	if err == nil {
 		expectedPath := filepath.Join(home, "Downloads")
@@ -68,10 +72,11 @@ func TestSaveAndLoad(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "nested", "dirs", "config.json")
 
 	customCfg := &models.Config{
-		MonitoredPath: "/custom/path",
-		OcrMode:       "fast",
-		CleaningLevel: "aggressive",
-		AutoStart:     true,
+		MonitoredPath:   "/custom/path",
+		OcrMode:         "fast",
+		CleaningLevel:   "aggressive",
+		AutoStart:       true,
+		WatchdogEnabled: false,
 	}
 
 	err = SaveToFile(configPath, customCfg)
@@ -99,6 +104,9 @@ func TestSaveAndLoad(t *testing.T) {
 	}
 	if loadedCfg.AutoStart != customCfg.AutoStart {
 		t.Errorf("expected AutoStart %t, got %t", customCfg.AutoStart, loadedCfg.AutoStart)
+	}
+	if loadedCfg.WatchdogEnabled != customCfg.WatchdogEnabled {
+		t.Errorf("expected WatchdogEnabled %t, got %t", customCfg.WatchdogEnabled, loadedCfg.WatchdogEnabled)
 	}
 }
 
@@ -133,6 +141,9 @@ func TestLoad_PartialJSON(t *testing.T) {
 	}
 	if cfg.AutoStart != false {
 		t.Errorf("expected AutoStart to fall back to false, got %t", cfg.AutoStart)
+	}
+	if cfg.WatchdogEnabled != true {
+		t.Errorf("expected WatchdogEnabled to fall back to true, got %t", cfg.WatchdogEnabled)
 	}
 }
 

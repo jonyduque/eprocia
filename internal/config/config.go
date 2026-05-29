@@ -19,10 +19,11 @@ func DefaultConfig() (*models.Config, error) {
 	}
 
 	return &models.Config{
-		MonitoredPath: monitoredPath,
-		OcrMode:       "normal",
-		CleaningLevel: "basic",
-		AutoStart:     false,
+		MonitoredPath:   monitoredPath,
+		OcrMode:         "normal",
+		CleaningLevel:   "basic",
+		AutoStart:       false,
+		WatchdogEnabled: true,
 	}, nil
 }
 

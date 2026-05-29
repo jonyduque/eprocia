@@ -41,6 +41,9 @@ func main() {
 			systray.Quit()
 		},
 		HideWindowOnClose: true,
+		DragAndDrop: &options.DragAndDrop{
+			EnableFileDrop: true,
+		},
 		Bind: []interface{}{
 			app,
 		},

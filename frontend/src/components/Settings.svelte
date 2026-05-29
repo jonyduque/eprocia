@@ -8,7 +8,8 @@
     monitored_path: '',
     ocr_mode: 'normal',
     cleaning_level: 'basic',
-    auto_start: false
+    auto_start: false,
+    watchdog_enabled: true
   };
 
   let loading = true;
@@ -104,6 +105,23 @@
           {/if}
         </div>
         <p class="help-text">O eprocIA processará automaticamente qualquer arquivo ZIP baixado nesta pasta.</p>
+      </div>
+
+      <!-- Watchdog Enabled Toggle -->
+      <div class="form-group toggle-group">
+        <div class="toggle-text">
+          <label for="watchdog-toggle">Monitoramento Ativo</label>
+          <p class="help-text">Ativa ou desativa a verificação automática da pasta.</p>
+        </div>
+        <label class="switch">
+          <input
+            id="watchdog-toggle"
+            type="checkbox"
+            bind:checked={config.watchdog_enabled}
+            on:change={handleSave}
+          />
+          <span class="slider round"></span>
+        </label>
       </div>
 
       <!-- OCR Settings Dropdown -->
