@@ -5,10 +5,17 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/dslipak/pdf"
 )
+
+type ocrTask struct {
+	pageNum  int
+	fallback string
+}
 
 // PageData represents the extracted data of a single page.
 type PageData struct {
@@ -29,7 +36,12 @@ func NewPDFParser(filePath string) *PDFParser {
 
 // ParsePages parses the PDF page-by-page.
 // If native text is insufficient and OCR is enabled, it uses the OCR runner callback.
-func (p *PDFParser) ParsePages(ctx context.Context, ocrEnabled bool, ocrRunner func(context.Context, string, int) (string, error)) ([]PageData, error) {
+func (p *PDFParser) ParsePages(
+	ctx context.Context,
+	ocrEnabled bool,
+	ocrRunner func(context.Context, string, int) (string, string, error),
+	onPageComplete func(pageNum int),
+) (map[string]any, error) {
 	log.Printf("[PDFParser] Abrindo arquivo PDF: %s", p.filePath)
 	file, err := os.Open(p.filePath)
 	if err != nil {
@@ -53,19 +65,83 @@ func (p *PDFParser) ParsePages(ctx context.Context, ocrEnabled bool, ocrRunner f
 
 	numPages := reader.NumPage()
 	log.Printf("[PDFParser] PDF %s possui %d páginas", p.filePath, numPages)
-	var pagesData []PageData
+	
+	paginasMap := make(map[string]any)
+	var mapMu sync.Mutex
+
+	numWorkers := runtime.NumCPU()
+	if numWorkers < 1 {
+		numWorkers = 1
+	}
+	if numWorkers > numPages {
+		numWorkers = numPages
+	}
+	log.Printf("[PDFParser] Iniciando pool de %d workers concorrentes para OCR", numWorkers)
+
+	tasks := make(chan ocrTask, numPages)
+	var wg sync.WaitGroup
+
+	// Start workers
+	for w := 0; w < numWorkers; w++ {
+		go func(workerID int) {
+			for task := range tasks {
+				log.Printf("[PDFParser] [Worker %d] Iniciando OCR para página %d...", workerID, task.pageNum)
+				ocrText, imgPath, err := ocrRunner(ctx, p.filePath, task.pageNum)
+				
+				var pageData map[string]any
+				if err == nil {
+					log.Printf("[PDFParser] [Worker %d] OCR concluído para página %d (tamanho: %d)", workerID, task.pageNum, len(ocrText))
+					pageData = map[string]any{
+						"index":   task.pageNum,
+						"ocr":     true,
+						"image":   imgPath,
+						"content": ocrText,
+					}
+				} else {
+					log.Printf("[PDFParser] [Worker %d] Falha no OCR para página %d: %v. Usando texto nativo como fallback.", workerID, task.pageNum, err)
+					pageData = map[string]any{
+						"index":   task.pageNum,
+						"ocr":     false,
+						"image":   "",
+						"content": task.fallback,
+					}
+				}
+
+				mapMu.Lock()
+				paginasMap[fmt.Sprintf("%d", task.pageNum)] = pageData
+				mapMu.Unlock()
+				if onPageComplete != nil {
+					onPageComplete(task.pageNum)
+				}
+				wg.Done()
+			}
+		}(w + 1)
+	}
 
 	for pageNum := 1; pageNum <= numPages; pageNum++ {
-		log.Printf("[PDFParser] Lendo página %d/%d...", pageNum, numPages)
 		// Check for context cancellation
 		if err := ctx.Err(); err != nil {
 			log.Printf("[PDFParser] Contexto cancelado na leitura da página %d: %v", pageNum, err)
+			close(tasks)
+			wg.Wait()
 			return nil, err
 		}
 
 		page := reader.Page(pageNum)
 		if page.V.IsNull() {
 			log.Printf("[PDFParser] Página %d está nula/vazia", pageNum)
+			pageData := map[string]any{
+				"index":   pageNum,
+				"ocr":     false,
+				"image":   "",
+				"content": "",
+			}
+			mapMu.Lock()
+			paginasMap[fmt.Sprintf("%d", pageNum)] = pageData
+			mapMu.Unlock()
+			if onPageComplete != nil {
+				onPageComplete(pageNum)
+			}
 			continue
 		}
 
@@ -92,32 +168,39 @@ func (p *PDFParser) ParsePages(ctx context.Context, ocrEnabled bool, ocrRunner f
 			}
 		}
 
-		var finalPageData PageData
-		finalPageData.PageNum = pageNum
-
 		if needsOcr && ocrRunner != nil {
-			log.Printf("[PDFParser] Iniciando OCR para página %d...", pageNum)
-			ocrText, err := ocrRunner(ctx, p.filePath, pageNum)
-			if err == nil {
-				log.Printf("[PDFParser] OCR concluído para página %d (tamanho: %d)", pageNum, len(ocrText))
-				finalPageData.Text = ocrText
-				finalPageData.IsOcr = true
-			} else {
-				log.Printf("[PDFParser] Falha no OCR para página %d: %v. Usando texto nativo.", pageNum, err)
-				finalPageData.Text = cleanText
-				finalPageData.IsOcr = false
+			wg.Add(1)
+			tasks <- ocrTask{
+				pageNum:  pageNum,
+				fallback: cleanText,
 			}
 		} else {
 			log.Printf("[PDFParser] Usando texto nativo para página %d (OCR habilitado: %t, precisa de OCR: %t)", pageNum, ocrEnabled, needsOcr)
-			finalPageData.Text = cleanText
-			finalPageData.IsOcr = false
+			pageData := map[string]any{
+				"index":   pageNum,
+				"ocr":     false,
+				"image":   "",
+				"content": cleanText,
+			}
+			mapMu.Lock()
+			paginasMap[fmt.Sprintf("%d", pageNum)] = pageData
+			mapMu.Unlock()
+			if onPageComplete != nil {
+				onPageComplete(pageNum)
+			}
 		}
-
-		pagesData = append(pagesData, finalPageData)
 	}
 
-	log.Printf("[PDFParser] Análise concluída. %d páginas retornadas.", len(pagesData))
-	return pagesData, nil
+	close(tasks)
+	wg.Wait()
+
+	if err := ctx.Err(); err != nil {
+		log.Printf("[PDFParser] Análise abortada devido a cancelamento do contexto: %v", err)
+		return nil, err
+	}
+
+	log.Printf("[PDFParser] Análise concluída. %d páginas retornadas.", len(paginasMap))
+	return paginasMap, nil
 }
 
 // ExtractNativeText extracts plain text from a pdf.Page using GetTextByRow as preferred layout option.

@@ -1,19 +1,19 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import { 
-    EventsOn, 
-    WindowMinimise, 
-    WindowToggleMaximise, 
-    OnFileDrop, 
-    OnFileDropOff 
+  import {
+    EventsOn,
+    WindowMinimise,
+    WindowToggleMaximise,
+    OnFileDrop,
+    OnFileDropOff
   } from './wailsjs/runtime/runtime.js';
-  import { 
-    GetConfig, 
-    AddFilesToQueue, 
-    GetQueue, 
-    SelectZipFiles, 
-    IsQueuePaused, 
-    Hide 
+  import {
+    GetConfig,
+    AddFilesToQueue,
+    GetQueue,
+    SelectZipFiles,
+    IsQueuePaused,
+    Hide
   } from './wailsjs/go/main/App.js';
   import Settings from './components/Settings.svelte';
   import ProcessList from './components/ProcessList.svelte';
@@ -23,12 +23,12 @@
   let config = null;
   let isPaused = false;
   let isWorking = false;
-  
+
   // Sidebar State
   let sidebarWidth = 320; // Default width increased to fit all settings and buttons nicely
   let sidebarCollapsed = false;
   let isResizing = false;
-  
+
   // Drag and Drop State
   let dragActive = false;
 
@@ -97,7 +97,7 @@
     unsubscribers.forEach(unsub => {
       if (typeof unsub === 'function') unsub();
     });
-    
+
     // Unregister drag drop listener
     try {
       OnFileDropOff();
@@ -195,7 +195,7 @@
   }
 </script>
 
-<div 
+<div
   class="app-container"
   role="region"
   aria-label="Aplicativo eprocIA"
@@ -221,7 +221,7 @@
       <h1>eprocIA</h1>
       <span class="titlebar-version">v1.0 (Offline)</span>
     </div>
-    
+
     <div class="titlebar-actions" style="--wails-draggable: no-drag">
       <!-- Active Processes Indicator -->
       {#if processingCount > 0}
@@ -260,8 +260,8 @@
   <!-- Main Content Grid -->
   <main class="grid-layout">
     <!-- Sidebar (Collapsible & Resizable) -->
-    <aside 
-      class="sidebar" 
+    <aside
+      class="sidebar"
       style="width: {sidebarCollapsed ? '48px' : sidebarWidth + 'px'}"
       class:collapsed={sidebarCollapsed}
     >
@@ -289,16 +289,15 @@
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-plus-2"><path d="M4 22V4c0-.5.2-1 .6-1.4C5 2.2 5.5 2 6 2h8l6 6v12c0 .5-.2 1-.6 1.4-.4.4-.9.6-1.4.6H6c-.5 0-1-.2-1.4-.6C4.2 21 4 20.5 4 20Z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg>
               <h3>Importação Manual</h3>
             </div>
-            
-            <button 
-              type="button" 
-              class="manual-select-btn" 
-              on:click={triggerManualSelect} 
+
+            <button
+              type="button"
+              class="manual-select-btn"
+              on:click={triggerManualSelect}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               <span>Selecionar arquivos ZIP...</span>
             </button>
-            <p class="manual-help">Dica: Você também pode arrastar e soltar arquivos ZIP em qualquer lugar desta janela.</p>
           </div>
         </div>
       {:else}
@@ -307,7 +306,7 @@
           <div class="collapsed-indicator" class:active={config && config.watchdog_enabled && config.monitored_path} class:inactive={!config || !config.watchdog_enabled || !config.monitored_path} title={config && config.watchdog_enabled && config.monitored_path ? `Monitorando: ${config.monitored_path}` : (config && !config.watchdog_enabled && config.monitored_path ? 'Monitoramento pausado' : 'Sem monitoramento ativo')}>
             <span class="collapsed-dot"></span>
           </div>
-          
+
           <button class="collapsed-tool-btn" on:click={triggerManualSelect} title="Processar ZIP Manualmente">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           </button>
@@ -316,11 +315,11 @@
 
       <!-- Drag handle for resizing sidebar -->
       {#if !sidebarCollapsed}
-        <div 
-          class="resize-handle" 
+        <div
+          class="resize-handle"
           role="separator"
           aria-label="Redimensionador de Menu"
-          on:mousedown={startResizing} 
+          on:mousedown={startResizing}
           class:resizing={isResizing}
         ></div>
       {/if}
@@ -360,9 +359,16 @@
     flex-direction: column;
     height: 100vh;
     background-color: var(--bg-main);
+    background-image: radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.05) 0px, transparent 50%),
+                      radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.03) 0px, transparent 50%);
     color: var(--text-primary);
     overflow: hidden;
     position: relative;
+  }
+
+  :global(.light) .app-container {
+    background-image: radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.03) 0px, transparent 50%),
+                      radial-gradient(at 100% 100%, rgba(5, 150, 105, 0.02) 0px, transparent 50%);
   }
 
   /* Full Screen Drag Overlay */
@@ -407,14 +413,22 @@
   /* Custom Frameless Titlebar */
   .custom-titlebar {
     height: 38px;
-    background-color: var(--surface);
-    border-bottom: 1px solid var(--border);
+    background-color: rgba(17, 24, 39, 0.45);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 0 12px;
     flex-shrink: 0;
     user-select: none;
+    transition: background-color 0.3s, border-color 0.3s;
+  }
+
+  :global(.light) .custom-titlebar {
+    background-color: rgba(255, 255, 255, 0.45);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   }
 
   .brand-title {
@@ -522,11 +536,18 @@
   .sidebar {
     display: flex;
     flex-direction: column;
-    background-color: var(--surface);
-    border-right: 1px solid var(--border);
+    background-color: rgba(17, 24, 39, 0.45);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
     position: relative;
     overflow: visible; /* Needed for resize handle to overlap */
-    transition: width 0.15s ease-in-out;
+    transition: width 0.15s ease-in-out, background-color 0.3s, border-color 0.3s;
+  }
+
+  :global(.light) .sidebar {
+    background-color: rgba(255, 255, 255, 0.45);
+    border-right: 1px solid rgba(0, 0, 0, 0.08);
   }
 
   .sidebar.collapsed {
@@ -539,10 +560,14 @@
     justify-content: space-between;
     align-items: center;
     padding: 8px 12px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     height: 38px;
     flex-shrink: 0;
     width: 100%;
+  }
+
+  :global(.light) .sidebar-header-toggle {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   }
 
   .sidebar.collapsed .sidebar-header-toggle {
@@ -661,19 +686,28 @@
     flex-direction: column;
     overflow: hidden;
     padding: 8px;
-    background-color: var(--bg-main);
+    background-color: transparent;
   }
 
   /* Manual process card */
   .manual-card {
-    background-color: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
+    background-color: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 10px;
     padding: 12px;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: background-color 0.3s, border-color 0.3s;
+  }
+
+  :global(.light) .manual-card {
+    background-color: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
   }
 
   .manual-card .card-header {
@@ -749,8 +783,10 @@
   /* Footer */
   footer {
     height: 26px;
-    background-color: var(--surface);
-    border-top: 1px solid var(--border);
+    background-color: rgba(17, 24, 39, 0.45);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -759,6 +795,12 @@
     color: var(--text-secondary);
     flex-shrink: 0;
     user-select: none;
+    transition: background-color 0.3s, border-color 0.3s;
+  }
+
+  :global(.light) footer {
+    background-color: rgba(255, 255, 255, 0.45);
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
   }
 
   .status-item {

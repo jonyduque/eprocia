@@ -7,6 +7,7 @@
     ResumeQueue, 
     ClearQueue 
   } from '../wailsjs/go/main/App.js';
+  import { fly } from 'svelte/transition';
 
   export let items = [];
   export let isPaused = false;
@@ -115,11 +116,19 @@
     {:else}
       <div class="items-list">
         {#each filteredItems as item (item.id)}
-          <div class="item-row {item.status}" class:has-progress={item.status === 'processing'}>
+          <div 
+            class="item-row {item.status}" 
+            class:has-progress={item.status === 'processing'}
+            transition:fly={{ y: 8, duration: 200 }}
+          >
             <!-- Status Icon -->
             <div class="status-col">
               {#if item.status === 'processing'}
-                <div class="spinner-small"></div>
+                {#if isPaused}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pause-circle"><circle cx="12" cy="12" r="10"/><line x1="10" x2="10" y1="15" y2="9"/><line x1="14" x2="14" y1="15" y2="9"/></svg>
+                {:else}
+                  <div class="spinner-small"></div>
+                {/if}
               {:else if item.status === 'pending'}
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clock"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               {:else if item.status === 'success'}
@@ -142,6 +151,9 @@
                   </span>
                 {:else if item.status === 'processing'}
                   <span class="progress-message">{item.message || 'Processando...'}</span>
+                  <span class="meta-badge processing">
+                    Docs: {item.processed_docs || 0}/{item.total_docs || 0} | Págs: {item.processed_pages || 0}/{item.total_pages || 0}
+                  </span>
                 {:else if item.status === 'pending'}
                   <span class="pending-message">Aguardando na fila...</span>
                 {:else if item.status === 'cancelled'}
@@ -221,14 +233,23 @@
 
 <style>
   .list-card {
-    background-color: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
+    background-color: rgba(17, 24, 39, 0.45);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
     flex: 1;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+    transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
+  }
+
+  :global(.light) .list-card {
+    background-color: rgba(255, 255, 255, 0.45);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
   }
 
   .list-header {
@@ -236,8 +257,13 @@
     justify-content: space-between;
     align-items: center;
     padding: 8px 12px;
-    border-bottom: 1px solid var(--border);
-    background-color: var(--bg-main);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background-color: rgba(11, 15, 25, 0.35);
+  }
+
+  :global(.light) .list-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    background-color: rgba(243, 244, 246, 0.35);
   }
 
   .header-left {
@@ -324,7 +350,7 @@
   .items-container {
     flex: 1;
     overflow-y: auto;
-    background-color: var(--surface);
+    background-color: transparent;
   }
 
   .empty-state {
@@ -353,21 +379,51 @@
   .items-list {
     display: flex;
     flex-direction: column;
+    gap: 8px;
+    padding: 10px;
   }
 
   .item-row {
     display: flex;
     align-items: center;
-    height: 40px; /* 40px row height */
-    border-bottom: 1px solid var(--border);
-    padding: 0 12px;
+    min-height: 52px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    padding: 8px 12px;
     position: relative;
     gap: 10px;
-    transition: background-color 0.15s;
+    background-color: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
+                box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
+                background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
+                border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                padding-bottom 0.2s;
   }
 
   .item-row:hover {
-    background-color: rgba(255, 255, 255, 0.02);
+    transform: translateY(-1px);
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  }
+
+  .item-row.has-progress {
+    padding-bottom: 14px;
+  }
+
+  :global(.light) .item-row {
+    background-color: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  }
+
+  :global(.light) .item-row:hover {
+    background-color: rgba(255, 255, 255, 0.85);
+    border-color: rgba(0, 0, 0, 0.09);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
   }
 
   .status-col {
@@ -422,6 +478,19 @@
     color: var(--success);
   }
 
+  .meta-badge.processing {
+    background-color: rgba(59, 130, 246, 0.15);
+    color: #93C5FD;
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    font-weight: 500;
+  }
+
+  :global(.light) .meta-badge.processing {
+    background-color: rgba(37, 99, 235, 0.1);
+    color: #1D4ED8;
+    border-color: rgba(37, 99, 235, 0.15);
+  }
+
   .progress-message {
     white-space: nowrap;
     overflow: hidden;
@@ -444,16 +513,24 @@
 
   .progress-bar-container {
     position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background-color: rgba(255, 255, 255, 0.05);
+    bottom: 5px;
+    left: 12px;
+    right: 12px;
+    height: 4px;
+    background-color: rgba(255, 255, 255, 0.06);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  :global(.light) .progress-bar-container {
+    background-color: rgba(0, 0, 0, 0.06);
   }
 
   .progress-bar {
     height: 100%;
-    background-color: var(--accent);
+    background: linear-gradient(90deg, var(--accent) 0%, var(--success) 100%);
+    border-radius: 4px;
+    box-shadow: 0 0 8px var(--accent);
     transition: width 0.2s ease-out;
   }
 

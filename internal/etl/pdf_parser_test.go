@@ -61,7 +61,7 @@ func TestPDFParser_ParsePages_NativeText(t *testing.T) {
 	}
 
 	parser := NewPDFParser(pdfPath)
-	pages, err := parser.ParsePages(context.Background(), true, nil)
+	pages, err := parser.ParsePages(context.Background(), true, nil, nil)
 	if err != nil {
 		t.Fatalf("ParsePages failed: %v", err)
 	}
@@ -70,17 +70,21 @@ func TestPDFParser_ParsePages_NativeText(t *testing.T) {
 		t.Fatalf("expected 1 page, got %d", len(pages))
 	}
 
-	page := pages[0]
-	if page.PageNum != 1 {
-		t.Errorf("expected page number 1, got %d", page.PageNum)
+	page, ok := pages["1"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected page '1' to exist in map")
+	}
+	if page["index"].(int) != 1 {
+		t.Errorf("expected page index 1, got %v", page["index"])
 	}
 
-	if page.IsOcr {
+	if page["ocr"].(bool) {
 		t.Errorf("expected IsOcr to be false for native text page")
 	}
 
-	if !strings.Contains(page.Text, "Hello") || !strings.Contains(page.Text, "World") {
-		t.Errorf("expected extracted text to contain 'Hello World', got %q", page.Text)
+	content := page["content"].(string)
+	if !strings.Contains(content, "Hello") || !strings.Contains(content, "World") {
+		t.Errorf("expected extracted text to contain 'Hello World', got %q", content)
 	}
 }
 
@@ -109,12 +113,12 @@ func TestPDFParser_ParsePages_OcrFallback(t *testing.T) {
 	parser := NewPDFParser(pdfPath)
 
 	ocrCalled := false
-	ocrRunner := func(ctx context.Context, path string, pageNum int) (string, error) {
+	ocrRunner := func(ctx context.Context, path string, pageNum int) (string, string, error) {
 		ocrCalled = true
-		return "OCR Extracted Text", nil
+		return "OCR Extracted Text", "mock_image.png", nil
 	}
 
-	pages, err := parser.ParsePages(context.Background(), true, ocrRunner)
+	pages, err := parser.ParsePages(context.Background(), true, ocrRunner, nil)
 	if err != nil {
 		t.Fatalf("ParsePages failed: %v", err)
 	}
@@ -123,8 +127,11 @@ func TestPDFParser_ParsePages_OcrFallback(t *testing.T) {
 		t.Fatalf("expected 1 page, got %d", len(pages))
 	}
 
-	page := pages[0]
-	if !page.IsOcr {
+	page, ok := pages["1"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected page '1' to exist in map")
+	}
+	if !page["ocr"].(bool) {
 		t.Errorf("expected IsOcr to be true")
 	}
 
@@ -132,7 +139,11 @@ func TestPDFParser_ParsePages_OcrFallback(t *testing.T) {
 		t.Errorf("expected OCR runner to be called")
 	}
 
-	if page.Text != "OCR Extracted Text" {
-		t.Errorf("expected page text to be 'OCR Extracted Text', got %q", page.Text)
+	content := page["content"].(string)
+	if content != "OCR Extracted Text" {
+		t.Errorf("expected page text to be 'OCR Extracted Text', got %q", content)
+	}
+	if page["image"].(string) != "mock_image.png" {
+		t.Errorf("expected page image to be 'mock_image.png', got %q", page["image"])
 	}
 }

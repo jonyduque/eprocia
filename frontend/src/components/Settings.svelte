@@ -84,9 +84,26 @@
     </div>
   {:else}
     <div class="settings-form">
+
+      <div class="form-group toggle-group">
+        <!-- Watchdog Enabled Toggle -->
+        <label class="switch">
+          <input
+            id="watchdog-toggle"
+            type="checkbox"
+            bind:checked={config.watchdog_enabled}
+            on:change={handleSave}
+          />
+          <span class="slider round"></span>
+        </label>
+        <div class="toggle-text">
+          <label for="watchdog-toggle">Monitoramento Ativo</label>
+        </div>
+      </div>
+
       <!-- Monitored Path Section -->
       <div class="form-group">
-        <label for="monitored-path">Pasta Monitorada (Watchdog)</label>
+        <label for="monitored-path">Pasta Monitorada</label>
         <div class="path-input-group">
           <input
             id="monitored-path"
@@ -104,24 +121,6 @@
             </button>
           {/if}
         </div>
-        <p class="help-text">O eprocIA processará automaticamente qualquer arquivo ZIP baixado nesta pasta.</p>
-      </div>
-
-      <!-- Watchdog Enabled Toggle -->
-      <div class="form-group toggle-group">
-        <div class="toggle-text">
-          <label for="watchdog-toggle">Monitoramento Ativo</label>
-          <p class="help-text">Ativa ou desativa a verificação automática da pasta.</p>
-        </div>
-        <label class="switch">
-          <input
-            id="watchdog-toggle"
-            type="checkbox"
-            bind:checked={config.watchdog_enabled}
-            on:change={handleSave}
-          />
-          <span class="slider round"></span>
-        </label>
       </div>
 
       <!-- OCR Settings Dropdown -->
@@ -137,7 +136,6 @@
           <option value="normal">Normal (tessdata normal)</option>
           <option value="best">Preciso (tessdata mais preciso)</option>
         </select>
-        <p class="help-text">Converte imagens em texto automaticamente usando o mecanismo Tesseract integrado.</p>
       </div>
 
       <!-- Cleaning Level -->
@@ -152,15 +150,10 @@
           <option value="basic">Básico (Corrige espaçamento e quebras redundantes)</option>
           <option value="aggressive">Agressivo (Básico + remove rodapés e cabeçalhos repetitivos)</option>
         </select>
-        <p class="help-text">Otimiza o texto extraído para economizar tokens na inteligência artificial.</p>
       </div>
 
       <!-- Auto Start Toggle -->
       <div class="form-group toggle-group">
-        <div class="toggle-text">
-          <label for="autostart-toggle">Iniciar com o Windows</label>
-          <p class="help-text">Executar o eprocIA minimizado na bandeja do sistema ao iniciar o computador.</p>
-        </div>
         <label class="switch">
           <input
             id="autostart-toggle"
@@ -170,6 +163,9 @@
           />
           <span class="slider round"></span>
         </label>
+        <div class="toggle-text">
+          <label for="autostart-toggle">Iniciar com o Windows</label>
+        </div>
       </div>
     </div>
   {/if}
@@ -225,10 +221,10 @@
 
   .toggle-group {
     flex-direction: row;
-    justify-content: space-between;
+    justify-content: center;
+    gap: 12px;
     align-items: center;
     padding: 4px 0;
-    border-bottom: 1px dashed var(--border);
   }
 
   .toggle-text {

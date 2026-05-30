@@ -1,6 +1,7 @@
 package etl
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -8,10 +9,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 
 	"eprocia/internal/models"
 	"eprocia/internal/ocr"
 
+	"github.com/dslipak/pdf"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -33,7 +36,7 @@ func (p *Pipeline) SetContext(ctx context.Context) {
 }
 
 // ProcessZip extracts, parses, OCRs (if needed), sorts, and formats a ZIP file.
-func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(progress float64, message string)) (string, int, int, error) {
+func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int)) (string, int, int, error) {
 	if p.ctx != nil {
 		runtime.EventsEmit(p.ctx, "process:start", zipPath)
 	}
@@ -65,12 +68,112 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 	// 2. Sort documents chronologically and naturally
 	SortProcessFiles(files)
 
-	fileContents := make(map[string][]PageData)
+	// Pre-calculate total pages across all files to show accurate progress
 	totalFiles := len(files)
+	totalPagesAll := 0
+	docPageCounts := make(map[string]int) // keep track of pages per file
+
+	for _, f := range files {
+		if f.Extension == ".pdf" {
+			pagesCount, err := func() (int, error) {
+				zr, err := f.ZipFileRef.Open()
+				if err != nil {
+					return 0, err
+				}
+				defer zr.Close()
+
+				var buf bytes.Buffer
+				if _, err := io.Copy(&buf, zr); err != nil {
+					return 0, err
+				}
+
+				reader, err := pdf.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+				if err != nil {
+					return 0, err
+				}
+				return reader.NumPage(), nil
+			}()
+			if err != nil {
+				log.Printf("[Pipeline] Erro ao pré-calcular páginas para %s: %v", f.DocName, err)
+				docPageCounts[f.Name] = 1 // fallback
+				totalPagesAll += 1
+			} else {
+				docPageCounts[f.Name] = pagesCount
+				totalPagesAll += pagesCount
+			}
+		} else {
+			docPageCounts[f.Name] = 1
+			totalPagesAll += 1
+		}
+	}
+	log.Printf("[Pipeline] Pré-cálculo concluído: %d documentos, %d páginas no total", totalFiles, totalPagesAll)
+
+	eventos := make(map[string]any)
+
+	// Group files by EventNum to pre-populate map
+	eventsMap := make(map[int][]models.ProcessFile)
+	var eventNums []int
+	for _, f := range files {
+		if _, exists := eventsMap[f.EventNum]; !exists {
+			eventNums = append(eventNums, f.EventNum)
+		}
+		eventsMap[f.EventNum] = append(eventsMap[f.EventNum], f)
+	}
+
+	// Initialize the events map structure
+	for _, eventNum := range eventNums {
+		eventKey := fmt.Sprintf("%d", eventNum)
+		documentosMap := make(map[string]any)
+		eventos[eventKey] = map[string]any{
+			"index":      eventNum,
+			"documentos": documentosMap,
+		}
+
+		eventFiles := eventsMap[eventNum]
+		for index, f := range eventFiles {
+			docKey := f.Name
+			paginasMap := make(map[string]any)
+			documentosMap[docKey] = map[string]any{
+				"index":   index + 1,
+				"nome":    f.DocName,
+				"paginas": paginasMap,
+			}
+		}
+	}
 
 	// OCR Runner wrapper using the internal ocr module
-	ocrRunner := func(ctx context.Context, pdfPath string, pageNum int) (string, error) {
+	ocrRunner := func(ctx context.Context, pdfPath string, pageNum int) (string, string, error) {
 		return ocr.RunOCR(ctx, pdfPath, pageNum, cfg.OcrMode)
+	}
+
+	var processedDocsVal int32
+	var processedPagesVal int32
+
+	// Progress reporting helper
+	reportProgress := func(msg string) {
+		pDocs := int(atomic.LoadInt32(&processedDocsVal))
+		pPages := int(atomic.LoadInt32(&processedPagesVal))
+		
+		progress := 0.0
+		if totalPagesAll > 0 {
+			progress = float64(pPages) / float64(totalPagesAll)
+		}
+
+		if onProgress != nil {
+			onProgress(progress, msg, pDocs, totalFiles, pPages, totalPagesAll)
+		}
+		
+		if p.ctx != nil {
+			runtime.EventsEmit(p.ctx, "process:progress", map[string]interface{}{
+				"file":            zipPath,
+				"progress":        progress,
+				"message":         msg,
+				"processed_docs":  pDocs,
+				"total_docs":      totalFiles,
+				"processed_pages": pPages,
+				"total_pages":     totalPagesAll,
+			})
+		}
 	}
 
 	// 3. Process each document
@@ -82,31 +185,41 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 
 		progressMsg := fmt.Sprintf("Processando %d/%d: %s", i+1, totalFiles, f.DocName)
 		log.Printf("[Pipeline] %s", progressMsg)
-		if onProgress != nil {
-			onProgress(float64(i)/float64(totalFiles), progressMsg)
-		}
-		if p.ctx != nil {
-			runtime.EventsEmit(p.ctx, "process:progress", map[string]interface{}{
-				"file":     zipPath,
-				"progress": float64(i) / float64(totalFiles),
-				"message":  progressMsg,
-			})
-		}
+		reportProgress(progressMsg)
+
+		// Retrieve docData and its paginas map
+		eventKey := fmt.Sprintf("%d", f.EventNum)
+		eventData := eventos[eventKey].(map[string]any)
+		documentosMap := eventData["documentos"].(map[string]any)
+		docData := documentosMap[f.Name].(map[string]any)
+		paginasMap := docData["paginas"].(map[string]any)
 
 		zipReader, err := f.ZipFileRef.Open()
 		if err != nil {
-			fileContents[f.Name] = []PageData{{PageNum: 1, Text: fmt.Sprintf("[ERRO ao abrir arquivo no ZIP: %s]", err.Error())}}
+			paginasMap["1"] = map[string]any{
+				"index":   1,
+				"ocr":     false,
+				"image":   "",
+				"content": fmt.Sprintf("[ERRO ao abrir arquivo no ZIP: %s]", err.Error()),
+			}
+			atomic.AddInt32(&processedPagesVal, 1)
+			reportProgress(fmt.Sprintf("Erro ao abrir %s", f.DocName))
 			continue
 		}
-
-		var pages []PageData
 
 		if f.Extension == ".pdf" {
 			// Extract the PDF to a temporary file since the PDF library needs io.ReaderAt and the size
 			tempPdfFile, err := os.CreateTemp("", "eprocia_pdf_*.pdf")
 			if err != nil {
 				zipReader.Close()
-				fileContents[f.Name] = []PageData{{PageNum: 1, Text: fmt.Sprintf("[ERRO ao criar arquivo temporário: %s]", err.Error())}}
+				paginasMap["1"] = map[string]any{
+					"index":   1,
+					"ocr":     false,
+					"image":   "",
+					"content": fmt.Sprintf("[ERRO ao criar arquivo temporário: %s]", err.Error()),
+				}
+				atomic.AddInt32(&processedPagesVal, 1)
+				reportProgress(fmt.Sprintf("Erro de PDF temporário em %s", f.DocName))
 				continue
 			}
 			tempPath := tempPdfFile.Name()
@@ -117,35 +230,85 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 
 			if errCopy != nil {
 				os.Remove(tempPath)
-				fileContents[f.Name] = []PageData{{PageNum: 1, Text: fmt.Sprintf("[ERRO ao extrair PDF temporário: %s]", errCopy.Error())}}
+				paginasMap["1"] = map[string]any{
+					"index":   1,
+					"ocr":     false,
+					"image":   "",
+					"content": fmt.Sprintf("[ERRO ao extrair PDF temporário: %s]", errCopy.Error()),
+				}
+				atomic.AddInt32(&processedPagesVal, 1)
+				reportProgress(fmt.Sprintf("Erro de extração em %s", f.DocName))
 				continue
 			}
 
 			parser := NewPDFParser(tempPath)
-			pdfPages, errParse := parser.ParsePages(ctx, cfg.OcrMode != "none", ocrRunner)
+			pdfPages, errParse := parser.ParsePages(ctx, cfg.OcrMode != "none", ocrRunner, func(pageNum int) {
+				atomic.AddInt32(&processedPagesVal, 1)
+				reportProgress(fmt.Sprintf("Processando %d/%d: %s (pág. %d/%d)", i+1, totalFiles, f.DocName, pageNum, docPageCounts[f.Name]))
+			})
 			os.Remove(tempPath)
 
 			if errParse != nil {
-				fileContents[f.Name] = []PageData{{PageNum: 1, Text: fmt.Sprintf("[ERRO ao analisar PDF: %s]", errParse.Error())}}
+				if ctx.Err() != nil {
+					log.Printf("[Pipeline] Processamento cancelado durante a análise do PDF: %s", f.DocName)
+					return "", 0, 0, ctx.Err()
+				}
+				paginasMap["1"] = map[string]any{
+					"index":   1,
+					"ocr":     false,
+					"image":   "",
+					"content": fmt.Sprintf("[ERRO ao analisar PDF: %s]", errParse.Error()),
+				}
 				continue
 			}
-			pages = pdfPages
+
+			// Copy the pages map returned by ParsePages into the document's paginas map
+			for k, v := range pdfPages {
+				paginasMap[k] = v
+			}
 		} else if f.Extension == ".html" || f.Extension == ".htm" {
 			htmlText, errParse := ExtractTextFromHTML(zipReader)
 			zipReader.Close()
 			if errParse != nil {
-				fileContents[f.Name] = []PageData{{PageNum: 1, Text: fmt.Sprintf("[ERRO ao analisar HTML: %s]", errParse.Error())}}
+				paginasMap["1"] = map[string]any{
+					"index":   1,
+					"ocr":     false,
+					"image":   "",
+					"content": fmt.Sprintf("[ERRO ao analisar HTML: %s]", errParse.Error()),
+				}
+				atomic.AddInt32(&processedPagesVal, 1)
+				reportProgress(fmt.Sprintf("Erro ao analisar HTML %s", f.DocName))
 				continue
 			}
-			pages = []PageData{{PageNum: 1, Text: htmlText}}
+			paginasMap["1"] = map[string]any{
+				"index":   1,
+				"ocr":     false,
+				"image":   "",
+				"content": htmlText,
+			}
+			atomic.AddInt32(&processedPagesVal, 1)
+			reportProgress(fmt.Sprintf("Processando %d/%d: %s (HTML concluído)", i+1, totalFiles, f.DocName))
 		}
 
-		fileContents[f.Name] = pages
-		log.Printf("[Pipeline] Documento %s finalizado com %d páginas", f.DocName, len(pages))
+		log.Printf("[Pipeline] Documento %s finalizado com %d páginas", f.DocName, len(paginasMap))
+		atomic.StoreInt32(&processedDocsVal, int32(i+1))
+		reportProgress(fmt.Sprintf("Concluído %d/%d: %s", i+1, totalFiles, f.DocName))
+
+		// Check for context cancellation after each document
+		if err := ctx.Err(); err != nil {
+			log.Printf("[Pipeline] Processamento cancelado após processar %s", f.DocName)
+			return "", 0, 0, err
+		}
+	}
+
+	// Double check for context cancellation before generating/writing the file
+	if err := ctx.Err(); err != nil {
+		log.Printf("[Pipeline] Processamento cancelado antes de salvar o arquivo de saída")
+		return "", 0, 0, err
 	}
 
 	// 4. Format consolidated output into XML
-	outputText := GenerateConsolidatedOutput(files, fileContents, cfg.CleaningLevel)
+	outputText := GenerateConsolidatedOutput(eventos, cfg.CleaningLevel)
 
 	// 5. Save consolidated output to the same directory
 	outputPath := strings.TrimSuffix(zipPath, filepath.Ext(zipPath)) + ".txt"
@@ -162,8 +325,14 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 
 	// Count total pages
 	totalPages := 0
-	for _, pages := range fileContents {
-		totalPages += len(pages)
+	for _, val := range eventos {
+		evData := val.(map[string]any)
+		documentosMap := evData["documentos"].(map[string]any)
+		for _, dVal := range documentosMap {
+			dData := dVal.(map[string]any)
+			paginasMap := dData["paginas"].(map[string]any)
+			totalPages += len(paginasMap)
+		}
 	}
 
 	if p.ctx != nil {

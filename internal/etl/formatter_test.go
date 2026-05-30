@@ -3,8 +3,6 @@ package etl
 import (
 	"strings"
 	"testing"
-
-	"eprocia/internal/models"
 )
 
 func TestExtractTextFromHTML(t *testing.T) {
@@ -82,22 +80,50 @@ Line 2 with text
 }
 
 func TestGenerateConsolidatedOutput(t *testing.T) {
-	files := []models.ProcessFile{
-		{DocName: "Evento 1 - INIC1.pdf", EventNum: 1, Name: "zip_path_1"},
-		{DocName: "Evento 2 - DESPACHO.pdf", EventNum: 2, Name: "zip_path_2"},
+	eventos := map[string]any{
+		"1": map[string]any{
+			"index": 1,
+			"documentos": map[string]any{
+				"zip_path_1": map[string]any{
+					"index": 1,
+					"nome":  "Evento 1 - INIC1.pdf",
+					"paginas": map[string]any{
+						"1": map[string]any{
+							"index":   1,
+							"ocr":     false,
+							"image":   "",
+							"content": "Initial petition text page 1",
+						},
+						"2": map[string]any{
+							"index":   2,
+							"ocr":     false,
+							"image":   "",
+							"content": "Initial petition text page 2",
+						},
+					},
+				},
+			},
+		},
+		"2": map[string]any{
+			"index": 2,
+			"documentos": map[string]any{
+				"zip_path_2": map[string]any{
+					"index": 1,
+					"nome":  "Evento 2 - DESPACHO.pdf",
+					"paginas": map[string]any{
+						"1": map[string]any{
+							"index":   1,
+							"ocr":     false,
+							"image":   "",
+							"content": "Judge order text page 1",
+						},
+					},
+				},
+			},
+		},
 	}
 
-	fileContents := map[string][]PageData{
-		"zip_path_1": {
-			{PageNum: 1, Text: "Initial petition text page 1"},
-			{PageNum: 2, Text: "Initial petition text page 2"},
-		},
-		"zip_path_2": {
-			{PageNum: 1, Text: "Judge order text page 1"},
-		},
-	}
-
-	output := GenerateConsolidatedOutput(files, fileContents, "basic")
+	output := GenerateConsolidatedOutput(eventos, "basic")
 
 	// Verify XML structure tags exist
 	if !strings.Contains(output, "<contexto>") || !strings.Contains(output, "</contexto>") {

@@ -102,12 +102,12 @@ func extractFS(fs embed.FS, srcDir, destDir string) error {
 }
 
 // RunOCR runs OCR on a specific page of a PDF file using the specified mode (fast, normal, best).
-func RunOCR(ctx context.Context, pdfPath string, pageNum int, mode string) (string, error) {
+func RunOCR(ctx context.Context, pdfPath string, pageNum int, mode string) (string, string, error) {
 	log.Printf("[OCR] Iniciando RunOCR para o PDF %s, página %d, modo %s", pdfPath, pageNum, mode)
 	binDir, err := InitBinaries()
 	if err != nil {
 		log.Printf("[OCR] Falha ao inicializar binários: %v", err)
-		return "", err
+		return "", "", err
 	}
 
 	tessPath := filepath.Join(binDir, "tesseract", "tesseract.exe")
@@ -116,10 +116,10 @@ func RunOCR(ctx context.Context, pdfPath string, pageNum int, mode string) (stri
 	log.Printf("[OCR] Verificando se os caminhos dos executáveis existem...")
 	// Verify paths exist
 	if _, err := os.Stat(tessPath); err != nil {
-		return "", fmt.Errorf("embedded tesseract.exe not found at %s: %w", tessPath, err)
+		return "", "", fmt.Errorf("embedded tesseract.exe not found at %s: %w", tessPath, err)
 	}
 	if _, err := os.Stat(pdfToPpmPath); err != nil {
-		return "", fmt.Errorf("embedded pdftoppm.exe not found at %s: %w", pdfToPpmPath, err)
+		return "", "", fmt.Errorf("embedded pdftoppm.exe not found at %s: %w", pdfToPpmPath, err)
 	}
 
 	// Validate mode
@@ -132,7 +132,7 @@ func RunOCR(ctx context.Context, pdfPath string, pageNum int, mode string) (stri
 	// Create temp directory for this run's images and OCR output
 	tempDir, err := os.MkdirTemp("", "eprocia_ocr_run")
 	if err != nil {
-		return "", fmt.Errorf("failed to create run temp dir: %w", err)
+		return "", "", fmt.Errorf("failed to create run temp dir: %w", err)
 	}
 	defer func() {
 		log.Printf("[OCR] Removendo pasta temporária de processamento: %s", tempDir)
@@ -158,14 +158,14 @@ func RunOCR(ctx context.Context, pdfPath string, pageNum int, mode string) (stri
 	log.Printf("[OCR] Rodando pdftoppm...")
 	if err := cmdPpm.Run(); err != nil {
 		log.Printf("[OCR] pdftoppm falhou: %v", err)
-		return "", fmt.Errorf("embedded pdftoppm failed: %w", err)
+		return "", "", fmt.Errorf("embedded pdftoppm failed: %w", err)
 	}
 	log.Printf("[OCR] pdftoppm terminou com sucesso.")
 
 	// Find the rendered PNG file
 	files, err := os.ReadDir(tempDir)
 	if err != nil {
-		return "", fmt.Errorf("failed to read run temp dir: %w", err)
+		return "", "", fmt.Errorf("failed to read run temp dir: %w", err)
 	}
 
 	var imgPath string
@@ -177,7 +177,7 @@ func RunOCR(ctx context.Context, pdfPath string, pageNum int, mode string) (stri
 	}
 
 	if imgPath == "" {
-		return "", fmt.Errorf("failed to find extracted page image in run temp dir")
+		return "", "", fmt.Errorf("failed to find extracted page image in run temp dir")
 	}
 	log.Printf("[OCR] Imagem temporária da página encontrada em: %s", imgPath)
 
@@ -212,7 +212,7 @@ func RunOCR(ctx context.Context, pdfPath string, pageNum int, mode string) (stri
 		)
 		if err := cmdTessFallback.Run(); err != nil {
 			log.Printf("[OCR] Tesseract fallback (inglês) falhou: %v", err)
-			return "", fmt.Errorf("embedded tesseract failed: %w", err)
+			return "", "", fmt.Errorf("embedded tesseract failed: %w", err)
 		}
 	}
 	log.Printf("[OCR] Tesseract OCR finalizado com sucesso.")
@@ -221,9 +221,9 @@ func RunOCR(ctx context.Context, pdfPath string, pageNum int, mode string) (stri
 	txtPath := txtOutputPrefix + ".txt"
 	contentBytes, err := os.ReadFile(txtPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read OCR output: %w", err)
+		return "", "", fmt.Errorf("failed to read OCR output: %w", err)
 	}
 
 	log.Printf("[OCR] OCR concluído. Caracteres extraídos: %d", len(contentBytes))
-	return string(contentBytes), nil
+	return string(contentBytes), imgPath, nil
 }

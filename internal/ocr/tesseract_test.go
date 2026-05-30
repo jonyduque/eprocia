@@ -68,7 +68,7 @@ func TestRunOCR(t *testing.T) {
 	}
 
 	// Run using the fast mode
-	text, err := RunOCR(context.Background(), pdfPath, 1, "fast")
+	text, _, err := RunOCR(context.Background(), pdfPath, 1, "fast")
 	if err != nil {
 		t.Fatalf("RunOCR failed: %v", err)
 	}

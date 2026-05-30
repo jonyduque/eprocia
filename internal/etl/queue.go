@@ -16,18 +16,22 @@ import (
 
 // QueueItem represents an item in the execution queue.
 type QueueItem struct {
-	ID         string             `json:"id"`
-	Name       string             `json:"name"`
-	Path       string             `json:"path"`
-	Status     string             `json:"status"` // "pending", "processing", "paused", "cancelled", "success", "error"
-	Progress   float64            `json:"progress"`
-	Message    string             `json:"message"`
-	OutputPath string             `json:"output_path"`
-	DocsCount  int                `json:"docs_count"`
-	PagesCount int                `json:"pages_count"`
-	Error      string             `json:"error,omitempty"`
-	Timestamp  int64              `json:"timestamp"`
-	cancel     context.CancelFunc `json:"-"`
+	ID             string             `json:"id"`
+	Name           string             `json:"name"`
+	Path           string             `json:"path"`
+	Status         string             `json:"status"` // "pending", "processing", "paused", "cancelled", "success", "error"
+	Progress       float64            `json:"progress"`
+	Message        string             `json:"message"`
+	OutputPath     string             `json:"output_path"`
+	DocsCount      int                `json:"docs_count"`
+	PagesCount     int                `json:"pages_count"`
+	ProcessedDocs  int                `json:"processed_docs"`
+	TotalDocs      int                `json:"total_docs"`
+	ProcessedPages int                `json:"processed_pages"`
+	TotalPages     int                `json:"total_pages"`
+	Error          string             `json:"error,omitempty"`
+	Timestamp      int64              `json:"timestamp"`
+	cancel         context.CancelFunc `json:"-"`
 }
 
 // Queue handles file processing sequentially in a thread-safe manner.
@@ -116,17 +120,21 @@ func (q *Queue) GetItems() []*QueueItem {
 	copied := make([]*QueueItem, len(q.items))
 	for i, item := range q.items {
 		copied[i] = &QueueItem{
-			ID:         item.ID,
-			Name:       item.Name,
-			Path:       item.Path,
-			Status:     item.Status,
-			Progress:   item.Progress,
-			Message:    item.Message,
-			OutputPath: item.OutputPath,
-			DocsCount:  item.DocsCount,
-			PagesCount: item.PagesCount,
-			Error:      item.Error,
-			Timestamp:  item.Timestamp,
+			ID:             item.ID,
+			Name:           item.Name,
+			Path:           item.Path,
+			Status:         item.Status,
+			Progress:       item.Progress,
+			Message:        item.Message,
+			OutputPath:     item.OutputPath,
+			DocsCount:      item.DocsCount,
+			PagesCount:     item.PagesCount,
+			ProcessedDocs:  item.ProcessedDocs,
+			TotalDocs:      item.TotalDocs,
+			ProcessedPages: item.ProcessedPages,
+			TotalPages:     item.TotalPages,
+			Error:          item.Error,
+			Timestamp:      item.Timestamp,
 		}
 	}
 	return copied
@@ -274,12 +282,17 @@ func (q *Queue) processItem(item *QueueItem) {
 
 	q.broadcast()
 
-	onProgress := func(progress float64, message string) {
-		log.Printf("[Queue] Progresso [%s]: %.2f%% - %s", item.Name, progress*100, message)
+	onProgress := func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int) {
+		log.Printf("[Queue] Progresso [%s]: %.2f%% - %s (Docs: %d/%d, Páginas: %d/%d)", 
+			item.Name, progress*100, message, processedDocs, totalDocs, processedPages, totalPages)
 		q.mu.Lock()
 		if item.Status == "processing" {
 			item.Progress = progress
 			item.Message = message
+			item.ProcessedDocs = processedDocs
+			item.TotalDocs = totalDocs
+			item.ProcessedPages = processedPages
+			item.TotalPages = totalPages
 		}
 		q.mu.Unlock()
 		q.broadcast()
@@ -327,6 +340,10 @@ func (q *Queue) processItem(item *QueueItem) {
 		item.OutputPath = outputPath
 		item.DocsCount = docsCount
 		item.PagesCount = pagesCount
+		item.ProcessedDocs = docsCount
+		item.TotalDocs = docsCount
+		item.ProcessedPages = pagesCount
+		item.TotalPages = pagesCount
 	}
 	q.mu.Unlock()
 
