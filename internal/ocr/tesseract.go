@@ -197,6 +197,8 @@ func RunOCR(ctx context.Context, pdfPath string, pageNum int, mode string) (stri
 	cmdTess.Env = append(os.Environ(), 
 		"PATH="+tesseractDir+";"+os.Getenv("PATH"),
 		"TESSDATA_PREFIX="+tessdataPath,
+		"OMP_NUM_THREADS=1",
+		"OMP_THREAD_LIMIT=1",
 	)
 
 	if err := cmdTess.Run(); err != nil {
@@ -209,6 +211,8 @@ func RunOCR(ctx context.Context, pdfPath string, pageNum int, mode string) (stri
 		cmdTessFallback.Env = append(os.Environ(), 
 			"PATH="+tesseractDir+";"+os.Getenv("PATH"),
 			"TESSDATA_PREFIX="+tessdataPath,
+			"OMP_NUM_THREADS=1",
+			"OMP_THREAD_LIMIT=1",
 		)
 		if err := cmdTessFallback.Run(); err != nil {
 			log.Printf("[OCR] Tesseract fallback (inglês) falhou: %v", err)

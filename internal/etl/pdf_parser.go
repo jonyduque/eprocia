@@ -69,7 +69,7 @@ func (p *PDFParser) ParsePages(
 	paginasMap := make(map[string]any)
 	var mapMu sync.Mutex
 
-	numWorkers := runtime.NumCPU()
+	numWorkers := runtime.NumCPU() - 1
 	if numWorkers < 1 {
 		numWorkers = 1
 	}
