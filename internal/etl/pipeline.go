@@ -8,7 +8,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	stdRuntime "runtime"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"eprocia/internal/models"
@@ -141,8 +143,21 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 		}
 	}
 
-	// OCR Runner wrapper using the internal ocr module
+	// Define active worker limits based on CPU count
+	numWorkers := stdRuntime.NumCPU() - 1
+	if numWorkers < 1 {
+		numWorkers = 1
+	}
+
+	// OCR Runner wrapper using the internal ocr module with global semaphore to limit concurrent execs
+	sem := make(chan struct{}, numWorkers)
 	ocrRunner := func(ctx context.Context, pdfPath string, pageNum int) (string, string, error) {
+		select {
+		case sem <- struct{}{}:
+		case <-ctx.Done():
+			return "", "", ctx.Err()
+		}
+		defer func() { <-sem }()
 		return ocr.RunOCR(ctx, pdfPath, pageNum, cfg.OcrMode)
 	}
 
@@ -176,129 +191,151 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 		}
 	}
 
-	// 3. Process each document
+	// 3. Process documents concurrently, bounded by docSem to prevent file descriptor/memory exhaustion
+	var wg sync.WaitGroup
+	var errParseFirst error
+	var errMu sync.Mutex
+
+	docSem := make(chan struct{}, numWorkers)
+
 	for i, f := range files {
-		// Check for context cancellation
-		if err := ctx.Err(); err != nil {
-			return "", 0, 0, err
-		}
+		wg.Add(1)
+		go func(i int, f models.ProcessFile) {
+			defer wg.Done()
 
-		progressMsg := fmt.Sprintf("Processando %d/%d: %s", i+1, totalFiles, f.DocName)
-		log.Printf("[Pipeline] %s", progressMsg)
-		reportProgress(progressMsg)
-
-		// Retrieve docData and its paginas map
-		eventKey := fmt.Sprintf("%d", f.EventNum)
-		eventData := eventos[eventKey].(map[string]any)
-		documentosMap := eventData["documentos"].(map[string]any)
-		docData := documentosMap[f.Name].(map[string]any)
-		paginasMap := docData["paginas"].(map[string]any)
-
-		zipReader, err := f.ZipFileRef.Open()
-		if err != nil {
-			paginasMap["1"] = map[string]any{
-				"index":   1,
-				"ocr":     false,
-				"image":   "",
-				"content": fmt.Sprintf("[ERRO ao abrir arquivo no ZIP: %s]", err.Error()),
+			// Acquire slot for document processing
+			select {
+			case docSem <- struct{}{}:
+			case <-ctx.Done():
+				return
 			}
-			atomic.AddInt32(&processedPagesVal, 1)
-			reportProgress(fmt.Sprintf("Erro ao abrir %s", f.DocName))
-			continue
-		}
+			defer func() { <-docSem }()
 
-		if f.Extension == ".pdf" {
-			// Extract the PDF to a temporary file since the PDF library needs io.ReaderAt and the size
-			tempPdfFile, err := os.CreateTemp("", "eprocia_pdf_*.pdf")
+			// Check for context cancellation before starting
+			if err := ctx.Err(); err != nil {
+				return
+			}
+
+			// Retrieve docData and its paginas map
+			eventKey := fmt.Sprintf("%d", f.EventNum)
+			eventData := eventos[eventKey].(map[string]any)
+			documentosMap := eventData["documentos"].(map[string]any)
+			docData := documentosMap[f.Name].(map[string]any)
+			paginasMap := docData["paginas"].(map[string]any)
+
+			zipReader, err := f.ZipFileRef.Open()
 			if err != nil {
+				paginasMap["1"] = map[string]any{
+					"index":   1,
+					"ocr":     false,
+					"image":   "",
+					"content": fmt.Sprintf("[ERRO ao abrir arquivo no ZIP: %s]", err.Error()),
+				}
+				atomic.AddInt32(&processedPagesVal, 1)
+				reportProgress(fmt.Sprintf("Erro ao abrir %s", f.DocName))
+				return
+			}
+
+			if f.Extension == ".pdf" {
+				// Extract the PDF to a temporary file since the PDF library needs io.ReaderAt and the size
+				tempPdfFile, err := os.CreateTemp("", "eprocia_pdf_*.pdf")
+				if err != nil {
+					zipReader.Close()
+					paginasMap["1"] = map[string]any{
+						"index":   1,
+						"ocr":     false,
+						"image":   "",
+						"content": fmt.Sprintf("[ERRO ao criar arquivo temporário: %s]", err.Error()),
+					}
+					atomic.AddInt32(&processedPagesVal, 1)
+					reportProgress(fmt.Sprintf("Erro de PDF temporário em %s", f.DocName))
+					return
+				}
+				tempPath := tempPdfFile.Name()
+
+				_, errCopy := io.Copy(tempPdfFile, zipReader)
+				tempPdfFile.Close()
 				zipReader.Close()
-				paginasMap["1"] = map[string]any{
-					"index":   1,
-					"ocr":     false,
-					"image":   "",
-					"content": fmt.Sprintf("[ERRO ao criar arquivo temporário: %s]", err.Error()),
+
+				if errCopy != nil {
+					os.Remove(tempPath)
+					paginasMap["1"] = map[string]any{
+						"index":   1,
+						"ocr":     false,
+						"image":   "",
+						"content": fmt.Sprintf("[ERRO ao extrair PDF temporário: %s]", errCopy.Error()),
+					}
+					atomic.AddInt32(&processedPagesVal, 1)
+					reportProgress(fmt.Sprintf("Erro de extração em %s", f.DocName))
+					return
 				}
-				atomic.AddInt32(&processedPagesVal, 1)
-				reportProgress(fmt.Sprintf("Erro de PDF temporário em %s", f.DocName))
-				continue
-			}
-			tempPath := tempPdfFile.Name()
 
-			_, errCopy := io.Copy(tempPdfFile, zipReader)
-			tempPdfFile.Close()
-			zipReader.Close()
-
-			if errCopy != nil {
+				parser := NewPDFParser(tempPath)
+				pdfPages, errParse := parser.ParsePages(ctx, cfg.OcrMode != "none", ocrRunner, func(pageNum int) {
+					atomic.AddInt32(&processedPagesVal, 1)
+					pDocs := int(atomic.LoadInt32(&processedDocsVal))
+					reportProgress(fmt.Sprintf("Processando %s (pág. %d/%d) [Docs: %d/%d]", f.DocName, pageNum, docPageCounts[f.Name], pDocs, totalFiles))
+				})
 				os.Remove(tempPath)
+
+				if errParse != nil {
+					if ctx.Err() != nil {
+						log.Printf("[Pipeline] Processamento cancelado durante a análise do PDF: %s", f.DocName)
+						errMu.Lock()
+						if errParseFirst == nil {
+							errParseFirst = ctx.Err()
+						}
+						errMu.Unlock()
+						return
+					}
+					paginasMap["1"] = map[string]any{
+						"index":   1,
+						"ocr":     false,
+						"image":   "",
+						"content": fmt.Sprintf("[ERRO ao analisar PDF: %s]", errParse.Error()),
+					}
+					return
+				}
+
+				// Copy the pages map returned by ParsePages into the document's paginas map
+				for k, v := range pdfPages {
+					paginasMap[k] = v
+				}
+			} else if f.Extension == ".html" || f.Extension == ".htm" {
+				htmlText, errParse := ExtractTextFromHTML(zipReader)
+				zipReader.Close()
+				if errParse != nil {
+					paginasMap["1"] = map[string]any{
+						"index":   1,
+						"ocr":     false,
+						"image":   "",
+						"content": fmt.Sprintf("[ERRO ao analisar HTML: %s]", errParse.Error()),
+					}
+					atomic.AddInt32(&processedPagesVal, 1)
+					reportProgress(fmt.Sprintf("Erro ao analisar HTML %s", f.DocName))
+					return
+				}
 				paginasMap["1"] = map[string]any{
 					"index":   1,
 					"ocr":     false,
 					"image":   "",
-					"content": fmt.Sprintf("[ERRO ao extrair PDF temporário: %s]", errCopy.Error()),
+					"content": htmlText,
 				}
 				atomic.AddInt32(&processedPagesVal, 1)
-				reportProgress(fmt.Sprintf("Erro de extração em %s", f.DocName))
-				continue
+				pDocs := int(atomic.LoadInt32(&processedDocsVal))
+				reportProgress(fmt.Sprintf("Processando %s (HTML concluído) [Docs: %d/%d]", f.DocName, pDocs, totalFiles))
 			}
 
-			parser := NewPDFParser(tempPath)
-			pdfPages, errParse := parser.ParsePages(ctx, cfg.OcrMode != "none", ocrRunner, func(pageNum int) {
-				atomic.AddInt32(&processedPagesVal, 1)
-				reportProgress(fmt.Sprintf("Processando %d/%d: %s (pág. %d/%d)", i+1, totalFiles, f.DocName, pageNum, docPageCounts[f.Name]))
-			})
-			os.Remove(tempPath)
+			log.Printf("[Pipeline] Documento %s finalizado com %d páginas", f.DocName, len(paginasMap))
+			pDocs := int(atomic.AddInt32(&processedDocsVal, 1))
+			reportProgress(fmt.Sprintf("Concluído %d/%d: %s", pDocs, totalFiles, f.DocName))
+		}(i, f)
+	}
 
-			if errParse != nil {
-				if ctx.Err() != nil {
-					log.Printf("[Pipeline] Processamento cancelado durante a análise do PDF: %s", f.DocName)
-					return "", 0, 0, ctx.Err()
-				}
-				paginasMap["1"] = map[string]any{
-					"index":   1,
-					"ocr":     false,
-					"image":   "",
-					"content": fmt.Sprintf("[ERRO ao analisar PDF: %s]", errParse.Error()),
-				}
-				continue
-			}
+	wg.Wait()
 
-			// Copy the pages map returned by ParsePages into the document's paginas map
-			for k, v := range pdfPages {
-				paginasMap[k] = v
-			}
-		} else if f.Extension == ".html" || f.Extension == ".htm" {
-			htmlText, errParse := ExtractTextFromHTML(zipReader)
-			zipReader.Close()
-			if errParse != nil {
-				paginasMap["1"] = map[string]any{
-					"index":   1,
-					"ocr":     false,
-					"image":   "",
-					"content": fmt.Sprintf("[ERRO ao analisar HTML: %s]", errParse.Error()),
-				}
-				atomic.AddInt32(&processedPagesVal, 1)
-				reportProgress(fmt.Sprintf("Erro ao analisar HTML %s", f.DocName))
-				continue
-			}
-			paginasMap["1"] = map[string]any{
-				"index":   1,
-				"ocr":     false,
-				"image":   "",
-				"content": htmlText,
-			}
-			atomic.AddInt32(&processedPagesVal, 1)
-			reportProgress(fmt.Sprintf("Processando %d/%d: %s (HTML concluído)", i+1, totalFiles, f.DocName))
-		}
-
-		log.Printf("[Pipeline] Documento %s finalizado com %d páginas", f.DocName, len(paginasMap))
-		atomic.StoreInt32(&processedDocsVal, int32(i+1))
-		reportProgress(fmt.Sprintf("Concluído %d/%d: %s", i+1, totalFiles, f.DocName))
-
-		// Check for context cancellation after each document
-		if err := ctx.Err(); err != nil {
-			log.Printf("[Pipeline] Processamento cancelado após processar %s", f.DocName)
-			return "", 0, 0, err
-		}
+	if errParseFirst != nil {
+		return "", 0, 0, errParseFirst
 	}
 
 	// Double check for context cancellation before generating/writing the file
