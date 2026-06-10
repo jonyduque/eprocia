@@ -85,35 +85,37 @@ func (p *PDFParser) ParsePages(
 	for w := 0; w < numWorkers; w++ {
 		go func(workerID int) {
 			for task := range tasks {
-				log.Printf("[PDFParser] [Worker %d] Iniciando OCR para página %d...", workerID, task.pageNum)
-				ocrText, imgPath, err := ocrRunner(ctx, p.filePath, task.pageNum)
-				
-				var pageData map[string]any
-				if err == nil {
-					log.Printf("[PDFParser] [Worker %d] OCR concluído para página %d (tamanho: %d)", workerID, task.pageNum, len(ocrText))
-					pageData = map[string]any{
-						"index":   task.pageNum,
-						"ocr":     true,
-						"image":   imgPath,
-						"content": ocrText,
+				func() {
+					defer wg.Done()
+					log.Printf("[PDFParser] [Worker %d] Iniciando OCR para página %d...", workerID, task.pageNum)
+					ocrText, imgPath, err := ocrRunner(ctx, p.filePath, task.pageNum)
+					
+					var pageData map[string]any
+					if err == nil {
+						log.Printf("[PDFParser] [Worker %d] OCR concluído para página %d (tamanho: %d)", workerID, task.pageNum, len(ocrText))
+						pageData = map[string]any{
+							"index":   task.pageNum,
+							"ocr":     true,
+							"image":   imgPath,
+							"content": ocrText,
+						}
+					} else {
+						log.Printf("[PDFParser] [Worker %d] Falha no OCR para página %d: %v. Usando texto nativo como fallback.", workerID, task.pageNum, err)
+						pageData = map[string]any{
+							"index":   task.pageNum,
+							"ocr":     false,
+							"image":   "",
+							"content": task.fallback,
+						}
 					}
-				} else {
-					log.Printf("[PDFParser] [Worker %d] Falha no OCR para página %d: %v. Usando texto nativo como fallback.", workerID, task.pageNum, err)
-					pageData = map[string]any{
-						"index":   task.pageNum,
-						"ocr":     false,
-						"image":   "",
-						"content": task.fallback,
-					}
-				}
 
-				mapMu.Lock()
-				paginasMap[fmt.Sprintf("%d", task.pageNum)] = pageData
-				mapMu.Unlock()
-				if onPageComplete != nil {
-					onPageComplete(task.pageNum)
-				}
-				wg.Done()
+					mapMu.Lock()
+					paginasMap[fmt.Sprintf("%d", task.pageNum)] = pageData
+					mapMu.Unlock()
+					if onPageComplete != nil {
+						onPageComplete(task.pageNum)
+					}
+				}()
 			}
 		}(w + 1)
 	}

@@ -27,26 +27,14 @@ func InitBinaries() (string, error) {
 		tempDir := filepath.Join(os.TempDir(), "eprocIA_bin")
 		log.Printf("[OCR] Inicializando diretório temporário para binários: %s", tempDir)
 		
-		// Check if pdftoppm.exe and tesseract.exe already exist with correct sizes to skip extraction
-		pdftoppmPath := filepath.Join(tempDir, "poppler", "pdftoppm.exe")
-		tesseractPath := filepath.Join(tempDir, "tesseract", "tesseract.exe")
-		
-		_, err1 := os.Stat(pdftoppmPath)
-		_, err2 := os.Stat(tesseractPath)
-		if err1 == nil && err2 == nil {
-			log.Printf("[OCR] Binários em %s já existem e parecem válidos. Pulando extração.", tempDir)
-			binDir = tempDir
-			return
-		}
-
-		log.Printf("[OCR] Binários não encontrados ou incompletos. Iniciando extração do embed.FS para %s...", tempDir)
+		log.Printf("[OCR] Iniciando verificação e extração do embed.FS para %s...", tempDir)
 		err := os.MkdirAll(tempDir, 0755)
 		if err != nil {
 			initErr = fmt.Errorf("failed to create temp bin dir: %w", err)
 			return
 		}
 
-		// Extract files recursively from the embed FS
+		// Extract files recursively from the embed FS (skips files with matching sizes)
 		err = extractFS(EmbeddedFiles, "embed", tempDir)
 		if err != nil {
 			log.Printf("[OCR] Falha ao extrair arquivos embutidos: %v", err)
@@ -54,7 +42,7 @@ func InitBinaries() (string, error) {
 			return
 		}
 
-		log.Printf("[OCR] Extração de binários concluída com sucesso no diretório: %s", tempDir)
+		log.Printf("[OCR] Verificação/extração de binários concluída com sucesso no diretório: %s", tempDir)
 		binDir = tempDir
 	})
 

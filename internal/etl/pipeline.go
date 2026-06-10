@@ -22,6 +22,7 @@ import (
 
 // Pipeline orchestrates the entire extraction process.
 type Pipeline struct {
+	mu  sync.RWMutex
 	ctx context.Context
 }
 
@@ -34,20 +35,28 @@ func NewPipeline(ctx context.Context) *Pipeline {
 
 // SetContext updates the Wails context for events.
 func (p *Pipeline) SetContext(ctx context.Context) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	p.ctx = ctx
+}
+
+func (p *Pipeline) getContext() context.Context {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.ctx
 }
 
 // ProcessZip extracts, parses, OCRs (if needed), sorts, and formats a ZIP file.
 func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int)) (string, int, int, error) {
-	if p.ctx != nil {
-		runtime.EventsEmit(p.ctx, "process:start", zipPath)
+	if wailsCtx := p.getContext(); wailsCtx != nil {
+		runtime.EventsEmit(wailsCtx, "process:start", zipPath)
 	}
 
 	// 1. Read ZIP files
 	files, rc, err := ReadZipFiles(zipPath)
 	if err != nil {
-		if p.ctx != nil {
-			runtime.EventsEmit(p.ctx, "process:error", map[string]string{
+		if wailsCtx := p.getContext(); wailsCtx != nil {
+			runtime.EventsEmit(wailsCtx, "process:error", map[string]string{
 				"file":  zipPath,
 				"error": err.Error(),
 			})
@@ -58,8 +67,8 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 
 	if len(files) == 0 {
 		errNoFiles := fmt.Errorf("no PDF or HTML documents found in ZIP")
-		if p.ctx != nil {
-			runtime.EventsEmit(p.ctx, "process:error", map[string]string{
+		if wailsCtx := p.getContext(); wailsCtx != nil {
+			runtime.EventsEmit(wailsCtx, "process:error", map[string]string{
 				"file":  zipPath,
 				"error": errNoFiles.Error(),
 			})
@@ -178,8 +187,8 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 			onProgress(progress, msg, pDocs, totalFiles, pPages, totalPagesAll)
 		}
 		
-		if p.ctx != nil {
-			runtime.EventsEmit(p.ctx, "process:progress", map[string]interface{}{
+		if wailsCtx := p.getContext(); wailsCtx != nil {
+			runtime.EventsEmit(wailsCtx, "process:progress", map[string]interface{}{
 				"file":            zipPath,
 				"progress":        progress,
 				"message":         msg,
@@ -351,8 +360,8 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 	outputPath := strings.TrimSuffix(zipPath, filepath.Ext(zipPath)) + ".txt"
 	err = os.WriteFile(outputPath, []byte(outputText), 0644)
 	if err != nil {
-		if p.ctx != nil {
-			runtime.EventsEmit(p.ctx, "process:error", map[string]string{
+		if wailsCtx := p.getContext(); wailsCtx != nil {
+			runtime.EventsEmit(wailsCtx, "process:error", map[string]string{
 				"file":  zipPath,
 				"error": fmt.Sprintf("failed to save output file: %s", err.Error()),
 			})
@@ -372,8 +381,8 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 		}
 	}
 
-	if p.ctx != nil {
-		runtime.EventsEmit(p.ctx, "process:success", map[string]interface{}{
+	if wailsCtx := p.getContext(); wailsCtx != nil {
+		runtime.EventsEmit(wailsCtx, "process:success", map[string]interface{}{
 			"file":        zipPath,
 			"output_path": outputPath,
 			"docs_count":  totalFiles,
