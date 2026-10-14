@@ -172,6 +172,14 @@
     window.removeEventListener('mouseup', stopResizing);
   }
 
+  function handleResizeKeydown(e) {
+    if (e.key === 'ArrowLeft') {
+      sidebarWidth = Math.max(280, sidebarWidth - 10);
+    } else if (e.key === 'ArrowRight') {
+      sidebarWidth = Math.min(480, sidebarWidth + 10);
+    }
+  }
+
   function toggleSidebar() {
     sidebarCollapsed = !sidebarCollapsed;
   }
@@ -317,9 +325,15 @@
       {#if !sidebarCollapsed}
         <div
           class="resize-handle"
-          role="separator"
+          role="slider"
           aria-label="Redimensionador de Menu"
+          aria-orientation="horizontal"
+          aria-valuemin="280"
+          aria-valuemax="480"
+          aria-valuenow={sidebarWidth}
+          tabindex="0"
           on:mousedown={startResizing}
+          on:keydown={handleResizeKeydown}
           class:resizing={isResizing}
         ></div>
       {/if}
@@ -743,34 +757,9 @@
     transition: border-color 0.2s, background-color 0.2s;
   }
 
-  .manual-select-btn:hover:not(.processing) {
+  .manual-select-btn:hover {
     border-color: var(--accent);
     background-color: var(--surface-hover);
-  }
-
-  .manual-select-btn.processing {
-    cursor: not-allowed;
-    background-color: rgba(59, 130, 246, 0.05);
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-
-  .manual-help {
-    font-size: 10px;
-    color: var(--text-secondary);
-    margin: 0;
-    line-height: 1.3;
-    text-align: center;
-  }
-
-  .spinner-tiny {
-    width: 12px;
-    height: 12px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    flex-shrink: 0;
   }
 
   .truncate {

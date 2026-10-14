@@ -11,6 +11,7 @@ import (
 	"eprocia/internal/config"
 	"eprocia/internal/models"
 
+	"github.com/google/uuid"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -36,21 +37,33 @@ type QueueItem struct {
 
 // Queue handles file processing sequentially in a thread-safe manner.
 type Queue struct {
-	mu        sync.RWMutex
-	items     []*QueueItem
-	pipeline  *Pipeline
-	wailsCtx  context.Context
-	isPaused  bool
-	isWorking bool
-	cfg       *models.Config
+	mu         sync.RWMutex
+	items      []*QueueItem
+	pipeline   *Pipeline
+	wailsCtx   context.Context
+	isPaused   bool
+	isWorking  bool
+	cfg        *models.Config
+	baseCtx    context.Context
+	baseCancel context.CancelFunc
 }
 
 // NewQueue creates a new Queue instance.
 func NewQueue(pipeline *Pipeline) *Queue {
+	baseCtx, baseCancel := context.WithCancel(context.Background())
 	return &Queue{
-		items:    make([]*QueueItem, 0),
-		pipeline: pipeline,
+		items:      make([]*QueueItem, 0),
+		pipeline:   pipeline,
+		baseCtx:    baseCtx,
+		baseCancel: baseCancel,
 	}
+}
+
+// Shutdown cancels the base context, stopping all in-flight and future
+// processing. Call on app shutdown so OCR/PDF subprocesses don't outlive
+// the Wails runtime.
+func (q *Queue) Shutdown() {
+	q.baseCancel()
 }
 
 // SetContext sets the Wails context for event emission.
@@ -87,7 +100,7 @@ func (q *Queue) AddFiles(paths []string) {
 
 		name := filepath.Base(path)
 		item := &QueueItem{
-			ID:        fmt.Sprintf("%s_%d", path, time.Now().UnixNano()),
+			ID:        uuid.NewString(),
 			Name:      name,
 			Path:      path,
 			Status:    "pending",
@@ -273,7 +286,7 @@ func (q *Queue) processItem(item *QueueItem) {
 	log.Printf("[Queue] Iniciando processamento do arquivo: %s", item.Path)
 
 	q.mu.Lock()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(q.baseCtx)
 	item.cancel = cancel
 	item.Status = "processing"
 	item.Message = "Iniciando..."

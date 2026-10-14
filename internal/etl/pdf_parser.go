@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"runtime"
 	"strings"
 	"sync"
 
@@ -68,63 +67,47 @@ func (p *PDFParser) ParsePages(
 	
 	paginasMap := make(map[string]any)
 	var mapMu sync.Mutex
-
-	numWorkers := runtime.NumCPU() - 1
-	if numWorkers < 1 {
-		numWorkers = 1
-	}
-	if numWorkers > numPages {
-		numWorkers = numPages
-	}
-	log.Printf("[PDFParser] Iniciando pool de %d workers concorrentes para OCR", numWorkers)
-
-	tasks := make(chan ocrTask, numPages)
 	var wg sync.WaitGroup
 
-	// Start workers
-	for w := 0; w < numWorkers; w++ {
-		go func(workerID int) {
-			for task := range tasks {
-				func() {
-					defer wg.Done()
-					log.Printf("[PDFParser] [Worker %d] Iniciando OCR para página %d...", workerID, task.pageNum)
-					ocrText, imgPath, err := ocrRunner(ctx, p.filePath, task.pageNum)
-					
-					var pageData map[string]any
-					if err == nil {
-						log.Printf("[PDFParser] [Worker %d] OCR concluído para página %d (tamanho: %d)", workerID, task.pageNum, len(ocrText))
-						pageData = map[string]any{
-							"index":   task.pageNum,
-							"ocr":     true,
-							"image":   imgPath,
-							"content": ocrText,
-						}
-					} else {
-						log.Printf("[PDFParser] [Worker %d] Falha no OCR para página %d: %v. Usando texto nativo como fallback.", workerID, task.pageNum, err)
-						pageData = map[string]any{
-							"index":   task.pageNum,
-							"ocr":     false,
-							"image":   "",
-							"content": task.fallback,
-						}
-					}
+	// Concurrency is bounded by the shared OCR semaphore passed in via
+	// ocrRunner (see Pipeline.ProcessZip), so each OCR task just blocks on
+	// that instead of going through a second, redundant worker pool here.
+	runOCRTask := func(task ocrTask) {
+		defer wg.Done()
+		log.Printf("[PDFParser] Iniciando OCR para página %d...", task.pageNum)
+		ocrText, imgPath, err := ocrRunner(ctx, p.filePath, task.pageNum)
 
-					mapMu.Lock()
-					paginasMap[fmt.Sprintf("%d", task.pageNum)] = pageData
-					mapMu.Unlock()
-					if onPageComplete != nil {
-						onPageComplete(task.pageNum)
-					}
-				}()
+		var pageData map[string]any
+		if err == nil {
+			log.Printf("[PDFParser] OCR concluído para página %d (tamanho: %d)", task.pageNum, len(ocrText))
+			pageData = map[string]any{
+				"index":   task.pageNum,
+				"ocr":     true,
+				"image":   imgPath,
+				"content": ocrText,
 			}
-		}(w + 1)
+		} else {
+			log.Printf("[PDFParser] Falha no OCR para página %d: %v. Usando texto nativo como fallback.", task.pageNum, err)
+			pageData = map[string]any{
+				"index":   task.pageNum,
+				"ocr":     false,
+				"image":   "",
+				"content": task.fallback,
+			}
+		}
+
+		mapMu.Lock()
+		paginasMap[fmt.Sprintf("%d", task.pageNum)] = pageData
+		mapMu.Unlock()
+		if onPageComplete != nil {
+			onPageComplete(task.pageNum)
+		}
 	}
 
 	for pageNum := 1; pageNum <= numPages; pageNum++ {
 		// Check for context cancellation
 		if err := ctx.Err(); err != nil {
 			log.Printf("[PDFParser] Contexto cancelado na leitura da página %d: %v", pageNum, err)
-			close(tasks)
 			wg.Wait()
 			return nil, err
 		}
@@ -172,10 +155,10 @@ func (p *PDFParser) ParsePages(
 
 		if needsOcr && ocrRunner != nil {
 			wg.Add(1)
-			tasks <- ocrTask{
+			go runOCRTask(ocrTask{
 				pageNum:  pageNum,
 				fallback: cleanText,
-			}
+			})
 		} else {
 			log.Printf("[PDFParser] Usando texto nativo para página %d (OCR habilitado: %t, precisa de OCR: %t)", pageNum, ocrEnabled, needsOcr)
 			pageData := map[string]any{
@@ -193,7 +176,6 @@ func (p *PDFParser) ParsePages(
 		}
 	}
 
-	close(tasks)
 	wg.Wait()
 
 	if err := ctx.Err(); err != nil {

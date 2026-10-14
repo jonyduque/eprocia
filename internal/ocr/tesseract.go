@@ -1,6 +1,7 @@
 package ocr
 
 import (
+	"bytes"
 	"context"
 	"embed"
 	"fmt"
@@ -75,8 +76,10 @@ func extractFS(fs embed.FS, srcDir, destDir string) error {
 				return err
 			}
 			
-			// If file exists and size matches, skip writing
-			if info, err := os.Stat(destPath); err == nil && info.Size() == int64(len(data)) {
+			// Skip writing only if the existing file's content is byte-identical
+			// (a size-only check would keep a stale binary after an upgrade that
+			// ships a same-size replacement).
+			if existing, err := os.ReadFile(destPath); err == nil && bytes.Equal(existing, data) {
 				continue
 			}
 

@@ -60,6 +60,9 @@ func (a *App) shutdown(ctx context.Context) {
 	if a.watcher != nil {
 		a.watcher.Stop()
 	}
+	if a.queue != nil {
+		a.queue.Shutdown()
+	}
 }
 
 // Show shows the main window

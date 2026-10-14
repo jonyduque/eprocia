@@ -46,6 +46,19 @@ func Load() (*models.Config, error) {
 	return LoadFromFile(path)
 }
 
+// configOverlay mirrors models.Config with pointer fields so LoadFromFile can
+// tell "key absent from JSON" apart from "key present with zero value" —
+// json.Unmarshal into a non-pointer bool can't make that distinction, which
+// would otherwise silently zero out any bool field (e.g. WatchdogEnabled)
+// that defaults to true but is missing from an older config.json.
+type configOverlay struct {
+	MonitoredPath   *string `json:"monitored_path"`
+	OcrMode         *string `json:"ocr_mode"`
+	CleaningLevel   *string `json:"cleaning_level"`
+	AutoStart       *bool   `json:"auto_start"`
+	WatchdogEnabled *bool   `json:"watchdog_enabled"`
+}
+
 // LoadFromFile loads the configuration from a specific file path.
 // If the file does not exist, it returns the default configuration.
 func LoadFromFile(path string) (*models.Config, error) {
@@ -57,25 +70,32 @@ func LoadFromFile(path string) (*models.Config, error) {
 		return nil, err
 	}
 
-	// Initialize with default values first so missing JSON fields keep their defaults.
 	cfg, err := DefaultConfig()
 	if err != nil {
 		return nil, err
 	}
 
-	if err := json.Unmarshal(data, cfg); err != nil {
+	var overlay configOverlay
+	if err := json.Unmarshal(data, &overlay); err != nil {
 		return nil, err
 	}
 
-	// Post-unmarshal checks for fields that shouldn't be empty
-	if cfg.MonitoredPath == "" {
-		def, err := DefaultConfig()
-		if err == nil {
-			cfg.MonitoredPath = def.MonitoredPath
-		}
+	// Only override defaults for keys actually present (and non-empty, for
+	// strings) in the file.
+	if overlay.MonitoredPath != nil && *overlay.MonitoredPath != "" {
+		cfg.MonitoredPath = *overlay.MonitoredPath
 	}
-	if cfg.CleaningLevel == "" {
-		cfg.CleaningLevel = "basic"
+	if overlay.OcrMode != nil {
+		cfg.OcrMode = *overlay.OcrMode
+	}
+	if overlay.CleaningLevel != nil && *overlay.CleaningLevel != "" {
+		cfg.CleaningLevel = *overlay.CleaningLevel
+	}
+	if overlay.AutoStart != nil {
+		cfg.AutoStart = *overlay.AutoStart
+	}
+	if overlay.WatchdogEnabled != nil {
+		cfg.WatchdogEnabled = *overlay.WatchdogEnabled
 	}
 
 	return cfg, nil

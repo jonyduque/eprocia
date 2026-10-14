@@ -1,7 +1,6 @@
 package etl
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -79,30 +78,57 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 	// 2. Sort documents chronologically and naturally
 	SortProcessFiles(files)
 
-	// Pre-calculate total pages across all files to show accurate progress
+	// Pre-calculate total pages across all files to show accurate progress.
+	// PDFs are extracted to a temp file here (once) and reused by the
+	// per-document goroutines below, instead of re-reading them from the zip
+	// a second time.
 	totalFiles := len(files)
 	totalPagesAll := 0
 	docPageCounts := make(map[string]int) // keep track of pages per file
+	docTempFiles := make(map[string]string)
+	var tempFilesMu sync.Mutex
 
 	for _, f := range files {
 		if f.Extension == ".pdf" {
-			pagesCount, err := func() (int, error) {
+			pagesCount, tempPath, err := func() (int, string, error) {
 				zr, err := f.ZipFileRef.Open()
 				if err != nil {
-					return 0, err
+					return 0, "", err
 				}
 				defer zr.Close()
 
-				var buf bytes.Buffer
-				if _, err := io.Copy(&buf, zr); err != nil {
-					return 0, err
+				tempPdfFile, err := os.CreateTemp("", "eprocia_pdf_*.pdf")
+				if err != nil {
+					return 0, "", err
+				}
+				tPath := tempPdfFile.Name()
+
+				if _, err := io.Copy(tempPdfFile, zr); err != nil {
+					tempPdfFile.Close()
+					os.Remove(tPath)
+					return 0, "", err
+				}
+				tempPdfFile.Close()
+
+				pf, err := os.Open(tPath)
+				if err != nil {
+					os.Remove(tPath)
+					return 0, "", err
+				}
+				defer pf.Close()
+
+				stat, err := pf.Stat()
+				if err != nil {
+					os.Remove(tPath)
+					return 0, "", err
 				}
 
-				reader, err := pdf.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+				reader, err := pdf.NewReader(pf, stat.Size())
 				if err != nil {
-					return 0, err
+					os.Remove(tPath)
+					return 0, "", err
 				}
-				return reader.NumPage(), nil
+				return reader.NumPage(), tPath, nil
 			}()
 			if err != nil {
 				log.Printf("[Pipeline] Erro ao pré-calcular páginas para %s: %v", f.DocName, err)
@@ -111,6 +137,9 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 			} else {
 				docPageCounts[f.Name] = pagesCount
 				totalPagesAll += pagesCount
+				tempFilesMu.Lock()
+				docTempFiles[f.Name] = tempPath
+				tempFilesMu.Unlock()
 			}
 		} else {
 			docPageCounts[f.Name] = 1
@@ -232,51 +261,57 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 			docData := documentosMap[f.Name].(map[string]any)
 			paginasMap := docData["paginas"].(map[string]any)
 
-			zipReader, err := f.ZipFileRef.Open()
-			if err != nil {
-				paginasMap["1"] = map[string]any{
-					"index":   1,
-					"ocr":     false,
-					"image":   "",
-					"content": fmt.Sprintf("[ERRO ao abrir arquivo no ZIP: %s]", err.Error()),
-				}
-				atomic.AddInt32(&processedPagesVal, 1)
-				reportProgress(fmt.Sprintf("Erro ao abrir %s", f.DocName))
-				return
-			}
-
 			if f.Extension == ".pdf" {
-				// Extract the PDF to a temporary file since the PDF library needs io.ReaderAt and the size
-				tempPdfFile, err := os.CreateTemp("", "eprocia_pdf_*.pdf")
-				if err != nil {
-					zipReader.Close()
-					paginasMap["1"] = map[string]any{
-						"index":   1,
-						"ocr":     false,
-						"image":   "",
-						"content": fmt.Sprintf("[ERRO ao criar arquivo temporário: %s]", err.Error()),
-					}
-					atomic.AddInt32(&processedPagesVal, 1)
-					reportProgress(fmt.Sprintf("Erro de PDF temporário em %s", f.DocName))
-					return
-				}
-				tempPath := tempPdfFile.Name()
+				tempFilesMu.Lock()
+				tempPath, hasPreExtracted := docTempFiles[f.Name]
+				tempFilesMu.Unlock()
 
-				_, errCopy := io.Copy(tempPdfFile, zipReader)
-				tempPdfFile.Close()
-				zipReader.Close()
-
-				if errCopy != nil {
-					os.Remove(tempPath)
-					paginasMap["1"] = map[string]any{
-						"index":   1,
-						"ocr":     false,
-						"image":   "",
-						"content": fmt.Sprintf("[ERRO ao extrair PDF temporário: %s]", errCopy.Error()),
+				if !hasPreExtracted {
+					// Fallback: the pre-scan pass couldn't extract this file (rare); extract it now.
+					zr, err := f.ZipFileRef.Open()
+					if err != nil {
+						paginasMap["1"] = map[string]any{
+							"index":   1,
+							"ocr":     false,
+							"image":   "",
+							"content": fmt.Sprintf("[ERRO ao abrir arquivo no ZIP: %s]", err.Error()),
+						}
+						atomic.AddInt32(&processedPagesVal, 1)
+						reportProgress(fmt.Sprintf("Erro ao abrir %s", f.DocName))
+						return
 					}
-					atomic.AddInt32(&processedPagesVal, 1)
-					reportProgress(fmt.Sprintf("Erro de extração em %s", f.DocName))
-					return
+
+					tempPdfFile, err := os.CreateTemp("", "eprocia_pdf_*.pdf")
+					if err != nil {
+						zr.Close()
+						paginasMap["1"] = map[string]any{
+							"index":   1,
+							"ocr":     false,
+							"image":   "",
+							"content": fmt.Sprintf("[ERRO ao criar arquivo temporário: %s]", err.Error()),
+						}
+						atomic.AddInt32(&processedPagesVal, 1)
+						reportProgress(fmt.Sprintf("Erro de PDF temporário em %s", f.DocName))
+						return
+					}
+					tempPath = tempPdfFile.Name()
+
+					_, errCopy := io.Copy(tempPdfFile, zr)
+					tempPdfFile.Close()
+					zr.Close()
+
+					if errCopy != nil {
+						os.Remove(tempPath)
+						paginasMap["1"] = map[string]any{
+							"index":   1,
+							"ocr":     false,
+							"image":   "",
+							"content": fmt.Sprintf("[ERRO ao extrair PDF temporário: %s]", errCopy.Error()),
+						}
+						atomic.AddInt32(&processedPagesVal, 1)
+						reportProgress(fmt.Sprintf("Erro de extração em %s", f.DocName))
+						return
+					}
 				}
 
 				parser := NewPDFParser(tempPath)
@@ -311,6 +346,19 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 					paginasMap[k] = v
 				}
 			} else if f.Extension == ".html" || f.Extension == ".htm" {
+				zipReader, err := f.ZipFileRef.Open()
+				if err != nil {
+					paginasMap["1"] = map[string]any{
+						"index":   1,
+						"ocr":     false,
+						"image":   "",
+						"content": fmt.Sprintf("[ERRO ao abrir arquivo no ZIP: %s]", err.Error()),
+					}
+					atomic.AddInt32(&processedPagesVal, 1)
+					reportProgress(fmt.Sprintf("Erro ao abrir %s", f.DocName))
+					return
+				}
+
 				htmlText, errParse := ExtractTextFromHTML(zipReader)
 				zipReader.Close()
 				if errParse != nil {
@@ -342,6 +390,14 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 	}
 
 	wg.Wait()
+
+	// Safety net: remove any pre-extracted temp files whose goroutine never
+	// ran to completion (e.g. cancelled before it could clean up after itself).
+	tempFilesMu.Lock()
+	for _, tp := range docTempFiles {
+		os.Remove(tp)
+	}
+	tempFilesMu.Unlock()
 
 	if errParseFirst != nil {
 		return "", 0, 0, errParseFirst
