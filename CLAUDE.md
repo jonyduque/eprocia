@@ -14,7 +14,8 @@ Product spec: `PRD.md`. Visual/UX spec: `DESIGN.md`. Both in Portuguese.
 # Dev (hot reload for both Go and Svelte frontend)
 wails dev
 
-# Production build -> build/bin/
+# Production build -> build/bin/ (Wails CLI must be built with x/tools > v0.30.0
+# to work under Go 1.27; see "Harness de revisão" below)
 wails build
 
 # Go tests (whole repo)
@@ -29,9 +30,12 @@ cd frontend && npm run dev
 cd frontend && npm run build
 
 go vet ./...
+
+# Harness tests (hooks, statusline, workflows, visual stubs)
+node --test .claude/hooks/hooks.test.mjs .claude/statusline.test.mjs .claude/workflows/workflows.test.mjs scripts/visual/estados.test.mjs
 ```
 
-There is no repo-level lint config beyond `go vet`; no frontend test suite.
+There is no repo-level lint config beyond `go vet`; no frontend test suite. `go test ./...` includes `scripts/bench`, whose `TestFixtures_LegibleToOCR` runs the real OCR (a few seconds; skipped with `-short`).
 
 ## Architecture
 
@@ -61,3 +65,29 @@ There is no repo-level lint config beyond `go vet`; no frontend test suite.
 - All Go log lines and most UI strings/errors are in Portuguese (pt-BR) — match that when adding logs/user-facing text.
 - `models.ProcessFile.ZipFileRef` holds a live `*zip.File`; the underlying `zip.ReadCloser` is closed by the caller of `ReadZipFiles` (`defer rc.Close()` in `Pipeline.ProcessZip`) — don't read from a `ProcessFile` after that scope ends.
 - The `eventos` map built in `Pipeline.ProcessZip` is `map[string]any` with nested nested nested `any` maps (event → documentos → paginas), pre-populated single-threaded before the concurrent document loop so each goroutine only writes into its own pre-existing leaf map — don't add new top-level map keys from inside a goroutine, only from the pre-population step.
+
+## Harness de revisão
+
+The repo carries a Claude Code harness for a general review and for fixing the findings the user approves. Spec: `docs/superpowers/specs/2026-10-15-harness-revisao-design.md`.
+
+- `/revisar [backend|frontend|tudo] [lentes=EF,...]` runs the `eprocia-revisao` workflow: one read-only reviewer per lens (backend EF, ES, GM, TE, RN; frontend VI, AN, RS, AC, DF), visual captures with fictitious data, one skeptic per lens, and a synthesis that writes `docs/revisao/AAAA-MM-DD-relatorio.md` with stable ids (`B-EF-03`, `F-RS-01`). Nothing is fixed at this stage.
+- `/corrigir <ids|todos>` runs the `eprocia-corrigir` workflow on branch `revisao/AAAA-MM-DD`: toolchain Step 0 and the Svelte 5 migration as prerequisites, then, per id, a fresh implementer (TDD), gates, a fresh reviewer, up to 3 attempts, and one commit `fix(<camada>): <título> [<id>]`. It never pushes or merges.
+- Configuration lives in `.claude/review.json` (lenses, files, capture matrix, benchmark thresholds, fix order). Agents are in `.claude/agents/`, skills in `.claude/skills/` (`eprocia-build`, `eprocia-bench`, `eprocia-visual`, `eprocia-icone`), scripts in `scripts/{build,bench,visual,icone}`.
+- Gates: `pwsh scripts/build/gate.ps1` (vet, `test -race`, `wails build`, 5 s smoke of the exe it started); benchmarks with `-count=10` compared by benchstat, accepted only with p < 0.05 and no other metric worse than 5%; visual before/after captures plus `svelte-check` and `npm run build`.
+- Progress for the status line is in `docs/revisao/estado.json` (git-ignored).
+
+Hooks (`.claude/settings.json`, logic in `.claude/hooks/*.mjs`):
+
+- `proteger-gerados` blocks edits to `frontend/src/wailsjs/**`, `frontend/dist/**`, `internal/ocr/embed/**` and `build/bin/**`.
+- `proteger-dados` blocks `git add`/`git commit` of `*.zip`, `*.pdf`, processing `.txt` outputs and anything under `EPROCIA_BENCH_DIR`, including broad `git add -A`/`.` when such files are not ignored. The synthetic fixtures in `scripts/bench/fixtures/` are allowed.
+- `guarda-bench` warns when `go test -bench` runs with `-count` below 6.
+- `go-check` reports `gofmt -l` and `go vet` for each edited `.go` file; `front-check` runs `svelte-check` for edited frontend files once it is installed.
+- `ambiente` prints, at session start, the Go version, whether the Wails CLI works with Go 1.27, whether eprocia.exe is running, and whether `EPROCIA_BENCH_DIR` is set.
+
+Known traps (fixed on 2026-10-14; keep them fixed):
+
+- `github.com/dslipak/pdf` loops forever when a page's `/Contents` is an array, missing or corrupt, and panics on unsupported filters. `checkContentStream` and the `recover` in `internal/etl/pdf_parser.go` guard against it.
+- `getlantern/systray` on Windows needs ICO data; a PNG fails with `Unable to set icon` and leaves no way to reopen or quit a hidden window.
+- `tesseract.exe` and `pdftoppm.exe` started from the GUI app need `CREATE_NO_WINDOW` (`internal/ocr/proc_windows.go`), or every OCR'd page flashes a console window.
+- Pages whose text is drawn as vector outlines (iLovePDF) have no native text and no large images; `HasDrawnContent` sends them to OCR.
+- The published Wails CLI v2.12.0 is built with `x/tools v0.30.0` and fails under Go 1.27 with `package "bytes" without types was imported`. Rebuild it with `pwsh scripts/build/recompilar-wails.ps1` (or fall back to `GOTOOLCHAIN=go1.25.5 wails build`).

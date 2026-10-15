@@ -24,3 +24,9 @@ frontend/wailsjs/
 .DS_Store
 .idea/
 .vscode/
+
+# Review harness (see CLAUDE.md, "Harness de revisão")
+docs/revisao/estado.json
+docs/revisao/capturas/**/tmp/
+scripts/bench/*.txt
+*.prof
