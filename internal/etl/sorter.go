@@ -2,6 +2,7 @@ package etl
 
 import (
 	"archive/zip"
+	"math"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -13,38 +14,71 @@ import (
 
 var eventRegex = regexp.MustCompile(`(?i)evento\s+(\d+)`)
 
+// docNumRegex captures the document number that closes an Eproc file name
+// (e.g. the "3" in "Evento 1 - COMP3.pdf" or "Evento 12 - PROC_VIRTUAL_3.pdf").
+var docNumRegex = regexp.MustCompile(`(\d+)\.[A-Za-z0-9]+$`)
+
+// coverRegex matches the process cover page, which must always come first.
+var coverRegex = regexp.MustCompile(`(?i)^capa do processo\.pdf$`)
+
+const (
+	// noEventNum is the sort key of files without an "Evento N" prefix; they go last.
+	noEventNum = 999999
+	// noDocNum is the sort key of files without a trailing document number.
+	noDocNum = math.MaxInt32
+)
+
 // ParseFileInfo extracts metadata from a zip.File to build a ProcessFile.
+//
+// Ordering keys, per the spec (§3.2): the cover ("Capa do processo.pdf") is
+// event 0; "Evento N" files use N as event and the trailing number as the
+// document ID; anything else is sent to the end.
 func ParseFileInfo(f *zip.File) models.ProcessFile {
 	name := filepath.Base(f.Name)
 	ext := strings.ToLower(filepath.Ext(name))
 
-	// Try to match "Evento X"
-	matches := eventRegex.FindStringSubmatch(name)
-	eventNum := 999999 // Fallback to a high value so unmatched files go to the end
-	if len(matches) > 1 {
-		if val, err := strconv.Atoi(matches[1]); err == nil {
+	eventNum := noEventNum
+	docNum := noDocNum
+
+	if coverRegex.MatchString(name) {
+		eventNum, docNum = 0, 0
+	} else if loc := eventRegex.FindStringSubmatchIndex(name); loc != nil {
+		if val, err := strconv.Atoi(name[loc[2]:loc[3]]); err == nil {
 			eventNum = val
+		}
+		// Search only after the "Evento N" prefix so the event number is never
+		// mistaken for the document number (e.g. "Evento 5.pdf").
+		if m := docNumRegex.FindStringSubmatch(name[loc[1]:]); m != nil {
+			if val, err := strconv.Atoi(m[1]); err == nil {
+				docNum = val
+			}
 		}
 	}
 
 	return models.ProcessFile{
 		Name:       f.Name,
 		EventNum:   eventNum,
+		DocNum:     docNum,
 		DocName:    name,
 		Extension:  ext,
 		ZipFileRef: f,
 	}
 }
 
-// SortProcessFiles sorts process files chronologically (by event number) and naturally.
+// SortProcessFiles sorts process files chronologically: by event number, then
+// by document number inside the event, falling back to a natural name compare.
 func SortProcessFiles(files []models.ProcessFile) {
 	sort.Slice(files, func(i, j int) bool {
 		if files[i].EventNum != files[j].EventNum {
 			return files[i].EventNum < files[j].EventNum
 		}
+		if files[i].DocNum != files[j].DocNum {
+			return files[i].DocNum < files[j].DocNum
+		}
 		return CompareNatural(files[i].DocName, files[j].DocName)
 	})
 }
+
 
 // CompareNatural compares two strings naturally (runs of digits compared as numbers).
 func CompareNatural(a, b string) bool {

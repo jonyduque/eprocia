@@ -116,3 +116,76 @@ func TestReadZipFiles(t *testing.T) {
 		t.Errorf("expected index 1 to be Evento 2 - DESPACHO.pdf, got %s", processFiles[1].DocName)
 	}
 }
+
+// zipFileNamed builds an in-memory zip entry so ParseFileInfo can be exercised.
+func zipFileNamed(t *testing.T, name string) *zip.File {
+	t.Helper()
+	buf := new(bytes.Buffer)
+	zw := zip.NewWriter(buf)
+	if _, err := zw.Create(name); err != nil {
+		t.Fatalf("failed to create zip entry: %v", err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatalf("failed to close zip writer: %v", err)
+	}
+	zr, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	if err != nil {
+		t.Fatalf("failed to reopen zip: %v", err)
+	}
+	return zr.File[0]
+}
+
+func TestParseFileInfo_DocNumAndCover(t *testing.T) {
+	tests := []struct {
+		name       string
+		wantEvent  int
+		wantDocNum int
+	}{
+		{"Evento 1 - INIC1.pdf", 1, 1},
+		{"Evento 12 - PROC_VIRTUAL_3.pdf", 12, 3},
+		{"Evento 7 - SENTENCA10.html", 7, 10},
+		{"Capa do processo.pdf", 0, 0},
+		{"pasta/Capa do processo.pdf", 0, 0},
+		{"Evento 5 - DESPACHO.pdf", 5, noDocNum},
+		{"Outro arquivo.pdf", noEventNum, noDocNum},
+	}
+
+	for _, tt := range tests {
+		got := ParseFileInfo(zipFileNamed(t, tt.name))
+		if got.EventNum != tt.wantEvent || got.DocNum != tt.wantDocNum {
+			t.Errorf("ParseFileInfo(%q) = event %d, doc %d; want event %d, doc %d",
+				tt.name, got.EventNum, got.DocNum, tt.wantEvent, tt.wantDocNum)
+		}
+	}
+}
+
+func TestSortProcessFiles_OrdersByDocumentNumberWithinEvent(t *testing.T) {
+	names := []string{
+		"Evento 1 - COMP3.pdf",
+		"Outro arquivo.pdf",
+		"Evento 1 - PROC2.pdf",
+		"Evento 2 - DESPACHO4.pdf",
+		"Capa do processo.pdf",
+		"Evento 1 - INIC1.pdf",
+	}
+	var files []models.ProcessFile
+	for _, n := range names {
+		files = append(files, ParseFileInfo(zipFileNamed(t, n)))
+	}
+
+	SortProcessFiles(files)
+
+	want := []string{
+		"Capa do processo.pdf",
+		"Evento 1 - INIC1.pdf",
+		"Evento 1 - PROC2.pdf",
+		"Evento 1 - COMP3.pdf",
+		"Evento 2 - DESPACHO4.pdf",
+		"Outro arquivo.pdf",
+	}
+	for i, f := range files {
+		if f.DocName != want[i] {
+			t.Errorf("at index %d: expected %s, got %s", i, want[i], f.DocName)
+		}
+	}
+}

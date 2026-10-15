@@ -2,10 +2,66 @@ package etl
 
 import (
 	"fmt"
+	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
 )
+
+
+// pageMarkerRegex matches a line that is *only* a page marker, such as
+// "Página 12 de 35", "Pág. 3/10" or "página 4". Anchoring the whole line keeps
+// legitimate sentences that merely mention the word "página" intact.
+var pageMarkerRegex = regexp.MustCompile(`(?i)^p[áa]g(ina|\.)?\s*\d+(\s*(de|/)\s*\d+)?$`)
+
+// signaturePrefixes are boilerplate openers of digital-signature footers.
+// Only lines that *start* with them are dropped, never prose that mentions them.
+var signaturePrefixes = []string{
+	"documento assinado",
+	"assinatura eletrônica",
+	"assinatura eletronica",
+}
+
+// isBoilerplateLine reports whether a trimmed line is a page marker or a
+// digital-signature footer (aggressive cleaning only).
+func isBoilerplateLine(trimmed string) bool {
+	if pageMarkerRegex.MatchString(trimmed) {
+		return true
+	}
+	lower := strings.ToLower(trimmed)
+	for _, prefix := range signaturePrefixes {
+		if strings.HasPrefix(lower, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// escapeAttr escapes a value for safe use inside a double-quoted XML attribute.
+func escapeAttr(s string) string {
+	return attrEscaper.Replace(s)
+}
+
+var attrEscaper = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;")
+
+// eventPrefixRegex matches the "Evento N - " opener of an Eproc file name.
+var eventPrefixRegex = regexp.MustCompile(`(?i)^evento\s+\d+\s*-\s*`)
+
+// summaryDocName turns "Evento 1 - INIC1.pdf" into "INIC1" for the summary
+// line, which already prints the event number itself (PRD §6).
+func summaryDocName(nome string) string {
+	base := strings.TrimSuffix(nome, filepath.Ext(nome))
+	return eventPrefixRegex.ReplaceAllString(base, "")
+}
+
+// pageCountLabel renders "1 página" / "N páginas".
+func pageCountLabel(n int) string {
+	if n == 1 {
+		return "1 página"
+	}
+	return fmt.Sprintf("%d páginas", n)
+}
 
 // CleanText cleans text based on the configured cleaning level (none, basic, aggressive).
 func CleanText(text string, level string) string {
@@ -22,15 +78,9 @@ func CleanText(text string, level string) string {
 			continue
 		}
 
-		if level == "aggressive" {
-			// Aggressive cleaning: remove headers, footers, repetitive metadata
-			lower := strings.ToLower(trimmed)
-			if strings.Contains(lower, "página") || strings.Contains(lower, "pagina") {
-				continue
-			}
-			if strings.Contains(lower, "documento assinado") || strings.Contains(lower, "assinatura eletrônica") {
-				continue
-			}
+		// Aggressive cleaning: drop whole-line headers/footers/signatures only.
+		if level == "aggressive" && isBoilerplateLine(trimmed) {
+			continue
 		}
 
 		cleanedLines = append(cleanedLines, trimmed)
@@ -42,6 +92,7 @@ func CleanText(text string, level string) string {
 	}
 	return strings.Join(cleanedLines, "\n")
 }
+
 
 // GenerateConsolidatedOutput formats all extracted process data into structured XML tags.
 func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) string {
@@ -96,7 +147,7 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) st
 		})
 
 		for _, d := range docs {
-			sb.WriteString(fmt.Sprintf("    - Evento %d - %s: %d páginas\n", num, d.nome, d.pages))
+			sb.WriteString(fmt.Sprintf("    - Evento %d - %s: %s\n", num, summaryDocName(d.nome), pageCountLabel(d.pages)))
 		}
 	}
 	sb.WriteString("    </summary>\n")
@@ -128,7 +179,7 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) st
 		})
 
 		for _, d := range docs {
-			sb.WriteString(fmt.Sprintf("    <documento index=\"%d\" nome=\"%s\">\n", d.index, d.nome))
+			sb.WriteString(fmt.Sprintf("    <documento index=\"%d\" nome=\"%s\">\n", d.index, escapeAttr(d.nome)))
 
 			// Sort pages of this document numerically
 			type pageEntry struct {

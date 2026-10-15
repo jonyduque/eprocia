@@ -13,10 +13,12 @@ type Config struct {
 
 // ProcessFile represents a single judicial process file within a ZIP archive.
 type ProcessFile struct {
-	Name         string    `json:"name"`
-	EventNum     int       `json:"event_num"`
-	DocName      string    `json:"doc_name"`
-	Extension    string    `json:"extension"`
-	ZipFileRef   *zip.File `json:"-"`
+	Name       string    `json:"name"`
+	EventNum   int       `json:"event_num"`
+	DocNum     int       `json:"doc_num"` // document ID inside the event (2nd sort level)
+	DocName    string    `json:"doc_name"`
+	Extension  string    `json:"extension"`
+	ZipFileRef *zip.File `json:"-"`
 }
+
 

@@ -3,6 +3,7 @@ package etl
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -146,8 +147,9 @@ func (p *PDFParser) ParsePages(
 			if len(cleanText) < 100 {
 				log.Printf("[PDFParser] Texto nativo da página %d é muito curto (%d chars). Verificando se há imagens...", pageNum, len(cleanText))
 				hasImages := HasImages(page)
-				log.Printf("[PDFParser] Página %d possui imagens: %t", pageNum, hasImages)
-				if hasImages {
+				hasDrawn := !hasImages && HasDrawnContent(page)
+				log.Printf("[PDFParser] Página %d possui imagens: %t, conteúdo vetorial: %t", pageNum, hasImages, hasDrawn)
+				if hasImages || hasDrawn {
 					needsOcr = true
 				}
 			}
@@ -187,8 +189,81 @@ func (p *PDFParser) ParsePages(
 	return paginasMap, nil
 }
 
+// drawnContentMinBytes is the decoded content-stream size above which a page
+// with no native text is assumed to draw text some other way. Blank pages and
+// pages with a few rules or logos stay well below it.
+const drawnContentMinBytes = 4096
+
+// HasDrawnContent reports whether the page paints a substantial amount of
+// content. Some generators (e.g. iLovePDF) draw text as vector outlines with no
+// fonts and no images; such pages have no native text but are readable by OCR.
+func HasDrawnContent(page pdf.Page) (drawn bool) {
+	// The PDF library panics on unsupported filters; treat that as "unknown".
+	defer func() {
+		if recover() != nil {
+			drawn = false
+		}
+	}()
+
+	contents := page.V.Key("Contents")
+	streams := []pdf.Value{contents}
+	if contents.Kind() == pdf.Array {
+		streams = streams[:0]
+		for i := 0; i < contents.Len(); i++ {
+			streams = append(streams, contents.Index(i))
+		}
+	}
+
+	var total int64
+	for _, s := range streams {
+		if s.Kind() != pdf.Stream {
+			continue
+		}
+		rc := s.Reader()
+		n, _ := io.Copy(io.Discard, rc)
+		rc.Close()
+		total += n
+		if total >= drawnContentMinBytes {
+			return true
+		}
+	}
+	return false
+}
+
+// checkContentStream verifies that the page content is a single, fully readable
+// stream. The PDF library only interprets that shape: for a /Contents array
+// (valid PDF, emitted e.g. by "Microsoft: Print To PDF"), a missing /Contents or
+// a corrupt stream, its lexer swallows the read error and spins forever.
+func checkContentStream(page pdf.Page) error {
+	contents := page.V.Key("Contents")
+	if contents.Kind() != pdf.Stream {
+		return fmt.Errorf("conteúdo da página não é um stream único (kind %v)", contents.Kind())
+	}
+	rc := contents.Reader()
+	defer rc.Close()
+	if _, err := io.Copy(io.Discard, rc); err != nil {
+		return fmt.Errorf("stream de conteúdo ilegível: %w", err)
+	}
+	return nil
+}
+
 // ExtractNativeText extracts plain text from a pdf.Page using GetTextByRow as preferred layout option.
-func ExtractNativeText(page pdf.Page) (string, error) {
+// Pages the PDF library cannot interpret yield an error (never a hang or a panic),
+// so the caller treats them as having no native text and may fall back to OCR.
+func ExtractNativeText(page pdf.Page) (text string, err error) {
+	// The library panics on unsupported filters and malformed objects; this runs
+	// in a per-document goroutine, where an unrecovered panic kills the app.
+	defer func() {
+		if r := recover(); r != nil {
+			text, err = "", fmt.Errorf("pânico na extração de texto nativo: %v", r)
+		}
+	}()
+
+	if err := checkContentStream(page); err != nil {
+		log.Printf("[PDFParser] Extração nativa ignorada: %v", err)
+		return "", err
+	}
+
 	log.Printf("[PDFParser] Chamando page.GetTextByRow()...")
 	rows, err := page.GetTextByRow()
 	if err != nil {
