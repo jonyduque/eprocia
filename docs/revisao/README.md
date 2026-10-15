@@ -11,7 +11,7 @@ Saídas do harness de revisão (`/revisar` e `/corrigir`, ver `CLAUDE.md`).
 ```json
 {
   "relatorio": "docs/revisao/2026-10-15-relatorio.md",
-  "fase": "lentes | visual | refutacao | sintese | correcao | concluida",
+  "fase": "lentes | aguardando-aprovacao | correcao | concluida",
   "ids": { "B-EF-01": "pendente | feito | bloqueado | pulado" }
 }
 ```
