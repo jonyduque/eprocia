@@ -95,7 +95,7 @@
     "tamanhos": [[800, 600], [1024, 768], [1440, 900], [1920, 1080]],
     "temas": ["escuro", "claro"],
     "estados": ["vazio", "fila", "processando", "erro", "configuracoes"],
-    "divisor": ["minimo", "maximo"],
+    "divisor": ["minimo", "maximo", "recolhido"],
     "saida": "docs/revisao/capturas"
   },
   "bench": {
