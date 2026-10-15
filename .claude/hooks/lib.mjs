@@ -22,10 +22,13 @@ export function normalizar(p, raiz = RAIZ) {
   if (!p) return '';
   // Git Bash style /c/Users/... becomes c:/Users/...
   let s = String(p).replace(/\\/g, '/').replace(/^\/([a-z])\//i, '$1:/');
+  // Resolve "." and ".." so "frontend/src/../dist/x" cannot dodge a prefix check.
+  s = path.posix.normalize(s);
   const r = raiz.replace(/\\/g, '/').replace(/\/$/, '');
   if (/^[a-z]:\//i.test(s) || s.startsWith('/')) {
     if (s.toLowerCase().startsWith(r.toLowerCase() + '/')) s = s.slice(r.length + 1);
   }
+  if (s === '.' || s === './') return '.';
   return s.replace(/^\.\//, '').toLowerCase();
 }
 
@@ -36,18 +39,20 @@ export function caminhoDoEvento(evento) {
 }
 
 // responder applies an avaliar() result: exit 2 to block, JSON context otherwise.
+// It sets process.exitCode instead of calling process.exit, so writes to a pipe
+// (asynchronous on Windows) are flushed before the process ends.
 export function responder(resultado, nomeEvento) {
-  if (!resultado) process.exit(0);
+  if (!resultado) return;
   if (resultado.codigo === 2) {
     process.stderr.write(resultado.stderr + '\n');
-    process.exit(2);
+    process.exitCode = 2;
+    return;
   }
   if (resultado.contexto) {
     process.stdout.write(JSON.stringify({
       hookSpecificOutput: { hookEventName: nomeEvento, additionalContext: resultado.contexto },
     }));
   }
-  process.exit(0);
 }
 
 export function ehScriptPrincipal(metaUrl) {
@@ -59,10 +64,10 @@ export async function executar(metaUrl, nomeEvento, avaliar, criarCtx = () => ({
   if (!ehScriptPrincipal(metaUrl)) return;
   try {
     const evento = await lerEvento();
-    if (!evento) process.exit(0);
+    if (!evento) return;
     responder(await avaliar(evento, await criarCtx(evento)), nomeEvento);
   } catch (err) {
     process.stderr.write(`[hook] erro interno ignorado: ${err.message}\n`);
-    process.exit(0);
+    process.exitCode = 0;
   }
 }

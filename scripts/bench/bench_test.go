@@ -11,8 +11,10 @@ package bench
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
@@ -96,7 +98,12 @@ func copyToTemp(b *testing.B, src string) string {
 	b.Helper()
 	data, err := os.ReadFile(src)
 	if err != nil {
-		b.Fatalf("falha ao ler %s: %v", src, err)
+		// Only the cause: the path may hold a real process name (EPROCIA_BENCH_DIR).
+		var pe *fs.PathError
+		if errors.As(err, &pe) {
+			err = pe.Err
+		}
+		b.Fatalf("falha ao ler o ZIP de entrada: %v", err)
 	}
 	dst := filepath.Join(b.TempDir(), "processo.zip")
 	if err := os.WriteFile(dst, data, 0o644); err != nil {

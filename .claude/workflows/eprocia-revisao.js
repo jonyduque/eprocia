@@ -104,10 +104,15 @@ if (camadas.includes('frontend')) {
       `Não rode wails dev. Confirme que o Vite foi encerrado ao fim. ` +
       `Devolva ok=true e a lista de caminhos relativos dos PNGs gerados, ou ok=false com o erro.`,
     { label: 'visual:capturas', phase: 'Visual', schema: CAPTURAS, effort: 'low' },
-  ).then((r) => {
-    if (!r?.ok) log(`captura visual falhou: ${r?.erro ?? 'sem resposta'}; lentes RS/VI seguem só com o código`)
-    return r?.ok ? r.capturas : null
-  })
+  )
+    .then((r) => {
+      if (!r?.ok) log(`captura visual falhou: ${r?.erro ?? 'sem resposta'}; lentes RS/VI seguem só com o código`)
+      return r?.ok ? r.capturas : null
+    })
+    .catch((err) => {
+      log(`captura visual falhou: ${err.message}; lentes RS/VI seguem só com o código`)
+      return null
+    })
 }
 
 const tarefas = []
@@ -151,24 +156,29 @@ const resultados = await pipeline(
         `Devolva um veredito por índice (0..${achados.length - 1}).`,
       { label: `cetico:${t.prefixo}-${t.lente.id}`, phase: 'Refutação', schema: VEREDITOS },
     )
+    if (!v) log(`cético de ${t.prefixo}-${t.lente.id} não respondeu; ${achados.length} achado(s) ficam como não verificados`)
     return { t, achados, vereditos: v?.vereditos ?? [] }
   },
 )
 
 // Barrier: the synthesis needs every lens to dedupe and rank across them.
+// A finding without a verdict is neither kept nor refuted: it goes to the
+// "não verificados" section, so a failed skeptic never silently drops a lens.
 const mantidos = []
 const derrubados = []
+const naoVerificados = []
 for (const r of resultados.filter(Boolean)) {
   r.achados.forEach((a, i) => {
     const v = r.vereditos.find((x) => x.indice === i)
-    const item = { camada: r.t.camada, prefixo: r.t.prefixo, ...a, veredito: v?.veredito ?? 'derrubado', justificativa: v?.justificativa ?? 'sem veredito do cético' }
+    const item = { camada: r.t.camada, prefixo: r.t.prefixo, ...a, veredito: v?.veredito ?? 'nao-verificado', justificativa: v?.justificativa ?? 'o cético não deu veredito' }
     if (v?.veredito === 'rebaixado' && v.gravidade_corrigida) item.gravidade = v.gravidade_corrigida
-    ;(item.veredito === 'derrubado' ? derrubados : mantidos).push(item)
+    if (!v) naoVerificados.push(item)
+    else (item.veredito === 'derrubado' ? derrubados : mantidos).push(item)
   })
 }
 const falhas = resultados.filter((r) => !r).length
 if (falhas) log(`${falhas} lente(s) sem resultado (agente pulado ou com erro)`)
-log(`${mantidos.length} achados sobreviveram, ${derrubados.length} derrubados`)
+log(`${mantidos.length} achados sobreviveram, ${derrubados.length} derrubados, ${naoVerificados.length} não verificados`)
 
 phase('Síntese')
 const capturas = await capturasPromise
@@ -176,6 +186,7 @@ const sintese = await agent(
   `Você é a síntese da revisão do eprocIA de ${data} (escopo: ${escopo}${filtroLentes ? `, lentes: ${[...filtroLentes].join(',')}` : ''}).\n\n` +
     `ACHADOS QUE SOBREVIVERAM (JSON):\n${JSON.stringify(mantidos, null, 1)}\n\n` +
     `DERRUBADOS (JSON):\n${JSON.stringify(derrubados, null, 1)}\n\n` +
+    `NÃO VERIFICADOS — o cético falhou (JSON):\n${JSON.stringify(naoVerificados, null, 1)}\n\n` +
     `Faça:\n` +
     `1. Remova duplicatas entre lentes (mesmo problema no mesmo trecho): fique com a versão de melhor evidência e cite as lentes que o acharam.\n` +
     `2. Ordene por gravidade × ganho ÷ custo (alta=3, media=2, baixa=1; P=1, M=2, G=3; use o ganho_esperado para desempatar).\n` +
@@ -184,11 +195,13 @@ const sintese = await agent(
     `uma seção "### <id> — <título>" por achado com arquivo:linha, evidência, proposta, custo, ganho esperado, veredito e justificativa do cético e uma linha "Status: pendente"; ` +
     (capturas?.length ? `uma seção "Capturas" com links relativos para ${pastaCapturas}/; ` : '') +
     (camadas.includes('frontend') ? `uma seção "Teste manual guiado" para o que as capturas não cobrem (bordas de resize da janela frameless, maximizar/restaurar, arrastar a barra de título, divisor nos limites); ` : '') +
-    `uma seção "Derrubados" (título, lente, justificativa) para auditoria; e, ao fim, "Como aprovar": /corrigir <ids>.\n` +
+    `uma seção "Derrubados" (título, lente, justificativa) para auditoria; ` +
+    (naoVerificados.length ? `uma seção "Não verificados" com esses achados, sem id, explicando que precisam de nova rodada da lente antes de aprovar; ` : '') +
+    `e, ao fim, "Como aprovar": /corrigir <ids>.\n` +
     `5. Escreva docs/revisao/estado.json: {"relatorio":"${relatorio}","fase":"aguardando-aprovacao","ids":{<id>:"pendente",...}}.\n` +
     `Se o relatório já existir (rodada anterior do mesmo dia), substitua-o. Não faça commit. Nunca inclua dados reais (nomes de processos reais, caminhos de usuário).\n` +
     `Devolva o caminho do relatório, a lista de ids na ordem e o número de derrubados.`,
   { label: 'sintese', phase: 'Síntese', schema: SINTESE },
 )
 
-return { relatorio: sintese?.relatorio ?? relatorio, ids: sintese?.ids ?? [], mantidos: mantidos.length, derrubados: derrubados.length, lentesSemResultado: falhas }
+return { relatorio: sintese?.relatorio ?? relatorio, ids: sintese?.ids ?? [], mantidos: mantidos.length, derrubados: derrubados.length, naoVerificados: naoVerificados.length, lentesSemResultado: falhas }

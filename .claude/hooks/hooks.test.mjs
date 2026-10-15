@@ -28,6 +28,7 @@ describe('proteger-gerados', () => {
     'C:\\Users\\u\\eprocia\\frontend\\dist\\index.html',
     'internal/ocr/embed/tesseract/tesseract.exe',
     'build/bin/eprocia.exe',
+    'frontend/src/../dist/x.js',
   ]) {
     it(`bloqueia ${p}`, () => {
       const r = gerados.avaliar(edit(p), { raiz });
@@ -45,29 +46,47 @@ describe('proteger-gerados', () => {
 });
 
 describe('proteger-dados', () => {
-  const ctx = { benchDir: 'D:\\corpus', naoIgnorados: () => [] };
+  const ctx = { benchDir: 'D:\\corpus', listar: () => [] };
   for (const c of [
     'git add a.zip',
     'git add "pasta com espaço/y.PDF"',
     'git commit -m ok && git add saida.txt',
     'cd x; git add D:\\corpus\\proc.json',
+    'git status\ngit add x.zip',
+    'git status & git add x.zip',
+    '(git add x.zip)',
+    'git -C . add x.zip',
+    'git -c core.x=1 --no-pager add x.zip',
+    'git commit -m "msg" dados.zip',
+    'git add frontend/../x.pdf',
   ]) {
-    it(`bloqueia: ${c}`, () => assert.equal(dados.avaliar(bash(c), ctx).codigo, 2));
+    it(`bloqueia: ${JSON.stringify(c)}`, () => assert.equal(dados.avaliar(bash(c), ctx).codigo, 2));
   }
-  it('bloqueia git add -A com dado real não ignorado', () => {
-    const r = dados.avaliar(bash('git add -A'), { ...ctx, naoIgnorados: () => ['README.md', 'Processo 1.zip'] });
+  for (const c of ['git add -A', 'git add .', 'git add ./', 'git add *', 'git add dir/', 'git add internal', 'git commit -am "x"', 'git commit --all -m x']) {
+    it(`expande e bloqueia amplo com dado real: ${c}`, () => {
+      const vistos = [];
+      const r = dados.avaliar(bash(c), { ...ctx, listar: (p) => { vistos.push(p); return ['README.md', 'Processo 1.zip']; } });
+      assert.equal(r.codigo, 2);
+      assert.match(r.stderr, /Processo 1\.zip/);
+      assert.equal(vistos.length, 1);
+    });
+  }
+  it('falha fechada quando não consegue listar', () => {
+    const r = dados.avaliar(bash('git add -A'), { ...ctx, listar: () => null });
     assert.equal(r.codigo, 2);
-    assert.match(r.stderr, /Processo 1\.zip/);
-  });
-  it('bloqueia git commit -am com dado real não ignorado', () => {
-    const r = dados.avaliar(bash('git commit -am "x"'), { ...ctx, naoIgnorados: () => ['saida.txt'] });
-    assert.equal(r.codigo, 2);
+    assert.match(r.stderr, /não consegui listar/);
   });
   it('deixa git add -A sem dados reais', () => {
-    assert.equal(dados.avaliar(bash('git add -A'), { ...ctx, naoIgnorados: () => ['a.go'] }).codigo, 0);
+    assert.equal(dados.avaliar(bash('git add -A'), { ...ctx, listar: () => ['a.go'] }).codigo, 0);
   });
-  for (const c of ['git add README.md', 'git add scripts/bench/fixtures/misto.zip scripts/bench/fixtures/nativo.pdf','git add docs/revisao/notas.txt', 'git status', 'ls *.zip', 'git commit -m "remove a.zip"']) {
-    it(`deixa: ${c}`, () => assert.equal(dados.avaliar(bash(c), ctx).codigo, 0));
+  it('pathspec amplo é repassado ao git', () => {
+    let visto;
+    dados.avaliar(bash('git add docs/'), { ...ctx, listar: (p) => { visto = p; return []; } });
+    assert.deepEqual(visto, ['docs/']);
+  });
+  for (const c of ['git add README.md', 'git add scripts/bench/fixtures/misto.zip scripts/bench/fixtures/nativo.pdf',
+    'git add docs/revisao/notas.txt', 'git status', 'ls *.zip', 'git commit -m "remove a.zip"', 'echo "git add a.zip"']) {
+    it(`deixa: ${JSON.stringify(c)}`, () => assert.equal(dados.avaliar(bash(c), { ...ctx, listar: () => { throw new Error('não devia listar'); } }).codigo, 0));
   }
   it('sai 0 sem comando', () => assert.equal(dados.avaliar({ tool_input: {} }, ctx).codigo, 0));
 });

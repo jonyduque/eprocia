@@ -10,7 +10,7 @@ const FIXTURES = 'scripts/bench/fixtures/';
 
 export function arquivoSensivel(caminho, benchDir) {
   const n = normalizar(caminho);
-  if (!n || n.startsWith(FIXTURES)) return false;
+  if (!n || n === '.' || n.startsWith(FIXTURES)) return false;
   if (benchDir) {
     const b = normalizar(benchDir).replace(/\/$/, '');
     if (n === b || n.startsWith(b + '/')) return true;
@@ -20,54 +20,115 @@ export function arquivoSensivel(caminho, benchDir) {
   return false;
 }
 
-// tokens splits one shell segment into words, honouring single/double quotes.
-function tokens(segmento) {
-  const out = [];
-  const re = /"([^"]*)"|'([^']*)'|(\S+)/g;
-  let m;
-  while ((m = re.exec(segmento))) out.push(m[1] ?? m[2] ?? m[3]);
-  return out;
+// comandos splits a shell command line into simple commands (arrays of words),
+// honouring quotes and treating newline ; & && || | ( ) as separators.
+export function comandos(linha) {
+  const lista = [];
+  let atual = [];
+  let palavra = null;
+  const fecharPalavra = () => {
+    if (palavra !== null) atual.push(palavra);
+    palavra = null;
+  };
+  const fecharComando = () => {
+    fecharPalavra();
+    if (atual.length) lista.push(atual);
+    atual = [];
+  };
+  for (let i = 0; i < linha.length; i++) {
+    const c = linha[i];
+    if (c === '"' || c === "'") {
+      const fim = linha.indexOf(c, i + 1);
+      const trecho = fim < 0 ? linha.slice(i + 1) : linha.slice(i + 1, fim);
+      palavra = (palavra ?? '') + trecho;
+      i = fim < 0 ? linha.length : fim;
+    } else if (/[\n;&|()]/.test(c)) {
+      fecharComando();
+    } else if (/\s/.test(c)) {
+      fecharPalavra();
+    } else {
+      palavra = (palavra ?? '') + c;
+    }
+  }
+  fecharComando();
+  return lista;
 }
 
-const AMPLOS = new Set(['-a', '-A', '--all', '.', ':/', '-u', '--update']);
+// subcomandoGit returns { sub, args } for a git invocation, skipping global
+// options such as -C <dir>, -c <k=v> and --no-pager.
+function subcomandoGit(palavras) {
+  const i = palavras.findIndex((p) => p === 'git' || /[\\/]git(\.exe)?$/i.test(p));
+  if (i < 0) return null;
+  let j = i + 1;
+  while (j < palavras.length && palavras[j].startsWith('-')) {
+    if (palavras[j] === '-C' || palavras[j] === '-c') j++;
+    j++;
+  }
+  return { sub: palavras[j], args: palavras.slice(j + 1) };
+}
+
+// opcoesComValor are commit options whose next word is a value, not a path.
+const OPCOES_COM_VALOR = new Set(['-m', '--message', '-F', '--file', '-C', '-c', '--author', '--date', '-t', '--template', '--fixup', '--squash']);
+
+function caminhosDeArgs(args) {
+  const caminhos = [];
+  for (let k = 0; k < args.length; k++) {
+    const a = args[k];
+    if (a === '--') continue;
+    if (OPCOES_COM_VALOR.has(a)) { k++; continue; }
+    if (a.startsWith('-')) continue;
+    caminhos.push(a);
+  }
+  return caminhos;
+}
+
+// amplo: a pathspec that can match many files (., ./, dirs, globs).
+const amplo = (a) => a === '.' || a === './' || a === ':/' || a.endsWith('/') || /[*?[]/.test(a);
 
 export function avaliar(evento, ctx = {}) {
   const cmd = evento?.tool_input?.command;
   if (typeof cmd !== 'string' || !/\bgit\b/.test(cmd)) return { codigo: 0 };
   const benchDir = ctx.benchDir ?? process.env.EPROCIA_BENCH_DIR;
+  const listar = ctx.listar ?? listarCandidatos;
 
-  for (const segmento of cmd.split(/&&|\|\||;|\|/)) {
-    const t = tokens(segmento.trim());
-    const i = t.indexOf('git');
-    if (i < 0) continue;
-    const sub = t[i + 1];
-    if (sub !== 'add' && sub !== 'commit') continue;
-    const args = t.slice(i + 2);
+  for (const palavras of comandos(cmd)) {
+    const g = subcomandoGit(palavras);
+    if (!g || (g.sub !== 'add' && g.sub !== 'commit')) continue;
 
-    const diretos = args.filter((a) => !a.startsWith('-') && a !== '.' && a !== ':/');
-    const ruins = sub === 'add' ? diretos.filter((a) => arquivoSensivel(a, benchDir)) : [];
-    if (ruins.length) {
-      return { codigo: 2, stderr: `Bloqueado: dados reais não entram no git (${ruins.join(', ')}). Adicione ao .gitignore se for saída local.` };
+    const caminhos = caminhosDeArgs(g.args);
+    const diretos = caminhos.filter((a) => !amplo(a) && arquivoSensivel(a, benchDir));
+    if (diretos.length) {
+      return { codigo: 2, stderr: `Bloqueado: dados reais não entram no git (${diretos.join(', ')}). Adicione ao .gitignore se for saída local.` };
     }
 
-    const amplo = args.some((a) => AMPLOS.has(a)) || (sub === 'commit' && args.some((a) => /^-[a-z]*a/.test(a)));
-    if (amplo) {
-      const candidatos = (ctx.naoIgnorados ?? listarNaoIgnorados)().filter((a) => arquivoSensivel(a, benchDir));
-      if (candidatos.length) {
-        return { codigo: 2, stderr: `Bloqueado: \`git ${sub}\` amplo incluiria dados reais: ${candidatos.slice(0, 5).join(', ')}. Adicione arquivos pelo nome ou ignore-os.` };
-      }
+    const todos = g.args.some((a) => a === '-A' || a === '--all' || a === '-u' || a === '--update')
+      || (g.sub === 'commit' && g.args.some((a) => /^-[a-zA-Z]*a[a-zA-Z]*$/.test(a) || a === '--all'));
+    const pathspecs = todos ? [] : caminhos.filter(amplo);
+    // Plain directory names (e.g. "git add internal") are also expanded by git.
+    const outros = todos ? [] : caminhos.filter((a) => !amplo(a) && !/\.[a-z0-9]+$/i.test(a));
+    if (!todos && !pathspecs.length && !outros.length) continue;
+
+    const candidatos = listar(todos ? [] : [...pathspecs, ...outros]);
+    if (candidatos === null) {
+      return { codigo: 2, stderr: `Bloqueado: não consegui listar o que \`git ${g.sub}\` incluiria (git status falhou ou demorou). Adicione os arquivos pelo nome.` };
+    }
+    const ruins = candidatos.filter((a) => arquivoSensivel(a, benchDir));
+    if (ruins.length) {
+      return { codigo: 2, stderr: `Bloqueado: \`git ${g.sub}\` amplo incluiria dados reais: ${ruins.slice(0, 5).join(', ')}. Adicione arquivos pelo nome ou ignore-os.` };
     }
   }
   return { codigo: 0 };
 }
 
-// listarNaoIgnorados returns modified and untracked, non-ignored paths.
-function listarNaoIgnorados() {
+// listarCandidatos returns modified and untracked, non-ignored paths matching
+// the pathspecs (all when empty), or null when git cannot answer in time.
+function listarCandidatos(pathspecs) {
   try {
-    const saida = execFileSync('git', ['status', '--porcelain', '-uall'], { cwd: RAIZ, encoding: 'utf8', timeout: 800 });
-    return saida.split('\n').filter(Boolean).map((l) => l.slice(3).replace(/^"|"$/g, '').split(' -> ').pop());
+    const saida = execFileSync('git', ['ls-files', '-z', '-o', '-m', '--exclude-standard', '--', ...pathspecs],
+      { cwd: RAIZ, encoding: 'utf8', timeout: 3000 });
+    return saida.split('\0').filter(Boolean);
   } catch {
-    return [];
+    return null;
   }
 }
 

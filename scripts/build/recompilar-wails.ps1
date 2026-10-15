@@ -6,7 +6,7 @@
   O Wails CLI v2.12.0 publicado foi compilado com x/tools v0.30.0, que falha com
   Go 1.27 ("package "bytes" without types was imported"). Este script copia o
   módulo do cache para um diretório temporário, atualiza x/tools e instala o CLI
-  em $(go env GOPATH)\bin. Não altera o go.mod do projeto.
+  em GOBIN (ou GOPATH\bin). Não altera o go.mod do projeto.
 
 .EXAMPLE
   pwsh scripts/build/recompilar-wails.ps1
@@ -47,7 +47,10 @@ try {
   Pop-Location
 }
 
-$exe = Join-Path (go env GOPATH).Trim() 'bin/wails.exe'
+# go install writes to GOBIN when set, else GOPATH\bin.
+$bin = (go env GOBIN).Trim()
+if (-not $bin) { $bin = Join-Path (go env GOPATH).Trim() 'bin' }
+$exe = Join-Path $bin 'wails.exe'
 $tools = (go version -m $exe | Select-String 'golang.org/x/tools\s+(v\S+)').Matches.Groups[1].Value
 Passo "instalado: $exe (x/tools $tools, $(go version))"
 Remove-Item -Recurse -Force $destino

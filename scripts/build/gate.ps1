@@ -44,8 +44,9 @@ if ($race) {
 
 if ($SemBuild) { Write-Host '[gate] build e smoke pulados (-SemBuild)'; exit 0 }
 
-$exe = Join-Path $raiz 'build/bin/eprocia.exe'
-$rodando = Get-Process eprocia -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe }
+$exe = [IO.Path]::GetFullPath((Join-Path $raiz 'build\bin\eprocia.exe'))
+$rodando = Get-Process eprocia -ErrorAction SilentlyContinue |
+  Where-Object { $_.Path -and [string]::Equals([IO.Path]::GetFullPath($_.Path), $exe, [StringComparison]::OrdinalIgnoreCase) }
 if ($rodando) {
   Write-Host "[gate] FALHOU: eprocia.exe (PID $($rodando.Id -join ', ')) está aberto e trava o build. Feche-o pela bandeja (Sair) e rode de novo."
   exit 1

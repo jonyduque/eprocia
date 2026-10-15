@@ -19,6 +19,8 @@ if (!Array.isArray(ids) || !ids.length) throw new Error('args.ids deve ser uma l
 if (!config?.correcao) throw new Error('args.config deve ser o conteúdo de .claude/review.json')
 
 const TENTATIVAS = config.correcao.tentativas_max ?? 3
+// Untracked-files snapshot taken at preparation, stored inside .git (never committed).
+const SNAPSHOT = `eprocia-corrigir-${data}-nao-rastreados.txt`
 const branch = `${config.correcao.branch_prefixo ?? 'revisao/'}${data}`
 // Commit attribution lines come from the calling session (they change per session).
 const ATRIBUICAO = typeof args.atribuicao === 'string' ? args.atribuicao.trim() : ''
@@ -84,6 +86,12 @@ const REVISAO = {
   required: ['aprovado', 'motivo'],
 }
 
+const DESCARTE = {
+  type: 'object',
+  properties: { restantes: { type: 'array', items: { type: 'string' } } },
+  required: ['restantes'],
+}
+
 const COMMIT = {
   type: 'object',
   properties: { ok: { type: 'boolean' }, sha: { type: 'string' }, erro: { type: 'string' } },
@@ -108,9 +116,11 @@ const prep = await agent(
   `Prepare a correção de achados do eprocIA.\n` +
     `1. Rode git status --porcelain. Se houver arquivos rastreados modificados, pare com ok=false e motivo (não descarte nada do usuário).\n` +
     `2. Garanta a branch ${branch}: se existir, git switch ${branch}; senão, git switch -c ${branch} a partir do HEAD atual. Nunca trabalhe na main. Nunca faça push.\n` +
-    `3. base = git rev-parse HEAD (depois do switch). nao_rastreados = caminhos de git status --porcelain com "??" (para não apagá-los depois).\n` +
+    `3. base = git rev-parse HEAD (depois do switch). Grave o retrato dos não rastreados exatamente com: ` +
+    `git ls-files -o --exclude-standard | sort > "$(git rev-parse --git-dir)/${SNAPSHOT}" ` +
+    `e devolva em nao_rastreados o conteúdo desse arquivo (para informação; o descarte usa o arquivo).\n` +
     `4. Leia ${relatorio} e devolva, para cada id em ${JSON.stringify(ids)}, os campos da seção do achado. Ids que não existem vão em ids_ausentes.\n` +
-    `5. passo0_feito = o go.mod declara go 1.27 ou maior E "tool golang.org/x/perf/cmd/benchstat" E go version -m "$(go env GOPATH)/bin/wails.exe" mostra golang.org/x/tools acima de v0.30.0.\n` +
+    `5. passo0_feito = o go.mod declara go 1.27 ou maior E "tool golang.org/x/perf/cmd/benchstat" E go version -m "$(command -v wails)" (o wails do PATH, que pode estar em GOBIN) mostra golang.org/x/tools acima de v0.30.0.\n` +
     `6. svelte5_feito = frontend/package.json depende de svelte ^5 e de lucide-svelte e svelte-check.\n` +
     `7. Escreva docs/revisao/estado.json: {"relatorio":"${relatorio}","fase":"correcao","ids":{<cada id pedido>:"pendente"}} preservando outros ids que já estejam no arquivo.`,
   { label: 'preparar', phase: 'Preparação', schema: PREPARO, effort: 'low' },
@@ -122,9 +132,12 @@ const status = Object.fromEntries(prep.ids_ausentes.map((id) => [id, 'pulado']))
 const protegidos = JSON.stringify(prep.nao_rastreados)
 
 // executarTarefa runs implementer → gate → reviewer, up to TENTATIVAS times,
-// then commits. On final failure it discards only this task's changes.
+// then commits. On final failure it discards only this task's changes; if other
+// tracked files are still modified afterwards, the whole run stops instead of
+// touching them (they may be the user's).
 async function executarTarefa({ chave, rotulo, pedido, gate, mensagem, faseProgresso }) {
   let feedback = ''
+  const tocados = new Set()
   for (let tentativa = 1; tentativa <= TENTATIVAS; tentativa++) {
     const impl = await comPapel(
       'implementador',
@@ -132,6 +145,7 @@ async function executarTarefa({ chave, rotulo, pedido, gate, mensagem, faseProgr
       { label: `implementar:${rotulo}#${tentativa}`, phase: faseProgresso, schema: IMPLEMENTACAO },
     )
     if (!impl) { feedback = 'o implementador não devolveu resultado'; continue }
+    impl.arquivos.forEach((a) => tocados.add(a))
 
     const g = await agent(
       `Gate da tarefa ${rotulo} do eprocIA (não edite código; só rode e relate).\n${gate}\n` +
@@ -161,18 +175,28 @@ async function executarTarefa({ chave, rotulo, pedido, gate, mensagem, faseProgr
     feedback = `commit falhou: ${c?.erro ?? 'sem resposta'}`
   }
 
-  await agent(
-    `A tarefa ${rotulo} do eprocIA falhou ${TENTATIVAS} vezes. Descarte só as mudanças dela:\n` +
-      `- git restore --staged --worktree nos arquivos rastreados modificados (git status);\n` +
-      `- apague arquivos não rastreados novos, exceto estes, que já existiam: ${protegidos} e docs/revisao/estado.json.\n` +
-      `Não use git reset --hard nem git clean. Depois marque ids["${chave}"]="bloqueado" em docs/revisao/estado.json (se a chave existir).`,
-    { label: `descartar:${rotulo}`, phase: faseProgresso, effort: 'low' },
+  const d = await agent(
+    `A tarefa ${rotulo} do eprocIA falhou ${TENTATIVAS} vezes. Descarte só as mudanças dela, nesta ordem:\n` +
+      `1. Arquivos rastreados da tarefa: para cada um destes que git ls-files conhece, rode git restore --staged --worktree -- <arquivo>: ${JSON.stringify([...tocados])}. Não restaure nenhum outro arquivo.\n` +
+      `2. Não rastreados novos: liste exatamente com\n` +
+      `   git ls-files -o --exclude-standard | sort | comm -13 "$(git rev-parse --git-dir)/${SNAPSHOT}" -\n` +
+      `   e apague só os caminhos dessa lista (rm -f / rmdir de pastas que ficarem vazias). Se o arquivo de retrato não existir, não apague nada.\n` +
+      `3. Não use git reset, git clean, git checkout . nem git stash.\n` +
+      `4. Rode git status --porcelain e devolva em restantes os rastreados que ainda estejam modificados (linhas que não começam com "??").\n` +
+      `5. Marque ids["${chave}"]="bloqueado" em docs/revisao/estado.json (se a chave existir).`,
+    { label: `descartar:${rotulo}`, phase: faseProgresso, schema: DESCARTE, effort: 'low' },
   )
-  return { feito: false, motivo: feedback }
+  return { feito: false, motivo: feedback, restantes: d?.restantes ?? ['(descarte sem resposta)'] }
+}
+
+// arvoreSuja: a failed task left tracked files modified outside its own list; stop the run.
+function arvoreSuja(r) {
+  return !r.feito && r.restantes?.length > 0
 }
 
 const GATE_BUILD = 'Rode pwsh scripts/build/gate.ps1 (skill eprocia-build). Se eprocia.exe estiver aberto e o script pedir para fechá-lo, devolva passou=false com esse motivo; não encerre processos que você não iniciou.'
-const GATE_VISUAL = `Rode também o gate visual da skill eprocia-visual: capturas em ${config.visual.saida}/${data}/depois (só os estados afetados, com --estados), cd frontend && npx svelte-check sem erros e npm run build sem warnings novos. Liste os PNGs em capturas.`
+const gateVisual = (pasta) =>
+  `Rode também o gate visual da skill eprocia-visual: capturas em ${config.visual.saida}/${data}/${pasta} (só os estados afetados, com --estados), cd frontend && npx svelte-check sem erros e npm run build sem warnings novos. Liste os PNGs em capturas.`
 const GATE_BENCH = 'Rode o benchmark da skill eprocia-bench: compare o commit base (git stash não; use git worktree add em diretório temporário para o HEAD) com a árvore atual, -count=10, e cole a tabela do go tool benchstat em benchstat. Aceite só com p < 0,05 na métrica-alvo e nenhuma outra métrica pior que 5%; remova o worktree temporário.'
 const GATE_SEM_REGRESSAO = 'Rode o benchmark da skill eprocia-bench (antes = HEAD via git worktree temporário, depois = árvore atual, -count=10) e reprove se alguma métrica piorar mais de 5% com p < 0,05. Cole a tabela em benchstat; remova o worktree.'
 
@@ -209,9 +233,10 @@ if (!prep.svelte5_feito && achados.some((a) => camadaDe(a.id) === 'frontend')) {
       'mas sem warnings de depreciação no build. Adicione o script "check": "svelte-check" no package.json. O comportamento deve ser idêntico: ' +
       `antes de mudar, capture node scripts/visual/capturar.mjs --saida ${config.visual.saida}/${data}/antes-migracao e, depois, compare com a mesma matriz em depois-migracao (as imagens devem coincidir salvo diferenças de antialiasing). ` +
       'Não troque ícones nem estilos nesta tarefa.',
-    gate: `${GATE_BUILD}\n${GATE_VISUAL}`,
+    gate: `${GATE_BUILD}\n${gateVisual('depois-migracao')}`,
     mensagem: 'chore(frontend): migra para Svelte 5 e Vite atual',
   })
+  if (arvoreSuja(r)) return { erro: `descarte da migração deixou arquivos modificados (${r.restantes.join(', ')}); execução interrompida`, status }
   if (!r.feito) {
     log(`migração para Svelte 5 bloqueada: ${r.motivo}; achados de frontend serão pulados`)
     for (const a of achados) if (camadaDe(a.id) === 'frontend') status[a.id] = 'pulado'
@@ -229,7 +254,7 @@ for (const a of achados) {
   let gate = GATE_BUILD
   if (lente === 'EF') gate += `\n${GATE_BENCH}`
   if (lente === 'ES') gate += `\n${GATE_SEM_REGRESSAO}`
-  if (camada === 'frontend') gate += `\n${GATE_VISUAL}`
+  if (camada === 'frontend') gate += `\n${gateVisual(`depois-${a.id}`)}`
 
   const r = await executarTarefa({
     chave: a.id,
@@ -247,6 +272,9 @@ for (const a of achados) {
   status[a.id] = r.feito ? 'feito' : 'bloqueado'
   detalhes[a.id] = r
   log(`${a.id}: ${status[a.id]}`)
+  if (arvoreSuja(r)) {
+    return { erro: `descarte de ${a.id} deixou arquivos rastreados modificados (${r.restantes.join(', ')}); execução interrompida sem mexer neles`, status, detalhes }
+  }
 }
 
 // ---------------------------------------------------------------- Final

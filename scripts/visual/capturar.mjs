@@ -42,6 +42,14 @@ function carregarPlaywright() {
 }
 
 async function subirVite() {
+  // A leftover server on the port would answer the readiness check below and
+  // serve stale code, so refuse to start instead.
+  try {
+    await fetch(`http://localhost:${PORTA}/`);
+    throw new Error(`porta ${PORTA} já está em uso (Vite de uma execução anterior?); encerre o processo e rode de novo`);
+  } catch (err) {
+    if (err.message.startsWith('porta')) throw err;
+  }
   const proc = spawn(`npx vite --port ${PORTA} --strictPort`, {
     cwd: path.join(RAIZ, 'frontend'), shell: true, stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -95,10 +103,21 @@ async function main() {
   const estados = o.estados ?? Object.keys(ESTADOS);
 
   const { chromium } = carregarPlaywright();
-  const vite = await subirVite();
-  const navegador = await abrirNavegador(chromium);
+  let vite = null;
+  let navegador = null;
+  // Ctrl+C or a killed parent must not leave Vite listening on the port.
+  const aoSair = () => encerrar(vite?.proc);
+  process.once('exit', aoSair);
+  for (const sinal of ['SIGINT', 'SIGTERM']) {
+    process.once(sinal, () => {
+      aoSair();
+      process.exit(130);
+    });
+  }
   const gerados = [];
   try {
+    vite = await subirVite();
+    navegador = await abrirNavegador(chromium);
     for (const [w, h] of tamanhos) {
       for (const tema of temas) {
         for (const nome of estados) {
@@ -132,8 +151,8 @@ async function main() {
       }
     }
   } finally {
-    await navegador.close();
-    encerrar(vite.proc);
+    await navegador?.close();
+    encerrar(vite?.proc);
   }
   console.log(`[visual] ${gerados.length} capturas em ${saida}`);
 }

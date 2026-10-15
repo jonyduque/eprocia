@@ -93,11 +93,20 @@ describe('eprocia-revisao (simulado)', () => {
     assert.doesNotMatch(chamadas.find((c) => c.opts.label === 'lente:F-AC').prompt, /capturas\/x\.png/);
   });
 
-  it('cético sem veredito derruba o achado', async () => {
-    const { resultado } = await rodar('eprocia-revisao.js', { escopo: 'backend', data: '2026-10-15', config: CONFIG, lentes: ['EF'] },
-      (p, o) => (o.label?.startsWith('cetico:') ? { vereditos: [] } : responder(p, o)));
+  it('cético sem veredito deixa o achado como não verificado (nem mantido, nem derrubado)', async () => {
+    const { resultado, chamadas } = await rodar('eprocia-revisao.js', { escopo: 'backend', data: '2026-10-15', config: CONFIG, lentes: ['EF'] },
+      (p, o) => (o.label?.startsWith('cetico:') ? null : responder(p, o)));
     assert.equal(resultado.mantidos, 0);
-    assert.equal(resultado.derrubados, 2);
+    assert.equal(resultado.derrubados, 0);
+    assert.equal(resultado.naoVerificados, 2);
+    assert.match(chamadas.at(-1).prompt, /Não verificados/);
+  });
+
+  it('falha da captura visual não derruba a revisão', async () => {
+    const { resultado, chamadas } = await rodar('eprocia-revisao.js', { escopo: 'frontend', data: '2026-10-15', config: CONFIG, lentes: ['RS'] },
+      (p, o) => { if (o.label === 'visual:capturas') throw new Error('chrome ausente'); return responder(p, o); });
+    assert.equal(resultado.mantidos, 1);
+    assert.ok(chamadas.some((c) => c.opts.label === 'sintese'));
   });
 
   it('agente de papel indisponível cai no agente padrão com a definição', async () => {
@@ -126,11 +135,12 @@ describe('eprocia-corrigir (simulado)', () => {
   };
   const args = { data: '2026-10-15', relatorio: 'docs/revisao/2026-10-15-relatorio.md', ids: ['F-RS-01', 'B-EF-01', 'B-ES-01', 'B-XX-09'], config: CONFIG, atribuicao: 'Co-Authored-By: X' };
 
-  function responder(prep, { reprovar = () => false } = {}) {
+  function responder(prep, { reprovar = () => false, restantes = [] } = {}) {
     return (prompt, o) => {
       const l = o.label ?? '';
       if (l === 'preparar') return prep;
-      if (l.startsWith('implementar:')) return { arquivos: ['x'], teste: 't', comandos: 'go test' };
+      if (l.startsWith('descartar:')) return { restantes };
+      if (l.startsWith('implementar:')) return { arquivos: [`arq-${l.split(':')[1].split('#')[0]}.go`], teste: 't', comandos: 'go test' };
       if (l.startsWith('gate:')) return { passou: true, resumo: 'ok' };
       if (l.startsWith('revisar:')) return { aprovado: !reprovar(l), motivo: 'm' };
       if (l.startsWith('commit:')) return { ok: true, sha: 'deadbee' };
@@ -161,10 +171,25 @@ describe('eprocia-corrigir (simulado)', () => {
     assert.equal(resultado.status['B-ES-01'], 'bloqueado');
     assert.equal(chamadas.filter((c) => c.opts.label?.startsWith('implementar:B-ES-01')).length, 3);
     const descarte = chamadas.find((c) => c.opts.label === 'descartar:B-ES-01').prompt;
-    assert.match(descarte, /\.genkit\//);
-    assert.doesNotMatch(descarte, /git reset --hard(?! nem)/);
+    assert.match(descarte, /\["arq-B-ES-01\.go"\]/, 'restaura só os arquivos da tarefa');
+    assert.match(descarte, /comm -13 "\$\(git rev-parse --git-dir\)\/eprocia-corrigir-2026-10-15-nao-rastreados\.txt"/);
+    assert.match(descarte, /Não use git reset, git clean/);
+    assert.match(chamadas.find((c) => c.opts.label === 'preparar').prompt, /eprocia-corrigir-2026-10-15-nao-rastreados\.txt/);
     assert.match(chamadas.find((c) => c.opts.label === 'implementar:B-ES-01#2').prompt, /revisor reprovou/);
     assert.equal(resultado.status['B-EF-01'], 'feito');
+  });
+
+  it('descarte que deixa arquivos alheios modificados interrompe a execução', async () => {
+    const { resultado, chamadas } = await rodar('eprocia-corrigir.js', args,
+      responder(base, { reprovar: (l) => l.startsWith('revisar:B-ES-01'), restantes: ['app.go'] }));
+    assert.match(resultado.erro, /app\.go/);
+    assert.ok(!chamadas.some((c) => c.opts.label?.startsWith('implementar:B-EF-01')));
+  });
+
+  it('capturas do gate visual vão para uma pasta por achado', async () => {
+    const { chamadas } = await rodar('eprocia-corrigir.js', args, responder({ ...base, svelte5_feito: false }));
+    assert.match(chamadas.find((c) => c.opts.label === 'gate:F-RS-01#1').prompt, /2026-10-15\/depois-F-RS-01/);
+    assert.match(chamadas.find((c) => c.opts.label === 'gate:svelte5#1').prompt, /2026-10-15\/depois-migracao/);
   });
 
   it('para sem tocar nada se a preparação falhar', async () => {

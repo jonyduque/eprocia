@@ -50,7 +50,7 @@
       {
         "matcher": "Edit|Write|MultiEdit",
         "hooks": [
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/go-check.mjs\"", "timeout": 30 },
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/go-check.mjs\"", "timeout": 20 },
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/front-check.mjs\"", "timeout": 90 }
         ]
       }
@@ -58,6 +58,6 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "node .claude/statusline.mjs"
+    "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/statusline.mjs\""
   }
 }
