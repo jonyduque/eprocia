@@ -1,0 +1,113 @@
+{
+  "versao": 1,
+  "camadas": {
+    "backend": {
+      "prefixo": "B",
+      "agente": "revisor-go",
+      "arquivos": [
+        "main.go",
+        "app.go",
+        "icon.go",
+        "internal/etl/*.go",
+        "internal/ocr/*.go",
+        "internal/config/*.go",
+        "internal/watchdog/*.go",
+        "internal/models/*.go",
+        "go.mod"
+      ],
+      "lentes": [
+        {
+          "id": "EF",
+          "nome": "eficiência",
+          "pergunta": "Onde se gasta CPU, RAM, I/O ou processos sem necessidade?",
+          "pistas": ["processo pdftoppm + tesseract por página (modelo recarregado a cada página)", "PDFs temporários extraídos do ZIP", "alocações da biblioteca dslipak/pdf (≈273 MB para um ZIP de 15 MB)", "leitura duplicada do ZIP (pré-contagem de páginas + processamento)", "eventos de progresso em excesso", "logs por página em caminho quente"]
+        },
+        {
+          "id": "ES",
+          "nome": "estabilidade",
+          "pergunta": "Onde pode travar, vazar recurso, engolir erro ou entrar em pânico numa goroutine sem recover?",
+          "pistas": ["loops da biblioteca de PDF em entradas malformadas", "arquivos temporários não removidos em erro/cancelamento", "goroutines do watchdog e da fila no shutdown", "erros ignorados com _"]
+        },
+        {
+          "id": "GM",
+          "nome": "go-moderno",
+          "pergunta": "O que o Go 1.26/1.27 resolve melhor ou com menos chance de erro?",
+          "pistas": ["perfil goroutineleak", "modernizadores do go fix (max, atomic.Int32, maps.Copy, for range n, any)", "sync.WaitGroup.Go", "iteradores", "new(expr)", "encoding/json/v2"]
+        },
+        {
+          "id": "TE",
+          "nome": "testes",
+          "pergunta": "Que teste não consegue falhar? Que caminho de falha nunca é exercitado?",
+          "pistas": ["testes que só checam ausência de erro", "cancelamento da fila", "OCR com binário ausente", "config corrompida"]
+        },
+        {
+          "id": "RN",
+          "nome": "recursos",
+          "pergunta": "Que recurso novo cabe no PRD com custo baixo?",
+          "pistas": ["ler PRD.md e comparar com o que existe", "não propor nada que exija rede (PRD RNF01)"]
+        }
+      ]
+    },
+    "frontend": {
+      "prefixo": "F",
+      "agente": "revisor-frontend",
+      "arquivos": [
+        "frontend/src/App.svelte",
+        "frontend/src/components/*.svelte",
+        "frontend/src/assets/css/style.css",
+        "frontend/src/main.js",
+        "frontend/index.html",
+        "frontend/package.json",
+        "frontend/vite.config.js",
+        "main.go",
+        "DESIGN.md"
+      ],
+      "lentes": [
+        {
+          "id": "VI",
+          "nome": "visual",
+          "pergunta": "Onde o visual se afasta do DESIGN.md ou parece datado? (ícones, tipografia, hierarquia, estados)"
+        },
+        {
+          "id": "AN",
+          "nome": "animação",
+          "pergunta": "Que transição é brusca, longa demais ou ignora prefers-reduced-motion?"
+        },
+        {
+          "id": "RS",
+          "nome": "layout/resize",
+          "pergunta": "O que quebra ao redimensionar a janela ou o divisor interno? (limites mínimo e máximo, overflow, bordas de resize da janela frameless, persistência do tamanho do painel)"
+        },
+        {
+          "id": "AC",
+          "nome": "acessibilidade",
+          "pergunta": "Foco visível, navegação por teclado, contraste, aria-*"
+        },
+        {
+          "id": "DF",
+          "nome": "desempenho-front",
+          "pergunta": "Re-renderizações desnecessárias, listeners que vazam, eventos Wails não desinscritos, trabalho síncrono pesado na UI"
+        }
+      ]
+    }
+  },
+  "visual": {
+    "tamanhos": [[800, 600], [1024, 768], [1440, 900], [1920, 1080]],
+    "temas": ["escuro", "claro"],
+    "estados": ["vazio", "fila", "processando", "erro", "configuracoes"],
+    "divisor": ["minimo", "maximo"],
+    "saida": "docs/revisao/capturas"
+  },
+  "bench": {
+    "count": 10,
+    "pacote": "./scripts/bench",
+    "corpus_env": "EPROCIA_BENCH_DIR",
+    "p_max": 0.05,
+    "regressao_max_pct": 5
+  },
+  "correcao": {
+    "ordem": ["ES", "EF", "GM", "TE", "RS", "DF", "AC", "AN", "VI", "RN"],
+    "tentativas_max": 3,
+    "branch_prefixo": "revisao/"
+  }
+}
