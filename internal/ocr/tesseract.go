@@ -144,7 +144,7 @@ func RunOCR(ctx context.Context, pdfPath string, pageNum int, mode string) (stri
 	
 	// Set DLL search path for Poppler on Windows by modifying PATH environment variable
 	popplerDir := filepath.Join(binDir, "poppler")
-	hideConsole(cmdPpm)
+	prepareCmd(cmdPpm)
 	cmdPpm.Env = append(os.Environ(), "PATH="+popplerDir+";"+os.Getenv("PATH"))
 
 	log.Printf("[OCR] Rodando pdftoppm...")
@@ -186,7 +186,7 @@ func RunOCR(ctx context.Context, pdfPath string, pageNum int, mode string) (stri
 	
 	// Set environment variables for Tesseract DLLs and traineddata path
 	tesseractDir := filepath.Join(binDir, "tesseract")
-	hideConsole(cmdTess)
+	prepareCmd(cmdTess)
 	cmdTess.Env = append(os.Environ(), 
 		"PATH="+tesseractDir+";"+os.Getenv("PATH"),
 		"TESSDATA_PREFIX="+tessdataPath,
@@ -201,7 +201,7 @@ func RunOCR(ctx context.Context, pdfPath string, pageNum int, mode string) (stri
 			imgPath,
 			txtOutputPrefix,
 		)
-		hideConsole(cmdTessFallback)
+		prepareCmd(cmdTessFallback)
 		cmdTessFallback.Env = append(os.Environ(), 
 			"PATH="+tesseractDir+";"+os.Getenv("PATH"),
 			"TESSDATA_PREFIX="+tessdataPath,

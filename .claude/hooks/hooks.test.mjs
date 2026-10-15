@@ -66,7 +66,7 @@ describe('proteger-dados', () => {
   it('deixa git add -A sem dados reais', () => {
     assert.equal(dados.avaliar(bash('git add -A'), { ...ctx, naoIgnorados: () => ['a.go'] }).codigo, 0);
   });
-  for (const c of ['git add README.md', 'git add docs/revisao/notas.txt', 'git status', 'ls *.zip', 'git commit -m "remove a.zip"']) {
+  for (const c of ['git add README.md', 'git add scripts/bench/fixtures/misto.zip scripts/bench/fixtures/nativo.pdf','git add docs/revisao/notas.txt', 'git status', 'ls *.zip', 'git commit -m "remove a.zip"']) {
     it(`deixa: ${c}`, () => assert.equal(dados.avaliar(bash(c), ctx).codigo, 0));
   }
   it('sai 0 sem comando', () => assert.equal(dados.avaliar({ tool_input: {} }, ctx).codigo, 0));

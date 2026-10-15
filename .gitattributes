@@ -1,0 +1,2 @@
+# Synthetic benchmark fixtures are compared byte-for-byte with the generator.
+scripts/bench/fixtures/** binary
