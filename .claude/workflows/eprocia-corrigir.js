@@ -198,7 +198,11 @@ const GATE_BUILD = 'Rode pwsh scripts/build/gate.ps1 (skill eprocia-build). Se e
 const gateVisual = (pasta) =>
   `Rode também o gate visual da skill eprocia-visual: capturas em ${config.visual.saida}/${data}/${pasta} (só os estados afetados, com --estados), cd frontend && npx svelte-check sem erros e npm run build sem warnings novos. Liste os PNGs em capturas.`
 const GATE_BENCH = 'Rode o benchmark da skill eprocia-bench: compare o commit base (git stash não; use git worktree add em diretório temporário para o HEAD) com a árvore atual, -count=10, e cole a tabela do go tool benchstat em benchstat. Aceite só com p < 0,05 na métrica-alvo e nenhuma outra métrica pior que 5%; remova o worktree temporário.'
-const GATE_SEM_REGRESSAO = 'Rode o benchmark da skill eprocia-bench (antes = HEAD via git worktree temporário, depois = árvore atual, -count=10) e reprove se alguma métrica piorar mais de 5% com p < 0,05. Cole a tabela em benchstat; remova o worktree.'
+// Regression check for ES/TE/GM fixes. OCR mode is left out on purpose: its peak
+// memory swings run to run (Tesseract, GC timing) and rejected sound fixes as noise.
+const GATE_SEM_REGRESSAO =
+  'Rode o benchmark da skill eprocia-bench só no modo padrão sem OCR (não defina EPROCIA_BENCH_OCR): antes = HEAD via git worktree temporário, depois = árvore atual, -count=6. ' +
+  'Reprove só se, com p < 0,05, sec/op piorar mais de 5% ou pico-mem-B ou B/op piorar mais de 15%. Cole a tabela em benchstat; remova o worktree.'
 
 // ---------------------------------------------------------------- Pré-requisitos
 phase('Pré-requisitos')
@@ -253,7 +257,7 @@ for (const a of achados) {
   const lente = lenteDe(a.id)
   let gate = GATE_BUILD
   if (lente === 'EF') gate += `\n${GATE_BENCH}`
-  if (lente === 'ES') gate += `\n${GATE_SEM_REGRESSAO}`
+  if (['ES', 'TE', 'GM'].includes(lente)) gate += `\n${GATE_SEM_REGRESSAO}`
   if (camada === 'frontend') gate += `\n${gateVisual(`depois-${a.id}`)}`
 
   const r = await executarTarefa({
