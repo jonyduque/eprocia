@@ -45,3 +45,23 @@ func TestProcessItem_PanicLiberaContexto(t *testing.T) {
 		t.Errorf("contexto do item não foi cancelado após panic (WithCancel vazou)")
 	}
 }
+
+// Roda com -race: SetContext concorrente com broadcast (via Pause/Resume)
+// não pode acessar wailsCtx sem q.mu.
+func TestSetContext_ConcorrenteComBroadcast(t *testing.T) {
+	q := NewQueue(&Pipeline{})
+	defer q.Shutdown()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := 0; i < 200; i++ {
+			q.SetContext(nil)
+		}
+	}()
+	for i := 0; i < 200; i++ {
+		q.Pause()
+		q.Resume()
+	}
+	<-done
+}

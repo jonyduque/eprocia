@@ -68,7 +68,9 @@ func (q *Queue) Shutdown() {
 
 // SetContext sets the Wails context for event emission.
 func (q *Queue) SetContext(ctx context.Context) {
+	q.mu.Lock()
 	q.wailsCtx = ctx
+	q.mu.Unlock()
 	q.pipeline.SetContext(ctx)
 }
 
@@ -129,7 +131,11 @@ func (q *Queue) AddFiles(paths []string) {
 func (q *Queue) GetItems() []*QueueItem {
 	q.mu.RLock()
 	defer q.mu.RUnlock()
+	return q.copyItemsLocked()
+}
 
+// copyItemsLocked exige q.mu já travado (leitura ou escrita).
+func (q *Queue) copyItemsLocked() []*QueueItem {
 	copied := make([]*QueueItem, len(q.items))
 	for i, item := range q.items {
 		copied[i] = &QueueItem{
@@ -365,12 +371,19 @@ func (q *Queue) processItem(item *QueueItem) {
 }
 
 func (q *Queue) broadcast() {
-	if q.wailsCtx != nil {
-		items := q.GetItems()
-		runtime.EventsEmit(q.wailsCtx, "queue:update", items)
-		runtime.EventsEmit(q.wailsCtx, "queue:status", map[string]interface{}{
-			"isPaused":  q.isPaused,
-			"isWorking": q.isWorking,
-		})
+	q.mu.RLock()
+	ctx := q.wailsCtx
+	if ctx == nil {
+		q.mu.RUnlock()
+		return
 	}
+	items := q.copyItemsLocked()
+	isPaused, isWorking := q.isPaused, q.isWorking
+	q.mu.RUnlock()
+
+	runtime.EventsEmit(ctx, "queue:update", items)
+	runtime.EventsEmit(ctx, "queue:status", map[string]interface{}{
+		"isPaused":  isPaused,
+		"isWorking": isWorking,
+	})
 }
