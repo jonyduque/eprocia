@@ -26,10 +26,10 @@ go test ./scripts/bench -run '^$' -bench . -count=10 -benchmem > "$TMP/antes.txt
 EPROCIA_BENCH_OCR=fast go test ./scripts/bench -run '^$' -bench Sintetico -count=10 -benchmem >> "$TMP/antes.txt"
 
 # depois da mudança: mesmos comandos, saída em depois.txt
-go run golang.org/x/perf/cmd/benchstat@latest "$TMP/antes.txt" "$TMP/depois.txt"
+go tool benchstat "$TMP/antes.txt" "$TMP/depois.txt"
 ```
 
-Depois do Passo 0 do toolchain (skill `eprocia-build`), o benchstat fica declarado no `go.mod` e o comando passa a ser `go tool benchstat antes.txt depois.txt`.
+O benchstat está declarado como `tool` no `go.mod` (Passo 0 da skill `eprocia-build`); `go tool benchstat` usa a versão fixada ali.
 
 Corpus real: `EPROCIA_BENCH_DIR=D:\\caminho go test ./scripts/bench -run '^$' -bench Real -count=10 -benchmem`. Nada desse diretório entra no repositório; o hook `proteger-dados` bloqueia.
 
