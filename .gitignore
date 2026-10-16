@@ -30,3 +30,6 @@ docs/revisao/estado.json
 docs/revisao/capturas/**/tmp/
 scripts/bench/*.txt
 *.prof
+
+# Vite leaves this behind when the dev server is killed
+frontend/vite.config.js.timestamp-*.mjs
