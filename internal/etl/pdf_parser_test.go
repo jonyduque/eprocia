@@ -304,3 +304,77 @@ func TestPDFParser_ParsePages_BlankPageSkipsOcr(t *testing.T) {
 
 	parsePagesWithDeadline(t, objects, ocrRunner)
 }
+
+// parsePagesSemPanic runs ParsePages and turns a panic into a test failure: in
+// the app, ParsePages runs in a pipeline goroutine and a panic kills the process.
+func parsePagesSemPanic(t *testing.T, objects []string, ocrRunner func(context.Context, string, int) (string, string, error)) (pages map[string]any, err error) {
+	t.Helper()
+	pdfPath := filepath.Join(t.TempDir(), "test.pdf")
+	if err := os.WriteFile(pdfPath, buildPDF(objects), 0644); err != nil {
+		t.Fatalf("falha ao gravar pdf de teste: %v", err)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("ParsePages entrou em panic: %v", r)
+		}
+	}()
+	return NewPDFParser(pdfPath).ParsePages(context.Background(), true, ocrRunner, nil)
+}
+
+// A xref entry that points to an object with another number makes the PDF
+// library panic ("loading 3 0 R: found 9 0") when the page is resolved.
+func TestPDFParser_ParsePages_XrefInconsistenteNaPaginaNaoEntraEmPanic(t *testing.T) {
+	objects := []string{
+		"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
+		"2 0 obj\n<< /Type /Pages /Kids [4 0 R 3 0 R] /Count 2 >>\nendobj",
+		"9 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> >>\nendobj",
+		"4 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> /Contents 5 0 R >>\nendobj",
+		"5 0 obj\n<< /Length 45 >>\nstream\nBT\n/F1 12 Tf\n72 712 Td\n(Hello World) Tj\nET\nendstream\nendobj",
+	}
+
+	pages, err := parsePagesSemPanic(t, objects, nil)
+	if err != nil {
+		t.Fatalf("ParsePages falhou: %v", err)
+	}
+	p1, ok := pages["1"].(map[string]any)
+	if !ok || !strings.Contains(p1["content"].(string), "Hello") {
+		t.Errorf("esperava página 1 com o texto nativo, obtive %+v", pages["1"])
+	}
+	p2, ok := pages["2"].(map[string]any)
+	if !ok || !strings.Contains(p2["content"].(string), "[ERRO") {
+		t.Errorf("esperava página 2 marcada com [ERRO ...], obtive %+v", pages["2"])
+	}
+}
+
+func TestPDFParser_ParsePages_XrefInconsistenteEmHasImagesNaoEntraEmPanic(t *testing.T) {
+	objects := []string{
+		"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
+		"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj",
+		"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /XObject 5 0 R >> /Contents 4 0 R >>\nendobj",
+		"4 0 obj\n<< /Length 4 >>\nstream\nq Q\nendstream\nendobj",
+		"9 0 obj\n<< /Im1 6 0 R >>\nendobj",
+	}
+	ocrRunner := func(ctx context.Context, path string, pageNum int) (string, string, error) {
+		return "OCR Extracted Text", "mock_image.png", nil
+	}
+
+	pages, err := parsePagesSemPanic(t, objects, ocrRunner)
+	if err != nil {
+		t.Fatalf("ParsePages falhou: %v", err)
+	}
+	if _, ok := pages["1"].(map[string]any); !ok {
+		t.Errorf("esperava a página 1 no resultado, obtive %+v", pages)
+	}
+}
+
+func TestPDFParser_ParsePages_XrefInconsistenteNoCatalogoNaoEntraEmPanic(t *testing.T) {
+	objects := []string{
+		"9 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
+		"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj",
+		"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> >>\nendobj",
+	}
+
+	if _, err := parsePagesSemPanic(t, objects, nil); err == nil {
+		t.Errorf("esperava erro para PDF com catálogo ilegível")
+	}
+}

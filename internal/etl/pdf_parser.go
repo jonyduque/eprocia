@@ -58,13 +58,12 @@ func (p *PDFParser) ParsePages(
 	}
 
 	log.Printf("[PDFParser] Instanciando leitor de PDF (tamanho: %d bytes)", stat.Size())
-	reader, err := pdf.NewReader(file, stat.Size())
+	reader, numPages, err := abrirLeitorPDF(file, stat.Size())
 	if err != nil {
 		log.Printf("[PDFParser] Falha ao criar leitor de PDF para %s: %v", p.filePath, err)
 		return nil, fmt.Errorf("failed to create pdf reader: %w", err)
 	}
 
-	numPages := reader.NumPage()
 	log.Printf("[PDFParser] PDF %s possui %d páginas", p.filePath, numPages)
 
 	paginasMap := make(map[string]any)
@@ -121,47 +120,29 @@ func (p *PDFParser) ParsePages(
 			return nil, err
 		}
 
-		page := reader.Page(pageNum)
-		if page.V.IsNull() {
-			log.Printf("[PDFParser] Página %d está nula/vazia", pageNum)
-			pageData := map[string]any{
+		an, errPag := analisarPagina(reader, pageNum, ocrEnabled)
+		if errPag != nil || an.nula {
+			content := ""
+			if errPag != nil {
+				log.Printf("[PDFParser] Falha ao ler a página %d de %s: %v", pageNum, p.filePath, errPag)
+				content = fmt.Sprintf("[ERRO ao ler página: %s]", errPag.Error())
+			} else {
+				log.Printf("[PDFParser] Página %d está nula/vazia", pageNum)
+			}
+			mapMu.Lock()
+			paginasMap[fmt.Sprintf("%d", pageNum)] = map[string]any{
 				"index":   pageNum,
 				"ocr":     false,
 				"image":   "",
-				"content": "",
+				"content": content,
 			}
-			mapMu.Lock()
-			paginasMap[fmt.Sprintf("%d", pageNum)] = pageData
 			mapMu.Unlock()
 			if onPageComplete != nil {
 				onPageComplete(pageNum)
 			}
 			continue
 		}
-
-		// Extract native text
-		log.Printf("[PDFParser] Extraindo texto nativo da página %d...", pageNum)
-		text, err := ExtractNativeText(page)
-		if err != nil {
-			log.Printf("[PDFParser] Falha ao extrair texto nativo na página %d: %v", pageNum, err)
-			text = ""
-		}
-
-		cleanText := strings.TrimSpace(text)
-		log.Printf("[PDFParser] Texto nativo da página %d extraído. Tamanho bruto: %d, Limpo: %d", pageNum, len(text), len(cleanText))
-		needsOcr := false
-
-		if ocrEnabled {
-			if len(cleanText) < 100 {
-				log.Printf("[PDFParser] Texto nativo da página %d é muito curto (%d chars). Verificando se há imagens...", pageNum, len(cleanText))
-				hasImages := HasImages(page)
-				hasDrawn := !hasImages && HasDrawnContent(page)
-				log.Printf("[PDFParser] Página %d possui imagens: %t, conteúdo vetorial: %t", pageNum, hasImages, hasDrawn)
-				if hasImages || hasDrawn {
-					needsOcr = true
-				}
-			}
-		}
+		cleanText, needsOcr := an.texto, an.precisaOcr
 
 		if needsOcr && ocrRunner != nil {
 			wg.Add(1)
@@ -198,6 +179,62 @@ func (p *PDFParser) ParsePages(
 	}
 	log.Printf("[PDFParser] Análise concluída. %d páginas retornadas.", len(paginasMap))
 	return paginasMap, nil
+}
+
+// abrirLeitorPDF opens the reader and counts pages. The PDF library panics on
+// an inconsistent xref (e.g. "loading 1 0 R: found 9 0"), so that becomes an error.
+func abrirLeitorPDF(r io.ReaderAt, size int64) (reader *pdf.Reader, numPages int, err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			reader, numPages, err = nil, 0, fmt.Errorf("pânico ao abrir o PDF: %v", rec)
+		}
+	}()
+	reader, err = pdf.NewReader(r, size)
+	if err != nil {
+		return nil, 0, err
+	}
+	return reader, reader.NumPage(), nil
+}
+
+type analisePagina struct {
+	nula       bool
+	texto      string
+	precisaOcr bool
+}
+
+// analisarPagina resolves one page, extracts its native text and decides on
+// OCR. Page and HasImages resolve objects lazily and panic on a malformed xref;
+// the panic is confined to this page so the rest of the document is still read.
+func analisarPagina(reader *pdf.Reader, pageNum int, ocrEnabled bool) (an analisePagina, err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			an, err = analisePagina{}, fmt.Errorf("pânico na leitura da página %d: %v", pageNum, rec)
+		}
+	}()
+
+	page := reader.Page(pageNum)
+	if page.V.IsNull() {
+		return analisePagina{nula: true}, nil
+	}
+
+	log.Printf("[PDFParser] Extraindo texto nativo da página %d...", pageNum)
+	text, errTexto := ExtractNativeText(page)
+	if errTexto != nil {
+		log.Printf("[PDFParser] Falha ao extrair texto nativo na página %d: %v", pageNum, errTexto)
+		text = ""
+	}
+
+	an.texto = strings.TrimSpace(text)
+	log.Printf("[PDFParser] Texto nativo da página %d extraído. Tamanho bruto: %d, Limpo: %d", pageNum, len(text), len(an.texto))
+
+	if ocrEnabled && len(an.texto) < 100 {
+		log.Printf("[PDFParser] Texto nativo da página %d é muito curto (%d chars). Verificando se há imagens...", pageNum, len(an.texto))
+		hasImages := HasImages(page)
+		hasDrawn := !hasImages && HasDrawnContent(page)
+		log.Printf("[PDFParser] Página %d possui imagens: %t, conteúdo vetorial: %t", pageNum, hasImages, hasDrawn)
+		an.precisaOcr = hasImages || hasDrawn
+	}
+	return an, nil
 }
 
 // drawnContentMinBytes is the decoded content-stream size above which a page

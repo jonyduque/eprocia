@@ -115,3 +115,48 @@ func TestProcessZip_PanicNoPreCalculoNaoVazaTemporarios(t *testing.T) {
 		t.Errorf("temporários não removidos: %v", restantes)
 	}
 }
+
+// A PDF whose xref points page 1 to an object with another number makes the PDF
+// library panic inside the per-document goroutine; before the fix that killed
+// the whole app instead of marking the page.
+func TestProcessZip_PDFComXrefInconsistenteNaoDerrubaApp(t *testing.T) {
+	tmpTemp := t.TempDir()
+	t.Setenv("TMP", tmpTemp)
+	t.Setenv("TEMP", tmpTemp)
+	t.Setenv("TMPDIR", tmpTemp)
+
+	pdfBytes := buildPDF([]string{
+		"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
+		"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj",
+		"9 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> >>\nendobj",
+	})
+
+	zipPath := filepath.Join(t.TempDir(), "processo.zip")
+	buf := new(bytes.Buffer)
+	zw := zip.NewWriter(buf)
+	w, err := zw.Create("Evento 1 - DOC1.pdf")
+	if err != nil {
+		t.Fatalf("falha ao criar entrada: %v", err)
+	}
+	_, _ = w.Write(pdfBytes)
+	if err := zw.Close(); err != nil {
+		t.Fatalf("falha ao fechar zip: %v", err)
+	}
+	if err := os.WriteFile(zipPath, buf.Bytes(), 0644); err != nil {
+		t.Fatalf("falha ao gravar zip: %v", err)
+	}
+
+	p := NewPipeline(nil)
+	cfg := &models.Config{CleaningLevel: "none", OcrMode: "none"}
+	outPath, _, _, err := p.ProcessZip(context.Background(), zipPath, cfg, func(float64, string, int, int, int, int) {})
+	if err != nil {
+		t.Fatalf("ProcessZip falhou: %v", err)
+	}
+	saida, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("falha ao ler saída: %v", err)
+	}
+	if !strings.Contains(string(saida), "[ERRO") {
+		t.Errorf("esperava a página marcada com [ERRO ...] na saída:\n%s", saida)
+	}
+}

@@ -280,6 +280,32 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 		go func(i int, f models.ProcessFile) {
 			defer wg.Done()
 
+			// Um panic não recuperado neste goroutine derruba o app inteiro; o
+			// documento é marcado com erro e os demais seguem.
+			var tempPDF string
+			defer func() {
+				r := recover()
+				if r == nil {
+					return
+				}
+				log.Printf("[Pipeline] Panic ao processar %s: %v", f.DocName, r)
+				if tempPDF != "" {
+					os.Remove(tempPDF)
+				}
+				docData := eventos[fmt.Sprintf("%d", f.EventNum)].(map[string]any)["documentos"].(map[string]any)[f.Name].(map[string]any)
+				paginasMap := docData["paginas"].(map[string]any)
+				for k := range paginasMap {
+					delete(paginasMap, k)
+				}
+				paginasMap["1"] = map[string]any{
+					"index":   1,
+					"ocr":     false,
+					"image":   "",
+					"content": fmt.Sprintf("[ERRO ao processar documento: %v]", r),
+				}
+				reportProgress(fmt.Sprintf("Erro ao processar %s", f.DocName))
+			}()
+
 			// Acquire slot for document processing
 			select {
 			case docSem <- struct{}{}:
@@ -353,6 +379,7 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 					}
 				}
 
+				tempPDF = tempPath
 				parser := NewPDFParser(tempPath)
 				pdfPages, errParse := parser.ParsePages(ctx, cfg.OcrMode != "none", ocrRunner, func(pageNum int) {
 					atomic.AddInt32(&processedPagesVal, 1)
