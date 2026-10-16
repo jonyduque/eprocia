@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"log"
+	"runtime"
 
 	"github.com/getlantern/systray"
 	"github.com/wailsapp/wails/v2"
@@ -18,16 +19,15 @@ func main() {
 	// Create an instance of the app structure
 	app := NewApp()
 
-	// Run systray in a goroutine
-	go func() {
+	go executarTray(func() {
 		systray.Run(onReady(app), onExit)
-	}()
+	})
 
 	// Run the application
 	err := wails.Run(&options.App{
-		Title:  "eprocIA",
-		Width:  1024,
-		Height: 768,
+		Title:     "eprocIA",
+		Width:     1024,
+		Height:    768,
 		MinWidth:  800,
 		MinHeight: 600,
 		Frameless: true,
@@ -52,6 +52,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+// executarTray roda o laço do tray. A janela oculta do systray recebe as
+// mensagens Win32 só na thread que a criou, e GetMessage é bombeado nessa
+// mesma thread; sem prender a goroutine, o runtime pode migrá-la e o tray
+// deixa de responder.
+func executarTray(run func()) {
+	runtime.LockOSThread()
+	run()
 }
 
 func onReady(app *App) func() {
