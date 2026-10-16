@@ -89,6 +89,13 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 	var tempFilesMu sync.Mutex
 
 	for _, f := range files {
+		if err := ctx.Err(); err != nil {
+			for _, tp := range docTempFiles {
+				os.Remove(tp)
+			}
+			log.Printf("[Pipeline] Processamento cancelado durante o pré-cálculo de páginas")
+			return "", 0, 0, err
+		}
 		if f.Extension == ".pdf" {
 			pagesCount, tempPath, err := func() (int, string, error) {
 				zr, err := f.ZipFileRef.Open()
@@ -115,20 +122,24 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 					os.Remove(tPath)
 					return 0, "", err
 				}
-				defer pf.Close()
 
 				stat, err := pf.Stat()
 				if err != nil {
+					pf.Close()
 					os.Remove(tPath)
 					return 0, "", err
 				}
 
+				// No Windows, os.Remove falha com o arquivo ainda aberto: fechar antes de remover.
 				reader, err := pdf.NewReader(pf, stat.Size())
 				if err != nil {
+					pf.Close()
 					os.Remove(tPath)
 					return 0, "", err
 				}
-				return reader.NumPage(), tPath, nil
+				n := reader.NumPage()
+				pf.Close()
+				return n, tPath, nil
 			}()
 			if err != nil {
 				log.Printf("[Pipeline] Erro ao pré-calcular páginas para %s: %v", f.DocName, err)
@@ -206,7 +217,7 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 	reportProgress := func(msg string) {
 		pDocs := int(atomic.LoadInt32(&processedDocsVal))
 		pPages := int(atomic.LoadInt32(&processedPagesVal))
-		
+
 		progress := 0.0
 		if totalPagesAll > 0 {
 			progress = float64(pPages) / float64(totalPagesAll)
@@ -215,7 +226,7 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 		if onProgress != nil {
 			onProgress(progress, msg, pDocs, totalFiles, pPages, totalPagesAll)
 		}
-		
+
 		if wailsCtx := p.getContext(); wailsCtx != nil {
 			runtime.EventsEmit(wailsCtx, "process:progress", map[string]interface{}{
 				"file":            zipPath,
@@ -448,4 +459,3 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 
 	return outputPath, totalFiles, totalPages, nil
 }
-
