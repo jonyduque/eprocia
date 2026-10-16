@@ -149,6 +149,11 @@ describe('ambiente', () => {
     assert.match(l, /PID 42/);
   });
   it('sem wails', () => assert.match(ambiente.montarLinha({}), /não encontrado/));
+  it('wails achado mas versão não lida não vira "não encontrado"', () => {
+    const l = ambiente.montarLinha({ goVersao: '1.27.1', wails: 'C:\\go\\bin\\wails.exe' });
+    assert.doesNotMatch(l, /não encontrado/);
+    assert.match(l, /versão do x\/tools não lida/);
+  });
 });
 
 describe('execução como script', () => {

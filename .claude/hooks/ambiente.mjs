@@ -10,10 +10,11 @@ export function xtoolsCompativel(versao) {
   return Number(m[1]) >= 31;
 }
 
-export function montarLinha({ goVersao, xtools, pid, benchDir }) {
+export function montarLinha({ goVersao, wails, xtools, pid, benchDir }) {
   const partes = [`Go ${goVersao ?? '?'}`];
   const compat = xtoolsCompativel(xtools);
-  if (compat === null) partes.push('Wails CLI: não encontrado');
+  if (compat === null && wails) partes.push(`Wails CLI em ${wails} (versão do x/tools não lida)`);
+  else if (compat === null) partes.push('Wails CLI: não encontrado');
   else if (compat) partes.push(`Wails CLI ok (x/tools ${xtools})`);
   else partes.push(`Wails CLI incompatível com Go 1.27 (x/tools ${xtools}): use GOTOOLCHAIN=go1.25.5 wails build ou rode scripts/build/recompilar-wails.ps1`);
   partes.push(pid ? `eprocia.exe rodando (PID ${pid})` : 'eprocia.exe parado');
@@ -21,9 +22,11 @@ export function montarLinha({ goVersao, xtools, pid, benchDir }) {
   return `[eprocIA] ${partes.join(' · ')}`;
 }
 
+// A cold `go version -m` on the 36 MB wails.exe can take over 1.5 s at session
+// start, so each call gets 4 s (the hook timeout in settings.json is 20 s).
 function sh(cmd, args) {
   try {
-    return execFileSync(cmd, args, { encoding: 'utf8', timeout: 1500, stdio: ['ignore', 'pipe', 'ignore'] });
+    return execFileSync(cmd, args, { encoding: 'utf8', timeout: 4000, stdio: ['ignore', 'pipe', 'ignore'] });
   } catch {
     return '';
   }
@@ -35,7 +38,7 @@ function coletar() {
   const xtools = onde ? /golang\.org\/x\/tools\s+(v\S+)/.exec(sh('go', ['version', '-m', onde]))?.[1] : undefined;
   const lista = process.platform === 'win32' ? sh('tasklist', ['/FI', 'IMAGENAME eq eprocia.exe', '/FO', 'CSV', '/NH']) : '';
   const pid = /"eprocia\.exe","(\d+)"/i.exec(lista)?.[1];
-  return { goVersao, xtools, pid, benchDir: process.env.EPROCIA_BENCH_DIR };
+  return { goVersao, wails: onde || undefined, xtools, pid, benchDir: process.env.EPROCIA_BENCH_DIR };
 }
 
 export function avaliar(_evento, ctx = {}) {
