@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -43,16 +44,27 @@ func (a *App) startup(ctx context.Context) {
 	a.queue = etl.NewQueue(a.pipeline)
 	a.queue.SetContext(ctx)
 
-	// Load configuration
-	cfg, err := config.Load()
-	if err == nil {
-		a.cfg = cfg
-		a.queue.SetConfig(cfg)
-		// Start watchdog if path is set and enabled
-		if cfg.WatchdogEnabled && cfg.MonitoredPath != "" {
-			_ = a.watcher.Start(cfg.MonitoredPath)
+	cfg := carregarConfig(config.Load)
+	a.cfg = cfg
+	a.queue.SetConfig(cfg)
+	if cfg.WatchdogEnabled && cfg.MonitoredPath != "" {
+		if err := a.watcher.Start(cfg.MonitoredPath); err != nil {
+			log.Printf("Erro ao iniciar o monitoramento da pasta %q: %v", cfg.MonitoredPath, err)
+			runtime.EventsEmit(ctx, "watchdog:error", err.Error())
 		}
 	}
+}
+
+// carregarConfig nunca devolve nil: se a leitura falhar (ex.: JSON corrompido),
+// registra o aviso e segue com a configuração padrão.
+func carregarConfig(load func() (*models.Config, error)) *models.Config {
+	cfg, err := load()
+	if err == nil && cfg != nil {
+		return cfg
+	}
+	log.Printf("Aviso: falha ao carregar a configuração (%v); usando a configuração padrão", err)
+	padrao, _ := config.DefaultConfig()
+	return padrao
 }
 
 // shutdown is called when the application closes
@@ -101,23 +113,20 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 		return err
 	}
 
-	oldPath := ""
-	oldEnabled := false
-	if a.cfg != nil {
-		oldPath = a.cfg.MonitoredPath
-		oldEnabled = a.cfg.WatchdogEnabled
-	}
 	a.cfg = cfg
 	if a.queue != nil {
 		a.queue.SetConfig(cfg)
 	}
 
-	if cfg.MonitoredPath != oldPath || cfg.WatchdogEnabled != oldEnabled {
-		if cfg.WatchdogEnabled && cfg.MonitoredPath != "" {
-			_ = a.watcher.Start(cfg.MonitoredPath)
-		} else {
-			a.watcher.Stop()
+	// Start é no-op se a pasta já está sendo monitorada; chamá-lo sempre permite
+	// tentar de novo depois de uma falha mesmo sem mudar o caminho.
+	if cfg.WatchdogEnabled && cfg.MonitoredPath != "" {
+		if err := a.watcher.Start(cfg.MonitoredPath); err != nil {
+			log.Printf("Erro ao iniciar o monitoramento da pasta %q: %v", cfg.MonitoredPath, err)
+			return fmt.Errorf("configurações salvas, mas não foi possível monitorar a pasta %q: %w", cfg.MonitoredPath, err)
 		}
+	} else {
+		a.watcher.Stop()
 	}
 
 	return nil
