@@ -198,6 +198,26 @@ describe('eprocia-corrigir (simulado)', () => {
     assert.equal(chamadas.length, 1);
   });
 
+  it('grupos: ids do mesmo grupo viram uma tarefa e um commit, com a soma dos gates', async () => {
+    const { resultado, chamadas } = await rodar('eprocia-corrigir.js', { ...args, grupos: [['B-ES-01', 'B-EF-01']] }, responder(base));
+    const commits = chamadas.filter((c) => c.opts.label?.startsWith('commit:')).map((c) => c.opts.label);
+    assert.deepEqual(commits, ['commit:B-ES-01+B-EF-01', 'commit:F-RS-01']);
+    const commit = chamadas.find((c) => c.opts.label === 'commit:B-ES-01+B-EF-01').prompt;
+    assert.match(commit, /\[B-ES-01, B-EF-01\]/);
+    assert.match(commit, /ids\["B-ES-01"\]="feito"/);
+    assert.match(commit, /ids\["B-EF-01"\]="feito"/);
+    const impl = chamadas.find((c) => c.opts.label === 'implementar:B-ES-01+B-EF-01#1').prompt;
+    assert.match(impl, /goroutine/);
+    assert.match(impl, /ocr em lote/);
+    assert.match(chamadas.find((c) => c.opts.label === 'gate:B-ES-01+B-EF-01#1').prompt, /-count=10/, 'EF no grupo exige o benchmark completo');
+    assert.equal(resultado.status['B-ES-01'], 'feito');
+    assert.equal(resultado.status['B-EF-01'], 'feito');
+  });
+
+  it('grupo que mistura backend e frontend é recusado', async () => {
+    await assert.rejects(rodar('eprocia-corrigir.js', { ...args, grupos: [['B-ES-01', 'F-RS-01']] }, responder(base)), /mesma camada/);
+  });
+
   it('Passo 0 com falha impede qualquer correção', async () => {
     const { resultado, chamadas } = await rodar('eprocia-corrigir.js', args, responder({ ...base, passo0_feito: false }, { reprovar: (l) => l.startsWith('revisar:passo0') }));
     assert.match(resultado.erro, /Passo 0 falhou/);

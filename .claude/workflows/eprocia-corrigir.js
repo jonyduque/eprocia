@@ -11,12 +11,21 @@ export const meta = {
 }
 
 // args: { data: 'AAAA-MM-DD', relatorio: 'docs/revisao/AAAA-MM-DD-relatorio.md', ids: ['B-ES-01', ...],
-//         config: <.claude/review.json>, atribuicao: '<linhas de atribuição de commit da sessão>' }
+//         config: <.claude/review.json>, atribuicao: '<linhas de atribuição de commit da sessão>',
+//         grupos?: [['B-GM-01', 'B-GM-02'], ...] }
+// Each group becomes one task (one implementer, gate, reviewer and commit) to save
+// the fixed cost of a round on small findings that touch the same code.
 const { data, relatorio, ids, config } = args ?? {}
 if (!/^\d{4}-\d{2}-\d{2}$/.test(data ?? '')) throw new Error('args.data deve ser AAAA-MM-DD')
 if (!relatorio) throw new Error('args.relatorio é obrigatório')
 if (!Array.isArray(ids) || !ids.length) throw new Error('args.ids deve ser uma lista de ids do relatório')
 if (!config?.correcao) throw new Error('args.config deve ser o conteúdo de .claude/review.json')
+const grupos = Array.isArray(args.grupos) ? args.grupos.filter((g) => Array.isArray(g) && g.length) : []
+for (const g of grupos) {
+  if (new Set(g.map((id) => (id.startsWith('F-') ? 'frontend' : 'backend'))).size > 1) {
+    throw new Error(`grupo ${g.join('+')} mistura backend e frontend; um grupo deve ser da mesma camada`)
+  }
+}
 
 const TENTATIVAS = config.correcao.tentativas_max ?? 3
 // Untracked-files snapshot taken at preparation, stored inside .git (never committed).
@@ -135,7 +144,8 @@ const protegidos = JSON.stringify(prep.nao_rastreados)
 // then commits. On final failure it discards only this task's changes; if other
 // tracked files are still modified afterwards, the whole run stops instead of
 // touching them (they may be the user's).
-async function executarTarefa({ chave, rotulo, pedido, gate, mensagem, faseProgresso }) {
+async function executarTarefa({ chaves, rotulo, pedido, gate, mensagem, faseProgresso }) {
+  const marcar = (valor) => chaves.map((k) => `ids["${k}"]="${valor}"`).join(', ')
   let feedback = ''
   const tocados = new Set()
   for (let tentativa = 1; tentativa <= TENTATIVAS; tentativa++) {
@@ -168,7 +178,7 @@ async function executarTarefa({ chave, rotulo, pedido, gate, mensagem, faseProgr
         `Adicione pelo nome só os arquivos da tarefa (git status mostra quais; inclua go.mod e frontend/src/wailsjs se o build os regenerou). ` +
         `Nunca adicione docs/revisao/estado.json nem os caminhos ${protegidos}. Nunca use git add -A ou git add .\n` +
         `Mensagem (use um heredoc):\n${mensagem}\n\n${ATRIBUICAO}\n` +
-        `Depois do commit, em docs/revisao/estado.json marque ids["${chave}"]="feito" (se a chave existir) sem commitar o estado.`,
+        `Depois do commit, em docs/revisao/estado.json marque ${marcar('feito')} (as chaves que existirem) sem commitar o estado.`,
       { label: `commit:${rotulo}`, phase: faseProgresso, schema: COMMIT, effort: 'low' },
     )
     if (c?.ok) return { feito: true, sha: c.sha, benchstat: g.benchstat, capturas: g.capturas }
@@ -183,7 +193,7 @@ async function executarTarefa({ chave, rotulo, pedido, gate, mensagem, faseProgr
       `   e apague só os caminhos dessa lista (rm -f / rmdir de pastas que ficarem vazias). Se o arquivo de retrato não existir, não apague nada.\n` +
       `3. Não use git reset, git clean, git checkout . nem git stash.\n` +
       `4. Rode git status --porcelain e devolva em restantes os rastreados que ainda estejam modificados (linhas que não começam com "??").\n` +
-      `5. Marque ids["${chave}"]="bloqueado" em docs/revisao/estado.json (se a chave existir).`,
+      `5. Marque ${marcar('bloqueado')} em docs/revisao/estado.json (as chaves que existirem).`,
     { label: `descartar:${rotulo}`, phase: faseProgresso, schema: DESCARTE, effort: 'low' },
   )
   return { feito: false, motivo: feedback, restantes: d?.restantes ?? ['(descarte sem resposta)'] }
@@ -208,7 +218,7 @@ const GATE_SEM_REGRESSAO =
 phase('Pré-requisitos')
 if (!prep.passo0_feito) {
   const r = await executarTarefa({
-    chave: 'passo0',
+    chaves: ['passo0'],
     rotulo: 'passo0',
     faseProgresso: 'Pré-requisitos',
     pedido:
@@ -228,7 +238,7 @@ const achados = [...prep.achados].sort((a, b) => {
 
 if (!prep.svelte5_feito && achados.some((a) => camadaDe(a.id) === 'frontend')) {
   const r = await executarTarefa({
-    chave: 'svelte5',
+    chaves: ['svelte5'],
     rotulo: 'svelte5',
     faseProgresso: 'Pré-requisitos',
     pedido:
@@ -251,33 +261,59 @@ if (!prep.svelte5_feito && achados.some((a) => camadaDe(a.id) === 'frontend')) {
 // Sequential on purpose: every task edits the same working tree and commits on top of the previous one.
 phase('Correção')
 const detalhes = {}
-for (const a of achados) {
-  if (status[a.id]) continue
-  const camada = camadaDe(a.id)
-  const lente = lenteDe(a.id)
+
+// Tasks follow the fix order of their first member; a group pulls its other
+// members forward to that slot.
+const grupoDe = new Map(grupos.flatMap((g) => g.map((id) => [id, g])))
+const pendentes = achados.filter((a) => !status[a.id])
+const porId = new Map(pendentes.map((a) => [a.id, a]))
+const tarefas = []
+const agendados = new Set()
+for (const a of pendentes) {
+  if (agendados.has(a.id)) continue
+  const membros = (grupoDe.get(a.id) ?? [a.id]).filter((id) => porId.has(id) && !agendados.has(id)).map((id) => porId.get(id))
+  membros.forEach((m) => agendados.add(m.id))
+  tarefas.push(membros)
+}
+if (grupos.length) log(`${pendentes.length} achados em ${tarefas.length} tarefas`)
+
+const blocoAchado = (a) =>
+  `Achado aprovado ${a.id} (${camadaDe(a.id)}, lente ${lenteDe(a.id)}): ${a.titulo}\n` +
+  `Arquivo: ${a.arquivo}${a.linha ? `:${a.linha}` : ''}\nEvidência: ${a.evidencia}\nProposta: ${a.proposta}\n` +
+  `Custo estimado: ${a.custo ?? '?'}. Ganho esperado: ${a.ganho_esperado ?? '?'}.\n`
+
+for (const membros of tarefas) {
+  const ids = membros.map((a) => a.id)
+  const rotulo = ids.join('+')
+  const camada = camadaDe(ids[0])
+  const lentes = new Set(ids.map(lenteDe))
   let gate = GATE_BUILD
-  if (lente === 'EF') gate += `\n${GATE_BENCH}`
-  if (['ES', 'TE', 'GM'].includes(lente)) gate += `\n${GATE_SEM_REGRESSAO}`
-  if (camada === 'frontend') gate += `\n${gateVisual(`depois-${a.id}`)}`
+  if (lentes.has('EF')) gate += `\n${GATE_BENCH}`
+  else if (['ES', 'TE', 'GM'].some((l) => lentes.has(l))) gate += `\n${GATE_SEM_REGRESSAO}`
+  if (camada === 'frontend') gate += `\n${gateVisual(`depois-${rotulo}`)}`
 
   const r = await executarTarefa({
-    chave: a.id,
-    rotulo: a.id,
+    chaves: ids,
+    rotulo,
     faseProgresso: 'Correção',
     pedido:
-      `Achado aprovado ${a.id} (${camada}, lente ${lente}): ${a.titulo}\n` +
-      `Arquivo: ${a.arquivo}${a.linha ? `:${a.linha}` : ''}\nEvidência: ${a.evidencia}\nProposta: ${a.proposta}\n` +
-      `Custo estimado: ${a.custo ?? '?'}. Ganho esperado: ${a.ganho_esperado ?? '?'}.\n` +
-      (lente === 'EF' ? 'Antes de mudar, grave a linha de base do benchmark (skill eprocia-bench) num arquivo temporário fora do repositório.\n' : '') +
+      (ids.length > 1 ? `Esta tarefa corrige ${ids.length} achados juntos, num único commit; resolva todos e cubra cada um com teste:\n\n` : '') +
+      membros.map(blocoAchado).join('\n') +
+      (lentes.has('EF') ? 'Antes de mudar, grave a linha de base do benchmark (skill eprocia-bench) num arquivo temporário fora do repositório.\n' : '') +
       (camada === 'frontend' ? 'Siga DESIGN.md (tokens de movimento --dur-fast 150ms, --dur-base 220ms, --ease-out cubic-bezier(.2,.8,.2,1), prefers-reduced-motion; ícones lucide-svelte). Atualize DESIGN.md se a regra visual mudar.\n' : ''),
     gate,
-    mensagem: `fix(${camada}): ${a.titulo} [${a.id}]`,
+    mensagem:
+      ids.length > 1
+        ? `fix(${camada}): ${membros.map((a) => a.titulo).join('; ')} [${ids.join(', ')}]`
+        : `fix(${camada}): ${membros[0].titulo} [${ids[0]}]`,
   })
-  status[a.id] = r.feito ? 'feito' : 'bloqueado'
-  detalhes[a.id] = r
-  log(`${a.id}: ${status[a.id]}`)
+  for (const id of ids) {
+    status[id] = r.feito ? 'feito' : 'bloqueado'
+    detalhes[id] = r
+  }
+  log(`${rotulo}: ${r.feito ? 'feito' : 'bloqueado'}`)
   if (arvoreSuja(r)) {
-    return { erro: `descarte de ${a.id} deixou arquivos rastreados modificados (${r.restantes.join(', ')}); execução interrompida sem mexer neles`, status, detalhes }
+    return { erro: `descarte de ${rotulo} deixou arquivos rastreados modificados (${r.restantes.join(', ')}); execução interrompida sem mexer neles`, status, detalhes }
   }
 }
 
