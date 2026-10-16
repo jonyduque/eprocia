@@ -121,3 +121,35 @@ func TestWatcher_IgnoreNonZipFile(t *testing.T) {
 		// Success: no detection occurred
 	}
 }
+
+// Um ZIP ainda em verificação na pasta antiga não pode disparar o callback
+// depois de Stop + Start em outra pasta.
+func TestWatcher_StopDescartaVerificacaoPendenteDaPastaAntiga(t *testing.T) {
+	antiga := t.TempDir()
+	nova := t.TempDir()
+
+	disparos := make(chan string, 4)
+	w := NewWatcher(func(path string) { disparos <- path })
+
+	if err := w.Start(antiga); err != nil {
+		t.Fatalf("Start(antiga): %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(antiga, "processo.zip"), []byte("conteudo"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Dá tempo ao fsnotify de entregar o evento e lançar handleNewFile, mas
+	// não o bastante para o tamanho estabilizar (2 ticks de 200 ms).
+	time.Sleep(100 * time.Millisecond)
+
+	w.Stop()
+	if err := w.Start(nova); err != nil {
+		t.Fatalf("Start(nova): %v", err)
+	}
+	defer w.Stop()
+
+	select {
+	case p := <-disparos:
+		t.Fatalf("callback disparado após Stop com arquivo da pasta antiga: %s", p)
+	case <-time.After(1500 * time.Millisecond):
+	}
+}

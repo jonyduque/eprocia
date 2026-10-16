@@ -46,7 +46,15 @@ type Queue struct {
 	cfg        *models.Config
 	baseCtx    context.Context
 	baseCancel context.CancelFunc
+	encerrada  bool
+	wg         sync.WaitGroup // processItem em curso
+
+	// processar substitui pipeline.ProcessZip nos testes.
+	processar func(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, error)
 }
+
+// prazoShutdown limita quanto o encerramento do app espera o item em curso.
+const prazoShutdown = 5 * time.Second
 
 // NewQueue creates a new Queue instance.
 func NewQueue(pipeline *Pipeline) *Queue {
@@ -60,10 +68,32 @@ func NewQueue(pipeline *Pipeline) *Queue {
 }
 
 // Shutdown cancels the base context, stopping all in-flight and future
-// processing. Call on app shutdown so OCR/PDF subprocesses don't outlive
-// the Wails runtime.
+// processing, and waits (up to prazoShutdown) for the current item to
+// finish. Call on app shutdown so OCR/PDF subprocesses don't outlive
+// the Wails runtime and their temp files get removed.
 func (q *Queue) Shutdown() {
+	q.shutdownComPrazo(prazoShutdown)
+}
+
+// shutdownComPrazo devolve false se o item em curso não terminou no prazo.
+func (q *Queue) shutdownComPrazo(prazo time.Duration) bool {
+	q.mu.Lock()
+	q.encerrada = true
+	q.mu.Unlock()
 	q.baseCancel()
+
+	terminou := make(chan struct{})
+	go func() {
+		q.wg.Wait()
+		close(terminou)
+	}()
+	select {
+	case <-terminou:
+		return true
+	case <-time.After(prazo):
+		log.Printf("[Queue] Encerramento: o item em processamento não terminou em %v; saindo mesmo assim", prazo)
+		return false
+	}
 }
 
 // SetContext sets the Wails context for event emission.
@@ -244,6 +274,10 @@ func (q *Queue) Clear() {
 func (q *Queue) startProcessing() {
 	q.mu.Lock()
 	log.Printf("[Queue] startProcessing chamado. isPaused: %t, isWorking: %t, total_items: %d", q.isPaused, q.isWorking, len(q.items))
+	if q.encerrada {
+		q.mu.Unlock()
+		return
+	}
 	if q.isPaused || q.isWorking {
 		log.Printf("[Queue] Processador pausado ou já em execução. Retornando.")
 		q.mu.Unlock()
@@ -267,9 +301,15 @@ func (q *Queue) startProcessing() {
 
 	log.Printf("[Queue] Próximo item para processamento: %s (%s)", nextItem.Name, nextItem.Path)
 	q.isWorking = true
+	// Add sob q.mu com encerrada == false: Shutdown marca encerrada antes de
+	// esperar, então nenhum Add acontece com o contador em zero durante o Wait.
+	q.wg.Add(1)
 	q.mu.Unlock()
 
-	go q.processItem(nextItem)
+	go func() {
+		defer q.wg.Done()
+		q.processItem(nextItem)
+	}()
 }
 
 func (q *Queue) processItem(item *QueueItem) {
@@ -334,7 +374,11 @@ func (q *Queue) processItem(item *QueueItem) {
 		}
 	}
 
-	outputPath, docsCount, pagesCount, err := q.pipeline.ProcessZip(ctx, item.Path, cfg, onProgress)
+	processar := q.processar
+	if processar == nil {
+		processar = q.pipeline.ProcessZip
+	}
+	outputPath, docsCount, pagesCount, err := processar(ctx, item.Path, cfg, onProgress)
 
 	q.mu.Lock()
 	item.cancel = nil

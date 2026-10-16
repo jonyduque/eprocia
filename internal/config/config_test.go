@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -173,5 +174,47 @@ func TestLoad_EmptyFieldsFallback(t *testing.T) {
 	}
 	if cfg.CleaningLevel != "basic" {
 		t.Errorf("expected CleaningLevel to fall back to 'basic', got %s", cfg.CleaningLevel)
+	}
+}
+
+func TestSaveToFile_FalhaNaEscritaPreservaArquivoAnterior(t *testing.T) {
+	dir := t.TempDir()
+	caminho := filepath.Join(dir, "config.json")
+
+	original := &models.Config{MonitoredPath: "/original", OcrMode: "fast", CleaningLevel: "basic", WatchdogEnabled: true}
+	if err := SaveToFile(caminho, original); err != nil {
+		t.Fatalf("SaveToFile inicial: %v", err)
+	}
+
+	antes := escreverDados
+	defer func() { escreverDados = antes }()
+	escreverDados = func(f *os.File, data []byte) error {
+		_, _ = f.Write(data[:len(data)/2])
+		return errors.New("queda simulada no meio da escrita")
+	}
+
+	novo := &models.Config{MonitoredPath: "/novo", OcrMode: "best", CleaningLevel: "aggressive"}
+	if err := SaveToFile(caminho, novo); err == nil {
+		t.Fatal("SaveToFile devolveu nil com falha na escrita")
+	}
+
+	cfg, err := LoadFromFile(caminho)
+	if err != nil {
+		t.Fatalf("config.json corrompido após falha na escrita: %v", err)
+	}
+	if *cfg != *original {
+		t.Fatalf("config = %+v, esperado o original %+v", *cfg, *original)
+	}
+
+	entradas, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entradas) != 1 {
+		nomes := make([]string, 0, len(entradas))
+		for _, e := range entradas {
+			nomes = append(nomes, e.Name())
+		}
+		t.Fatalf("temporário deixado no diretório: %v", nomes)
 	}
 }

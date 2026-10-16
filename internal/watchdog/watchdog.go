@@ -73,7 +73,7 @@ func (w *Watcher) Start(path string) error {
 	}
 
 	w.wg.Add(1)
-	go w.watchLoop()
+	go w.watchLoop(w.watcher, w.done)
 
 	log.Printf("Watchdog started monitoring: %s", path)
 	return nil
@@ -108,12 +108,14 @@ func (w *Watcher) GetCurrentPath() string {
 }
 
 // watchLoop runs the background event listening.
-func (w *Watcher) watchLoop() {
+// Recebe watcher e done por argumento: Start os reatribui sob w.mu, e um
+// goroutine da pasta anterior não pode enxergar os da nova.
+func (w *Watcher) watchLoop(watcher *fsnotify.Watcher, done chan struct{}) {
 	defer w.wg.Done()
 
 	for {
 		select {
-		case event, ok := <-w.watcher.Events:
+		case event, ok := <-watcher.Events:
 			if !ok {
 				return
 			}
@@ -122,24 +124,30 @@ func (w *Watcher) watchLoop() {
 			if event.Has(fsnotify.Create) || event.Has(fsnotify.Write) || event.Has(fsnotify.Rename) {
 				if strings.ToLower(filepath.Ext(event.Name)) == ".zip" {
 					// Launch a goroutine to wait for the file to be completely written/unlocked
-					go w.handleNewFile(event.Name)
+					// wg.Add aqui é seguro: watchLoop ainda conta no wg, então
+					// o contador não está em zero enquanto stopLocked espera.
+					w.wg.Add(1)
+					go func(nome string) {
+						defer w.wg.Done()
+						w.handleNewFile(nome, done)
+					}(event.Name)
 				}
 			}
 
-		case err, ok := <-w.watcher.Errors:
+		case err, ok := <-watcher.Errors:
 			if !ok {
 				return
 			}
 			log.Printf("Watchdog error: %v", err)
 
-		case <-w.done:
+		case <-done:
 			return
 		}
 	}
 }
 
 // handleNewFile waits for the file to be completely written, then triggers the callback.
-func (w *Watcher) handleNewFile(filePath string) {
+func (w *Watcher) handleNewFile(filePath string, done <-chan struct{}) {
 	// Wait to ensure file is completely written and unlocked.
 	// We check if the file size is stable and if it can be opened.
 	var lastSize int64 = -1
@@ -149,7 +157,7 @@ func (w *Watcher) handleNewFile(filePath string) {
 
 	for i := 0; i < retries; i++ {
 		select {
-		case <-w.done:
+		case <-done:
 			return
 		case <-ticker.C:
 			info, err := os.Stat(filePath)
@@ -168,6 +176,11 @@ func (w *Watcher) handleNewFile(filePath string) {
 				file, err := os.Open(filePath)
 				if err == nil {
 					file.Close()
+					select {
+					case <-done:
+						return
+					default:
+					}
 					w.onFileAdded(filePath)
 					return
 				}

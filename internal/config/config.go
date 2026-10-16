@@ -123,5 +123,37 @@ func SaveToFile(path string, cfg *models.Config) error {
 		return err
 	}
 
-	return os.WriteFile(path, data, 0644)
+	// Grava num temporário do mesmo diretório e renomeia por cima: uma queda no
+	// meio da escrita deixa o config.json anterior intacto, nunca um JSON truncado.
+	tmp, err := os.CreateTemp(dir, ".config-*.json.tmp")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	if err := escreverDados(tmp, data); err != nil {
+		tmp.Close()
+		os.Remove(tmpPath)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+	if err := os.Chmod(tmpPath, 0644); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+	return nil
+}
+
+// escreverDados é variável para os testes simularem uma falha no meio da escrita.
+var escreverDados = func(f *os.File, data []byte) error {
+	if _, err := f.Write(data); err != nil {
+		return err
+	}
+	return f.Sync()
 }
