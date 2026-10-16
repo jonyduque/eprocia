@@ -177,7 +177,6 @@ func (q *Queue) IsPaused() bool {
 	return q.isPaused
 }
 
-
 // CancelItem cancels processing of an item.
 func (q *Queue) CancelItem(id string) {
 	q.mu.Lock()
@@ -287,6 +286,7 @@ func (q *Queue) processItem(item *QueueItem) {
 
 	q.mu.Lock()
 	ctx, cancel := context.WithCancel(q.baseCtx)
+	defer cancel()
 	item.cancel = cancel
 	item.Status = "processing"
 	item.Message = "Iniciando..."
@@ -296,7 +296,7 @@ func (q *Queue) processItem(item *QueueItem) {
 	q.broadcast()
 
 	onProgress := func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int) {
-		log.Printf("[Queue] Progresso [%s]: %.2f%% - %s (Docs: %d/%d, Páginas: %d/%d)", 
+		log.Printf("[Queue] Progresso [%s]: %.2f%% - %s (Docs: %d/%d, Páginas: %d/%d)",
 			item.Name, progress*100, message, processedDocs, totalDocs, processedPages, totalPages)
 		q.mu.Lock()
 		if item.Status == "processing" {

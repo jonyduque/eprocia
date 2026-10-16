@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -69,5 +70,48 @@ func TestProcessZip_CanceladoNaoPreCalculaPaginas(t *testing.T) {
 	}
 	if _, err := os.Stat(strings.TrimSuffix(zipPath, ".zip") + ".txt"); err == nil {
 		t.Errorf("arquivo de saída não deveria ser gravado após cancelamento")
+	}
+}
+
+func TestProcessZip_PanicNoPreCalculoNaoVazaTemporarios(t *testing.T) {
+	tmpTemp := t.TempDir()
+	t.Setenv("TMP", tmpTemp)
+	t.Setenv("TEMP", tmpTemp)
+	t.Setenv("TMPDIR", tmpTemp)
+
+	zipDir := t.TempDir()
+	zipPath := filepath.Join(zipDir, "processo.zip")
+	buf := new(bytes.Buffer)
+	zw := zip.NewWriter(buf)
+	for i := 1; i <= 3; i++ {
+		w, err := zw.Create(fmt.Sprintf("Evento %d - DOC%d.pdf", i, i))
+		if err != nil {
+			t.Fatalf("falha ao criar entrada: %v", err)
+		}
+		_, _ = w.Write([]byte("%PDF-1.4 conteudo ficticio"))
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatalf("falha ao fechar zip: %v", err)
+	}
+	if err := os.WriteFile(zipPath, buf.Bytes(), 0644); err != nil {
+		t.Fatalf("falha ao gravar zip: %v", err)
+	}
+
+	original := contarPaginasPDF
+	t.Cleanup(func() { contarPaginasPDF = original })
+	contarPaginasPDF = func(r io.ReaderAt, size int64) (int, error) {
+		panic("pdf corrompido")
+	}
+
+	p := NewPipeline(nil)
+	cfg := &models.Config{CleaningLevel: "none", OcrMode: "none"}
+	_, _, _, err := p.ProcessZip(context.Background(), zipPath, cfg, func(float64, string, int, int, int, int) {})
+	if err != nil {
+		t.Fatalf("panic no pré-cálculo deveria cair no fallback, obtive erro: %v", err)
+	}
+
+	restantes, _ := filepath.Glob(filepath.Join(tmpTemp, "eprocia_pdf_*"))
+	if len(restantes) != 0 {
+		t.Errorf("temporários não removidos: %v", restantes)
 	}
 }

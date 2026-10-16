@@ -19,6 +19,15 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
+// contarPaginasPDF é uma variável para que os testes simulem um panic da biblioteca de PDF.
+var contarPaginasPDF = func(r io.ReaderAt, size int64) (int, error) {
+	reader, err := pdf.NewReader(r, size)
+	if err != nil {
+		return 0, err
+	}
+	return reader.NumPage(), nil
+}
+
 // Pipeline orchestrates the entire extraction process.
 type Pipeline struct {
 	mu  sync.RWMutex
@@ -87,17 +96,37 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 	docPageCounts := make(map[string]int) // keep track of pages per file
 	docTempFiles := make(map[string]string)
 	var tempFilesMu sync.Mutex
+	// Remove os PDFs pré-extraídos em qualquer saída, inclusive por panic.
+	defer func() {
+		tempFilesMu.Lock()
+		for _, tp := range docTempFiles {
+			os.Remove(tp)
+		}
+		tempFilesMu.Unlock()
+	}()
 
 	for _, f := range files {
 		if err := ctx.Err(); err != nil {
-			for _, tp := range docTempFiles {
-				os.Remove(tp)
-			}
 			log.Printf("[Pipeline] Processamento cancelado durante o pré-cálculo de páginas")
 			return "", 0, 0, err
 		}
 		if f.Extension == ".pdf" {
-			pagesCount, tempPath, err := func() (int, string, error) {
+			pagesCount, tempPath, err := func() (n int, tPath string, err error) {
+				// A biblioteca de PDF pode entrar em panic com arquivo malformado;
+				// nesse caso o temporário é removido e o documento cai no fallback.
+				var pf *os.File
+				defer func() {
+					if r := recover(); r != nil {
+						if pf != nil {
+							pf.Close()
+						}
+						if tPath != "" {
+							os.Remove(tPath)
+						}
+						n, tPath, err = 0, "", fmt.Errorf("panic ao ler PDF: %v", r)
+					}
+				}()
+
 				zr, err := f.ZipFileRef.Open()
 				if err != nil {
 					return 0, "", err
@@ -108,7 +137,7 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 				if err != nil {
 					return 0, "", err
 				}
-				tPath := tempPdfFile.Name()
+				tPath = tempPdfFile.Name()
 
 				if _, err := io.Copy(tempPdfFile, zr); err != nil {
 					tempPdfFile.Close()
@@ -117,7 +146,7 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 				}
 				tempPdfFile.Close()
 
-				pf, err := os.Open(tPath)
+				pf, err = os.Open(tPath)
 				if err != nil {
 					os.Remove(tPath)
 					return 0, "", err
@@ -131,13 +160,12 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 				}
 
 				// No Windows, os.Remove falha com o arquivo ainda aberto: fechar antes de remover.
-				reader, err := pdf.NewReader(pf, stat.Size())
+				n, err = contarPaginasPDF(pf, stat.Size())
 				if err != nil {
 					pf.Close()
 					os.Remove(tPath)
 					return 0, "", err
 				}
-				n := reader.NumPage()
 				pf.Close()
 				return n, tPath, nil
 			}()
@@ -401,14 +429,6 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 	}
 
 	wg.Wait()
-
-	// Safety net: remove any pre-extracted temp files whose goroutine never
-	// ran to completion (e.g. cancelled before it could clean up after itself).
-	tempFilesMu.Lock()
-	for _, tp := range docTempFiles {
-		os.Remove(tp)
-	}
-	tempFilesMu.Unlock()
 
 	if errParseFirst != nil {
 		return "", 0, 0, errParseFirst
