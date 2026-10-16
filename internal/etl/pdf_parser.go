@@ -66,6 +66,12 @@ func (p *PDFParser) ParsePages(
 
 	log.Printf("[PDFParser] PDF %s possui %d páginas", p.filePath, numPages)
 
+	paginas, errResto, err := listarPaginas(reader, numPages)
+	if err != nil {
+		log.Printf("[PDFParser] Árvore de páginas inválida em %s: %v", p.filePath, err)
+		return nil, fmt.Errorf("árvore de páginas inválida: %w", err)
+	}
+
 	paginasMap := make(map[string]any)
 	var mapMu sync.Mutex
 	var wg sync.WaitGroup
@@ -120,7 +126,16 @@ func (p *PDFParser) ParsePages(
 			return nil, err
 		}
 
-		an, errPag := analisarPagina(reader, pageNum, ocrEnabled)
+		var an analisePagina
+		var errPag error
+		switch {
+		case pageNum <= len(paginas):
+			an, errPag = analisarPagina(paginas[pageNum-1], pageNum, ocrEnabled)
+		case errResto != nil:
+			errPag = errResto
+		default:
+			an.nula = true
+		}
 		if errPag != nil || an.nula {
 			content := ""
 			if errPag != nil {
@@ -196,23 +211,76 @@ func abrirLeitorPDF(r io.ReaderAt, size int64) (reader *pdf.Reader, numPages int
 	return reader, reader.NumPage(), nil
 }
 
+// maxProfundidadePaginas bounds the /Pages tree depth. Real trees are a few
+// levels deep; a cycle (e.g. /Kids [2 0 R] inside object 2) only shows up as
+// unbounded depth, since the library does not expose object identity.
+const maxProfundidadePaginas = 64
+
+// listarPaginas walks the /Pages tree once, in document order, and returns the
+// leaf pages. It replaces reader.Page, which descends /Kids with no visited set
+// and spins forever on a cyclic tree. A cycle, excessive depth or too many nodes
+// is a fatal error for the document. A panic while resolving a node (malformed
+// xref) stops the walk: the pages found so far are kept and errResto applies to
+// the remaining ones, as reader.Page would also panic on them.
+func listarPaginas(reader *pdf.Reader, numPages int) (paginas []pdf.Page, errResto, err error) {
+	orcamento := 4*numPages + 1024
+
+	var visitar func(no pdf.Value, prof int) error
+	visitar = func(no pdf.Value, prof int) error {
+		if len(paginas) >= numPages {
+			return nil
+		}
+		orcamento--
+		if orcamento < 0 {
+			return fmt.Errorf("árvore de páginas com nós demais para %d páginas", numPages)
+		}
+		switch no.Key("Type").Name() {
+		case "Page":
+			paginas = append(paginas, pdf.Page{V: no})
+		case "Pages":
+			if prof >= maxProfundidadePaginas {
+				return fmt.Errorf("árvore de páginas cíclica ou com mais de %d níveis", maxProfundidadePaginas)
+			}
+			kids := no.Key("Kids")
+			for i := 0; i < kids.Len() && len(paginas) < numPages; i++ {
+				if err := visitar(kids.Index(i), prof+1); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+
+	func() {
+		defer func() {
+			if rec := recover(); rec != nil {
+				errResto = fmt.Errorf("pânico ao percorrer a árvore de páginas: %v", rec)
+			}
+		}()
+		err = visitar(reader.Trailer().Key("Root").Key("Pages"), 0)
+	}()
+	if err != nil {
+		return nil, nil, err
+	}
+	return paginas, errResto, nil
+}
+
 type analisePagina struct {
 	nula       bool
 	texto      string
 	precisaOcr bool
 }
 
-// analisarPagina resolves one page, extracts its native text and decides on
-// OCR. Page and HasImages resolve objects lazily and panic on a malformed xref;
-// the panic is confined to this page so the rest of the document is still read.
-func analisarPagina(reader *pdf.Reader, pageNum int, ocrEnabled bool) (an analisePagina, err error) {
+// analisarPagina extracts the native text of one page and decides on OCR. The
+// library resolves objects lazily and panics on a malformed xref; the panic is
+// confined to this page so the rest of the document is still read.
+func analisarPagina(page pdf.Page, pageNum int, ocrEnabled bool) (an analisePagina, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			an, err = analisePagina{}, fmt.Errorf("pânico na leitura da página %d: %v", pageNum, rec)
 		}
 	}()
 
-	page := reader.Page(pageNum)
 	if page.V.IsNull() {
 		return analisePagina{nula: true}, nil
 	}

@@ -378,3 +378,85 @@ func TestPDFParser_ParsePages_XrefInconsistenteNoCatalogoNaoEntraEmPanic(t *test
 		t.Errorf("esperava erro para PDF com catálogo ilegível")
 	}
 }
+
+// parsePagesComPrazo runs ParsePages and fails the test if it does not return
+// within the deadline, returning ParsePages' error to the caller.
+func parsePagesComPrazo(t *testing.T, objects []string) (map[string]any, error) {
+	t.Helper()
+	pdfPath := filepath.Join(t.TempDir(), "test.pdf")
+	if err := os.WriteFile(pdfPath, buildPDF(objects), 0644); err != nil {
+		t.Fatalf("falha ao gravar pdf de teste: %v", err)
+	}
+	type resultado struct {
+		pages map[string]any
+		err   error
+	}
+	done := make(chan resultado, 1)
+	go func() {
+		pages, err := NewPDFParser(pdfPath).ParsePages(context.Background(), true, nil, nil)
+		done <- resultado{pages, err}
+	}()
+	select {
+	case r := <-done:
+		return r.pages, r.err
+	case <-time.After(5 * time.Second):
+		t.Fatalf("ParsePages travou na árvore de páginas")
+		return nil, nil
+	}
+}
+
+// Reader.Page in the PDF library descends /Kids with no visited set, so a
+// cyclic /Pages tree spins forever and holds the whole queue.
+func TestPDFParser_ParsePages_ArvoreDePaginasCiclicaNaoTrava(t *testing.T) {
+	casos := map[string][]string{
+		"filho de si mesmo": {
+			"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
+			"2 0 obj\n<< /Type /Pages /Kids [2 0 R] /Count 1 >>\nendobj",
+		},
+		"ciclo entre dois nós": {
+			"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
+			"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj",
+			"3 0 obj\n<< /Type /Pages /Parent 2 0 R /Kids [2 0 R] /Count 1 >>\nendobj",
+		},
+		"nó repetido entre irmãos": {
+			"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
+			"2 0 obj\n<< /Type /Pages /Kids [2 0 R 2 0 R] /Count 1 >>\nendobj",
+		},
+	}
+	for nome, objects := range casos {
+		t.Run(nome, func(t *testing.T) {
+			if _, err := parsePagesComPrazo(t, objects); err == nil {
+				t.Errorf("esperava erro para árvore de páginas cíclica")
+			}
+		})
+	}
+}
+
+// A well-formed nested tree must keep the document order of its leaves.
+func TestPDFParser_ParsePages_ArvoreAninhadaMantemOrdem(t *testing.T) {
+	texto := func(s string) string {
+		return fmt.Sprintf("BT\n/F1 12 Tf\n72 712 Td\n(%s) Tj\nET\n", s)
+	}
+	objects := []string{
+		"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
+		"2 0 obj\n<< /Type /Pages /Kids [3 0 R 6 0 R] /Count 3 >>\nendobj",
+		"3 0 obj\n<< /Type /Pages /Parent 2 0 R /Kids [4 0 R 5 0 R] /Count 2 >>\nendobj",
+		"4 0 obj\n<< /Type /Page /Parent 3 0 R /Resources << >> /Contents 7 0 R >>\nendobj",
+		"5 0 obj\n<< /Type /Page /Parent 3 0 R /Resources << >> /Contents 8 0 R >>\nendobj",
+		"6 0 obj\n<< /Type /Page /Parent 2 0 R /Resources << >> /Contents 9 0 R >>\nendobj",
+		fmt.Sprintf("7 0 obj\n<< /Length %d >>\nstream\n%sendstream\nendobj", len(texto("Primeira")), texto("Primeira")),
+		fmt.Sprintf("8 0 obj\n<< /Length %d >>\nstream\n%sendstream\nendobj", len(texto("Segunda")), texto("Segunda")),
+		fmt.Sprintf("9 0 obj\n<< /Length %d >>\nstream\n%sendstream\nendobj", len(texto("Terceira")), texto("Terceira")),
+	}
+
+	pages, err := parsePagesComPrazo(t, objects)
+	if err != nil {
+		t.Fatalf("ParsePages falhou: %v", err)
+	}
+	for num, esperado := range map[string]string{"1": "Primeira", "2": "Segunda", "3": "Terceira"} {
+		p, ok := pages[num].(map[string]any)
+		if !ok || !strings.Contains(p["content"].(string), esperado) {
+			t.Errorf("página %s: esperava %q, obtive %+v", num, esperado, pages[num])
+		}
+	}
+}
