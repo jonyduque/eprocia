@@ -3,6 +3,7 @@ package etl
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -89,7 +90,7 @@ func TestPDFParser_ParsePages_NativeText(t *testing.T) {
 	}
 }
 
-func TestPDFParser_ParsePages_OcrFallback(t *testing.T) {
+func TestPDFParser_ParsePages_UsesOcrForImagePage(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "pdf_parser_test")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -146,6 +147,49 @@ func TestPDFParser_ParsePages_OcrFallback(t *testing.T) {
 	}
 	if page["image"].(string) != "mock_image.png" {
 		t.Errorf("expected page image to be 'mock_image.png', got %q", page["image"])
+	}
+}
+
+// A failed OCR on a scanned page must not silently produce an empty page: the
+// output must carry an error marker so the user notices the missing content.
+func TestPDFParser_ParsePages_OcrFailureMarksPage(t *testing.T) {
+	pdfPath := filepath.Join(t.TempDir(), "image_test.pdf")
+	objects := []string{
+		"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
+		"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj",
+		"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /XObject << /Im1 5 0 R >> >> /Contents 4 0 R >>\nendobj",
+		"4 0 obj\n<< /Length 12 >>\nstream\n/Im1 Do\nendstream\nendobj",
+		"5 0 obj\n<< /Type /XObject /Subtype /Image /Width 200 /Height 200 /ColorSpace /DeviceGray /BitsPerComponent 8 /Length 0 >>\nstream\nendstream\nendobj",
+	}
+	if err := os.WriteFile(pdfPath, buildPDF(objects), 0644); err != nil {
+		t.Fatalf("failed to write test pdf: %v", err)
+	}
+
+	ocrRunner := func(ctx context.Context, path string, pageNum int) (string, string, error) {
+		return "", "", errors.New("tesseract ausente")
+	}
+	completed := 0
+	pages, err := NewPDFParser(pdfPath).ParsePages(context.Background(), true, ocrRunner, func(int) { completed++ })
+	if err != nil {
+		t.Fatalf("ParsePages failed: %v", err)
+	}
+
+	page := pages["1"].(map[string]any)
+	if page["ocr"].(bool) {
+		t.Errorf("expected ocr=false after OCR failure")
+	}
+	if page["image"].(string) != "" {
+		t.Errorf("expected empty image after OCR failure, got %q", page["image"])
+	}
+	content := page["content"].(string)
+	if !strings.HasPrefix(content, "[ERRO de OCR:") || !strings.Contains(content, "tesseract ausente") {
+		t.Errorf("expected OCR error marker in content, got %q", content)
+	}
+	if page["ocr_erro"] != "tesseract ausente" {
+		t.Errorf("expected ocr_erro to carry the failure, got %v", page["ocr_erro"])
+	}
+	if completed != 1 {
+		t.Errorf("expected onPageComplete once, got %d", completed)
 	}
 }
 

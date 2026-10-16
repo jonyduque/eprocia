@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/dslipak/pdf"
 )
@@ -65,10 +66,11 @@ func (p *PDFParser) ParsePages(
 
 	numPages := reader.NumPage()
 	log.Printf("[PDFParser] PDF %s possui %d páginas", p.filePath, numPages)
-	
+
 	paginasMap := make(map[string]any)
 	var mapMu sync.Mutex
 	var wg sync.WaitGroup
+	var ocrFailures int32
 
 	// Concurrency is bounded by the shared OCR semaphore passed in via
 	// ocrRunner (see Pipeline.ProcessZip), so each OCR task just blocks on
@@ -88,12 +90,18 @@ func (p *PDFParser) ParsePages(
 				"content": ocrText,
 			}
 		} else {
-			log.Printf("[PDFParser] Falha no OCR para página %d: %v. Usando texto nativo como fallback.", task.pageNum, err)
+			content := task.fallback
+			if content == "" {
+				content = fmt.Sprintf("[ERRO de OCR: %s]", err.Error())
+			}
+			log.Printf("[PDFParser] Falha no OCR para página %d: %v. Usando texto nativo como fallback (%d chars).", task.pageNum, err, len(task.fallback))
+			atomic.AddInt32(&ocrFailures, 1)
 			pageData = map[string]any{
-				"index":   task.pageNum,
-				"ocr":     false,
-				"image":   "",
-				"content": task.fallback,
+				"index":    task.pageNum,
+				"ocr":      false,
+				"image":    "",
+				"content":  content,
+				"ocr_erro": err.Error(),
 			}
 		}
 
@@ -185,6 +193,9 @@ func (p *PDFParser) ParsePages(
 		return nil, err
 	}
 
+	if n := atomic.LoadInt32(&ocrFailures); n > 0 {
+		log.Printf("[PDFParser] ATENÇÃO: %d página(s) de %s com falha de OCR.", n, p.filePath)
+	}
 	log.Printf("[PDFParser] Análise concluída. %d páginas retornadas.", len(paginasMap))
 	return paginasMap, nil
 }

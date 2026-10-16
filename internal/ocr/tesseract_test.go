@@ -79,3 +79,40 @@ func TestRunOCR(t *testing.T) {
 		t.Errorf("expected OCR text to contain 'TESSERACT' or 'TEST', got %q (binPath: %s)", text, binPath)
 	}
 }
+
+// A transient failure while extracting the binaries must not stick for the
+// whole process lifetime: the next call has to try again.
+func TestInitBinaries_RetriesAfterFailure(t *testing.T) {
+	resetInitForTest()
+	t.Cleanup(resetInitForTest)
+
+	blocker := filepath.Join(t.TempDir(), "arquivo")
+	if err := os.WriteFile(blocker, nil, 0644); err != nil {
+		t.Fatalf("failed to create blocker file: %v", err)
+	}
+	// TempDir pointing at a regular file makes MkdirAll fail.
+	t.Setenv("TMP", blocker)
+	t.Setenv("TEMP", blocker)
+	t.Setenv("TMPDIR", blocker)
+	if _, err := InitBinaries(); err == nil {
+		t.Fatalf("expected InitBinaries to fail with TEMP pointing to a file")
+	}
+
+	good := t.TempDir()
+	t.Setenv("TMP", good)
+	t.Setenv("TEMP", good)
+	t.Setenv("TMPDIR", good)
+	dir, err := InitBinaries()
+	if err != nil {
+		t.Fatalf("expected InitBinaries to retry and succeed, got %v", err)
+	}
+	if dir != filepath.Join(good, "eprocIA_bin") {
+		t.Errorf("expected bin dir under the new TEMP, got %q", dir)
+	}
+}
+
+func resetInitForTest() {
+	initMu.Lock()
+	defer initMu.Unlock()
+	binDir = ""
+}

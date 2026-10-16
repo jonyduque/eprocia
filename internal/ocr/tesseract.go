@@ -17,37 +17,36 @@ import (
 var EmbeddedFiles embed.FS
 
 var (
-	binDir   string
-	initOnce sync.Once
-	initErr  error
+	binDir string
+	initMu sync.Mutex
 )
 
-// InitBinaries extracts the poppler, tesseract, and tessdata files to a temp directory once.
+// InitBinaries extracts the poppler, tesseract, and tessdata files to a temp directory.
+// Success is cached for the process; a failure is not, so the next OCR call
+// retries instead of failing until the app is restarted.
 func InitBinaries() (string, error) {
-	initOnce.Do(func() {
-		tempDir := filepath.Join(os.TempDir(), "eprocIA_bin")
-		log.Printf("[OCR] Inicializando diretório temporário para binários: %s", tempDir)
-		
-		log.Printf("[OCR] Iniciando verificação e extração do embed.FS para %s...", tempDir)
-		err := os.MkdirAll(tempDir, 0755)
-		if err != nil {
-			initErr = fmt.Errorf("failed to create temp bin dir: %w", err)
-			return
-		}
+	initMu.Lock()
+	defer initMu.Unlock()
+	if binDir != "" {
+		return binDir, nil
+	}
 
-		// Extract files recursively from the embed FS (skips files with matching sizes)
-		err = extractFS(EmbeddedFiles, "embed", tempDir)
-		if err != nil {
-			log.Printf("[OCR] Falha ao extrair arquivos embutidos: %v", err)
-			initErr = fmt.Errorf("failed to extract embedded binaries: %w", err)
-			return
-		}
+	tempDir := filepath.Join(os.TempDir(), "eprocIA_bin")
+	log.Printf("[OCR] Iniciando verificação e extração do embed.FS para %s...", tempDir)
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		log.Printf("[OCR] Falha ao criar diretório de binários: %v", err)
+		return "", fmt.Errorf("failed to create temp bin dir: %w", err)
+	}
 
-		log.Printf("[OCR] Verificação/extração de binários concluída com sucesso no diretório: %s", tempDir)
-		binDir = tempDir
-	})
+	// Extract files recursively from the embed FS (skips byte-identical files)
+	if err := extractFS(EmbeddedFiles, "embed", tempDir); err != nil {
+		log.Printf("[OCR] Falha ao extrair arquivos embutidos: %v", err)
+		return "", fmt.Errorf("failed to extract embedded binaries: %w", err)
+	}
 
-	return binDir, initErr
+	log.Printf("[OCR] Verificação/extração de binários concluída com sucesso no diretório: %s", tempDir)
+	binDir = tempDir
+	return binDir, nil
 }
 
 // extractFS extracts files recursively from an embed.FS.
@@ -75,7 +74,7 @@ func extractFS(fs embed.FS, srcDir, destDir string) error {
 			if err != nil {
 				return err
 			}
-			
+
 			// Skip writing only if the existing file's content is byte-identical
 			// (a size-only check would keep a stale binary after an upgrade that
 			// ships a same-size replacement).
@@ -141,7 +140,7 @@ func RunOCR(ctx context.Context, pdfPath string, pageNum int, mode string) (stri
 		pdfPath,
 		imgPrefix,
 	)
-	
+
 	// Set DLL search path for Poppler on Windows by modifying PATH environment variable
 	popplerDir := filepath.Join(binDir, "poppler")
 	prepareCmd(cmdPpm)
@@ -175,7 +174,7 @@ func RunOCR(ctx context.Context, pdfPath string, pageNum int, mode string) (stri
 
 	// Run tesseract OCR on the page image
 	txtOutputPrefix := filepath.Join(tempDir, "output")
-	
+
 	// Exec tesseract
 	log.Printf("[OCR] Executando tesseract no idioma 'por'...")
 	cmdTess := exec.CommandContext(ctx, tessPath,
@@ -183,11 +182,11 @@ func RunOCR(ctx context.Context, pdfPath string, pageNum int, mode string) (stri
 		txtOutputPrefix,
 		"-l", "por",
 	)
-	
+
 	// Set environment variables for Tesseract DLLs and traineddata path
 	tesseractDir := filepath.Join(binDir, "tesseract")
 	prepareCmd(cmdTess)
-	cmdTess.Env = append(os.Environ(), 
+	cmdTess.Env = append(os.Environ(),
 		"PATH="+tesseractDir+";"+os.Getenv("PATH"),
 		"TESSDATA_PREFIX="+tessdataPath,
 		"OMP_NUM_THREADS=1",
@@ -202,7 +201,7 @@ func RunOCR(ctx context.Context, pdfPath string, pageNum int, mode string) (stri
 			txtOutputPrefix,
 		)
 		prepareCmd(cmdTessFallback)
-		cmdTessFallback.Env = append(os.Environ(), 
+		cmdTessFallback.Env = append(os.Environ(),
 			"PATH="+tesseractDir+";"+os.Getenv("PATH"),
 			"TESSDATA_PREFIX="+tessdataPath,
 			"OMP_NUM_THREADS=1",
