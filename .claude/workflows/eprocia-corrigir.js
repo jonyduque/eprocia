@@ -210,9 +210,12 @@ const gateVisual = (pasta) =>
 const GATE_BENCH = 'Rode o benchmark da skill eprocia-bench: compare o commit base (git stash não; use git worktree add em diretório temporário para o HEAD) com a árvore atual, -count=10, e cole a tabela do go tool benchstat em benchstat. Aceite só com p < 0,05 na métrica-alvo e nenhuma outra métrica pior que 5%; remova o worktree temporário.'
 // Regression check for ES/TE/GM fixes. OCR mode is left out on purpose: its peak
 // memory swings run to run (Tesseract, GC timing) and rejected sound fixes as noise.
+// Wall time on this machine swings ±70% while other agents run, so time alone
+// never rejects; memory is steadier and stays the hard criterion.
 const GATE_SEM_REGRESSAO =
-  'Rode o benchmark da skill eprocia-bench só no modo padrão sem OCR (não defina EPROCIA_BENCH_OCR): antes = HEAD via git worktree temporário, depois = árvore atual, -count=6. ' +
-  'Reprove só se, com p < 0,05, sec/op piorar mais de 5% ou pico-mem-B ou B/op piorar mais de 15%. Cole a tabela em benchstat; remova o worktree.'
+  'Benchmark de regressão (skill eprocia-bench). Primeiro rode go list -deps ./scripts/bench: se nenhum pacote alterado pela tarefa estiver nessa lista, pule o benchmark e diga isso em benchstat. ' +
+  'Senão, rode só o modo padrão sem OCR (não defina EPROCIA_BENCH_OCR): antes = HEAD via git worktree temporário, depois = árvore atual, -count=6. ' +
+  'Reprove se, com p < 0,05, pico-mem-B ou B/op piorar mais de 15%. Reprove por sec/op só se piorar mais de 25% com p < 0,05 numa segunda rodada que alterne antes e depois (-count=1, 6 vezes cada). Cole a tabela em benchstat; remova o worktree.'
 
 // ---------------------------------------------------------------- Pré-requisitos
 phase('Pré-requisitos')
