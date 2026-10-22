@@ -218,3 +218,81 @@ func TestSaveToFile_FalhaNaEscritaPreservaArquivoAnterior(t *testing.T) {
 		t.Fatalf("temporário deixado no diretório: %v", nomes)
 	}
 }
+
+// Contrato: LoadFromFile é estrito com JSON inválido e devolve o erro; quem cai
+// para a configuração padrão com aviso é o app (carregarConfig em app.go).
+func TestLoad_CorruptJSON(t *testing.T) {
+	caminho := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(caminho, []byte("{oops"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := LoadFromFile(caminho)
+	if err == nil {
+		t.Fatalf("LoadFromFile aceitou JSON inválido e devolveu %+v", cfg)
+	}
+	if cfg != nil {
+		t.Fatalf("LoadFromFile devolveu config %+v junto com o erro", *cfg)
+	}
+}
+
+func TestLoad_UnreadableFile(t *testing.T) {
+	// Um diretório no lugar do arquivo dá erro de leitura diferente de NotExist,
+	// que não pode ser confundido com "primeira execução".
+	caminho := filepath.Join(t.TempDir(), "config.json")
+	if err := os.Mkdir(caminho, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := LoadFromFile(caminho)
+	if err == nil {
+		t.Fatalf("LoadFromFile leu um diretório e devolveu %+v", cfg)
+	}
+	if os.IsNotExist(err) {
+		t.Fatalf("erro tratado como inexistente: %v", err)
+	}
+	if cfg != nil {
+		t.Fatalf("LoadFromFile devolveu config %+v junto com o erro", *cfg)
+	}
+}
+
+func TestLoadESave_UsamCaminhoPadrao(t *testing.T) {
+	// os.UserConfigDir lê APPDATA no Windows e XDG_CONFIG_HOME no Linux.
+	base := t.TempDir()
+	t.Setenv("APPDATA", base)
+	t.Setenv("XDG_CONFIG_HOME", base)
+
+	caminho, err := GetConfigPath()
+	if err != nil {
+		t.Fatalf("GetConfigPath: %v", err)
+	}
+	if esperado := filepath.Join(base, "eprocIA", "config.json"); caminho != esperado {
+		t.Fatalf("GetConfigPath = %q, esperado %q", caminho, esperado)
+	}
+
+	padrao, _ := DefaultConfig()
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load sem arquivo: %v", err)
+	}
+	if *cfg != *padrao {
+		t.Fatalf("Load sem arquivo = %+v, esperado padrão %+v", *cfg, *padrao)
+	}
+
+	salvo := &models.Config{MonitoredPath: "/salvo", OcrMode: "best", CleaningLevel: "none", AutoStart: true}
+	if err := Save(salvo); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	cfg, err = Load()
+	if err != nil {
+		t.Fatalf("Load depois do Save: %v", err)
+	}
+	if *cfg != *salvo {
+		t.Fatalf("Load = %+v, esperado %+v", *cfg, *salvo)
+	}
+
+	if err := os.WriteFile(caminho, []byte("{oops"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if cfg, err := Load(); err == nil {
+		t.Fatalf("Load aceitou JSON inválido e devolveu %+v", cfg)
+	}
+}

@@ -65,6 +65,9 @@ type Queue struct {
 
 	// processar substitui pipeline.ProcessZip nos testes.
 	processar func(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, error)
+
+	// carregarConfig substitui config.Load nos testes.
+	carregarConfig func() (*models.Config, error)
 }
 
 // prazoShutdown limita quanto o encerramento do app espera o item em curso.
@@ -377,8 +380,12 @@ func (q *Queue) processItem(item *QueueItem) {
 	}
 
 	if cfg == nil {
+		carregar := q.carregarConfig
+		if carregar == nil {
+			carregar = config.Load
+		}
 		var err error
-		cfg, err = config.Load()
+		cfg, err = carregar()
 		if err != nil {
 			log.Printf("[Queue] Erro ao carregar configurações para %s: %v", item.Name, err)
 			q.mu.Lock()
