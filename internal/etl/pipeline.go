@@ -16,7 +16,6 @@ import (
 	"eprocia/internal/ocr"
 
 	"github.com/dslipak/pdf"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // contarPaginasPDF é uma variável para que os testes simulem um panic da biblioteca de PDF.
@@ -28,59 +27,26 @@ var contarPaginasPDF = func(r io.ReaderAt, size int64) (int, error) {
 	return reader.NumPage(), nil
 }
 
-// Pipeline orchestrates the entire extraction process.
-type Pipeline struct {
-	mu  sync.RWMutex
-	ctx context.Context
-}
+// Pipeline orchestrates the entire extraction process. It emits no Wails
+// events: progress reaches the frontend through the Queue.
+type Pipeline struct{}
 
 // NewPipeline creates a new Pipeline instance.
-func NewPipeline(ctx context.Context) *Pipeline {
-	return &Pipeline{
-		ctx: ctx,
-	}
-}
-
-// SetContext updates the Wails context for events.
-func (p *Pipeline) SetContext(ctx context.Context) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.ctx = ctx
-}
-
-func (p *Pipeline) getContext() context.Context {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	return p.ctx
+func NewPipeline() *Pipeline {
+	return &Pipeline{}
 }
 
 // ProcessZip extracts, parses, OCRs (if needed), sorts, and formats a ZIP file.
 func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int)) (string, int, int, error) {
-	if wailsCtx := p.getContext(); wailsCtx != nil {
-		runtime.EventsEmit(wailsCtx, "process:start", zipPath)
-	}
-
 	// 1. Read ZIP files
 	files, rc, err := ReadZipFiles(zipPath)
 	if err != nil {
-		if wailsCtx := p.getContext(); wailsCtx != nil {
-			runtime.EventsEmit(wailsCtx, "process:error", map[string]string{
-				"file":  zipPath,
-				"error": err.Error(),
-			})
-		}
 		return "", 0, 0, err
 	}
 	defer rc.Close()
 
 	if len(files) == 0 {
 		errNoFiles := fmt.Errorf("no PDF or HTML documents found in ZIP")
-		if wailsCtx := p.getContext(); wailsCtx != nil {
-			runtime.EventsEmit(wailsCtx, "process:error", map[string]string{
-				"file":  zipPath,
-				"error": errNoFiles.Error(),
-			})
-		}
 		return "", 0, 0, errNoFiles
 	}
 
@@ -253,18 +219,6 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 
 		if onProgress != nil {
 			onProgress(progress, msg, pDocs, totalFiles, pPages, totalPagesAll)
-		}
-
-		if wailsCtx := p.getContext(); wailsCtx != nil {
-			runtime.EventsEmit(wailsCtx, "process:progress", map[string]interface{}{
-				"file":            zipPath,
-				"progress":        progress,
-				"message":         msg,
-				"processed_docs":  pDocs,
-				"total_docs":      totalFiles,
-				"processed_pages": pPages,
-				"total_pages":     totalPagesAll,
-			})
 		}
 	}
 
@@ -474,12 +428,6 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 	outputPath := strings.TrimSuffix(zipPath, filepath.Ext(zipPath)) + ".txt"
 	err = os.WriteFile(outputPath, []byte(outputText), 0644)
 	if err != nil {
-		if wailsCtx := p.getContext(); wailsCtx != nil {
-			runtime.EventsEmit(wailsCtx, "process:error", map[string]string{
-				"file":  zipPath,
-				"error": fmt.Sprintf("failed to save output file: %s", err.Error()),
-			})
-		}
 		return "", 0, 0, err
 	}
 
@@ -493,15 +441,6 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 			paginasMap := dData["paginas"].(map[string]any)
 			totalPages += len(paginasMap)
 		}
-	}
-
-	if wailsCtx := p.getContext(); wailsCtx != nil {
-		runtime.EventsEmit(wailsCtx, "process:success", map[string]interface{}{
-			"file":        zipPath,
-			"output_path": outputPath,
-			"docs_count":  totalFiles,
-			"pages_count": totalPages,
-		})
 	}
 
 	return outputPath, totalFiles, totalPages, nil

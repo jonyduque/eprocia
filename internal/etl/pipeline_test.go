@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -52,7 +53,7 @@ func TestProcessZip_CanceladoNaoPreCalculaPaginas(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	p := NewPipeline(nil)
+	p := NewPipeline()
 	cfg := &models.Config{CleaningLevel: "none", OcrMode: "fast"}
 	_, _, _, err := p.ProcessZip(ctx, zipPath, cfg, func(float64, string, int, int, int, int) {})
 	if !errors.Is(err, context.Canceled) {
@@ -103,7 +104,7 @@ func TestProcessZip_PanicNoPreCalculoNaoVazaTemporarios(t *testing.T) {
 		panic("pdf corrompido")
 	}
 
-	p := NewPipeline(nil)
+	p := NewPipeline()
 	cfg := &models.Config{CleaningLevel: "none", OcrMode: "none"}
 	_, _, _, err := p.ProcessZip(context.Background(), zipPath, cfg, func(float64, string, int, int, int, int) {})
 	if err != nil {
@@ -146,7 +147,7 @@ func TestProcessZip_PDFComXrefInconsistenteNaoDerrubaApp(t *testing.T) {
 		t.Fatalf("falha ao gravar zip: %v", err)
 	}
 
-	p := NewPipeline(nil)
+	p := NewPipeline()
 	cfg := &models.Config{CleaningLevel: "none", OcrMode: "none"}
 	outPath, _, _, err := p.ProcessZip(context.Background(), zipPath, cfg, func(float64, string, int, int, int, int) {})
 	if err != nil {
@@ -158,5 +159,34 @@ func TestProcessZip_PDFComXrefInconsistenteNaoDerrubaApp(t *testing.T) {
 	}
 	if !strings.Contains(string(saida), "[ERRO") {
 		t.Errorf("esperava a página marcada com [ERRO ...] na saída:\n%s", saida)
+	}
+}
+
+// Os eventos process:* não tinham ouvinte no frontend; a fila já leva o
+// progresso. Com um contexto sem runtime Wails, qualquer EventsEmit encerra
+// o processo via log.Fatalf, por isso o teste roda num subprocesso.
+func TestProcessZip_NaoEmiteEventosWails(t *testing.T) {
+	if os.Getenv("EPROCIA_SUBPROCESSO_EVENTOS") == "1" {
+		zipPath := filepath.Join(t.TempDir(), "processo.zip")
+		buf := new(bytes.Buffer)
+		zw := zip.NewWriter(buf)
+		w, _ := zw.Create("Evento 1 - DOC1.html")
+		_, _ = w.Write([]byte("<html><body><p>Texto ficticio do documento.</p></body></html>"))
+		_ = zw.Close()
+		if err := os.WriteFile(zipPath, buf.Bytes(), 0644); err != nil {
+			t.Fatal(err)
+		}
+		p := NewPipeline()
+		cfg := &models.Config{CleaningLevel: "none", OcrMode: "none"}
+		if _, _, _, err := p.ProcessZip(context.Background(), zipPath, cfg, func(float64, string, int, int, int, int) {}); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=^TestProcessZip_NaoEmiteEventosWails$")
+	cmd.Env = append(os.Environ(), "EPROCIA_SUBPROCESSO_EVENTOS=1")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("ProcessZip tentou emitir evento Wails: %v\n%s", err, out)
 	}
 }

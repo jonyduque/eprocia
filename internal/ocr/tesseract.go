@@ -1,27 +1,39 @@
 package ocr
 
 import (
-	"bytes"
 	"context"
 	"embed"
 	"fmt"
+	"io"
+	"io/fs"
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"eprocia/internal/ocr/versao"
 )
+
+//go:generate go run ./versao/gerar
 
 //go:embed embed
 var EmbeddedFiles embed.FS
 
+// arquivoVersao guarda, em cada diretório extraído, o versaoEmbutidos que o
+// gravou. Com o carimbo igual basta comparar tamanhos, sem ler conteúdo.
+const arquivoVersao = ".versao"
+
 var (
-	binDir string
-	initMu sync.Mutex
+	binDir       string
+	tessdataDirs = map[string]string{}
+	initMu       sync.Mutex
 )
 
-// InitBinaries extracts the poppler, tesseract, and tessdata files to a temp directory.
+// InitBinaries extracts poppler and tesseract to a temp directory; the
+// tessdata of each mode is extracted on demand by tessdataDoModo.
 // Success is cached for the process; a failure is not, so the next OCR call
 // retries instead of failing until the app is restarted.
 func InitBinaries() (string, error) {
@@ -37,9 +49,7 @@ func InitBinaries() (string, error) {
 		log.Printf("[OCR] Falha ao criar diretório de binários: %v", err)
 		return "", fmt.Errorf("failed to create temp bin dir: %w", err)
 	}
-
-	// Extract files recursively from the embed FS (skips byte-identical files)
-	if err := extractFS(EmbeddedFiles, "embed", tempDir); err != nil {
+	if err := extrairBase(tempDir); err != nil {
 		log.Printf("[OCR] Falha ao extrair arquivos embutidos: %v", err)
 		return "", fmt.Errorf("failed to extract embedded binaries: %w", err)
 	}
@@ -49,46 +59,138 @@ func InitBinaries() (string, error) {
 	return binDir, nil
 }
 
-// extractFS extracts files recursively from an embed.FS.
-func extractFS(fs embed.FS, srcDir, destDir string) error {
-	entries, err := fs.ReadDir(srcDir)
-	if err != nil {
-		return err
+// tessdataDoModo extrai, uma vez por processo, o tessdata do modo pedido.
+func tessdataDoModo(base, modo string) (string, error) {
+	initMu.Lock()
+	defer initMu.Unlock()
+	if dir, ok := tessdataDirs[modo]; ok {
+		return dir, nil
 	}
+	dir, err := extrairTessdata(base, modo)
+	if err != nil {
+		return "", err
+	}
+	tessdataDirs[modo] = dir
+	return dir, nil
+}
 
-	for _, entry := range entries {
-		srcPath := srcDir + "/" + entry.Name()
-		destPath := filepath.Join(destDir, entry.Name())
+// CalcularVersaoEmbutidos recalcula o carimbo de embed/; o teste o compara com
+// a constante gerada para pegar um versao_embed.go esquecido.
+func CalcularVersaoEmbutidos() (string, error) {
+	return versao.Calcular(EmbeddedFiles, "embed")
+}
 
-		if entry.IsDir() {
-			err = os.MkdirAll(destPath, 0755)
-			if err != nil {
-				return err
-			}
-			err = extractFS(fs, srcPath, destPath)
-			if err != nil {
-				return err
-			}
-		} else {
-			data, err := fs.ReadFile(srcPath)
-			if err != nil {
-				return err
-			}
-
-			// Skip writing only if the existing file's content is byte-identical
-			// (a size-only check would keep a stale binary after an upgrade that
-			// ships a same-size replacement).
-			if existing, err := os.ReadFile(destPath); err == nil && bytes.Equal(existing, data) {
-				continue
-			}
-
-			err = os.WriteFile(destPath, data, 0755)
-			if err != nil {
-				return err
-			}
+func extrairBase(dest string) error {
+	for _, sub := range []string{"poppler", "tesseract"} {
+		fontes, err := arquivosDe("embed/" + sub)
+		if err != nil {
+			return err
+		}
+		if err := sincronizar(filepath.Join(dest, sub), fontes); err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+// extrairTessdata grava em dest/tessdata/<modo> o por.traineddata do modo e o
+// eng.traineddata compartilhado, que o fallback do tesseract procura no mesmo
+// TESSDATA_PREFIX.
+func extrairTessdata(dest, modo string) (string, error) {
+	fontes, err := arquivosDe("embed/tessdata/" + modo)
+	if err != nil {
+		return "", err
+	}
+	fontes = append(fontes, "embed/tessdata/eng.traineddata")
+	dir := filepath.Join(dest, "tessdata", modo)
+	if err := sincronizar(dir, fontes); err != nil {
+		return "", err
+	}
+	return dir, nil
+}
+
+func arquivosDe(dir string) ([]string, error) {
+	entradas, err := fs.ReadDir(EmbeddedFiles, dir)
+	if err != nil {
+		return nil, err
+	}
+	var fontes []string
+	for _, e := range entradas {
+		if !e.IsDir() {
+			fontes = append(fontes, path.Join(dir, e.Name()))
+		}
+	}
+	return fontes, nil
+}
+
+// sincronizar copia as fontes embutidas para dir. Com o carimbo da versão atual
+// só regrava arquivo de tamanho diferente (gravação interrompida, por exemplo);
+// sem ele, regrava tudo e grava o carimbo por último.
+func sincronizar(dir string, fontes []string) error {
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+	carimbo := filepath.Join(dir, arquivoVersao)
+	atual := false
+	if b, err := os.ReadFile(carimbo); err == nil && string(b) == versaoEmbutidos {
+		atual = true
+	}
+
+	var buf []byte
+	for _, src := range fontes {
+		info, err := fs.Stat(EmbeddedFiles, src)
+		if err != nil {
+			return err
+		}
+		dst := filepath.Join(dir, path.Base(src))
+		if atual {
+			if st, err := os.Stat(dst); err == nil && st.Size() == info.Size() {
+				continue
+			}
+		}
+		if buf == nil {
+			buf = make([]byte, 256<<10)
+		}
+		if err := copiarEmbutido(src, dst, buf); err != nil {
+			return fmt.Errorf("falha ao extrair %s: %w", src, err)
+		}
+	}
+	if atual {
+		return nil
+	}
+	return os.WriteFile(carimbo, []byte(versaoEmbutidos), 0644)
+}
+
+// copiarEmbutido grava src em um temporário ao lado de dst e renomeia, para que
+// uma cópia interrompida nunca fique com o nome final.
+func copiarEmbutido(src, dst string, buf []byte) error {
+	in, err := EmbeddedFiles.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	tmp, err := os.CreateTemp(filepath.Dir(dst), ".extraindo-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	// Os wrappers escondem ReadFrom/WriteTo para que io.CopyBuffer use buf em
+	// vez de alocar 32 KB por arquivo.
+	_, err = io.CopyBuffer(struct{ io.Writer }{tmp}, struct{ io.Reader }{in}, buf)
+	if cerr := tmp.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Chmod(tmpName, 0755)
+	}
+	if err == nil {
+		err = os.Rename(tmpName, dst)
+	}
+	if err != nil {
+		os.Remove(tmpName)
+	}
+	return err
 }
 
 // RunOCR runs OCR on a specific page of a PDF file using the specified mode (fast, normal, best).
@@ -116,7 +218,11 @@ func RunOCR(ctx context.Context, pdfPath string, pageNum int, mode string) (stri
 	if mode != "fast" && mode != "normal" && mode != "best" {
 		mode = "normal"
 	}
-	tessdataPath := filepath.Join(binDir, "tessdata", mode)
+	tessdataPath, err := tessdataDoModo(binDir, mode)
+	if err != nil {
+		log.Printf("[OCR] Falha ao extrair tessdata do modo %s: %v", mode, err)
+		return "", "", err
+	}
 	log.Printf("[OCR] Usando tessdata no modo %s em: %s", mode, tessdataPath)
 
 	// Create temp directory for this run's images and OCR output

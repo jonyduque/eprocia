@@ -67,6 +67,14 @@
       })
     );
 
+    // Progresso chega item a item; id desconhecido é ignorado.
+    unsubscribers.push(
+      EventsOn('queue:item', (item) => {
+        if (!item) return;
+        items = items.map(atual => atual.id === item.id ? item : atual);
+      })
+    );
+
     unsubscribers.push(
       EventsOn('queue:status', (status) => {
         isPaused = status.isPaused;

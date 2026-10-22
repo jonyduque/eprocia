@@ -33,6 +33,10 @@ type QueueItem struct {
 	Error          string             `json:"error,omitempty"`
 	Timestamp      int64              `json:"timestamp"`
 	cancel         context.CancelFunc `json:"-"`
+
+	ultimoEnvio  time.Time   // último queue:item deste item
+	envioPend    *time.Timer // queue:item agendado pelo limitador
+	geracaoEnvio uint64      // identifica o agendamento vigente
 }
 
 // Queue handles file processing sequentially in a thread-safe manner.
@@ -49,6 +53,16 @@ type Queue struct {
 	encerrada  bool
 	wg         sync.WaitGroup // processItem em curso
 
+	// emitMu serializa cópia+envio, para que um evento copiado antes de outro
+	// nunca chegue ao frontend depois dele. Nunca é tomado com q.mu travado.
+	emitMu          sync.Mutex
+	statusEmitido   bool
+	ultimoPausado   bool
+	ultimoTrabalhou bool
+
+	// emitir substitui runtime.EventsEmit nos testes.
+	emitir func(ctx context.Context, nome string, dados ...interface{})
+
 	// processar substitui pipeline.ProcessZip nos testes.
 	processar func(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, error)
 }
@@ -64,6 +78,7 @@ func NewQueue(pipeline *Pipeline) *Queue {
 		pipeline:   pipeline,
 		baseCtx:    baseCtx,
 		baseCancel: baseCancel,
+		emitir:     runtime.EventsEmit,
 	}
 }
 
@@ -101,7 +116,6 @@ func (q *Queue) SetContext(ctx context.Context) {
 	q.mu.Lock()
 	q.wailsCtx = ctx
 	q.mu.Unlock()
-	q.pipeline.SetContext(ctx)
 }
 
 // SetConfig sets/updates the configuration settings for the queue.
@@ -168,25 +182,29 @@ func (q *Queue) GetItems() []*QueueItem {
 func (q *Queue) copyItemsLocked() []*QueueItem {
 	copied := make([]*QueueItem, len(q.items))
 	for i, item := range q.items {
-		copied[i] = &QueueItem{
-			ID:             item.ID,
-			Name:           item.Name,
-			Path:           item.Path,
-			Status:         item.Status,
-			Progress:       item.Progress,
-			Message:        item.Message,
-			OutputPath:     item.OutputPath,
-			DocsCount:      item.DocsCount,
-			PagesCount:     item.PagesCount,
-			ProcessedDocs:  item.ProcessedDocs,
-			TotalDocs:      item.TotalDocs,
-			ProcessedPages: item.ProcessedPages,
-			TotalPages:     item.TotalPages,
-			Error:          item.Error,
-			Timestamp:      item.Timestamp,
-		}
+		copied[i] = copiarItem(item)
 	}
 	return copied
+}
+
+func copiarItem(item *QueueItem) *QueueItem {
+	return &QueueItem{
+		ID:             item.ID,
+		Name:           item.Name,
+		Path:           item.Path,
+		Status:         item.Status,
+		Progress:       item.Progress,
+		Message:        item.Message,
+		OutputPath:     item.OutputPath,
+		DocsCount:      item.DocsCount,
+		PagesCount:     item.PagesCount,
+		ProcessedDocs:  item.ProcessedDocs,
+		TotalDocs:      item.TotalDocs,
+		ProcessedPages: item.ProcessedPages,
+		TotalPages:     item.TotalPages,
+		Error:          item.Error,
+		Timestamp:      item.Timestamp,
+	}
 }
 
 // Pause pauses processing of the queue.
@@ -318,6 +336,7 @@ func (q *Queue) processItem(item *QueueItem) {
 			log.Printf("[Queue] ERRO CRÍTICO (panic) no processador de fila para %s: %v", item.Name, r)
 			q.mu.Lock()
 			item.cancel = nil
+			pararEnvioPendente(item)
 			item.Status = "error"
 			item.Message = fmt.Sprintf("Erro crítico (panic): %v", r)
 			item.Error = fmt.Sprintf("Panic: %v", r)
@@ -354,7 +373,7 @@ func (q *Queue) processItem(item *QueueItem) {
 			item.TotalPages = totalPages
 		}
 		q.mu.Unlock()
-		q.broadcast()
+		q.emitirProgresso(item)
 	}
 
 	if cfg == nil {
@@ -383,6 +402,7 @@ func (q *Queue) processItem(item *QueueItem) {
 	q.mu.Lock()
 	item.cancel = nil
 	q.isWorking = false
+	pararEnvioPendente(item)
 
 	if err != nil {
 		log.Printf("[Queue] Erro no processamento de %s: %v", item.Name, err)
@@ -414,7 +434,12 @@ func (q *Queue) processItem(item *QueueItem) {
 	q.startProcessing()
 }
 
+// broadcast envia a lista inteira (mudanças de estado: itens novos,
+// removidos, início e fim de processamento) e o status, se mudou.
 func (q *Queue) broadcast() {
+	q.emitMu.Lock()
+	defer q.emitMu.Unlock()
+
 	q.mu.RLock()
 	ctx := q.wailsCtx
 	if ctx == nil {
@@ -425,9 +450,80 @@ func (q *Queue) broadcast() {
 	isPaused, isWorking := q.isPaused, q.isWorking
 	q.mu.RUnlock()
 
-	runtime.EventsEmit(ctx, "queue:update", items)
-	runtime.EventsEmit(ctx, "queue:status", map[string]interface{}{
+	q.emitir(ctx, "queue:update", items)
+	if q.statusEmitido && isPaused == q.ultimoPausado && isWorking == q.ultimoTrabalhou {
+		return
+	}
+	q.statusEmitido, q.ultimoPausado, q.ultimoTrabalhou = true, isPaused, isWorking
+	q.emitir(ctx, "queue:status", map[string]interface{}{
 		"isPaused":  isPaused,
 		"isWorking": isWorking,
 	})
 }
+
+// emitirProgresso envia só o item (queue:item), no máximo uma vez por
+// intervaloProgresso. Atualizações dentro do intervalo são coalescidas num
+// envio agendado, que lê o estado no disparo e assim leva a mais recente.
+func (q *Queue) emitirProgresso(item *QueueItem) {
+	q.mu.Lock()
+	if q.wailsCtx == nil || item.envioPend != nil {
+		q.mu.Unlock()
+		return
+	}
+	espera := intervaloProgresso - time.Since(item.ultimoEnvio)
+	if espera > 0 {
+		item.geracaoEnvio++
+		geracao := item.geracaoEnvio
+		item.envioPend = time.AfterFunc(espera, func() { q.enviarItem(item, geracao) })
+		q.mu.Unlock()
+		return
+	}
+	q.mu.Unlock()
+	q.enviarItem(item, 0)
+}
+
+// enviarItem emite o estado atual do item; geracao != 0 indica disparo do
+// limitador, descartado se aquele agendamento foi cancelado nesse meio-tempo.
+func (q *Queue) enviarItem(item *QueueItem, geracao uint64) {
+	q.emitMu.Lock()
+	defer q.emitMu.Unlock()
+
+	q.mu.Lock()
+	if geracao != 0 {
+		if item.envioPend == nil || item.geracaoEnvio != geracao {
+			q.mu.Unlock()
+			return
+		}
+		item.envioPend = nil
+	}
+	ctx := q.wailsCtx
+	if ctx == nil || !q.contemLocked(item) {
+		q.mu.Unlock()
+		return
+	}
+	item.ultimoEnvio = time.Now()
+	copia := copiarItem(item)
+	q.mu.Unlock()
+
+	q.emitir(ctx, "queue:item", copia)
+}
+
+func (q *Queue) contemLocked(item *QueueItem) bool {
+	for _, it := range q.items {
+		if it == item {
+			return true
+		}
+	}
+	return false
+}
+
+// pararEnvioPendente exige q.mu travado. O broadcast que sucede leva o estado final.
+func pararEnvioPendente(item *QueueItem) {
+	if item.envioPend != nil {
+		item.envioPend.Stop()
+		item.envioPend = nil
+	}
+}
+
+// intervaloProgresso limita queue:item a 10 por segundo por item.
+var intervaloProgresso = 100 * time.Millisecond

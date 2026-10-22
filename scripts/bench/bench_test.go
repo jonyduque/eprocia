@@ -115,7 +115,7 @@ func copyToTemp(b *testing.B, src string) string {
 func benchZip(b *testing.B, src string) {
 	zipPath := copyToTemp(b, src)
 	cfg := &models.Config{OcrMode: ocrMode(), CleaningLevel: "aggressive"}
-	pipe := etl.NewPipeline(nil)
+	pipe := etl.NewPipeline()
 
 	var gcBefore, gcAfter runtime.MemStats
 	runtime.GC()

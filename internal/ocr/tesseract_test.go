@@ -115,4 +115,5 @@ func resetInitForTest() {
 	initMu.Lock()
 	defer initMu.Unlock()
 	binDir = ""
+	tessdataDirs = map[string]string{}
 }
