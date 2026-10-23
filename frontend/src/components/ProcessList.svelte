@@ -9,11 +9,14 @@
     ClearQueue 
   } from '../wailsjs/go/main/App.js';
   import { fly } from 'svelte/transition';
+  import { estadoItem, avisoFila } from '../lib/estado.js';
 
   export let items = [];
   export let isPaused = false;
 
   let filterText = '';
+
+  $: aviso = avisoFila(items, isPaused);
 
   $: filteredItems = items.filter(item => 
     item.name.toLowerCase().includes(filterText.toLowerCase()) ||
@@ -121,6 +124,15 @@
     </div>
   </div>
 
+  {#if aviso}
+    <div class="queue-notice">
+      <span class="queue-chip" role="status" title={aviso}>
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pause-circle"><circle cx="12" cy="12" r="10"/><line x1="10" x2="10" y1="15" y2="9"/><line x1="14" x2="14" y1="15" y2="9"/></svg>
+        <span class="queue-chip-text">{aviso}</span>
+      </span>
+    </div>
+  {/if}
+
   <div class="items-container">
     {#if filteredItems.length === 0}
       <div class="empty-state">
@@ -131,26 +143,25 @@
     {:else}
       <div class="items-list">
         {#each filteredItems as item (item.id)}
+          {@const estado = estadoItem(item.status, isPaused)}
           <div 
             class="item-row {item.status}" 
-            class:has-progress={item.status === 'processing'}
+            class:has-progress={estado === 'processando'}
             transition:fly={{ y: 8, duration: 200 }}
           >
             <!-- Status Icon -->
             <div class="status-col">
-              {#if item.status === 'processing'}
-                {#if isPaused}
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pause-circle"><circle cx="12" cy="12" r="10"/><line x1="10" x2="10" y1="15" y2="9"/><line x1="14" x2="14" y1="15" y2="9"/></svg>
-                {:else}
-                  <div class="spinner-small"></div>
-                {/if}
-              {:else if item.status === 'pending'}
+              {#if estado === 'processando'}
+                <div class="spinner-small"></div>
+              {:else if estado === 'pausado'}
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pause-circle"><circle cx="12" cy="12" r="10"/><line x1="10" x2="10" y1="15" y2="9"/><line x1="14" x2="14" y1="15" y2="9"/></svg>
+              {:else if estado === 'aguardando'}
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clock"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              {:else if item.status === 'success'}
+              {:else if estado === 'sucesso'}
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-circle"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-              {:else if item.status === 'error'}
+              {:else if estado === 'erro'}
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--error)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-alert-triangle"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
-              {:else if item.status === 'cancelled'}
+              {:else if estado === 'cancelado'}
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ban"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 14.14 14.14"/></svg>
               {/if}
             </div>
@@ -160,27 +171,29 @@
               <span class="file-name" title={item.path}>{item.name}</span>
               <div class="details-row">
                 <span class="timestamp">{formatTime(item.timestamp)}</span>
-                {#if item.status === 'success'}
+                {#if estado === 'sucesso'}
                   <span class="meta-badge success">
                     {item.docs_count} docs | {item.pages_count} pág
                   </span>
-                {:else if item.status === 'processing'}
+                {:else if estado === 'processando'}
                   <span class="progress-message">{item.message || 'Processando...'}</span>
                   <span class="meta-badge processing">
                     Docs: {item.processed_docs || 0}/{item.total_docs || 0} | Págs: {item.processed_pages || 0}/{item.total_pages || 0}
                   </span>
-                {:else if item.status === 'pending'}
+                {:else if estado === 'pausado'}
+                  <span class="paused-message">Pausado: começa quando a fila for retomada</span>
+                {:else if estado === 'aguardando'}
                   <span class="pending-message">Aguardando na fila...</span>
-                {:else if item.status === 'cancelled'}
+                {:else if estado === 'cancelado'}
                   <span class="cancelled-message">Cancelado</span>
-                {:else if item.status === 'error'}
+                {:else if estado === 'erro'}
                   <span class="error-message truncate">{item.message || 'Erro no processamento'}</span>
                 {/if}
               </div>
             </div>
 
             <!-- Inline Progress (only when processing) -->
-            {#if item.status === 'processing'}
+            {#if estado === 'processando'}
               <div class="progress-bar-container">
                 <div class="progress-bar" style="width: {item.progress * 100}%"></div>
               </div>
@@ -298,6 +311,37 @@
     align-items: center;
     gap: 8px;
     color: var(--accent);
+  }
+
+  .queue-notice {
+    display: flex;
+    padding: 6px 12px 0;
+    min-width: 0;
+  }
+
+  .queue-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--warning);
+    background-color: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    white-space: nowrap;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .queue-chip svg {
+    flex-shrink: 0;
+  }
+
+  .queue-chip-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .header-left h2 {
@@ -523,6 +567,13 @@
     overflow: hidden;
     text-overflow: ellipsis;
     color: var(--accent);
+  }
+
+  .paused-message {
+    color: var(--warning);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .pending-message {

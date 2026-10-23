@@ -17,6 +17,9 @@
   } from './wailsjs/go/main/App.js';
   import Settings from './components/Settings.svelte';
   import ProcessList from './components/ProcessList.svelte';
+  import { contarAtivos, rotuloFila } from './lib/estado.js';
+
+  const versao = __APP_VERSION__;
 
   let items = [];
   let isDarkMode = true;
@@ -35,8 +38,8 @@
   // Unsubscribe handlers
   let unsubscribers = [];
 
-  // Reactive processing count
-  $: processingCount = items.filter(item => item.status === 'processing').length;
+  // Pausar a fila não interrompe o item em curso, que segue ativo.
+  $: processingCount = contarAtivos(items);
 
   onMount(async () => {
     // Detect system theme or storage
@@ -235,7 +238,6 @@
     <div class="brand-title">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="brand-icon"><path d="m12 3-1.912 5.886H3.887L9.043 12.5 7.13 18.386l5.158-3.746 5.157 3.746-1.912-5.886 5.156-3.614H13.912Z"/></svg>
       <h1>eprocIA</h1>
-      <span class="titlebar-version">v1.0 (Offline)</span>
     </div>
 
     <div class="titlebar-actions" style="--wails-draggable: no-drag">
@@ -355,22 +357,26 @@
 
   <!-- Footer Status Bar -->
   <footer>
-    <div class="status-item">
+    <div class="status-item status-main">
       <span class="status-dot" class:active={config && config.watchdog_enabled && config.monitored_path} class:inactive={!config || !config.watchdog_enabled || !config.monitored_path}></span>
       {#if config && config.watchdog_enabled && config.monitored_path}
         <span class="status-text truncate" title={config.monitored_path}>
           Pasta monitorada: <strong>{config.monitored_path}</strong>
         </span>
       {:else if config && !config.watchdog_enabled && config.monitored_path}
-        <span class="status-text">
+        <span class="status-text truncate" title={config.monitored_path}>
           Monitoramento pausado (pasta configurada: <strong>{config.monitored_path}</strong>)
         </span>
       {:else}
-        <span class="status-text">Monitoramento inativo. Configure uma pasta no painel ao lado.</span>
+        <span class="status-text truncate">Monitoramento inativo. Configure uma pasta no painel ao lado.</span>
       {/if}
     </div>
-    <div class="status-item font-tabular">
-      <span>{items.length} item{items.length !== 1 ? 'ns' : ''} na fila</span>
+    <div class="status-item status-count font-tabular">
+      <span>{rotuloFila(items.length)}</span>
+      {#if versao}
+        <span class="status-sep" aria-hidden="true"></span>
+        <span title="Versão do eprocIA">v{versao}</span>
+      {/if}
     </div>
   </footer>
 </div>
@@ -469,15 +475,6 @@
     margin: 0;
     line-height: 1.2;
     color: var(--text-primary);
-  }
-
-  .titlebar-version {
-    font-size: 10px;
-    color: var(--text-secondary);
-    background-color: var(--bg-main);
-    padding: 1px 6px;
-    border-radius: 10px;
-    font-weight: 500;
   }
 
   .titlebar-actions {
@@ -805,6 +802,23 @@
     align-items: center;
     gap: 8px;
     min-width: 0;
+  }
+
+  .status-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .status-count {
+    flex-shrink: 0;
+    white-space: nowrap;
+    margin-left: 12px;
+  }
+
+  .status-sep {
+    width: 1px;
+    height: 10px;
+    background-color: var(--border);
   }
 
   .status-dot {

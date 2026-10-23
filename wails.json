@@ -11,5 +11,8 @@
     "email": "eprocia@example.com"
   },
   "wailsjsdir": "./frontend/src",
-  "assetdir": "frontend/dist"
+  "assetdir": "frontend/dist",
+  "info": {
+    "productVersion": "0.2.0"
+  }
 }

@@ -64,13 +64,15 @@ Cada linha deve ter altura máxima de `40px`, contendo:
 - Contador de erros (se houver).
 - Botão discreto para abrir a pasta de saída.
 
+Fila pausada: pausar só impede o próximo item de começar. O item em curso mantém o spinner, a barra e o "1 ativo" da barra de título; os pendentes trocam o relógio por pausa (`--warning`); um chip abaixo da barra da lista diz "Fila pausada: termina o item atual" (ou só "Fila pausada"). O estado visual de cada linha vem de `estadoItem(status, isPaused)` em `frontend/src/lib/estado.js`.
+
 ### 5.2 Drag & Drop Zone
 - Uma área sutil no topo ou o fundo da própria lista.
 - Quando um arquivo é arrastado sobre a janela, uma borda azul pontilhada aparece com o texto: "Solte o ZIP para processar".
 
 ### 5.3 Barra de Status (Footer)
-- Indicador se o Watchdog está ativo (ex: "Monitorando: C:/Users/...").
-- Versão do app.
+- Indicador se o Watchdog está ativo (ex: "Monitorando: C:/Users/..."). Ocupa o espaço livre e trunca o caminho com reticências, com o caminho completo no `title`, inclusive no estado pausado.
+- À direita, sem quebrar linha: contador ("1 item na fila", "N itens na fila") e a versão do app, lida de `info.productVersion` do `wails.json` no build. A barra de título mostra só a marca.
 
 ## 6. Layout e Espaçamento (Grades)
 - **Padding padrão:** `8px` (em vez dos tradicionais 16px ou 24px).
