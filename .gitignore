@@ -5,11 +5,12 @@
 *.so
 *.dylib
 /build/bin/
+# Binários do OCR embutidos no executável (go:embed) são versionados.
+!internal/ocr/embed/**
 
 # Go
 *.test
 *.out
-go.sum
 
 # Frontend
 node_modules/

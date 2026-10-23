@@ -1,2 +1,5 @@
 # Synthetic benchmark fixtures are compared byte-for-byte with the generator.
 scripts/bench/fixtures/** binary
+
+# OCR binaries embedded via go:embed; the version stamp hashes their exact bytes.
+internal/ocr/embed/** binary
