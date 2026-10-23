@@ -33,3 +33,5 @@ scripts/bench/*.txt
 
 # Vite leaves this behind when the dev server is killed
 frontend/vite.config.js.timestamp-*.mjs
+
+build/windows/installer/tmp/

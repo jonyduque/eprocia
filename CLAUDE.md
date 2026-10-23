@@ -18,6 +18,12 @@ wails dev
 # to work under Go 1.27; see "Harness de revisão" below)
 wails build
 
+# Release: exe + NSIS installer (makensis via `scoop install nsis`). The build
+# rewrites wailsjs/, go.mod and package.json.md5 with CRLF-only noise: revert it.
+# Publish with `gh release create vX.Y.Z --target main` (creates the tag remotely;
+# git push is denied in settings, the user pushes commits with `! git push`).
+wails build -clean -nsis
+
 # Go tests (whole repo)
 go test ./...
 
