@@ -9,7 +9,8 @@ export function duracaoMovimento(ms, janela = globalThis) {
 }
 
 // Um único timer por aviso: cada mensagem nova cancela o anterior, para que
-// o prazo de uma mensagem antiga não apague a atual.
+// o prazo de uma mensagem antiga não apague a atual. Erros não têm prazo
+// (WCAG 2.2.1): ficam até o usuário fechar ou chegar outra mensagem.
 export function criarAviso(definir, duracao = 3000, relogio = globalThis) {
   let id = null;
 
@@ -24,10 +25,15 @@ export function criarAviso(definir, duracao = 3000, relogio = globalThis) {
     mostrar(texto, tipo) {
       cancelar();
       definir({ texto, tipo });
+      if (tipo === 'error') return;
       id = relogio.setTimeout(() => {
         id = null;
         definir(null);
       }, duracao);
+    },
+    fechar() {
+      cancelar();
+      definir(null);
     },
     limpar: cancelar,
   };

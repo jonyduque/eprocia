@@ -16,6 +16,15 @@
 
   let filterText = '';
 
+  const ROTULO_ESTADO = {
+    processando: 'Em processamento',
+    pausado: 'Pausado',
+    aguardando: 'Aguardando',
+    sucesso: 'Concluído',
+    erro: 'Erro',
+    cancelado: 'Cancelado'
+  };
+
   $: aviso = avisoFila(items, isPaused);
 
   $: filteredItems = items.filter(item => 
@@ -100,9 +109,9 @@
     </div>
     <div class="header-actions">
       <input 
-        type="text" 
-        placeholder="Filtrar..." 
-        aria-label="Filtrar a fila"
+        type="search"
+        placeholder="Filtrar..."
+        aria-label="Filtrar fila por nome ou mensagem"
         bind:value={filterText}
         class="search-input"
       />
@@ -136,7 +145,11 @@
   {/if}
 
   <div class="items-container">
-    {#if filteredItems.length === 0}
+    {#if items.length > 0 && filteredItems.length === 0}
+      <div class="empty-state">
+        <p role="status">Nenhum item corresponde ao filtro</p>
+      </div>
+    {:else if filteredItems.length === 0}
       <div class="empty-state">
         <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-archive"><polyline points="21 8 21 21 3 21 3 8"/><rect width="22" height="5" x="1" y="3"/><line x1="10" x2="14" y1="12" y2="12"/></svg>
         <p>Nenhum processo no histórico.</p>
@@ -154,18 +167,19 @@
             <!-- Status Icon -->
             <div class="status-col">
               {#if estado === 'processando'}
-                <div class="spinner-small"></div>
+                <div class="spinner-small" aria-hidden="true"></div>
               {:else if estado === 'pausado'}
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pause-circle"><circle cx="12" cy="12" r="10"/><line x1="10" x2="10" y1="15" y2="9"/><line x1="14" x2="14" y1="15" y2="9"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pause-circle" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="10" x2="10" y1="15" y2="9"/><line x1="14" x2="14" y1="15" y2="9"/></svg>
               {:else if estado === 'aguardando'}
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clock"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clock" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               {:else if estado === 'sucesso'}
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-circle"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-circle" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
               {:else if estado === 'erro'}
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--error)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-alert-triangle"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--error)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-alert-triangle" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
               {:else if estado === 'cancelado'}
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ban"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 14.14 14.14"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ban" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 14.14 14.14"/></svg>
               {/if}
+              <span class="sr-only">{ROTULO_ESTADO[estado] ?? ''}</span>
             </div>
 
             <!-- Name and Info -->
@@ -196,7 +210,14 @@
 
             <!-- Inline Progress (only when processing) -->
             {#if estado === 'processando'}
-              <div class="progress-bar-container">
+              <div
+                class="progress-bar-container"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow={Math.round((item.progress || 0) * 100)}
+                aria-label="Progresso de {item.name}"
+              >
                 <div class="progress-bar" style="width: {item.progress * 100}%"></div>
               </div>
             {/if}
@@ -585,6 +606,18 @@
 
   .error-message {
     color: var(--error);
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .progress-bar-container {

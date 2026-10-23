@@ -186,15 +186,33 @@
     </div>
   {/if}
 
-  {#if statusMessage}
-    <div
-      class="toast-status {statusType}"
-      in:fly={{ y: 8, duration: duracaoMovimento(DUR_BASE), easing: cubicOut }}
-      out:fade={{ duration: duracaoMovimento(DUR_FAST) }}
-    >
-      <span>{statusMessage}</span>
-    </div>
-  {/if}
+  <!-- Regiões vivas sempre montadas: o leitor de tela só anuncia mudanças
+       dentro de uma região que já existia antes da mensagem. -->
+  <div class="toast-regiao" role="status" aria-live="polite" aria-atomic="true">
+    {#if statusMessage && statusType !== 'error'}
+      <div
+        class="toast-status {statusType}"
+        in:fly={{ y: 8, duration: duracaoMovimento(DUR_BASE), easing: cubicOut }}
+        out:fade={{ duration: duracaoMovimento(DUR_FAST) }}
+      >
+        <span>{statusMessage}</span>
+      </div>
+    {/if}
+  </div>
+  <div class="toast-regiao" role="alert" aria-atomic="true">
+    {#if statusMessage && statusType === 'error'}
+      <div
+        class="toast-status error"
+        in:fly={{ y: 8, duration: duracaoMovimento(DUR_BASE), easing: cubicOut }}
+        out:fade={{ duration: duracaoMovimento(DUR_FAST) }}
+      >
+        <span class="toast-texto">{statusMessage}</span>
+        <button class="toast-fechar" on:click={aviso.fechar} aria-label="Fechar aviso" title="Fechar aviso">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+    {/if}
+  </div>
 </div>
 
 <style>
@@ -396,11 +414,18 @@
   }
 
   /* Toast Notification */
-  .toast-status {
+  .toast-regiao {
     position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
+  }
+
+  .toast-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     padding: 8px;
     text-align: center;
     font-size: 11px;
@@ -415,6 +440,31 @@
 
   .toast-status.error {
     color: var(--error-strong);
+  }
+
+  .toast-texto {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .toast-fechar {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease-out);
+  }
+
+  .toast-fechar:hover {
+    background-color: var(--error-soft);
   }
 
   .loading-state {

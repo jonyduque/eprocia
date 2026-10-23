@@ -33,9 +33,9 @@ test('mensagem nova não é apagada pelo timer da anterior', () => {
   const aviso = criarAviso((m) => { atual = m; }, 3000, r);
   aviso.mostrar('primeira', 'success');
   r.avancar(2000);
-  aviso.mostrar('segunda', 'error');
+  aviso.mostrar('segunda', 'success');
   r.avancar(1500);
-  assert.deepEqual(atual, { texto: 'segunda', tipo: 'error' });
+  assert.deepEqual(atual, { texto: 'segunda', tipo: 'success' });
   assert.equal(r.pendentes, 1);
   r.avancar(1500);
   assert.equal(atual, null);
