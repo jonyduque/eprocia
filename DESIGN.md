@@ -83,6 +83,7 @@ Fila pausada: pausar só impede o próximo item de começar. O item em curso man
 - Interruptores: rótulo à esquerda, switch à direita, linha de `32px`.
 - Selects com opções curtas (ex.: Nenhuma, Básica, Agressiva); a explicação da opção escolhida vai num `.help-text` de `11px` abaixo do select.
 - Caminho da pasta monitorada com reticências e o caminho completo no `title`.
+- Toast de status no rodapé do painel: entra com `fly` (`y: 8`, `--dur-base`, `cubicOut`) e sai com `fade` (`--dur-fast`), ambos zerados em `prefers-reduced-motion`; dura 3 s e cada mensagem nova reinicia o prazo (um único timer, cancelado no desmonte). As durações em JS ficam em `src/lib/aviso.js`.
 
 ### 5.4 Barra de Status (Footer)
 - Indicador se o Watchdog está ativo (ex: "Monitorando: C:/Users/..."). Ocupa o espaço livre e trunca o caminho com reticências, com o caminho completo no `title`, inclusive no estado pausado.

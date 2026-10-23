@@ -1,5 +1,8 @@
 <script>
-  import { onMount, createEventDispatcher } from 'svelte';
+  import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+  import { fly, fade } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
+  import { criarAviso, duracaoMovimento, DUR_FAST, DUR_BASE } from '../lib/aviso.js';
   import { GetConfig, SaveConfig, SelectDirectory } from '../wailsjs/go/main/App.js';
 
   const dispatch = createEventDispatcher();
@@ -74,13 +77,15 @@
     }
   }
 
+  const aviso = criarAviso((a) => {
+    statusMessage = a ? a.texto : '';
+    statusType = a ? a.tipo : '';
+  });
+
+  onDestroy(aviso.limpar);
+
   function showStatus(msg, type) {
-    statusMessage = msg;
-    statusType = type;
-    setTimeout(() => {
-      statusMessage = '';
-      statusType = '';
-    }, 3000);
+    aviso.mostrar(msg, type);
   }
 </script>
 
@@ -182,7 +187,11 @@
   {/if}
 
   {#if statusMessage}
-    <div class="toast-status {statusType}">
+    <div
+      class="toast-status {statusType}"
+      in:fly={{ y: 8, duration: duracaoMovimento(DUR_BASE), easing: cubicOut }}
+      out:fade={{ duration: duracaoMovimento(DUR_FAST) }}
+    >
       <span>{statusMessage}</span>
     </div>
   {/if}
@@ -392,7 +401,6 @@
     text-align: center;
     font-size: 11px;
     font-weight: 500;
-    animation: slideUp var(--dur-base) var(--ease-out);
   }
 
   .toast-status.success {
@@ -403,11 +411,6 @@
   .toast-status.error {
     background-color: var(--error);
     color: var(--on-accent);
-  }
-
-  @keyframes slideUp {
-    from { transform: translateY(100%); }
-    to { transform: translateY(0); }
   }
 
   .loading-state {
