@@ -68,6 +68,10 @@ Cada linha deve ter altura máxima de `40px`, contendo:
 - Contador de erros (se houver).
 - Botão discreto para abrir a pasta de saída.
 
+Cabeçalho da fila sempre em uma linha: o título trunca com reticências, o campo Filtrar encolhe de `140px` até `80px` (não cresce no foco) e os botões não encolhem. Com a fila abaixo de `420px` (container query), Pausar/Retomar/Limpar Fila mostram só o ícone, com o nome no `aria-label` e no `title`.
+
+Divisor entre painel e fila: de `280px` até `480px`, limitado também à largura da janela menos `340px` reservados à fila (`frontend/src/lib/divisor.js`). O limite é reaplicado quando a janela muda, e o slider (`aria-valuemax`/`aria-valuenow`) mostra a largura real.
+
 Fila pausada: pausar só impede o próximo item de começar. O item em curso mantém o spinner, a barra e o "1 ativo" da barra de título; os pendentes trocam o relógio por pausa (`--warning`); um chip abaixo da barra da lista diz "Fila pausada: termina o item atual" (ou só "Fila pausada"). O estado visual de cada linha vem de `estadoItem(status, isPaused)` em `frontend/src/lib/estado.js`.
 
 ### 5.2 Drag & Drop Zone

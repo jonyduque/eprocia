@@ -96,29 +96,31 @@
   <div class="list-header">
     <div class="header-left">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-list"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><circle cx="3" cy="6" r="1"/><circle cx="3" cy="12" r="1"/><circle cx="3" cy="18" r="1"/></svg>
-      <h2>Fila de Processamento</h2>
+      <h2 title="Fila de Processamento">Fila de Processamento</h2>
     </div>
     <div class="header-actions">
       <input 
         type="text" 
         placeholder="Filtrar..." 
+        aria-label="Filtrar a fila"
         bind:value={filterText}
         class="search-input"
       />
       {#if items.length > 0}
         {#if isPaused}
-          <button class="btn-pause resume" on:click={handleResume} title="Retomar processamento da fila">
+          <button class="btn-pause resume" on:click={handleResume} title="Retomar processamento da fila" aria-label="Retomar">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>
-            <span>Retomar</span>
+            <span class="rotulo-acao">Retomar</span>
           </button>
         {:else}
-          <button class="btn-pause" on:click={handlePause} title="Pausar fila de processamento">
+          <button class="btn-pause" on:click={handlePause} title="Pausar fila de processamento" aria-label="Pausar">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></svg>
-            <span>Pausar</span>
+            <span class="rotulo-acao">Pausar</span>
           </button>
         {/if}
-        <button class="btn-clear" on:click={handleClear} title="Limpar todos os itens da fila">
-          Limpar Fila
+        <button class="btn-clear" on:click={handleClear} title="Limpar todos os itens da fila" aria-label="Limpar Fila">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-list-x"><path d="M16 5H3"/><path d="M11 12H3"/><path d="M16 19H3"/><path d="m15.5 9.5 5 5"/><path d="m20.5 9.5-5 5"/></svg>
+          <span class="rotulo-acao">Limpar Fila</span>
         </button>
       {/if}
     </div>
@@ -282,6 +284,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    container-type: inline-size;
     box-shadow: var(--shadow-lg);
     transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
   }
@@ -290,6 +293,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 8px;
     padding: 8px 12px;
     border-bottom: 1px solid var(--glass-border);
     background-color: var(--bg-glass);
@@ -299,7 +303,13 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    flex: 1;
+    min-width: 0;
     color: var(--accent);
+  }
+
+  .header-left svg {
+    flex-shrink: 0;
   }
 
   .queue-notice {
@@ -338,12 +348,17 @@
     font-weight: 600;
     margin: 0;
     color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
   }
 
   .header-actions {
     display: flex;
     gap: 6px;
     align-items: center;
+    flex-shrink: 0;
   }
 
   .search-input {
@@ -354,12 +369,13 @@
     color: var(--text-primary);
     font-size: 11px;
     outline: none;
-    width: 100px;
-    transition: width 0.2s;
+    flex: 0 1 140px;
+    width: 140px;
+    min-width: 80px;
+    transition: border-color var(--dur-fast) var(--ease-out);
   }
 
   .search-input:focus {
-    width: 140px;
     border-color: var(--accent);
   }
 
@@ -371,6 +387,10 @@
     padding: 4px 8px;
     border-radius: 4px;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
   }
 
   .btn-clear:hover {
@@ -390,6 +410,14 @@
     display: flex;
     align-items: center;
     gap: 4px;
+    white-space: nowrap;
+  }
+
+  /* Fila estreita: os botões ficam só com o ícone; o nome segue no aria-label. */
+  @container (max-width: 420px) {
+    .rotulo-acao {
+      display: none;
+    }
   }
 
   .btn-pause:hover {

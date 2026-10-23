@@ -18,6 +18,7 @@
   import Settings from './components/Settings.svelte';
   import ProcessList from './components/ProcessList.svelte';
   import { contarAtivos, rotuloFila } from './lib/estado.js';
+  import { LARGURA_MIN_PAINEL, larguraMaxPainel, limitarPainel } from './lib/divisor.js';
   import {
     CONSULTA_ESCURO,
     NOME_TEMA,
@@ -42,6 +43,12 @@
   let sidebarWidth = 320; // Default width increased to fit all settings and buttons nicely
   let sidebarCollapsed = false;
   let isResizing = false;
+  let larguraJanela = window.innerWidth;
+
+  // sidebarWidth guarda a escolha do usuário; a largura exibida é recalculada
+  // quando a janela muda, e a escolha volta se a janela crescer de novo.
+  $: maxPainel = larguraMaxPainel(larguraJanela);
+  $: larguraPainel = limitarPainel(sidebarWidth, larguraJanela);
 
   // Drag and Drop State
   let dragActive = false;
@@ -179,10 +186,7 @@
 
   function handleMouseMove(e) {
     if (!isResizing) return;
-    const newWidth = e.clientX;
-    if (newWidth >= 280 && newWidth <= 480) {
-      sidebarWidth = newWidth;
-    }
+    sidebarWidth = limitarPainel(e.clientX, larguraJanela);
   }
 
   function stopResizing() {
@@ -193,9 +197,9 @@
 
   function handleResizeKeydown(e) {
     if (e.key === 'ArrowLeft') {
-      sidebarWidth = Math.max(280, sidebarWidth - 10);
+      sidebarWidth = limitarPainel(larguraPainel - 10, larguraJanela);
     } else if (e.key === 'ArrowRight') {
-      sidebarWidth = Math.min(480, sidebarWidth + 10);
+      sidebarWidth = limitarPainel(larguraPainel + 10, larguraJanela);
     }
   }
 
@@ -221,6 +225,8 @@
     dragActive = false;
   }
 </script>
+
+<svelte:window bind:innerWidth={larguraJanela} />
 
 <div
   class="app-container"
@@ -295,7 +301,7 @@
     <!-- Sidebar (Collapsible & Resizable) -->
     <aside
       class="sidebar"
-      style="width: {sidebarCollapsed ? '48px' : sidebarWidth + 'px'}"
+      style="width: {sidebarCollapsed ? '48px' : larguraPainel + 'px'}"
       class:collapsed={sidebarCollapsed}
     >
       <div class="sidebar-header-toggle">
@@ -353,9 +359,9 @@
           role="slider"
           aria-label="Redimensionador de Menu"
           aria-orientation="horizontal"
-          aria-valuemin="280"
-          aria-valuemax="480"
-          aria-valuenow={sidebarWidth}
+          aria-valuemin={LARGURA_MIN_PAINEL}
+          aria-valuemax={maxPainel}
+          aria-valuenow={larguraPainel}
           tabindex="0"
           on:mousedown={startResizing}
           on:keydown={handleResizeKeydown}
@@ -565,6 +571,7 @@
     -webkit-backdrop-filter: blur(12px);
     border-right: 1px solid var(--glass-border);
     position: relative;
+    flex-shrink: 0;
     overflow: visible; /* Needed for resize handle to overlap */
     transition: width 0.15s ease-in-out, background-color 0.3s, border-color 0.3s;
   }
@@ -697,6 +704,7 @@
 
   .content-area {
     flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
