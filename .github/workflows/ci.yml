@@ -1,0 +1,76 @@
+# Mesmo gate do scripts/build/gate.ps1, sem o smoke (o runner não tem sessão gráfica).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      # Sem isso o checkout converte para CRLF e o gofmt acusa todos os arquivos.
+      - name: Desligar autocrlf
+        run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: gcc para o -race
+        run: gcc --version
+
+      # main.go embute frontend/dist, então o frontend vem antes de vet e testes.
+      - name: Frontend (npm ci, svelte-check, build)
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run check
+          npm run build
+
+      - name: Testes do frontend e do harness
+        run: |
+          node --test (Get-ChildItem frontend -Filter *.test.mjs).FullName
+          node --test .claude/hooks/hooks.test.mjs .claude/statusline.test.mjs .claude/workflows/workflows.test.mjs scripts/visual/estados.test.mjs
+
+      - name: gofmt
+        run: |
+          $sujos = gofmt -l (git ls-files '*.go')
+          if ($sujos) { $sujos; throw 'arquivos sem gofmt' }
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test -race
+        run: go test ./... -race -count=1
+
+      # O Wails CLI v2.12.0 publicado não funciona com Go 1.27 (ver CLAUDE.md).
+      - name: Wails CLI
+        run: pwsh scripts/build/recompilar-wails.ps1
+
+      - name: wails build
+        run: |
+          $env:PATH = "$(go env GOPATH)\bin;$env:PATH"
+          wails build -clean -s

@@ -79,7 +79,6 @@ func SortProcessFiles(files []models.ProcessFile) {
 	})
 }
 
-
 // CompareNatural compares two strings naturally (runs of digits compared as numbers).
 func CompareNatural(a, b string) bool {
 	chunksA := splitIntoChunks(a)
