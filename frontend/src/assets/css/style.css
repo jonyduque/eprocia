@@ -16,6 +16,10 @@
   --error: #EF4444;
   --warning: #F59E0B;
   --on-accent: #FFFFFF;
+  /* Marca (build/icon-pequeno.svg): igual nos dois temas. */
+  --brand-from: #1A7CF0;
+  --brand-to: #0056B3;
+  --on-brand: #FFFFFF;
   --accent-strong: #2563EB;
   --accent-strong-hover: #1D4ED8;
   --success-strong: #34D399;

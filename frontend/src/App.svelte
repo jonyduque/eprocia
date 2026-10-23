@@ -264,7 +264,7 @@
   <!-- Custom Design Titlebar (replacing native title bar) -->
   <div class="custom-titlebar" style="--wails-draggable: drag">
     <div class="brand-title">
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="brand-icon"><path d="m12 3-1.912 5.886H3.887L9.043 12.5 7.13 18.386l5.158-3.746 5.157 3.746-1.912-5.886 5.156-3.614H13.912Z"/></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 256 256" class="brand-icon" aria-hidden="true"><defs><linearGradient id="brand-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="brand-de"/><stop offset="1" class="brand-ate"/></linearGradient></defs><rect x="4" y="4" width="248" height="248" rx="48" fill="url(#brand-grad)"/><path d="M66 132H190A62 62 0 1 0 172 176" fill="none" class="brand-traco" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <h1>eprocIA</h1>
     </div>
 
@@ -492,7 +492,17 @@
   }
 
   .brand-icon {
-    color: var(--accent);
+    flex: none;
+    display: block;
+  }
+  .brand-de {
+    stop-color: var(--brand-from);
+  }
+  .brand-ate {
+    stop-color: var(--brand-to);
+  }
+  .brand-traco {
+    stroke: var(--on-brand);
   }
 
   .brand-title h1 {
