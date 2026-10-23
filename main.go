@@ -4,7 +4,10 @@ import (
 	"context"
 	"embed"
 	"log"
+	"os"
 	"runtime"
+
+	"eprocia/internal/autostart"
 
 	"github.com/getlantern/systray"
 	"github.com/wailsapp/wails/v2"
@@ -41,6 +44,7 @@ func main() {
 			systray.Quit()
 		},
 		HideWindowOnClose: true,
+		StartHidden:       autostart.IniciarOculto(os.Args),
 		DragAndDrop: &options.DragAndDrop{
 			EnableFileDrop: true,
 		},

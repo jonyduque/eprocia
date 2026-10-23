@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"eprocia/internal/autostart"
 	"eprocia/internal/config"
 	"eprocia/internal/etl"
 	"eprocia/internal/models"
@@ -23,11 +24,13 @@ type App struct {
 	pipeline *etl.Pipeline
 	queue    *etl.Queue
 	cfg      *models.Config
+	// autostart é trocado nos testes para não mexer no registro real.
+	autostart func(ativo bool) error
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
-	app := &App{}
+	app := &App{autostart: autostart.Aplicar}
 	app.watcher = watchdog.NewWatcher(func(filePath string) {
 		if app.queue != nil {
 			app.queue.AddFiles([]string{filePath})
@@ -47,11 +50,20 @@ func (a *App) startup(ctx context.Context) {
 	cfg := carregarConfig(config.Load)
 	a.cfg = cfg
 	a.queue.SetConfig(cfg)
+	a.sincronizarAutostart(cfg)
 	if cfg.WatchdogEnabled && cfg.MonitoredPath != "" {
 		if err := a.watcher.Start(cfg.MonitoredPath); err != nil {
 			log.Printf("Erro ao iniciar o monitoramento da pasta %q: %v", cfg.MonitoredPath, err)
 			runtime.EventsEmit(ctx, "watchdog:error", err.Error())
 		}
+	}
+}
+
+// sincronizarAutostart alinha o registro à config no boot: a entrada pode ter
+// sido apagada por fora ou apontar para um executável que mudou de lugar.
+func (a *App) sincronizarAutostart(cfg *models.Config) {
+	if err := a.autostart(cfg.AutoStart); err != nil {
+		log.Printf("Erro ao sincronizar a inicialização com o Windows: %v", err)
 	}
 }
 
@@ -113,9 +125,18 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 		return err
 	}
 
+	autoAnterior := a.cfg != nil && a.cfg.AutoStart
 	a.cfg = cfg
 	if a.queue != nil {
 		a.queue.SetConfig(cfg)
+	}
+
+	var errAuto error
+	if cfg.AutoStart != autoAnterior {
+		if err := a.autostart(cfg.AutoStart); err != nil {
+			log.Printf("Erro ao alterar a inicialização com o Windows: %v", err)
+			errAuto = fmt.Errorf("configurações salvas, mas não foi possível alterar a inicialização com o Windows: %w", err)
+		}
 	}
 
 	// Start é no-op se a pasta já está sendo monitorada; chamá-lo sempre permite
@@ -129,7 +150,7 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 		a.watcher.Stop()
 	}
 
-	return nil
+	return errAuto
 }
 
 // ProcessFile adds a file to the processing queue for backward compatibility.

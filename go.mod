@@ -10,6 +10,7 @@ require (
 	github.com/wailsapp/wails/v2 v2.12.0
 	golang.org/x/image v0.47.0
 	golang.org/x/net v0.61.0
+	golang.org/x/sys v0.49.0
 )
 
 require (
@@ -47,7 +48,6 @@ require (
 	github.com/wailsapp/mimetype v1.4.1 // indirect
 	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/perf v0.0.0-20261009192801-be2c69fb417e // indirect
-	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 )
 

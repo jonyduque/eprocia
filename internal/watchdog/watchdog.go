@@ -75,6 +75,28 @@ func (w *Watcher) Start(path string) error {
 	w.wg.Add(1)
 	go w.watchLoop(w.watcher, w.done)
 
+	// ZIPs baixados enquanto o app estava fechado não geram evento do fsnotify.
+	pendentes, err := pendingZips(path, time.Now().Add(-janelaPendentes))
+	if err != nil {
+		log.Printf("Watchdog: falha ao procurar ZIPs pendentes em %s: %v", path, err)
+	}
+	if len(pendentes) > 0 {
+		log.Printf("Watchdog: %d ZIP(s) pendente(s) encontrados em %s", len(pendentes), path)
+		w.wg.Add(1)
+		go func(done chan struct{}) {
+			defer w.wg.Done()
+			// Em série, para a fila receber na ordem de download.
+			for _, p := range pendentes {
+				select {
+				case <-done:
+					return
+				default:
+				}
+				w.handleNewFile(p, done)
+			}
+		}(w.done)
+	}
+
 	log.Printf("Watchdog started monitoring: %s", path)
 	return nil
 }
