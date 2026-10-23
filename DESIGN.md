@@ -35,12 +35,12 @@ O aplicativo suporta troca dinâmica entre temas Claro e Escuro, respeitando as 
 ## 3. Tipografia
 Utilizaremos fontes sans-serif modernas que garantem legibilidade em tamanhos pequenos.
 
-- **Família Principal:** `Inter`, `Segoe UI` ou o padrão do sistema (San Francisco/Roboto).
+- **Família Principal:** `"Segoe UI Variable"`, `"Segoe UI"`, `system-ui` (fontes do Windows; nada é baixado da rede, conforme RNF01 do PRD).
 - **Tamanhos:**
     - Títulos: `16px` (Semibold)
     - Texto Base: `13px` (Regular)
     - Metadados/Logs: `11px` (Regular)
-    - Mono (Tags XML): `12px` (`JetBrains Mono` ou `Consolas`)
+    - Mono (Tags XML), se for usada: `12px` (`Consolas`, fonte do sistema)
 
 ## 4. Ícones
 Utilizaremos a biblioteca **Lucide React** (ou similar) por sua consistência e traços finos.
