@@ -14,6 +14,10 @@ export function ClearQueue() {
   return window['go']['main']['App']['ClearQueue']();
 }
 
+export function CopyOutput(arg1) {
+  return window['go']['main']['App']['CopyOutput'](arg1);
+}
+
 export function GetConfig() {
   return window['go']['main']['App']['GetConfig']();
 }

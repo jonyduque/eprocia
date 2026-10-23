@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"eprocia/internal/autostart"
 	"eprocia/internal/config"
@@ -26,11 +28,15 @@ type App struct {
 	cfg      *models.Config
 	// autostart é trocado nos testes para não mexer no registro real.
 	autostart func(ativo bool) error
+	// clipboard é trocado nos testes; o padrão é runtime.ClipboardSetText.
+	clipboard func(ctx context.Context, texto string) error
+	// notificar fica nil quando o sistema não oferece notificações.
+	notificar func(titulo, corpo string) error
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
-	app := &App{autostart: autostart.Aplicar}
+	app := &App{autostart: autostart.Aplicar, clipboard: runtime.ClipboardSetText}
 	app.watcher = watchdog.NewWatcher(func(filePath string) {
 		if app.queue != nil {
 			app.queue.AddFiles([]string{filePath})
@@ -46,6 +52,8 @@ func (a *App) startup(ctx context.Context) {
 	a.pipeline = etl.NewPipeline()
 	a.queue = etl.NewQueue(a.pipeline)
 	a.queue.SetContext(ctx)
+	a.iniciarNotificacoes(ctx)
+	a.queue.SetOnFinished(a.aoTerminar)
 
 	cfg := carregarConfig(config.Load)
 	a.cfg = cfg
@@ -65,6 +73,45 @@ func (a *App) sincronizarAutostart(cfg *models.Config) {
 	if err := a.autostart(cfg.AutoStart); err != nil {
 		log.Printf("Erro ao sincronizar a inicialização com o Windows: %v", err)
 	}
+}
+
+func (a *App) iniciarNotificacoes(ctx context.Context) {
+	if err := runtime.InitializeNotifications(ctx); err != nil {
+		log.Printf("Aviso: notificações indisponíveis: %v", err)
+		return
+	}
+	if !runtime.IsNotificationAvailable(ctx) {
+		return
+	}
+	a.notificar = func(titulo, corpo string) error {
+		return runtime.SendNotification(ctx, runtime.NotificationOptions{
+			ID:    fmt.Sprintf("eprocia-%d", time.Now().UnixNano()),
+			Title: titulo,
+			Body:  corpo,
+		})
+	}
+}
+
+// aoTerminar avisa o fim de um item mesmo com a janela oculta na bandeja.
+func (a *App) aoTerminar(item *etl.QueueItem) {
+	if a.notificar == nil {
+		return
+	}
+	titulo, corpo := mensagemFim(item)
+	if err := a.notificar(titulo, corpo); err != nil {
+		log.Printf("Erro ao enviar notificação de %s: %v", item.Name, err)
+	}
+}
+
+func mensagemFim(item *etl.QueueItem) (titulo, corpo string) {
+	if item.Status == "success" {
+		return "eprocIA", fmt.Sprintf("%s pronto (%d docs, %d págs)", filepath.Base(item.OutputPath), item.DocsCount, item.PagesCount)
+	}
+	motivo := item.Error
+	if motivo == "" {
+		motivo = item.Message
+	}
+	return "eprocIA", fmt.Sprintf("Erro ao processar %s: %s", item.Name, motivo)
 }
 
 // carregarConfig nunca devolve nil: se a leitura falhar (ex.: JSON corrompido),
@@ -168,6 +215,40 @@ func (a *App) OpenDirectory(path string) error {
 		return exec.Command("explorer.exe", "/select,", cleanPath).Start()
 	}
 	return exec.Command("explorer.exe", cleanPath).Start()
+}
+
+// CopyOutput copia para a área de transferência o TXT gerado por um item concluído.
+func (a *App) CopyOutput(path string) error {
+	if a.ctx == nil {
+		return fmt.Errorf("contexto não inicializado")
+	}
+	texto, err := lerSaidaParaCopiar(path, a.GetQueue())
+	if err != nil {
+		return err
+	}
+	if err := a.clipboard(a.ctx, texto); err != nil {
+		return fmt.Errorf("não foi possível copiar para a área de transferência: %w", err)
+	}
+	return nil
+}
+
+// lerSaidaParaCopiar só lê arquivos que a própria fila gerou, para que o
+// binding exposto ao WebView não sirva para ler qualquer arquivo do disco.
+func lerSaidaParaCopiar(path string, itens []*etl.QueueItem) (string, error) {
+	if path == "" || !strings.EqualFold(filepath.Ext(path), ".txt") {
+		return "", fmt.Errorf("arquivo %q não é uma saída .txt", path)
+	}
+	limpo := filepath.Clean(path)
+	for _, it := range itens {
+		if it.Status == "success" && it.OutputPath != "" && strings.EqualFold(filepath.Clean(it.OutputPath), limpo) {
+			dados, err := os.ReadFile(limpo)
+			if err != nil {
+				return "", fmt.Errorf("não foi possível ler %q: %w", limpo, err)
+			}
+			return string(dados), nil
+		}
+	}
+	return "", fmt.Errorf("arquivo %q não corresponde a nenhum processamento concluído", path)
 }
 
 // SelectDirectory opens a native open directory dialog and returns the selected path.

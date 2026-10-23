@@ -68,6 +68,10 @@ type Queue struct {
 
 	// carregarConfig substitui config.Load nos testes.
 	carregarConfig func() (*models.Config, error)
+
+	// onFinished recebe uma cópia do item que terminou com sucesso ou erro
+	// (cancelamentos não avisam), para notificar com a janela oculta.
+	onFinished func(item *QueueItem)
 }
 
 // prazoShutdown limita quanto o encerramento do app espera o item em curso.
@@ -126,6 +130,23 @@ func (q *Queue) SetConfig(cfg *models.Config) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	q.cfg = cfg
+}
+
+// SetOnFinished registra quem é avisado quando um item termina com sucesso ou erro.
+func (q *Queue) SetOnFinished(fn func(item *QueueItem)) {
+	q.mu.Lock()
+	q.onFinished = fn
+	q.mu.Unlock()
+}
+
+// avisarFimLocked exige q.mu travado; devolve a chamada a fazer depois de destravar.
+func (q *Queue) avisarFimLocked(item *QueueItem) func() {
+	fn := q.onFinished
+	if fn == nil || (item.Status != "success" && item.Status != "error") {
+		return func() {}
+	}
+	copia := copiarItem(item)
+	return func() { fn(copia) }
 }
 
 // AddFiles adds multiple zip files to the queue.
@@ -344,8 +365,10 @@ func (q *Queue) processItem(item *QueueItem) {
 			item.Message = fmt.Sprintf("Erro crítico (panic): %v", r)
 			item.Error = fmt.Sprintf("Panic: %v", r)
 			q.isWorking = false
+			avisar := q.avisarFimLocked(item)
 			q.mu.Unlock()
 			q.broadcast()
+			avisar()
 			q.startProcessing()
 		}
 	}()
@@ -393,8 +416,10 @@ func (q *Queue) processItem(item *QueueItem) {
 			item.Message = "Erro ao carregar configurações"
 			item.Error = err.Error()
 			q.isWorking = false
+			avisar := q.avisarFimLocked(item)
 			q.mu.Unlock()
 			q.broadcast()
+			avisar()
 			q.startProcessing()
 			return
 		}
@@ -435,9 +460,11 @@ func (q *Queue) processItem(item *QueueItem) {
 		item.ProcessedPages = pagesCount
 		item.TotalPages = pagesCount
 	}
+	avisar := q.avisarFimLocked(item)
 	q.mu.Unlock()
 
 	q.broadcast()
+	avisar()
 	q.startProcessing()
 }
 

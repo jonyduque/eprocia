@@ -9,6 +9,8 @@ export function CancelQueueItem(arg1:string):Promise<void>;
 
 export function ClearQueue():Promise<void>;
 
+export function CopyOutput(arg1:string):Promise<void>;
+
 export function GetConfig():Promise<models.Config>;
 
 export function GetQueue():Promise<Array<etl.QueueItem>>;

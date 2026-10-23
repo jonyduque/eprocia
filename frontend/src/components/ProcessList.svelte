@@ -1,6 +1,7 @@
 <script>
   import { 
     OpenDirectory, 
+    CopyOutput, 
     CancelQueueItem, 
     RemoveQueueItem, 
     PauseQueue, 
@@ -24,6 +25,20 @@
       await OpenDirectory(path);
     } catch (err) {
       console.error('Erro ao abrir pasta:', err);
+    }
+  }
+
+  let copiadoId = null;
+  let copiadoTimer;
+
+  async function handleCopy(item) {
+    try {
+      await CopyOutput(item.output_path);
+      copiadoId = item.id;
+      clearTimeout(copiadoTimer);
+      copiadoTimer = setTimeout(() => { copiadoId = null; }, 1500);
+    } catch (err) {
+      console.error('Erro ao copiar o TXT:', err);
     }
   }
 
@@ -191,6 +206,18 @@
                 </button>
               {:else if item.status === 'success' && item.output_path}
                 <div class="success-actions">
+                  <button 
+                    class="btn-action" 
+                    on:click={() => handleCopy(item)} 
+                    title={copiadoId === item.id ? 'Copiado!' : 'Copiar o TXT para colar na IA'}
+                    aria-label="Copiar o TXT"
+                  >
+                    {#if copiadoId === item.id}
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check"><path d="M20 6 9 17l-5-5"/></svg>
+                    {:else}
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                    {/if}
+                  </button>
                   <button 
                     class="btn-action" 
                     on:click={() => handleOpenDir(item.output_path)} 
