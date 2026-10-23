@@ -1,13 +1,15 @@
 <script>
-  import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+  import { onDestroy } from 'svelte';
   import { fly, fade } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { criarAviso, duracaoMovimento, DUR_FAST, DUR_BASE } from '../lib/aviso.js';
-  import { GetConfig, SaveConfig, SelectDirectory } from '../wailsjs/go/main/App.js';
+  import { SaveConfig, SelectDirectory } from '../wailsjs/go/main/App.js';
 
-  const dispatch = createEventDispatcher();
+  // O App lê a config uma vez e a compartilha por bind; null enquanto carrega.
+  export let config = null;
+  export let erroConfig = '';
 
-  let config = {
+  const PADRAO = {
     monitored_path: '',
     ocr_mode: 'normal',
     cleaning_level: 'basic',
@@ -28,27 +30,15 @@
     aggressive: 'Básica + remove cabeçalhos e rodapés repetidos.'
   };
 
-  let loading = true;
   let statusMessage = '';
   let statusType = ''; // 'success' or 'error'
 
-  onMount(async () => {
-    await loadConfig();
-  });
-
-  async function loadConfig() {
-    try {
-      loading = true;
-      const loaded = await GetConfig();
-      if (loaded) {
-        config = { ...loaded };
-      }
-    } catch (err) {
-      showStatus('Erro ao carregar configurações: ' + err.message, 'error');
-    } finally {
-      loading = false;
-    }
+  // Sem a config salva, o formulário segue editável com os padrões.
+  $: if (!config && erroConfig) {
+    config = { ...PADRAO };
+    showStatus(erroConfig, 'error');
   }
+  $: loading = !config;
 
   async function handleSelectDirectory() {
     try {
@@ -71,7 +61,7 @@
     try {
       await SaveConfig(config);
       showStatus('Configurações salvas com sucesso!', 'success');
-      dispatch('configChanged', config);
+      config = config;
     } catch (err) {
       showStatus('Erro ao salvar configurações: ' + err.message, 'error');
     }

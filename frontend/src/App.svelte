@@ -18,6 +18,7 @@
   import Settings from './components/Settings.svelte';
   import ProcessList from './components/ProcessList.svelte';
   import { contarAtivos, rotuloFila } from './lib/estado.js';
+  import { criarFilaPorQuadro } from './lib/quadro.js';
   import { LARGURA_MIN_PAINEL, larguraMaxPainel, limitarPainel } from './lib/divisor.js';
   import {
     CONSULTA_ESCURO,
@@ -36,6 +37,7 @@
   const consultaTema = window.matchMedia(CONSULTA_ESCURO);
   let sistemaEscuro = consultaTema.matches;
   let config = null;
+  let erroConfig = '';
   let isPaused = false;
   let isWorking = false;
 
@@ -55,6 +57,8 @@
 
   // Unsubscribe handlers
   let unsubscribers = [];
+
+  const filaQuadro = criarFilaPorQuadro(() => items, (novos) => { items = novos; });
 
   // Pausar a fila não interrompe o item em curso, que segue ativo.
   $: processingCount = contarAtivos(items);
@@ -84,17 +88,12 @@
 
     // Register Wails event listeners for queue updates
     unsubscribers.push(
-      EventsOn('queue:update', (data) => {
-        items = data || [];
-      })
+      EventsOn('queue:update', (data) => filaQuadro.lista(data))
     );
 
     // Progresso chega item a item; id desconhecido é ignorado.
     unsubscribers.push(
-      EventsOn('queue:item', (item) => {
-        if (!item) return;
-        items = items.map(atual => atual.id === item.id ? item : atual);
-      })
+      EventsOn('queue:item', (item) => filaQuadro.item(item))
     );
 
     unsubscribers.push(
@@ -124,6 +123,7 @@
 
   onDestroy(() => {
     consultaTema.removeEventListener('change', mudouTemaDoSistema);
+    filaQuadro.cancelar();
 
     // Unsubscribe from Wails events
     unsubscribers.forEach(unsub => {
@@ -141,11 +141,8 @@
       config = await GetConfig();
     } catch (err) {
       console.error('Erro ao ler configuração:', err);
+      erroConfig = 'Erro ao carregar configurações: ' + (err?.message ?? err);
     }
-  }
-
-  function handleConfigChanged(event) {
-    config = event.detail;
   }
 
   function toggleTheme() {
@@ -320,7 +317,7 @@
       {#if !sidebarCollapsed}
         <div class="sidebar-content">
           <!-- Settings Component -->
-          <Settings on:configChanged={handleConfigChanged} />
+          <Settings bind:config {erroConfig} />
 
           <!-- Manual Process Card -->
           <div class="manual-card">
