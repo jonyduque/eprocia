@@ -20,8 +20,7 @@ wails build
 
 # Release: exe + NSIS installer (makensis via `scoop install nsis`). The build
 # rewrites wailsjs/, go.mod and package.json.md5 with CRLF-only noise: revert it.
-# Publish with `gh release create vX.Y.Z --target main` (creates the tag remotely;
-# git push is denied in settings, the user pushes commits with `! git push`).
+# Publish with `gh release create vX.Y.Z --target main` (creates the tag remotely).
 wails build -clean -nsis
 
 # Go tests (whole repo)
@@ -68,6 +67,7 @@ There is no repo-level lint config beyond `go vet`; no frontend test suite. `go 
 
 ## Conventions worth knowing
 
+- **Push:** only the repository owner and the orchestrating main session may run `git push`, and the session only when the owner asks. Subagents, workflow agents (implementador, revisor-*, cetico) and background tasks never push, merge into `main` or create releases; they commit locally and report back.
 - All Go log lines and most UI strings/errors are in Portuguese (pt-BR) — match that when adding logs/user-facing text.
 - `models.ProcessFile.ZipFileRef` holds a live `*zip.File`; the underlying `zip.ReadCloser` is closed by the caller of `ReadZipFiles` (`defer rc.Close()` in `Pipeline.ProcessZip`) — don't read from a `ProcessFile` after that scope ends.
 - The `eventos` map built in `Pipeline.ProcessZip` is `map[string]any` with nested nested nested `any` maps (event → documentos → paginas), pre-populated single-threaded before the concurrent document loop so each goroutine only writes into its own pre-existing leaf map — don't add new top-level map keys from inside a goroutine, only from the pre-population step.
