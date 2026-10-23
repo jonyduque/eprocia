@@ -18,6 +18,7 @@ type Watcher struct {
 	watcher     *fsnotify.Watcher
 	currentPath string
 	onFileAdded func(string)
+	falhas      *Falhas
 	done        chan struct{}
 	wg          sync.WaitGroup
 }
@@ -27,6 +28,13 @@ func NewWatcher(onFileAdded func(string)) *Watcher {
 	return &Watcher{
 		onFileAdded: onFileAdded,
 	}
+}
+
+// SetFalhas define o registro de ZIPs com erro que a varredura inicial pula.
+func (w *Watcher) SetFalhas(f *Falhas) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.falhas = f
 }
 
 // Start starts monitoring the specified path.
@@ -76,7 +84,7 @@ func (w *Watcher) Start(path string) error {
 	go w.watchLoop(w.watcher, w.done)
 
 	// ZIPs baixados enquanto o app estava fechado não geram evento do fsnotify.
-	pendentes, err := pendingZips(path, time.Now().Add(-janelaPendentes))
+	pendentes, err := pendingZips(path, time.Now().Add(-janelaPendentes), w.falhas.Ignorar)
 	if err != nil {
 		log.Printf("Watchdog: falha ao procurar ZIPs pendentes em %s: %v", path, err)
 	}

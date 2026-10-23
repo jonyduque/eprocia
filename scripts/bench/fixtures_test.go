@@ -36,7 +36,7 @@ func parse(t *testing.T, name string) (pages map[string]any, ocrPages int) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	pages, err := etl.NewPDFParser(filepath.Join("fixtures", name)).ParsePages(ctx, true, runner, nil)
+	pages, err := abrirFixture(t, name).ParsePages(ctx, true, runner, nil)
 	if err != nil {
 		t.Fatalf("%s: ParsePages: %v", name, err)
 	}
@@ -78,4 +78,21 @@ func TestFixtures_LegibleToOCR(t *testing.T) {
 			t.Errorf("%s: OCR ilegível: %q", name, text)
 		}
 	}
+}
+
+// abrirFixture monta o parser como o pipeline: leitor aberto e caminho em
+// disco só para o OCR.
+func abrirFixture(tb testing.TB, name string) *etl.PDFParser {
+	tb.Helper()
+	caminho := filepath.Join("fixtures", name)
+	f, err := os.Open(caminho)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	tb.Cleanup(func() { f.Close() })
+	info, err := f.Stat()
+	if err != nil {
+		tb.Fatal(err)
+	}
+	return etl.NewPDFParserDeLeitor(f, info.Size(), caminho, func() (string, error) { return caminho, nil })
 }

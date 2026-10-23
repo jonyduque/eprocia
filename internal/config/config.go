@@ -24,7 +24,13 @@ func DefaultConfig() (*models.Config, error) {
 		CleaningLevel:   "basic",
 		AutoStart:       false,
 		WatchdogEnabled: true,
+		Theme:           "system",
 	}, nil
+}
+
+// TemaValido diz se t é um dos temas que o frontend sabe aplicar.
+func TemaValido(t string) bool {
+	return t == "system" || t == "light" || t == "dark"
 }
 
 // GetConfigPath returns the default path to the config.json file.
@@ -57,6 +63,7 @@ type configOverlay struct {
 	CleaningLevel   *string `json:"cleaning_level"`
 	AutoStart       *bool   `json:"auto_start"`
 	WatchdogEnabled *bool   `json:"watchdog_enabled"`
+	Theme           *string `json:"theme"`
 }
 
 // LoadFromFile loads the configuration from a specific file path.
@@ -96,6 +103,9 @@ func LoadFromFile(path string) (*models.Config, error) {
 	}
 	if overlay.WatchdogEnabled != nil {
 		cfg.WatchdogEnabled = *overlay.WatchdogEnabled
+	}
+	if overlay.Theme != nil && TemaValido(*overlay.Theme) {
+		cfg.Theme = *overlay.Theme
 	}
 
 	return cfg, nil

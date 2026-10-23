@@ -45,7 +45,7 @@ func TestExtractTextFromHTML(t *testing.T) {
 	}
 }
 
-func TestCleanText(t *testing.T) {
+func TestCleanPage(t *testing.T) {
 	rawText := `   
 Line 1 with spaces   
 Página 12 de 35
@@ -54,33 +54,33 @@ Line 2 with text
 `
 
 	// CleanLevel: none
-	if cleaned := CleanText(rawText, "none"); cleaned != rawText {
-		t.Errorf("CleanText('none') modified text; expected unchanged")
+	if cleaned := cleanPage(rawText, "none", nil); cleaned != rawText {
+		t.Errorf("cleanPage('none') modified text; expected unchanged")
 	}
 
 	// CleanLevel: basic
-	basicCleaned := CleanText(rawText, "basic")
+	basicCleaned := cleanPage(rawText, "basic", nil)
 	if !strings.Contains(basicCleaned, "Página 12 de 35") {
-		t.Error("CleanText('basic') should preserve page markers")
+		t.Error("cleanPage('basic') should preserve page markers")
 	}
 	if strings.HasPrefix(basicCleaned, " ") || strings.HasSuffix(basicCleaned, " ") {
-		t.Error("CleanText('basic') should trim line whitespace")
+		t.Error("cleanPage('basic') should trim line whitespace")
 	}
 
 	// CleanLevel: aggressive
-	aggCleaned := CleanText(rawText, "aggressive")
+	aggCleaned := cleanPage(rawText, "aggressive", nil)
 	if strings.Contains(aggCleaned, "Página 12 de 35") {
-		t.Error("CleanText('aggressive') should strip page markers")
+		t.Error("cleanPage('aggressive') should strip page markers")
 	}
 	if strings.Contains(aggCleaned, "Documento assinado") {
-		t.Error("CleanText('aggressive') should strip digital signatures")
+		t.Error("cleanPage('aggressive') should strip digital signatures")
 	}
 	if strings.Contains(aggCleaned, "\n") {
-		t.Error("CleanText('aggressive') should merge lines into space-separated string")
+		t.Error("cleanPage('aggressive') should merge lines into space-separated string")
 	}
 }
 
-func TestCleanText_AggressiveKeepsLegitimateContent(t *testing.T) {
+func TestCleanPage_AggressiveKeepsLegitimateContent(t *testing.T) {
 	raw := `O autor requer a juntada, conforme a página inicial dos autos.
 Pág. 3/10
 página 4
@@ -90,7 +90,7 @@ Assinatura eletrônica realizada por Fulano de Tal
 Documento assinado eletronicamente por Beltrano
 A paginação do processo foi suspensa.`
 
-	got := CleanText(raw, "aggressive")
+	got := cleanPage(raw, "aggressive", nil)
 
 	mustKeep := []string{
 		"conforme a página inicial dos autos",

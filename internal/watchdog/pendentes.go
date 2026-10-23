@@ -14,8 +14,8 @@ const janelaPendentes = 24 * time.Hour
 
 // pendingZips lista os .zip de dir modificados depois de since que ainda não
 // têm, ao lado, um <nome>.txt igual ou mais novo. Devolve do mais antigo ao
-// mais novo.
-func pendingZips(dir string, since time.Time) ([]string, error) {
+// mais novo. ignorar (opcional) descarta ZIPs que já falharam com o mesmo mtime.
+func pendingZips(dir string, since time.Time, ignorar func(zip string, mod time.Time) bool) ([]string, error) {
 	entradas, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -37,6 +37,9 @@ func pendingZips(dir string, since time.Time) ([]string, error) {
 		caminho := filepath.Join(dir, e.Name())
 		saida := strings.TrimSuffix(caminho, filepath.Ext(caminho)) + ".txt"
 		if txt, err := os.Stat(saida); err == nil && !txt.ModTime().Before(info.ModTime()) {
+			continue
+		}
+		if ignorar != nil && ignorar(caminho, info.ModTime()) {
 			continue
 		}
 		achados = append(achados, pendente{caminho, info.ModTime()})

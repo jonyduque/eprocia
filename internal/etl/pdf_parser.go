@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -29,9 +28,9 @@ type PageData struct {
 type PDFParser struct {
 	filePath string
 
-	// Fonte já aberta (PDF em memória ou temporário com handle aberto). Quando
-	// presente, ParsePages não reabre o arquivo e só pede um caminho em disco
-	// a caminhoOCR se alguma página for ao OCR.
+	// Fonte já aberta (PDF em memória ou temporário com handle aberto).
+	// ParsePages só pede um caminho em disco a caminhoOCR se alguma página for
+	// ao OCR.
 	fonte      io.ReaderAt
 	tamanho    int64
 	leitor     *pdf.Reader
@@ -40,11 +39,6 @@ type PDFParser struct {
 	onceOCR    sync.Once
 	pathOCR    string
 	errOCR     error
-}
-
-// NewPDFParser creates a new PDFParser instance.
-func NewPDFParser(filePath string) *PDFParser {
-	return &PDFParser{filePath: filePath}
 }
 
 // NewPDFParserDeLeitor lê o PDF de r. nome só aparece nos logs; materializar
@@ -69,7 +63,7 @@ func (p *PDFParser) comPaginas(numPaginas int) *PDFParser {
 
 func (p *PDFParser) caminhoParaOCR() (string, error) {
 	if p.caminhoOCR == nil {
-		return p.filePath, nil
+		return "", fmt.Errorf("o PDF %s não tem caminho em disco para o OCR", p.filePath)
 	}
 	p.onceOCR.Do(func() {
 		p.pathOCR, p.errOCR = p.caminhoOCR()
@@ -80,38 +74,18 @@ func (p *PDFParser) caminhoParaOCR() (string, error) {
 	return p.pathOCR, p.errOCR
 }
 
-// abrir devolve o leitor do PDF e o número de páginas, reabrindo o arquivo só
-// quando o parser foi criado a partir de um caminho.
+// abrir devolve o leitor do PDF e o número de páginas, reaproveitando o
+// leitor da pré-contagem quando houver.
 func (p *PDFParser) abrir() (*pdf.Reader, int, func(), error) {
 	if p.leitor != nil {
 		return p.leitor, p.numPaginas, func() {}, nil
 	}
-	if p.fonte != nil {
-		log.Printf("[PDFParser] Instanciando leitor de PDF (tamanho: %d bytes)", p.tamanho)
-		reader, n, err := abrirLeitorPDF(p.fonte, p.tamanho, p.numPaginas)
-		if err != nil {
-			return nil, 0, nil, fmt.Errorf("failed to create pdf reader: %w", err)
-		}
-		return reader, n, func() {}, nil
-	}
-
-	log.Printf("[PDFParser] Abrindo arquivo PDF: %s", p.filePath)
-	file, err := os.Open(p.filePath)
+	log.Printf("[PDFParser] Instanciando leitor de PDF (tamanho: %d bytes)", p.tamanho)
+	reader, n, err := abrirLeitorPDF(p.fonte, p.tamanho, p.numPaginas)
 	if err != nil {
-		return nil, 0, nil, fmt.Errorf("failed to open pdf: %w", err)
+		return nil, 0, nil, fmt.Errorf("falha ao abrir o PDF: %w", err)
 	}
-	stat, err := file.Stat()
-	if err != nil {
-		file.Close()
-		return nil, 0, nil, fmt.Errorf("failed to stat pdf: %w", err)
-	}
-	log.Printf("[PDFParser] Instanciando leitor de PDF (tamanho: %d bytes)", stat.Size())
-	reader, n, err := abrirLeitorPDF(file, stat.Size(), 0)
-	if err != nil {
-		file.Close()
-		return nil, 0, nil, fmt.Errorf("failed to create pdf reader: %w", err)
-	}
-	return reader, n, func() { file.Close() }, nil
+	return reader, n, func() {}, nil
 }
 
 // ParsePages parses the PDF page-by-page.

@@ -150,7 +150,7 @@ func BenchmarkSintetico(b *testing.B) {
 func BenchmarkParsePDF(b *testing.B) {
 	for _, name := range []string{"nativo.pdf", "escaneado.pdf", "vetorial.pdf", "contents-array.pdf"} {
 		b.Run(strings.TrimSuffix(name, ".pdf"), func(b *testing.B) {
-			parser := etl.NewPDFParser(filepath.Join("fixtures", name))
+			parser := abrirFixture(b, name)
 			for b.Loop() {
 				if _, err := parser.ParsePages(context.Background(), false, nil, nil); err != nil {
 					b.Fatal(err)

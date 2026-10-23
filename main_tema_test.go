@@ -34,3 +34,34 @@ func TestCorDeFundo_IgualAoBgMainDoTema(t *testing.T) {
 		}
 	}
 }
+
+// O tema escolhido no app vale mais que o do Windows; só "system" (ou vazio,
+// em config antiga) consulta o Windows.
+func TestTemaClaro_PrefereEscolhaGravada(t *testing.T) {
+	consultas := 0
+	windows := func(claro bool) func() bool {
+		return func() bool { consultas++; return claro }
+	}
+	casos := []struct {
+		tema    string
+		windows bool
+		quer    bool
+	}{
+		{"light", false, true},
+		{"dark", true, false},
+		{"system", true, true},
+		{"system", false, false},
+		{"", true, true},
+		{"", false, false},
+	}
+	for _, c := range casos {
+		if got := temaClaro(c.tema, windows(c.windows)); got != c.quer {
+			t.Errorf("temaClaro(%q, windows=%v) = %v, quero %v", c.tema, c.windows, got, c.quer)
+		}
+	}
+	consultas = 0
+	temaClaro("dark", windows(true))
+	if consultas != 0 {
+		t.Error("tema fixo não deveria consultar o Windows")
+	}
+}

@@ -41,4 +41,6 @@ export function SelectZipFile():Promise<string>;
 
 export function SelectZipFiles():Promise<Array<string>>;
 
+export function SetTheme(arg1:string):Promise<void>;
+
 export function Show():Promise<void>;

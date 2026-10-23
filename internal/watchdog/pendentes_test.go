@@ -35,7 +35,7 @@ func TestPendingZips_FiltraPorDataESaida(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := pendingZips(dir, desde)
+	got, err := pendingZips(dir, desde, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

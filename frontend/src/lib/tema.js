@@ -5,9 +5,52 @@ export const TEMAS = ['system', 'light', 'dark'];
 
 export const CONSULTA_ESCURO = '(prefers-color-scheme: dark)';
 
+// Ler window.localStorage pode lançar (armazenamento bloqueado pelo WebView
+// ou pela política do sistema); nesses casos o tema só não persiste.
+export function armazenamento(janela = globalThis) {
+  try {
+    return janela.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Tema salvo válido, ou null se não houver.
+export function lerSalvo(storage) {
+  try {
+    const salvo = storage?.getItem('theme');
+    return TEMAS.includes(salvo) ? salvo : null;
+  } catch {
+    return null;
+  }
+}
+
 export function lerPreferencia(storage) {
-  const salvo = storage?.getItem('theme');
-  return TEMAS.includes(salvo) ? salvo : 'system';
+  return lerSalvo(storage) ?? 'system';
+}
+
+export function gravarSalvo(storage, tema) {
+  if (!storage) return false;
+  try {
+    storage.setItem('theme', tema);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// O localStorage aplica o tema antes da montagem; o config.json pinta o fundo
+// da janela nativa. Na abertura, o localStorage vence e o config é alinhado;
+// se o localStorage estiver vazio (limpo ou bloqueado), vale o do config.
+// doConfig undefined significa config ilegível: não sobrescreve.
+export function conciliarTema(local, doConfig) {
+  const configValido = TEMAS.includes(doConfig);
+  const tema = local ?? (configValido ? doConfig : 'system');
+  return {
+    tema,
+    gravarConfig: configValido && tema !== doConfig,
+    gravarLocal: local === null && tema !== 'system',
+  };
 }
 
 export function proximoTema(atual) {

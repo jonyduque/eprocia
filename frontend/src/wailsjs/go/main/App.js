@@ -78,6 +78,10 @@ export function SelectZipFiles() {
   return window['go']['main']['App']['SelectZipFiles']();
 }
 
+export function SetTheme(arg1) {
+  return window['go']['main']['App']['SetTheme'](arg1);
+}
+
 export function Show() {
   return window['go']['main']['App']['Show']();
 }

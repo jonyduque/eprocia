@@ -13,7 +13,8 @@
     GetQueue,
     SelectZipFiles,
     IsQueuePaused,
-    Hide
+    Hide,
+    SetTheme
   } from './wailsjs/go/main/App.js';
   import Settings from './components/Settings.svelte';
   import ProcessList from './components/ProcessList.svelte';
@@ -23,7 +24,11 @@
   import {
     CONSULTA_ESCURO,
     NOME_TEMA,
+    armazenamento,
+    conciliarTema,
+    gravarSalvo,
     lerPreferencia,
+    lerSalvo,
     proximoTema,
     temaEfetivo
   } from './lib/tema.js';
@@ -33,7 +38,7 @@
   let items = [];
   // Lido já na inicialização: o bloco reativo abaixo não pode desfazer a
   // classe que o script de index.html aplicou antes da montagem.
-  let temaPref = lerPreferencia(localStorage);
+  let temaPref = lerPreferencia(armazenamento());
   const consultaTema = window.matchMedia(CONSULTA_ESCURO);
   let sistemaEscuro = consultaTema.matches;
   let config = null;
@@ -77,6 +82,7 @@
 
     // Load initial config
     await refreshConfig();
+    alinharTema();
 
     // Load queue state
     try {
@@ -145,9 +151,22 @@
     }
   }
 
+  // O config.json guarda o tema para a janela nativa abrir com o fundo certo.
+  function gravarTemaNoBackend(tema) {
+    SetTheme(tema).catch((err) => console.error('Erro ao salvar o tema:', err));
+  }
+
+  function alinharTema() {
+    const r = conciliarTema(lerSalvo(armazenamento()), config?.theme);
+    temaPref = r.tema;
+    if (r.gravarLocal) gravarSalvo(armazenamento(), r.tema);
+    if (r.gravarConfig) gravarTemaNoBackend(r.tema);
+  }
+
   function toggleTheme() {
     temaPref = proximoTema(temaPref);
-    localStorage.setItem('theme', temaPref);
+    gravarSalvo(armazenamento(), temaPref);
+    gravarTemaNoBackend(temaPref);
   }
 
   // Handle window close by hiding
@@ -170,8 +189,6 @@
       console.error('Erro ao selecionar arquivos:', err);
     }
   }
-
-
 
   // Sidebar Resizing Handlers
   function startResizing(e) {
@@ -314,29 +331,30 @@
         </button>
       </div>
 
-      {#if !sidebarCollapsed}
-        <div class="sidebar-content">
-          <!-- Settings Component -->
-          <Settings bind:config {erroConfig} />
+      <!-- Escondido, não desmontado: o Settings mantém o aviso e a config. -->
+      <div class="sidebar-content" hidden={sidebarCollapsed}>
+        <!-- Settings Component -->
+        <Settings bind:config {erroConfig} aoFalharSalvar={refreshConfig} />
 
-          <!-- Manual Process Card -->
-          <div class="manual-card">
-            <div class="card-header">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-plus-2"><path d="M4 22V4c0-.5.2-1 .6-1.4C5 2.2 5.5 2 6 2h8l6 6v12c0 .5-.2 1-.6 1.4-.4.4-.9.6-1.4.6H6c-.5 0-1-.2-1.4-.6C4.2 21 4 20.5 4 20Z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg>
-              <h3>Importação Manual</h3>
-            </div>
-
-            <button
-              type="button"
-              class="manual-select-btn"
-              on:click={triggerManualSelect}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              <span>Selecionar arquivos ZIP...</span>
-            </button>
+        <!-- Manual Process Card -->
+        <div class="manual-card">
+          <div class="card-header">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-plus-2"><path d="M4 22V4c0-.5.2-1 .6-1.4C5 2.2 5.5 2 6 2h8l6 6v12c0 .5-.2 1-.6 1.4-.4.4-.9.6-1.4.6H6c-.5 0-1-.2-1.4-.6C4.2 21 4 20.5 4 20Z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg>
+            <h3>Importação Manual</h3>
           </div>
+
+          <button
+            type="button"
+            class="manual-select-btn"
+            on:click={triggerManualSelect}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span>Selecionar arquivos ZIP...</span>
+          </button>
         </div>
-      {:else}
+      </div>
+
+      {#if sidebarCollapsed}
         <!-- Collapsed Sidebar Vertical Tools -->
         <div class="collapsed-tools">
           <div class="collapsed-indicator" class:active={config && config.watchdog_enabled && config.monitored_path} class:inactive={!config || !config.watchdog_enabled || !config.monitored_path} title={config && config.watchdog_enabled && config.monitored_path ? `Monitorando: ${config.monitored_path}` : (config && !config.watchdog_enabled && config.monitored_path ? 'Monitoramento pausado' : 'Sem monitoramento ativo')}>
@@ -626,6 +644,9 @@
     gap: 8px;
     flex: 1;
     overflow-y: auto;
+  }
+  .sidebar-content[hidden] {
+    display: none;
   }
 
   /* Resizing Handle */

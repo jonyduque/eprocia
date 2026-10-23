@@ -9,6 +9,9 @@ type Config struct {
 	CleaningLevel   string `json:"cleaning_level"`
 	AutoStart       bool   `json:"auto_start"`
 	WatchdogEnabled bool   `json:"watchdog_enabled"`
+	// Theme fica no config.json para a janela nativa abrir com o fundo do
+	// tema escolhido: "system", "light" ou "dark".
+	Theme string `json:"theme"`
 }
 
 // ProcessFile represents a single judicial process file within a ZIP archive.
@@ -20,5 +23,3 @@ type ProcessFile struct {
 	Extension  string    `json:"extension"`
 	ZipFileRef *zip.File `json:"-"`
 }
-
-

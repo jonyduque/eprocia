@@ -8,8 +8,11 @@
     ResumeQueue, 
     ClearQueue 
   } from '../wailsjs/go/main/App.js';
-  import { fly } from 'svelte/transition';
+  import { onDestroy } from 'svelte';
+  import { fly, fade } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
   import { estadoItem, avisoFila } from '../lib/estado.js';
+  import { criarAviso, duracaoMovimento, DUR_FAST, DUR_BASE } from '../lib/aviso.js';
 
   export let items = [];
   export let isPaused = false;
@@ -42,6 +45,16 @@
 
   let copiadoId = null;
   let copiadoTimer;
+  let erroCopia = '';
+
+  const avisoCopia = criarAviso((a) => {
+    erroCopia = a ? a.texto : '';
+  });
+
+  onDestroy(() => {
+    avisoCopia.limpar();
+    clearTimeout(copiadoTimer);
+  });
 
   async function handleCopy(item) {
     try {
@@ -51,6 +64,7 @@
       copiadoTimer = setTimeout(() => { copiadoId = null; }, 1500);
     } catch (err) {
       console.error('Erro ao copiar o TXT:', err);
+      avisoCopia.mostrar('Erro ao copiar o TXT: ' + (err?.message ?? err), 'error');
     }
   }
 
@@ -292,9 +306,64 @@
       </div>
     {/if}
   </div>
+
+  <!-- Sempre montada: o leitor de tela só anuncia mudanças numa região que
+       já existia antes da mensagem. -->
+  <div class="aviso-regiao" role="alert" aria-atomic="true">
+    {#if erroCopia}
+      <div
+        class="aviso-erro"
+        in:fly={{ y: 8, duration: duracaoMovimento(DUR_BASE), easing: cubicOut }}
+        out:fade={{ duration: duracaoMovimento(DUR_FAST) }}
+      >
+        <span class="aviso-texto">{erroCopia}</span>
+        <button class="aviso-fechar" on:click={avisoCopia.fechar} aria-label="Fechar aviso" title="Fechar aviso">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+    {/if}
+  </div>
 </div>
 
 <style>
+  .aviso-erro {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--error-strong);
+    background-color: var(--surface);
+    border-top: 1px solid currentColor;
+  }
+  .aviso-texto {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .aviso-fechar {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease-out);
+  }
+  .aviso-fechar:hover {
+    background-color: var(--error-soft);
+  }
+  .aviso-fechar:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 1px;
+  }
   .list-card {
     background-color: var(--glass);
     backdrop-filter: blur(12px);

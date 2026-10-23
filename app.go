@@ -32,6 +32,8 @@ type App struct {
 	clipboard func(ctx context.Context, texto string) error
 	// notificar fica nil quando o sistema não oferece notificações.
 	notificar func(titulo, corpo string) error
+	// falhas guarda os ZIPs com erro para a varredura inicial não repeti-los.
+	falhas *watchdog.Falhas
 }
 
 // NewApp creates a new App application struct
@@ -55,9 +57,17 @@ func (a *App) startup(ctx context.Context) {
 	a.iniciarNotificacoes(ctx)
 	a.queue.SetOnFinished(a.aoTerminar)
 
-	cfg := carregarConfig(config.Load)
-	a.cfg = cfg
+	// main já leu a config para escolher o fundo da janela.
+	cfg := a.cfg
+	if cfg == nil {
+		cfg = carregarConfig(config.Load)
+		a.cfg = cfg
+	}
 	a.queue.SetConfig(cfg)
+	if caminho, err := config.GetConfigPath(); err == nil {
+		a.falhas = watchdog.CarregarFalhas(filepath.Join(filepath.Dir(caminho), "falhas.json"))
+		a.watcher.SetFalhas(a.falhas)
+	}
 	a.sincronizarAutostart(cfg)
 	if cfg.WatchdogEnabled && cfg.MonitoredPath != "" {
 		if err := a.watcher.Start(cfg.MonitoredPath); err != nil {
@@ -94,6 +104,11 @@ func (a *App) iniciarNotificacoes(ctx context.Context) {
 
 // aoTerminar avisa o fim de um item mesmo com a janela oculta na bandeja.
 func (a *App) aoTerminar(item *etl.QueueItem) {
+	if item.Status == "error" {
+		a.falhas.Registrar(item.Path)
+	} else {
+		a.falhas.Esquecer(item.Path)
+	}
 	if a.notificar == nil {
 		return
 	}
@@ -165,25 +180,37 @@ func (a *App) GetConfig() (*models.Config, error) {
 	return config.Load()
 }
 
-// SaveConfig saves the configuration settings and updates the watchdog path if it has changed.
+// SaveConfig grava a configuração e reaplica o watchdog e a inicialização com
+// o Windows. O tema não vem do formulário: só SetTheme o altera.
 func (a *App) SaveConfig(cfg *models.Config) error {
-	err := config.Save(cfg)
-	if err != nil {
-		return err
-	}
-
 	autoAnterior := a.cfg != nil && a.cfg.AutoStart
-	a.cfg = cfg
-	if a.queue != nil {
-		a.queue.SetConfig(cfg)
+	if a.cfg != nil {
+		cfg.Theme = a.cfg.Theme
 	}
 
+	// O registro vem antes da gravação: se ele recusar, o config.json guarda o
+	// estado real, e a próxima gravação com AutoStart ligado tenta de novo.
 	var errAuto error
 	if cfg.AutoStart != autoAnterior {
 		if err := a.autostart(cfg.AutoStart); err != nil {
 			log.Printf("Erro ao alterar a inicialização com o Windows: %v", err)
+			cfg.AutoStart = autoAnterior
 			errAuto = fmt.Errorf("configurações salvas, mas não foi possível alterar a inicialização com o Windows: %w", err)
 		}
+	}
+
+	if err := config.Save(cfg); err != nil {
+		if errAuto == nil && cfg.AutoStart != autoAnterior {
+			if errVolta := a.autostart(autoAnterior); errVolta != nil {
+				log.Printf("Erro ao desfazer a inicialização com o Windows: %v", errVolta)
+			}
+		}
+		return err
+	}
+
+	a.cfg = cfg
+	if a.queue != nil {
+		a.queue.SetConfig(cfg)
 	}
 
 	// Start é no-op se a pasta já está sendo monitorada; chamá-lo sempre permite
@@ -198,6 +225,29 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 	}
 
 	return errAuto
+}
+
+// SetTheme grava o tema escolhido ("system", "light" ou "dark"), que main.go lê
+// na próxima abertura para pintar o fundo da janela antes do WebView.
+func (a *App) SetTheme(tema string) error {
+	if !config.TemaValido(tema) {
+		return fmt.Errorf("tema inválido: %q", tema)
+	}
+	cfg := a.cfg
+	if cfg == nil {
+		cfg = carregarConfig(config.Load)
+	}
+	novo := *cfg
+	novo.Theme = tema
+	if err := config.Save(&novo); err != nil {
+		return fmt.Errorf("não foi possível salvar o tema: %w", err)
+	}
+	if a.cfg != nil {
+		a.cfg.Theme = tema
+	} else {
+		a.cfg = &novo
+	}
+	return nil
 }
 
 // ProcessFile adds a file to the processing queue for backward compatibility.

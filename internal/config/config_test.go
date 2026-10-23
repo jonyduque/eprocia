@@ -181,7 +181,7 @@ func TestSaveToFile_FalhaNaEscritaPreservaArquivoAnterior(t *testing.T) {
 	dir := t.TempDir()
 	caminho := filepath.Join(dir, "config.json")
 
-	original := &models.Config{MonitoredPath: "/original", OcrMode: "fast", CleaningLevel: "basic", WatchdogEnabled: true}
+	original := &models.Config{MonitoredPath: "/original", OcrMode: "fast", CleaningLevel: "basic", WatchdogEnabled: true, Theme: "system"}
 	if err := SaveToFile(caminho, original); err != nil {
 		t.Fatalf("SaveToFile inicial: %v", err)
 	}
@@ -277,7 +277,7 @@ func TestLoadESave_UsamCaminhoPadrao(t *testing.T) {
 		t.Fatalf("Load sem arquivo = %+v, esperado padrão %+v", *cfg, *padrao)
 	}
 
-	salvo := &models.Config{MonitoredPath: "/salvo", OcrMode: "best", CleaningLevel: "none", AutoStart: true}
+	salvo := &models.Config{MonitoredPath: "/salvo", OcrMode: "best", CleaningLevel: "none", AutoStart: true, Theme: "dark"}
 	if err := Save(salvo); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
@@ -294,5 +294,32 @@ func TestLoadESave_UsamCaminhoPadrao(t *testing.T) {
 	}
 	if cfg, err := Load(); err == nil {
 		t.Fatalf("Load aceitou JSON inválido e devolveu %+v", cfg)
+	}
+}
+
+func TestLoad_TemaPadraoEValidacao(t *testing.T) {
+	def, _ := DefaultConfig()
+	if def.Theme != "system" {
+		t.Fatalf("tema padrão %q, esperado system", def.Theme)
+	}
+	casos := map[string]string{
+		`{}`:                 "system",
+		`{"theme": "dark"}`:  "dark",
+		`{"theme": "light"}`: "light",
+		`{"theme": "roxo"}`:  "system",
+		`{"theme": ""}`:      "system",
+	}
+	for conteudo, quer := range casos {
+		caminho := filepath.Join(t.TempDir(), "config.json")
+		if err := os.WriteFile(caminho, []byte(conteudo), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := LoadFromFile(caminho)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.Theme != quer {
+			t.Errorf("%s: tema %q, esperado %q", conteudo, cfg.Theme, quer)
+		}
 	}
 }

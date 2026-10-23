@@ -62,7 +62,7 @@ func TestPDFParser_ParsePages_NativeText(t *testing.T) {
 		t.Fatalf("failed to write test pdf: %v", err)
 	}
 
-	parser := NewPDFParser(pdfPath)
+	parser := parserDeArquivo(t, pdfPath)
 	pages, err := parser.ParsePages(context.Background(), true, nil, nil)
 	if err != nil {
 		t.Fatalf("ParsePages failed: %v", err)
@@ -112,7 +112,7 @@ func TestPDFParser_ParsePages_UsesOcrForImagePage(t *testing.T) {
 		t.Fatalf("failed to write test pdf: %v", err)
 	}
 
-	parser := NewPDFParser(pdfPath)
+	parser := parserDeArquivo(t, pdfPath)
 
 	ocrCalled := false
 	ocrRunner := func(ctx context.Context, path string, pageNum int) (string, string, error) {
@@ -169,7 +169,7 @@ func TestPDFParser_ParsePages_OcrFailureMarksPage(t *testing.T) {
 		return "", "", errors.New("tesseract ausente")
 	}
 	completed := 0
-	pages, err := NewPDFParser(pdfPath).ParsePages(context.Background(), true, ocrRunner, func(int) { completed++ })
+	pages, err := parserDeArquivo(t, pdfPath).ParsePages(context.Background(), true, ocrRunner, func(int) { completed++ })
 	if err != nil {
 		t.Fatalf("ParsePages failed: %v", err)
 	}
@@ -207,8 +207,9 @@ func parsePagesWithDeadline(t *testing.T, objects []string, ocrRunner func(conte
 		err   error
 	}
 	done := make(chan result, 1)
+	parser := parserDeArquivo(t, pdfPath)
 	go func() {
-		pages, err := NewPDFParser(pdfPath).ParsePages(context.Background(), true, ocrRunner, nil)
+		pages, err := parser.ParsePages(context.Background(), true, ocrRunner, nil)
 		done <- result{pages, err}
 	}()
 
@@ -318,7 +319,7 @@ func parsePagesSemPanic(t *testing.T, objects []string, ocrRunner func(context.C
 			t.Fatalf("ParsePages entrou em panic: %v", r)
 		}
 	}()
-	return NewPDFParser(pdfPath).ParsePages(context.Background(), true, ocrRunner, nil)
+	return parserDeArquivo(t, pdfPath).ParsePages(context.Background(), true, ocrRunner, nil)
 }
 
 // A xref entry that points to an object with another number makes the PDF
@@ -392,8 +393,9 @@ func parsePagesComPrazo(t *testing.T, objects []string) (map[string]any, error) 
 		err   error
 	}
 	done := make(chan resultado, 1)
+	parser := parserDeArquivo(t, pdfPath)
 	go func() {
-		pages, err := NewPDFParser(pdfPath).ParsePages(context.Background(), true, nil, nil)
+		pages, err := parser.ParsePages(context.Background(), true, nil, nil)
 		done <- resultado{pages, err}
 	}()
 	select {
@@ -458,5 +460,33 @@ func TestPDFParser_ParsePages_ArvoreAninhadaMantemOrdem(t *testing.T) {
 		if !ok || !strings.Contains(p["content"].(string), esperado) {
 			t.Errorf("página %s: esperava %q, obtive %+v", num, esperado, pages[num])
 		}
+	}
+}
+
+// parserDeArquivo abre o PDF como o pipeline faz (leitor + caminho para OCR).
+func parserDeArquivo(t testing.TB, caminho string) *PDFParser {
+	t.Helper()
+	f, err := os.Open(caminho)
+	if err != nil {
+		t.Fatalf("falha ao abrir %s: %v", caminho, err)
+	}
+	t.Cleanup(func() { f.Close() })
+	info, err := f.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return NewPDFParserDeLeitor(f, info.Size(), caminho, func() (string, error) { return caminho, nil })
+}
+
+// O erro de abertura vira a mensagem do item e pode ir para o texto de saída.
+func TestParsePages_ErroDeAberturaEmPortugues(t *testing.T) {
+	dados := []byte("isto não é um PDF")
+	_, err := NewPDFParserDeLeitor(bytes.NewReader(dados), int64(len(dados)), "falso.pdf", nil).
+		ParsePages(context.Background(), false, nil, nil)
+	if err == nil {
+		t.Fatal("ParsePages aceitou um arquivo que não é PDF")
+	}
+	if !strings.Contains(err.Error(), "falha ao abrir o PDF") {
+		t.Fatalf("mensagem fora do padrão pt-BR: %q", err)
 	}
 }

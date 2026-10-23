@@ -119,14 +119,10 @@ func repeatedEdgeLines(pages []string) map[string]bool {
 	return repeated
 }
 
-// CleanText cleans text based on the configured cleaning level (none, basic, aggressive).
-func CleanText(text string, level string) string {
-	return cleanPage(text, level, nil)
-}
-
-// cleanPage is CleanText plus, in aggressive mode, removal of the edge lines
-// listed in repeated (see repeatedEdgeLines). Only edge positions are checked,
-// so the same sentence in the middle of a page survives.
+// cleanPage cleans one page according to the cleaning level (none, basic,
+// aggressive). In aggressive mode it also drops the edge lines listed in
+// repeated (see repeatedEdgeLines); only edge positions are checked, so the
+// same sentence in the middle of a page survives.
 func cleanPage(text string, level string, repeated map[string]bool) string {
 	if level == "none" {
 		return text

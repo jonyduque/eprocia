@@ -8,6 +8,9 @@
   // O App lê a config uma vez e a compartilha por bind; null enquanto carrega.
   export let config = null;
   export let erroConfig = '';
+  // Chamado quando SaveConfig falha: o App relê a config gravada, para o
+  // rodapé e o formulário não exibirem valores que não foram salvos.
+  export let aoFalharSalvar = () => {};
 
   const PADRAO = {
     monitored_path: '',
@@ -48,7 +51,7 @@
         await handleSave();
       }
     } catch (err) {
-      showStatus('Erro ao selecionar pasta: ' + err.message, 'error');
+      showStatus('Erro ao selecionar pasta: ' + (err?.message ?? err), 'error');
     }
   }
 
@@ -63,7 +66,11 @@
       showStatus('Configurações salvas com sucesso!', 'success');
       config = config;
     } catch (err) {
-      showStatus('Erro ao salvar configurações: ' + err.message, 'error');
+      // Falha parcial ("configurações salvas, mas...") já se explica sozinha.
+      const msg = String(err?.message ?? err);
+      const parcial = /^configurações salvas/i.test(msg);
+      showStatus(parcial ? msg[0].toUpperCase() + msg.slice(1) : 'Erro ao salvar configurações: ' + msg, 'error');
+      await aoFalharSalvar();
     }
   }
 

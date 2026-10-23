@@ -8,6 +8,7 @@ import (
 	"runtime"
 
 	"eprocia/internal/autostart"
+	"eprocia/internal/config"
 
 	"github.com/getlantern/systray"
 	"github.com/wailsapp/wails/v2"
@@ -21,6 +22,7 @@ var assets embed.FS
 func main() {
 	// Create an instance of the app structure
 	app := NewApp()
+	app.cfg = carregarConfig(config.Load)
 
 	go executarTray(func() {
 		systray.Run(onReady(app), onExit)
@@ -37,7 +39,7 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour: corDeFundo(windowsUsaTemaClaro()),
+		BackgroundColour: corDeFundo(temaClaro(app.cfg.Theme, windowsUsaTemaClaro)),
 		OnStartup:        app.startup,
 		OnShutdown: func(ctx context.Context) {
 			app.shutdown(ctx)
@@ -110,6 +112,18 @@ func corDeFundo(claro bool) *options.RGBA {
 		return &options.RGBA{R: 0xF3, G: 0xF4, B: 0xF6, A: 255}
 	}
 	return &options.RGBA{R: 0x0B, G: 0x0F, B: 0x19, A: 255}
+}
+
+// temaClaro segue o tema escolhido no app; o do Windows só vale para
+// "system" ou config antiga sem tema.
+func temaClaro(tema string, windowsClaro func() bool) bool {
+	switch tema {
+	case "light":
+		return true
+	case "dark":
+		return false
+	}
+	return windowsClaro()
 }
 
 func onExit() {

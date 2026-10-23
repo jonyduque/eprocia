@@ -51,6 +51,7 @@ export namespace models {
 	    cleaning_level: string;
 	    auto_start: boolean;
 	    watchdog_enabled: boolean;
+	    theme: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -63,6 +64,7 @@ export namespace models {
 	        this.cleaning_level = source["cleaning_level"];
 	        this.auto_start = source["auto_start"];
 	        this.watchdog_enabled = source["watchdog_enabled"];
+	        this.theme = source["theme"];
 	    }
 	}
 
