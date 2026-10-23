@@ -29,6 +29,10 @@ EPROCIA_BENCH_OCR=fast go test ./scripts/bench -run '^$' -bench Sintetico -count
 go tool benchstat "$TMP/antes.txt" "$TMP/depois.txt"
 ```
 
+`pico-mem-B` é o máximo de memória mapeada do processo inteiro e sobe em degraus de 4 MB (arena do heap no Windows). Ele cresce com o número de iterações: uma mudança que deixa o `sec/op` 30 vezes menor roda 30 vezes mais operações por processo e pode subir um degrau sem piorar nada. Na dúvida, rode a base com `-benchtime=25x` para comparar o mesmo número de operações (na B-EF-03, a base com 250 ops também chegou a 28,17 MB).
+
+Linha de base num `git worktree` do commit anterior: copie para ele o `go.sum` e `internal/ocr/embed/{poppler,tesseract}`, que são ignorados pelo git. Sem os binários, `ocr=fast` roda sem OCR (`procs/op` 0) e a base sai inválida.
+
 O benchstat está declarado como `tool` no `go.mod` (Passo 0 da skill `eprocia-build`); `go tool benchstat` usa a versão fixada ali.
 
 Corpus real: `EPROCIA_BENCH_DIR=D:\\caminho go test ./scripts/bench -run '^$' -bench Real -count=10 -benchmem`. Nada desse diretório entra no repositório; o hook `proteger-dados` bloqueia.

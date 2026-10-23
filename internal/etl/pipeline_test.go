@@ -15,6 +15,8 @@ import (
 	"testing"
 
 	"eprocia/internal/models"
+
+	"github.com/dslipak/pdf"
 )
 
 func TestProcessZip_CanceladoNaoPreCalculaPaginas(t *testing.T) {
@@ -100,7 +102,7 @@ func TestProcessZip_PanicNoPreCalculoNaoVazaTemporarios(t *testing.T) {
 
 	original := contarPaginasPDF
 	t.Cleanup(func() { contarPaginasPDF = original })
-	contarPaginasPDF = func(r io.ReaderAt, size int64) (int, error) {
+	contarPaginasPDF = func(r io.ReaderAt, size int64) (*pdf.Reader, int, error) {
 		panic("pdf corrompido")
 	}
 

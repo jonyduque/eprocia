@@ -1,6 +1,9 @@
 package etl
 
 import (
+	"archive/zip"
+	"bytes"
+	"compress/flate"
 	"context"
 	"fmt"
 	"io"
@@ -19,12 +22,224 @@ import (
 )
 
 // contarPaginasPDF é uma variável para que os testes simulem um panic da biblioteca de PDF.
-var contarPaginasPDF = func(r io.ReaderAt, size int64) (int, error) {
+var contarPaginasPDF = func(r io.ReaderAt, size int64) (*pdf.Reader, int, error) {
 	reader, err := pdf.NewReader(r, size)
+	if err != nil {
+		return nil, 0, err
+	}
+	return reader, reader.NumPage(), nil
+}
+
+// aoFimDaPreContagem deixa os testes inspecionarem a memória de PDFs retida
+// entre a pré-contagem e o processamento.
+var aoFimDaPreContagem func(mem *memoriaPDF)
+
+// Tetos para manter PDFs extraídos do ZIP em memória. Acima deles o PDF vai
+// para um temporário em disco.
+const (
+	maxPDFEmMemoria      = 32 << 20
+	maxTotalPDFEmMemoria = 256 << 20
+)
+
+// fontePDF é um PDF extraído do ZIP uma única vez: em memória até o teto, ou
+// num temporário cujo handle fica aberto. Reabrir um arquivo recém-gravado
+// custa dezenas de ms no Windows (antivírus), e PDFs sem OCR nem precisam de
+// disco: o temporário só é gravado quando alguma página vai ao OCR.
+type fontePDF struct {
+	mu        sync.Mutex
+	dados     []byte
+	arq       *os.File
+	caminho   string
+	tamanho   int64
+	reservado int64
+	mem       *memoriaPDF
+
+	leitor  *pdf.Reader
+	paginas int
+}
+
+func (f *fontePDF) readerAt() io.ReaderAt {
+	if f.arq != nil {
+		return f.arq
+	}
+	return bytes.NewReader(f.dados)
+}
+
+// materializar devolve um caminho em disco para o OCR, gravando o temporário
+// na primeira chamada.
+func (f *fontePDF) materializar() (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.caminho != "" {
+		return f.caminho, nil
+	}
+	tmp, err := os.CreateTemp("", "eprocia_pdf_*.pdf")
+	if err != nil {
+		return "", err
+	}
+	_, err = tmp.Write(f.dados)
+	if errClose := tmp.Close(); err == nil {
+		err = errClose
+	}
+	if err != nil {
+		os.Remove(tmp.Name())
+		return "", err
+	}
+	f.caminho = tmp.Name()
+	return f.caminho, nil
+}
+
+// memoriaPDF limita os bytes de PDF em memória num ZIP e reaproveita os
+// buffers entre a pré-contagem e o processamento, que extraem o mesmo PDF duas
+// vezes. Vive só durante um ProcessZip: um pool global retinha os buffers entre
+// ZIPs e elevava o pico de memória. Canal nil (valor zero) desliga o reuso.
+type memoriaPDF struct {
+	disponivel atomic.Int64
+	bufs       chan []byte
+}
+
+func (m *memoriaPDF) buffer(tamanho int64) []byte {
+	select {
+	case b := <-m.bufs:
+		if int64(cap(b)) >= tamanho {
+			return b[:tamanho]
+		}
+	default:
+	}
+	return make([]byte, tamanho)
+}
+
+func (m *memoriaPDF) devolver(b []byte) {
+	select {
+	case m.bufs <- b[:0]:
+	default:
+	}
+}
+
+// flateReciclavel devolve o descompressor a uma lista livre ao fechar. O pool
+// do archive/zip é esvaziado a cada GC e, com cada PDF lido duas vezes, a
+// janela de 32 KB realocada por entrada pesava no B/op.
+type flateReciclavel struct {
+	io.ReadCloser
+	livres chan io.ReadCloser
+}
+
+func (f *flateReciclavel) Close() error {
+	if f.ReadCloser == nil {
+		return nil
+	}
+	err := f.ReadCloser.Close()
+	select {
+	case f.livres <- f.ReadCloser:
+	default:
+	}
+	f.ReadCloser = nil
+	return err
+}
+
+func descompressorReciclavel(livres chan io.ReadCloser) zip.Decompressor {
+	return func(r io.Reader) io.ReadCloser {
+		select {
+		case fr := <-livres:
+			if err := fr.(flate.Resetter).Reset(r, nil); err == nil {
+				return &flateReciclavel{fr, livres}
+			}
+		default:
+		}
+		return &flateReciclavel{flate.NewReader(r), livres}
+	}
+}
+
+// liberar fecha o handle antes de remover o temporário (no Windows, os.Remove
+// falha com o arquivo aberto) e devolve a memória reservada ao orçamento.
+func (f *fontePDF) liberar() {
+	f.liberarBuffer(true)
+}
+
+// liberarBuffer com reusar=false não devolve o buffer ao pool: depois de um
+// panic, goroutines de OCR do documento ainda podem lê-lo.
+func (f *fontePDF) liberarBuffer(reusar bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.arq != nil {
+		f.arq.Close()
+		f.arq = nil
+	}
+	if f.caminho != "" {
+		os.Remove(f.caminho)
+		f.caminho = ""
+	}
+	if f.reservado > 0 {
+		f.mem.disponivel.Add(f.reservado)
+		f.reservado = 0
+	}
+	if reusar && f.dados != nil {
+		f.mem.devolver(f.dados)
+	}
+	f.dados = nil
+	f.leitor = nil
+}
+
+// extrairPDF lê a entrada do ZIP para memória, se couber no orçamento, ou para
+// um temporário em disco mantido aberto.
+func extrairPDF(f models.ProcessFile, mem *memoriaPDF) (*fontePDF, error) {
+	zr, err := f.ZipFileRef.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer zr.Close()
+
+	tamanho := int64(f.ZipFileRef.UncompressedSize64)
+	if tamanho <= maxPDFEmMemoria {
+		if mem.disponivel.Add(-tamanho) >= 0 {
+			dados := mem.buffer(tamanho)
+			_, err := io.ReadFull(zr, dados)
+			if err == nil {
+				// Lê até o EOF para o archive/zip conferir o CRC e para não
+				// truncar calado uma entrada maior que o tamanho declarado.
+				var extra [1]byte
+				if n, errEOF := zr.Read(extra[:]); n > 0 {
+					err = fmt.Errorf("entrada do ZIP maior que o tamanho declarado")
+				} else if errEOF != io.EOF {
+					err = errEOF
+				}
+			}
+			if err != nil {
+				mem.disponivel.Add(tamanho)
+				return nil, err
+			}
+			return &fontePDF{dados: dados, tamanho: tamanho, reservado: tamanho, mem: mem}, nil
+		}
+		mem.disponivel.Add(tamanho)
+	}
+
+	tmp, err := os.CreateTemp("", "eprocia_pdf_*.pdf")
+	if err != nil {
+		return nil, err
+	}
+	n, err := io.Copy(tmp, zr)
+	if err != nil {
+		tmp.Close()
+		os.Remove(tmp.Name())
+		return nil, err
+	}
+	return &fontePDF{arq: tmp, caminho: tmp.Name(), tamanho: n, mem: mem}, nil
+}
+
+// contarPaginas abre o leitor do PDF uma vez; ele é reaproveitado por
+// ParsePages. A biblioteca pode entrar em panic com arquivo malformado.
+func (f *fontePDF) contarPaginas() (n int, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			n, err = 0, fmt.Errorf("panic ao ler PDF: %v", r)
+		}
+	}()
+	reader, n, err := contarPaginasPDF(f.readerAt(), f.tamanho)
 	if err != nil {
 		return 0, err
 	}
-	return reader.NumPage(), nil
+	f.leitor, f.paginas = reader, n
+	return n, nil
 }
 
 // Pipeline orchestrates the entire extraction process. It emits no Wails
@@ -53,103 +268,73 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 	// 2. Sort documents chronologically and naturally
 	SortProcessFiles(files)
 
-	// Pre-calculate total pages across all files to show accurate progress.
-	// PDFs are extracted to a temp file here (once) and reused by the
-	// per-document goroutines below, instead of re-reading them from the zip
-	// a second time.
+	// Define active worker limits based on CPU count
+	numWorkers := stdRuntime.NumCPU() - 1
+	if numWorkers < 1 {
+		numWorkers = 1
+	}
+
+	// Pré-contagem das páginas para o progresso, sem tocar o disco para PDFs que
+	// cabem em memória. É serial e não retém os PDFs para o processamento: com
+	// cada um em memória, extrair de novo custa pouco, e reter todos (ou contar
+	// em paralelo) elevava o pico de memória.
 	totalFiles := len(files)
-	totalPagesAll := 0
-	docPageCounts := make(map[string]int) // keep track of pages per file
-	docTempFiles := make(map[string]string)
-	var tempFilesMu sync.Mutex
-	// Remove os PDFs pré-extraídos em qualquer saída, inclusive por panic.
+	fontes := make([]*fontePDF, totalFiles)
+	contagens := make([]int, totalFiles)
+	contados := make([]bool, totalFiles)
+	// Listas livres pequenas: reaproveitam buffers e descompressores entre as
+	// duas extrações de cada PDF sem segurar memória de todos os workers.
+	mem := &memoriaPDF{bufs: make(chan []byte, 2)}
+	mem.disponivel.Store(maxTotalPDFEmMemoria)
+	rc.RegisterDecompressor(zip.Deflate, descompressorReciclavel(make(chan io.ReadCloser, 2)))
+	// Libera os PDFs extraídos em qualquer saída, inclusive por panic.
 	defer func() {
-		tempFilesMu.Lock()
-		for _, tp := range docTempFiles {
-			os.Remove(tp)
+		for _, fonte := range fontes {
+			if fonte != nil {
+				fonte.liberar()
+			}
 		}
-		tempFilesMu.Unlock()
 	}()
 
-	for _, f := range files {
-		if err := ctx.Err(); err != nil {
-			log.Printf("[Pipeline] Processamento cancelado durante o pré-cálculo de páginas")
-			return "", 0, 0, err
+	for i, f := range files {
+		contagens[i] = 1
+		if f.Extension != ".pdf" {
+			continue
 		}
-		if f.Extension == ".pdf" {
-			pagesCount, tempPath, err := func() (n int, tPath string, err error) {
-				// A biblioteca de PDF pode entrar em panic com arquivo malformado;
-				// nesse caso o temporário é removido e o documento cai no fallback.
-				var pf *os.File
-				defer func() {
-					if r := recover(); r != nil {
-						if pf != nil {
-							pf.Close()
-						}
-						if tPath != "" {
-							os.Remove(tPath)
-						}
-						n, tPath, err = 0, "", fmt.Errorf("panic ao ler PDF: %v", r)
-					}
-				}()
-
-				zr, err := f.ZipFileRef.Open()
-				if err != nil {
-					return 0, "", err
-				}
-				defer zr.Close()
-
-				tempPdfFile, err := os.CreateTemp("", "eprocia_pdf_*.pdf")
-				if err != nil {
-					return 0, "", err
-				}
-				tPath = tempPdfFile.Name()
-
-				if _, err := io.Copy(tempPdfFile, zr); err != nil {
-					tempPdfFile.Close()
-					os.Remove(tPath)
-					return 0, "", err
-				}
-				tempPdfFile.Close()
-
-				pf, err = os.Open(tPath)
-				if err != nil {
-					os.Remove(tPath)
-					return 0, "", err
-				}
-
-				stat, err := pf.Stat()
-				if err != nil {
-					pf.Close()
-					os.Remove(tPath)
-					return 0, "", err
-				}
-
-				// No Windows, os.Remove falha com o arquivo ainda aberto: fechar antes de remover.
-				n, err = contarPaginasPDF(pf, stat.Size())
-				if err != nil {
-					pf.Close()
-					os.Remove(tPath)
-					return 0, "", err
-				}
-				pf.Close()
-				return n, tPath, nil
-			}()
-			if err != nil {
-				log.Printf("[Pipeline] Erro ao pré-calcular páginas para %s: %v", f.DocName, err)
-				docPageCounts[f.Name] = 1 // fallback
-				totalPagesAll += 1
-			} else {
-				docPageCounts[f.Name] = pagesCount
-				totalPagesAll += pagesCount
-				tempFilesMu.Lock()
-				docTempFiles[f.Name] = tempPath
-				tempFilesMu.Unlock()
+		if ctx.Err() != nil {
+			break
+		}
+		fonte, err := extrairPDF(f, mem)
+		if err == nil {
+			var n int
+			if n, err = fonte.contarPaginas(); err == nil {
+				contagens[i], contados[i] = n, true
 			}
-		} else {
-			docPageCounts[f.Name] = 1
-			totalPagesAll += 1
+			// O temporário em disco (PDF acima do teto) fica aberto para não
+			// ser gravado duas vezes.
+			if err == nil && fonte.arq != nil {
+				fontes[i] = fonte
+			} else {
+				fonte.liberar()
+			}
 		}
+		if err != nil {
+			log.Printf("[Pipeline] Erro ao pré-calcular páginas para %s: %v", f.DocName, err)
+		}
+	}
+	if aoFimDaPreContagem != nil {
+		aoFimDaPreContagem(mem)
+	}
+	if err := ctx.Err(); err != nil {
+		log.Printf("[Pipeline] Processamento cancelado durante o pré-cálculo de páginas")
+		return "", 0, 0, err
+	}
+
+	totalPagesAll := 0
+	docPageCounts := make(map[string]int, totalFiles)
+	for i, f := range files {
+		docPageCounts[f.Name] = contagens[i]
+		totalPagesAll += contagens[i]
 	}
 	log.Printf("[Pipeline] Pré-cálculo concluído: %d documentos, %d páginas no total", totalFiles, totalPagesAll)
 
@@ -184,12 +369,6 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 				"paginas": paginasMap,
 			}
 		}
-	}
-
-	// Define active worker limits based on CPU count
-	numWorkers := stdRuntime.NumCPU() - 1
-	if numWorkers < 1 {
-		numWorkers = 1
 	}
 
 	// OCR Runner wrapper using the internal ocr module with global semaphore to limit concurrent execs
@@ -236,15 +415,15 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 
 			// Um panic não recuperado neste goroutine derruba o app inteiro; o
 			// documento é marcado com erro e os demais seguem.
-			var tempPDF string
+			var fonteDoc *fontePDF
 			defer func() {
 				r := recover()
 				if r == nil {
 					return
 				}
 				log.Printf("[Pipeline] Panic ao processar %s: %v", f.DocName, r)
-				if tempPDF != "" {
-					os.Remove(tempPDF)
+				if fonteDoc != nil {
+					fonteDoc.liberarBuffer(false)
 				}
 				docData := eventos[fmt.Sprintf("%d", f.EventNum)].(map[string]any)["documentos"].(map[string]any)[f.Name].(map[string]any)
 				paginasMap := docData["paginas"].(map[string]any)
@@ -281,66 +460,37 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 			paginasMap := docData["paginas"].(map[string]any)
 
 			if f.Extension == ".pdf" {
-				tempFilesMu.Lock()
-				tempPath, hasPreExtracted := docTempFiles[f.Name]
-				tempFilesMu.Unlock()
-
-				if !hasPreExtracted {
-					// Fallback: the pre-scan pass couldn't extract this file (rare); extract it now.
-					zr, err := f.ZipFileRef.Open()
+				fonte := fontes[i]
+				if fonte == nil {
+					var err error
+					fonte, err = extrairPDF(f, mem)
 					if err != nil {
 						paginasMap["1"] = map[string]any{
 							"index":   1,
 							"ocr":     false,
 							"image":   "",
-							"content": fmt.Sprintf("[ERRO ao abrir arquivo no ZIP: %s]", err.Error()),
+							"content": fmt.Sprintf("[ERRO ao extrair PDF do ZIP: %s]", err.Error()),
 						}
 						atomic.AddInt32(&processedPagesVal, 1)
 						reportProgress(fmt.Sprintf("Erro ao abrir %s", f.DocName))
 						return
 					}
-
-					tempPdfFile, err := os.CreateTemp("", "eprocia_pdf_*.pdf")
-					if err != nil {
-						zr.Close()
-						paginasMap["1"] = map[string]any{
-							"index":   1,
-							"ocr":     false,
-							"image":   "",
-							"content": fmt.Sprintf("[ERRO ao criar arquivo temporário: %s]", err.Error()),
-						}
-						atomic.AddInt32(&processedPagesVal, 1)
-						reportProgress(fmt.Sprintf("Erro de PDF temporário em %s", f.DocName))
-						return
-					}
-					tempPath = tempPdfFile.Name()
-
-					_, errCopy := io.Copy(tempPdfFile, zr)
-					tempPdfFile.Close()
-					zr.Close()
-
-					if errCopy != nil {
-						os.Remove(tempPath)
-						paginasMap["1"] = map[string]any{
-							"index":   1,
-							"ocr":     false,
-							"image":   "",
-							"content": fmt.Sprintf("[ERRO ao extrair PDF temporário: %s]", errCopy.Error()),
-						}
-						atomic.AddInt32(&processedPagesVal, 1)
-						reportProgress(fmt.Sprintf("Erro de extração em %s", f.DocName))
-						return
-					}
+					fontes[i] = fonte
 				}
+				fonteDoc = fonte
 
-				tempPDF = tempPath
-				parser := NewPDFParser(tempPath)
+				parser := NewPDFParserDeLeitor(fonte.readerAt(), fonte.tamanho, f.DocName, fonte.materializar)
+				if fonte.leitor != nil {
+					parser.comLeitor(fonte.leitor, fonte.paginas)
+				} else if contados[i] {
+					parser.comPaginas(contagens[i])
+				}
 				pdfPages, errParse := parser.ParsePages(ctx, cfg.OcrMode != "none", ocrRunner, func(pageNum int) {
 					atomic.AddInt32(&processedPagesVal, 1)
 					pDocs := int(atomic.LoadInt32(&processedDocsVal))
 					reportProgress(fmt.Sprintf("Processando %s (pág. %d/%d) [Docs: %d/%d]", f.DocName, pageNum, docPageCounts[f.Name], pDocs, totalFiles))
 				})
-				os.Remove(tempPath)
+				fonte.liberar()
 
 				if errParse != nil {
 					if ctx.Err() != nil {
@@ -426,7 +576,15 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 
 	// 5. Save consolidated output to the same directory
 	outputPath := strings.TrimSuffix(zipPath, filepath.Ext(zipPath)) + ".txt"
-	err = os.WriteFile(outputPath, []byte(outputText), 0644)
+	// WriteString não copia o texto para um []byte, como os.WriteFile exigiria.
+	out, err := os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return "", 0, 0, err
+	}
+	_, err = out.WriteString(outputText)
+	if errClose := out.Close(); err == nil {
+		err = errClose
+	}
 	if err != nil {
 		return "", 0, 0, err
 	}
