@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>eprocIA</title>
+    <script>
+      // Aplica o tema antes do primeiro quadro (regra de src/lib/tema.js).
+      (function () {
+        var salvo = null;
+        try { salvo = localStorage.getItem('theme'); } catch (e) {}
+        var claro = salvo === 'light' ||
+          (salvo !== 'dark' && !matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('light', claro);
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>

@@ -37,7 +37,7 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour: &options.RGBA{R: 248, G: 249, B: 250, A: 1},
+		BackgroundColour: corDeFundo(windowsUsaTemaClaro()),
 		OnStartup:        app.startup,
 		OnShutdown: func(ctx context.Context) {
 			app.shutdown(ctx)
@@ -101,6 +101,15 @@ func onReady(app *App) func() {
 			}
 		}()
 	}
+}
+
+// corDeFundo espelha o --bg-main de style.css para a janela nativa não
+// piscar outra cor antes do WebView pintar.
+func corDeFundo(claro bool) *options.RGBA {
+	if claro {
+		return &options.RGBA{R: 0xF3, G: 0xF4, B: 0xF6, A: 255}
+	}
+	return &options.RGBA{R: 0x0B, G: 0x0F, B: 0x19, A: 255}
 }
 
 func onExit() {

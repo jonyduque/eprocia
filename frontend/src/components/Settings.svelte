@@ -12,6 +12,19 @@
     watchdog_enabled: true
   };
 
+  const AJUDA_OCR = {
+    none: 'Páginas só com imagem ficam sem texto.',
+    fast: 'Modelo leve: mais rápido, menos preciso.',
+    normal: 'Equilíbrio entre velocidade e precisão.',
+    best: 'Modelo mais preciso, porém mais lento.'
+  };
+
+  const AJUDA_LIMPEZA = {
+    none: 'Preserva o texto bruto extraído.',
+    basic: 'Corrige espaçamento e quebras redundantes.',
+    aggressive: 'Básica + remove cabeçalhos e rodapés repetidos.'
+  };
+
   let loading = true;
   let statusMessage = '';
   let statusType = ''; // 'success' or 'error'
@@ -86,7 +99,7 @@
     <div class="settings-form">
 
       <div class="form-group toggle-group">
-        <!-- Watchdog Enabled Toggle -->
+        <label for="watchdog-toggle">Monitoramento ativo</label>
         <label class="switch">
           <input
             id="watchdog-toggle"
@@ -94,11 +107,8 @@
             bind:checked={config.watchdog_enabled}
             on:change={handleSave}
           />
-          <span class="slider round"></span>
+          <span class="slider" aria-hidden="true"></span>
         </label>
-        <div class="toggle-text">
-          <label for="watchdog-toggle">Monitoramento Ativo</label>
-        </div>
       </div>
 
       <!-- Monitored Path Section -->
@@ -109,7 +119,8 @@
             id="monitored-path"
             type="text"
             readonly
-            value={config.monitored_path || 'Nenhuma pasta monitorada (inativo)'}
+            value={config.monitored_path || 'Nenhuma pasta (inativo)'}
+            title={config.monitored_path || 'Nenhuma pasta monitorada'}
             class:inactive={!config.monitored_path}
           />
           <button type="button" class="btn-primary" on:click={handleSelectDirectory}>
@@ -132,28 +143,31 @@
           on:change={handleSave}
         >
           <option value="none">Desativado</option>
-          <option value="fast">Rápido (tessdata fast)</option>
-          <option value="normal">Normal (tessdata normal)</option>
-          <option value="best">Preciso (tessdata mais preciso)</option>
+          <option value="fast">Rápido</option>
+          <option value="normal">Normal</option>
+          <option value="best">Preciso</option>
         </select>
+        <p class="help-text">{AJUDA_OCR[config.ocr_mode] ?? ''}</p>
       </div>
 
       <!-- Cleaning Level -->
       <div class="form-group">
-        <label for="cleaning-level">Nível de Higienização de Texto</label>
+        <label for="cleaning-level">Higienização de texto</label>
         <select
           id="cleaning-level"
           bind:value={config.cleaning_level}
           on:change={handleSave}
         >
-          <option value="none">Nenhum (Preserva texto bruto)</option>
-          <option value="basic">Básico (Corrige espaçamento e quebras redundantes)</option>
-          <option value="aggressive">Agressivo (Básico + remove rodapés e cabeçalhos repetitivos)</option>
+          <option value="none">Nenhuma</option>
+          <option value="basic">Básica</option>
+          <option value="aggressive">Agressiva</option>
         </select>
+        <p class="help-text">{AJUDA_LIMPEZA[config.cleaning_level] ?? ''}</p>
       </div>
 
       <!-- Auto Start Toggle -->
       <div class="form-group toggle-group">
+        <label for="autostart-toggle">Iniciar com o Windows</label>
         <label class="switch">
           <input
             id="autostart-toggle"
@@ -161,11 +175,8 @@
             bind:checked={config.auto_start}
             on:change={handleSave}
           />
-          <span class="slider round"></span>
+          <span class="slider" aria-hidden="true"></span>
         </label>
-        <div class="toggle-text">
-          <label for="autostart-toggle">Iniciar com o Windows</label>
-        </div>
       </div>
     </div>
   {/if}
@@ -186,7 +197,7 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-sm);
     position: relative;
     overflow: hidden;
   }
@@ -221,17 +232,15 @@
 
   .toggle-group {
     flex-direction: row;
-    justify-content: center;
-    gap: 12px;
+    justify-content: space-between;
     align-items: center;
-    padding: 4px 0;
+    gap: 12px;
+    min-height: 32px;
   }
 
-  .toggle-text {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    max-width: 80%;
+  .toggle-group label:not(.switch) {
+    cursor: pointer;
+    min-width: 0;
   }
 
   label {
@@ -262,6 +271,9 @@
     font-size: 12px;
     outline: none;
     font-family: inherit;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   input[type="text"].inactive {
@@ -279,6 +291,8 @@
     outline: none;
     cursor: pointer;
     font-family: inherit;
+    width: 100%;
+    min-width: 0;
   }
 
   button {
@@ -289,13 +303,13 @@
     border-radius: 4px;
     cursor: pointer;
     border: none;
-    transition: background-color 0.2s, transform 0.1s;
+    transition: background-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
     flex-shrink: 0; /* Keep buttons from shrinking */
   }
 
   .btn-primary {
     background-color: var(--accent);
-    color: #ffffff;
+    color: var(--on-accent);
   }
 
   .btn-primary:hover {
@@ -317,7 +331,7 @@
   }
 
   .btn-danger-icon:hover {
-    background-color: rgba(220, 53, 69, 0.1);
+    background-color: var(--error-soft);
     border-color: var(--error);
   }
 
@@ -344,7 +358,7 @@
     right: 0;
     bottom: 0;
     background-color: var(--border);
-    transition: .3s;
+    transition: background-color var(--dur-base) var(--ease-out);
     border-radius: 20px;
   }
 
@@ -355,8 +369,8 @@
     width: 14px;
     left: 3px;
     bottom: 3px;
-    background-color: white;
-    transition: .3s;
+    background-color: var(--on-accent);
+    transition: transform var(--dur-base) var(--ease-out);
     border-radius: 50%;
   }
 
@@ -378,17 +392,17 @@
     text-align: center;
     font-size: 11px;
     font-weight: 500;
-    animation: slideUp 0.3s ease-out;
+    animation: slideUp var(--dur-base) var(--ease-out);
   }
 
   .toast-status.success {
     background-color: var(--success);
-    color: white;
+    color: var(--on-accent);
   }
 
   .toast-status.error {
     background-color: var(--error);
-    color: white;
+    color: var(--on-accent);
   }
 
   @keyframes slideUp {

@@ -18,11 +18,22 @@
   import Settings from './components/Settings.svelte';
   import ProcessList from './components/ProcessList.svelte';
   import { contarAtivos, rotuloFila } from './lib/estado.js';
+  import {
+    CONSULTA_ESCURO,
+    NOME_TEMA,
+    lerPreferencia,
+    proximoTema,
+    temaEfetivo
+  } from './lib/tema.js';
 
   const versao = __APP_VERSION__;
 
   let items = [];
-  let isDarkMode = true;
+  // Lido já na inicialização: o bloco reativo abaixo não pode desfazer a
+  // classe que o script de index.html aplicou antes da montagem.
+  let temaPref = lerPreferencia(localStorage);
+  const consultaTema = window.matchMedia(CONSULTA_ESCURO);
+  let sistemaEscuro = consultaTema.matches;
   let config = null;
   let isPaused = false;
   let isWorking = false;
@@ -41,16 +52,17 @@
   // Pausar a fila não interrompe o item em curso, que segue ativo.
   $: processingCount = contarAtivos(items);
 
+  $: temaAtual = temaEfetivo(temaPref, sistemaEscuro);
+  $: {
+    document.documentElement.classList.toggle('light', temaAtual === 'light');
+  }
+
+  function mudouTemaDoSistema(e) {
+    sistemaEscuro = e.matches;
+  }
+
   onMount(async () => {
-    // Detect system theme or storage
-    const storedTheme = localStorage.getItem('theme');
-    if (storedTheme === 'light') {
-      isDarkMode = false;
-      document.documentElement.classList.add('light');
-    } else {
-      isDarkMode = true;
-      document.documentElement.classList.remove('light');
-    }
+    consultaTema.addEventListener('change', mudouTemaDoSistema);
 
     // Load initial config
     await refreshConfig();
@@ -104,6 +116,8 @@
   });
 
   onDestroy(() => {
+    consultaTema.removeEventListener('change', mudouTemaDoSistema);
+
     // Unsubscribe from Wails events
     unsubscribers.forEach(unsub => {
       if (typeof unsub === 'function') unsub();
@@ -128,14 +142,8 @@
   }
 
   function toggleTheme() {
-    isDarkMode = !isDarkMode;
-    if (isDarkMode) {
-      document.documentElement.classList.remove('light');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.add('light');
-      localStorage.setItem('theme', 'light');
-    }
+    temaPref = proximoTema(temaPref);
+    localStorage.setItem('theme', temaPref);
   }
 
   // Handle window close by hiding
@@ -250,8 +258,15 @@
       {/if}
 
       <!-- Theme Switcher -->
-      <button class="titlebar-btn" on:click={toggleTheme} title="Alternar tema">
-        {#if isDarkMode}
+      <button
+        class="titlebar-btn"
+        on:click={toggleTheme}
+        title="Tema: {NOME_TEMA[temaPref]} (clique para {NOME_TEMA[proximoTema(temaPref)]})"
+        aria-label="Tema: {NOME_TEMA[temaPref]}"
+      >
+        {#if temaPref === 'system'}
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-monitor"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
+        {:else if temaPref === 'light'}
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
         {:else}
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-moon"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
@@ -387,16 +402,11 @@
     flex-direction: column;
     height: 100vh;
     background-color: var(--bg-main);
-    background-image: radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.05) 0px, transparent 50%),
-                      radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.03) 0px, transparent 50%);
+    background-image: radial-gradient(at 0% 0%, var(--accent-glow) 0px, transparent 50%),
+                      radial-gradient(at 100% 100%, var(--success-glow) 0px, transparent 50%);
     color: var(--text-primary);
     overflow: hidden;
     position: relative;
-  }
-
-  :global(.light) .app-container {
-    background-image: radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.03) 0px, transparent 50%),
-                      radial-gradient(at 100% 100%, rgba(5, 150, 105, 0.02) 0px, transparent 50%);
   }
 
   /* Full Screen Drag Overlay */
@@ -406,7 +416,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(11, 15, 25, 0.95);
+    background-color: var(--overlay);
     z-index: 1000;
     display: flex;
     align-items: center;
@@ -423,8 +433,8 @@
     flex-direction: column;
     align-items: center;
     gap: 16px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-    animation: zoomIn 0.15s ease-out;
+    box-shadow: var(--shadow-overlay);
+    animation: zoomIn var(--dur-fast) var(--ease-out);
   }
 
   .overlay-box p {
@@ -441,10 +451,10 @@
   /* Custom Frameless Titlebar */
   .custom-titlebar {
     height: 38px;
-    background-color: rgba(17, 24, 39, 0.45);
+    background-color: var(--glass);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid var(--glass-border);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -452,11 +462,6 @@
     flex-shrink: 0;
     user-select: none;
     transition: background-color 0.3s, border-color 0.3s;
-  }
-
-  :global(.light) .custom-titlebar {
-    background-color: rgba(255, 255, 255, 0.45);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   }
 
   .brand-title {
@@ -503,7 +508,7 @@
   }
 
   .titlebar-btn.btn-close:hover {
-    color: #ffffff;
+    color: var(--on-accent);
     background-color: var(--error);
   }
 
@@ -514,7 +519,7 @@
     font-size: 10px;
     color: var(--accent);
     font-weight: 600;
-    background-color: rgba(59, 130, 246, 0.12);
+    background-color: var(--accent-soft);
     padding: 2px 8px;
     border-radius: 12px;
     margin-right: 8px;
@@ -525,22 +530,22 @@
     height: 5px;
     background-color: var(--accent);
     border-radius: 50%;
-    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+    box-shadow: 0 0 0 0 var(--accent-ring);
     animation: pulse 1.5s infinite;
   }
 
   @keyframes pulse {
     0% {
       transform: scale(0.95);
-      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+      box-shadow: 0 0 0 0 var(--accent-ring);
     }
     70% {
       transform: scale(1);
-      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0);
+      box-shadow: 0 0 0 4px transparent;
     }
     100% {
       transform: scale(0.95);
-      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+      box-shadow: 0 0 0 0 transparent;
     }
   }
 
@@ -555,18 +560,13 @@
   .sidebar {
     display: flex;
     flex-direction: column;
-    background-color: rgba(17, 24, 39, 0.45);
+    background-color: var(--glass);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    border-right: 1px solid var(--glass-border);
     position: relative;
     overflow: visible; /* Needed for resize handle to overlap */
     transition: width 0.15s ease-in-out, background-color 0.3s, border-color 0.3s;
-  }
-
-  :global(.light) .sidebar {
-    background-color: rgba(255, 255, 255, 0.45);
-    border-right: 1px solid rgba(0, 0, 0, 0.08);
   }
 
   .sidebar.collapsed {
@@ -579,14 +579,10 @@
     justify-content: space-between;
     align-items: center;
     padding: 8px 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid var(--glass-border);
     height: 38px;
     flex-shrink: 0;
     width: 100%;
-  }
-
-  :global(.light) .sidebar-header-toggle {
-    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   }
 
   .sidebar.collapsed .sidebar-header-toggle {
@@ -710,23 +706,17 @@
 
   /* Manual process card */
   .manual-card {
-    background-color: rgba(255, 255, 255, 0.02);
+    background-color: var(--card-bg);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--card-border);
     border-radius: 10px;
     padding: 12px;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--shadow-sm);
     transition: background-color 0.3s, border-color 0.3s;
-  }
-
-  :global(.light) .manual-card {
-    background-color: rgba(255, 255, 255, 0.5);
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
   }
 
   .manual-card .card-header {
@@ -777,10 +767,10 @@
   /* Footer */
   footer {
     height: 26px;
-    background-color: rgba(17, 24, 39, 0.45);
+    background-color: var(--glass);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid var(--glass-border);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -790,11 +780,6 @@
     flex-shrink: 0;
     user-select: none;
     transition: background-color 0.3s, border-color 0.3s;
-  }
-
-  :global(.light) footer {
-    background-color: rgba(255, 255, 255, 0.45);
-    border-top: 1px solid rgba(0, 0, 0, 0.08);
   }
 
   .status-item {

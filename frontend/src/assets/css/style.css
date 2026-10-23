@@ -1,5 +1,6 @@
 :root {
   /* Theme Variables (Default: Dark Mode) */
+  color-scheme: dark;
   --bg-main: #0B0F19;
   --surface: #111827;
   --surface-hover: #1F2937;
@@ -12,10 +13,44 @@
   --success: #10B981;
   --error: #EF4444;
   --warning: #F59E0B;
+  --on-accent: #FFFFFF;
+  --accent-text: #93C5FD;
+  --overlay: rgba(11, 15, 25, 0.92);
+  --glass: rgba(17, 24, 39, 0.45);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --card-bg: rgba(255, 255, 255, 0.02);
+  --card-bg-hover: rgba(255, 255, 255, 0.05);
+  --card-border: rgba(255, 255, 255, 0.04);
+  --card-border-hover: rgba(255, 255, 255, 0.1);
+  --track: rgba(255, 255, 255, 0.06);
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.2);
+  --shadow-overlay: 0 10px 25px rgba(0, 0, 0, 0.4);
+
+  /* Tons derivados: acompanham o tema porque partem dos tokens acima. */
+  --accent-faint: color-mix(in srgb, var(--accent) 8%, transparent);
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 25%, transparent);
+  --accent-glow: color-mix(in srgb, var(--accent) 5%, transparent);
+  --accent-ring: color-mix(in srgb, var(--accent) 70%, transparent);
+  --success-faint: color-mix(in srgb, var(--success) 8%, transparent);
+  --success-soft: color-mix(in srgb, var(--success) 15%, transparent);
+  --success-glow: color-mix(in srgb, var(--success) 3%, transparent);
+  --error-soft: color-mix(in srgb, var(--error) 10%, transparent);
+  --warning-soft: color-mix(in srgb, var(--warning) 12%, transparent);
+  --warning-line: color-mix(in srgb, var(--warning) 30%, transparent);
+  --bg-glass: color-mix(in srgb, var(--bg-main) 35%, transparent);
+
+  --dur-fast: 150ms;
+  --dur-base: 220ms;
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+
   --font-sans: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
 }
 
 :root.light {
+  color-scheme: light;
   --bg-main: #F3F4F6;
   --surface: #FFFFFF;
   --surface-hover: #F9FAFB;
@@ -28,6 +63,27 @@
   --success: #059669;
   --error: #DC2626;
   --warning: #D97706;
+  --accent-text: #1D4ED8;
+  --overlay: rgba(243, 244, 246, 0.92);
+  --glass: rgba(255, 255, 255, 0.45);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --card-bg: rgba(255, 255, 255, 0.5);
+  --card-bg-hover: rgba(255, 255, 255, 0.85);
+  --card-border: rgba(0, 0, 0, 0.05);
+  --card-border-hover: rgba(0, 0, 0, 0.09);
+  --track: rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 32px rgba(31, 38, 135, 0.05);
+  --shadow-overlay: 0 10px 25px rgba(0, 0, 0, 0.12);
+  --on-accent: #FFFFFF;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur-base: 0ms;
+  }
 }
 
 * {
@@ -45,7 +101,7 @@ body {
   user-select: none;
   overflow: hidden;
   height: 100vh;
-  transition: background-color 0.3s, color 0.3s;
+  transition: background-color var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
 }
 
 /* Custom Scrollbar for premium look */

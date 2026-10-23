@@ -273,23 +273,17 @@
 
 <style>
   .list-card {
-    background-color: rgba(17, 24, 39, 0.45);
+    background-color: var(--glass);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--glass-border);
     border-radius: 12px;
     flex: 1;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow-lg);
     transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
-  }
-
-  :global(.light) .list-card {
-    background-color: rgba(255, 255, 255, 0.45);
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
   }
 
   .list-header {
@@ -297,13 +291,8 @@
     justify-content: space-between;
     align-items: center;
     padding: 8px 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    background-color: rgba(11, 15, 25, 0.35);
-  }
-
-  :global(.light) .list-header {
-    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-    background-color: rgba(243, 244, 246, 0.35);
+    border-bottom: 1px solid var(--glass-border);
+    background-color: var(--bg-glass);
   }
 
   .header-left {
@@ -328,8 +317,8 @@
     font-size: 11px;
     font-weight: 500;
     color: var(--warning);
-    background-color: rgba(245, 158, 11, 0.12);
-    border: 1px solid rgba(245, 158, 11, 0.3);
+    background-color: var(--warning-soft);
+    border: 1px solid var(--warning-line);
     white-space: nowrap;
     min-width: 0;
     overflow: hidden;
@@ -385,7 +374,7 @@
   }
 
   .btn-clear:hover {
-    background-color: rgba(220, 53, 69, 0.1);
+    background-color: var(--error-soft);
     color: var(--error);
     border-color: var(--error);
   }
@@ -405,17 +394,17 @@
 
   .btn-pause:hover {
     border-color: var(--accent);
-    background-color: rgba(59, 130, 246, 0.08);
+    background-color: var(--accent-faint);
   }
 
   .btn-pause.resume {
-    background-color: rgba(40, 167, 69, 0.08);
+    background-color: var(--success-faint);
     border-color: var(--success);
     color: var(--success);
   }
 
   .btn-pause.resume:hover {
-    background-color: rgba(40, 167, 69, 0.15);
+    background-color: var(--success-soft);
   }
 
   .items-container {
@@ -458,15 +447,15 @@
     display: flex;
     align-items: center;
     min-height: 52px;
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--card-border);
     border-radius: 8px;
     padding: 8px 12px;
     position: relative;
     gap: 10px;
-    background-color: rgba(255, 255, 255, 0.02);
+    background-color: var(--card-bg);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-sm);
     transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
                 box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
                 background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
@@ -476,25 +465,13 @@
 
   .item-row:hover {
     transform: translateY(-1px);
-    background-color: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    background-color: var(--card-bg-hover);
+    border-color: var(--card-border-hover);
+    box-shadow: var(--shadow-md);
   }
 
   .item-row.has-progress {
     padding-bottom: 14px;
-  }
-
-  :global(.light) .item-row {
-    background-color: rgba(255, 255, 255, 0.5);
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-  }
-
-  :global(.light) .item-row:hover {
-    background-color: rgba(255, 255, 255, 0.85);
-    border-color: rgba(0, 0, 0, 0.09);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
   }
 
   .status-col {
@@ -545,21 +522,15 @@
   }
 
   .meta-badge.success {
-    background-color: rgba(40, 167, 69, 0.15);
+    background-color: var(--success-soft);
     color: var(--success);
   }
 
   .meta-badge.processing {
-    background-color: rgba(59, 130, 246, 0.15);
-    color: #93C5FD;
-    border: 1px solid rgba(59, 130, 246, 0.25);
+    background-color: var(--accent-soft);
+    color: var(--accent-text);
+    border: 1px solid var(--accent-line);
     font-weight: 500;
-  }
-
-  :global(.light) .meta-badge.processing {
-    background-color: rgba(37, 99, 235, 0.1);
-    color: #1D4ED8;
-    border-color: rgba(37, 99, 235, 0.15);
   }
 
   .progress-message {
@@ -595,13 +566,9 @@
     left: 12px;
     right: 12px;
     height: 4px;
-    background-color: rgba(255, 255, 255, 0.06);
+    background-color: var(--track);
     border-radius: 4px;
     overflow: hidden;
-  }
-
-  :global(.light) .progress-bar-container {
-    background-color: rgba(0, 0, 0, 0.06);
   }
 
   .progress-bar {
@@ -647,12 +614,12 @@
 
   .btn-cancel:hover {
     color: var(--error);
-    background-color: rgba(220, 53, 69, 0.1);
+    background-color: var(--error-soft);
   }
 
   .btn-remove:hover {
     color: var(--error);
-    background-color: rgba(220, 53, 69, 0.1);
+    background-color: var(--error-soft);
   }
 
   .error-tooltip-container {

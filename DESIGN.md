@@ -12,6 +12,10 @@ O eprocIA é uma ferramenta de produtividade. A interface deve ser "invisível" 
 
 O aplicativo suporta troca dinâmica entre temas Claro e Escuro, respeitando as preferências do sistema operacional por padrão.
 
+- **Preferência em três estados:** sistema (padrão), claro e escuro, alternados pelo botão da barra de título e salvos em `localStorage.theme`. No modo sistema o app escuta `prefers-color-scheme` e troca na hora (regra em `frontend/src/lib/tema.js`).
+- **Sem flash na abertura:** um script inline em `index.html` aplica a classe `light` antes da montagem, e o `BackgroundColour` da janela nativa (`main.go`) segue o tema do Windows com o mesmo `--bg-main` do CSS.
+- **Uma fonte de verdade:** cores só por tokens de `frontend/src/assets/css/style.css`, definidos para os dois temas (`--overlay`, `--glass`, `--card-*`, `--shadow-*`, `--on-accent`...). Fundos tonais derivam do token base com `color-mix(in srgb, var(--accent) 12%, transparent)` (`--accent-soft`, `--error-soft`, `--warning-soft`...). Nenhum hex, `rgb()`/`rgba()` ou `white`/`black` solto nos componentes.
+
 ### 2.1 Tema Claro (Light Mode)
 - **Fundo Principal:** `#F8F9FA` (Cinza muito claro)
 - **Superfícies (Cards/Lista):** `#FFFFFF`
@@ -70,7 +74,13 @@ Fila pausada: pausar só impede o próximo item de começar. O item em curso man
 - Uma área sutil no topo ou o fundo da própria lista.
 - Quando um arquivo é arrastado sobre a janela, uma borda azul pontilhada aparece com o texto: "Solte o ZIP para processar".
 
-### 5.3 Barra de Status (Footer)
+### 5.3 Painel de Configurações
+- Precisa ficar legível a 280px de largura sem cortar palavra.
+- Interruptores: rótulo à esquerda, switch à direita, linha de `32px`.
+- Selects com opções curtas (ex.: Nenhuma, Básica, Agressiva); a explicação da opção escolhida vai num `.help-text` de `11px` abaixo do select.
+- Caminho da pasta monitorada com reticências e o caminho completo no `title`.
+
+### 5.4 Barra de Status (Footer)
 - Indicador se o Watchdog está ativo (ex: "Monitorando: C:/Users/..."). Ocupa o espaço livre e trunca o caminho com reticências, com o caminho completo no `title`, inclusive no estado pausado.
 - À direita, sem quebrar linha: contador ("1 item na fila", "N itens na fila") e a versão do app, lida de `info.productVersion` do `wails.json` no build. A barra de título mostra só a marca.
 
