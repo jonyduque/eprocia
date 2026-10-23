@@ -363,12 +363,11 @@
 
   .search-input {
     padding: 4px 8px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 4px;
     background-color: var(--surface);
     color: var(--text-primary);
     font-size: 11px;
-    outline: none;
     flex: 0 1 140px;
     width: 140px;
     min-width: 80px;
@@ -428,7 +427,7 @@
   .btn-pause.resume {
     background-color: var(--success-faint);
     border-color: var(--success);
-    color: var(--success);
+    color: var(--success-strong);
   }
 
   .btn-pause.resume:hover {

@@ -273,12 +273,11 @@
     flex: 1;
     min-width: 0; /* Prevents overflow inside flexible layouts */
     padding: 6px 8px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 4px;
     background-color: var(--bg-main);
     color: var(--text-primary);
     font-size: 12px;
-    outline: none;
     font-family: inherit;
     white-space: nowrap;
     overflow: hidden;
@@ -292,12 +291,11 @@
 
   select {
     padding: 6px 10px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 4px;
     background-color: var(--bg-main);
     color: var(--text-primary);
     font-size: 12px;
-    outline: none;
     cursor: pointer;
     font-family: inherit;
     width: 100%;
@@ -317,12 +315,12 @@
   }
 
   .btn-primary {
-    background-color: var(--accent);
+    background-color: var(--accent-strong);
     color: var(--on-accent);
   }
 
   .btn-primary:hover {
-    background-color: var(--accent-hover);
+    background-color: var(--accent-strong-hover);
   }
 
   .btn-primary:active {
@@ -366,9 +364,15 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: var(--border);
+    background-color: var(--border-strong);
     transition: background-color var(--dur-base) var(--ease-out);
     border-radius: 20px;
+  }
+
+  /* O input fica invisível (0x0), então o anel vai no trilho. */
+  .switch input:focus-visible + .slider {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
   }
 
   .slider:before {
@@ -401,16 +405,16 @@
     text-align: center;
     font-size: 11px;
     font-weight: 500;
+    background-color: var(--surface);
+    border-top: 1px solid currentColor;
   }
 
   .toast-status.success {
-    background-color: var(--success);
-    color: var(--on-accent);
+    color: var(--success-strong);
   }
 
   .toast-status.error {
-    background-color: var(--error);
-    color: var(--on-accent);
+    color: var(--error-strong);
   }
 
   .loading-state {

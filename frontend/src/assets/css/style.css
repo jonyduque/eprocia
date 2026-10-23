@@ -7,13 +7,19 @@
   --text-primary: #F3F4F6;
   --text-secondary: #9CA3AF;
   --border: #1F2937;
+  --border-strong: #6B7280;
   --border-focus: #3B82F6;
+  --focus-ring: var(--border-focus);
   --accent: #3B82F6;
   --accent-hover: #2563EB;
   --success: #10B981;
   --error: #EF4444;
   --warning: #F59E0B;
   --on-accent: #FFFFFF;
+  --accent-strong: #2563EB;
+  --accent-strong-hover: #1D4ED8;
+  --success-strong: #34D399;
+  --error-strong: #F87171;
   --accent-text: #93C5FD;
   --overlay: rgba(11, 15, 25, 0.92);
   --glass: rgba(17, 24, 39, 0.45);
@@ -57,12 +63,15 @@
   --text-primary: #111827;
   --text-secondary: #4B5563;
   --border: #E5E7EB;
+  --border-strong: #6B7280;
   --border-focus: #2563EB;
   --accent: #2563EB;
   --accent-hover: #1D4ED8;
   --success: #059669;
   --error: #DC2626;
   --warning: #D97706;
+  --success-strong: #047857;
+  --error-strong: #B91C1C;
   --accent-text: #1D4ED8;
   --overlay: rgba(243, 244, 246, 0.92);
   --glass: rgba(255, 255, 255, 0.45);
@@ -102,6 +111,12 @@ body {
   overflow: hidden;
   height: 100vh;
   transition: background-color var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
+}
+
+/* Foco visível único; especificidade zero para não brigar com os componentes. */
+:where(button, input, select, textarea, a, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
 }
 
 /* Custom Scrollbar for premium look */
