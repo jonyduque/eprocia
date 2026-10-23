@@ -1,6 +1,7 @@
 package etl
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -232,5 +233,110 @@ func TestGenerateConsolidatedOutput_SummaryLineFormat(t *testing.T) {
 		if !strings.Contains(output, want) {
 			t.Errorf("expected summary line %q in output:\n%s", want, output)
 		}
+	}
+}
+
+func TestRepeatedEdgeLines(t *testing.T) {
+	cases := []struct {
+		name  string
+		pages []string
+		want  []string
+	}{
+		{
+			name:  "menos de 3 páginas não marca nada",
+			pages: []string{"CABEÇALHO\ncorpo a", "CABEÇALHO\ncorpo b"},
+			want:  nil,
+		},
+		{
+			name: "cabeçalho e rodapé com número variável",
+			pages: []string{
+				"PODER JUDICIÁRIO\ncorpo um\nmais texto\nmeio um\nfim do corpo\nProcesso 5001234-10.2024 - fl. 1",
+				"PODER JUDICIÁRIO\ncorpo dois\noutro\nmeio dois\nfim\nProcesso 5001234-10.2024 - fl. 2",
+				"  PODER JUDICIÁRIO  \ncorpo três\nlinha\nmeio três\nfinal\nProcesso 5001234-10.2024 - fl. 3",
+			},
+			want: []string{"PODER JUDICIÁRIO", "Processo #######-##.#### - fl. #"},
+		},
+		{
+			name: "linha repetida só no meio não conta",
+			pages: []string{
+				"a1\na2\na3\nREPETIDA\na4\na5\na6",
+				"b1\nb2\nb3\nREPETIDA\nb4\nb5\nb6",
+				"c1\nc2\nc3\nREPETIDA\nc4\nc5\nc6",
+			},
+			want: nil,
+		},
+		{
+			name: "abaixo de 60% das páginas não é marcada",
+			pages: []string{
+				"TOPO\nx", "TOPO\ny", "outro\nz", "mais\nw", "fim\nv",
+			},
+			want: nil,
+		},
+		{
+			name: "exatamente 60% das páginas é marcada",
+			pages: []string{
+				"TOPO\nx", "TOPO\ny", "TOPO\nz", "mais\nw", "fim\nv",
+			},
+			want: []string{"TOPO"},
+		},
+		{
+			name: "linha repetida na mesma página conta uma vez",
+			pages: []string{
+				"TOPO\nTOPO\nx", "TOPO\nTOPO\ny", "a\nb", "c\nd",
+			},
+			want: nil,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := repeatedEdgeLines(tc.pages)
+			if len(got) != len(tc.want) {
+				t.Fatalf("esperava %d linhas, obteve %d: %v", len(tc.want), len(got), got)
+			}
+			for _, w := range tc.want {
+				if !got[w] {
+					t.Errorf("esperava %q marcada; obteve %v", w, got)
+				}
+			}
+		})
+	}
+}
+
+func TestGenerateConsolidatedOutput_AggressiveDropsRepeatedHeadersFooters(t *testing.T) {
+	paginas := map[string]any{}
+	bodies := []string{"Primeira página do corpo.", "Segunda página do corpo.", "Terceira página do corpo."}
+	for i, body := range bodies {
+		n := i + 1
+		paginas[strconv.Itoa(n)] = map[string]any{
+			"index": n, "ocr": false, "image": "",
+			"content": "TRIBUNAL REGIONAL FEDERAL\n" + body + "\nProcesso 5001234-10.2024 - fl. " + strconv.Itoa(n),
+		}
+	}
+	eventos := map[string]any{
+		"1": map[string]any{
+			"index": 1,
+			"documentos": map[string]any{
+				"d": map[string]any{"index": 1, "nome": "Evento 1 - INIC1.pdf", "paginas": paginas},
+			},
+		},
+	}
+
+	aggressive := GenerateConsolidatedOutput(eventos, "aggressive")
+	for _, body := range bodies {
+		if !strings.Contains(aggressive, body) {
+			t.Errorf("corpo %q sumiu da saída agressiva:\n%s", body, aggressive)
+		}
+	}
+	if strings.Contains(aggressive, "TRIBUNAL REGIONAL FEDERAL") {
+		t.Errorf("cabeçalho repetido não foi removido no modo agressivo:\n%s", aggressive)
+	}
+	if strings.Contains(aggressive, "Processo 5001234") {
+		t.Errorf("rodapé repetido não foi removido no modo agressivo:\n%s", aggressive)
+	}
+
+	basic := GenerateConsolidatedOutput(eventos, "basic")
+	if strings.Count(basic, "TRIBUNAL REGIONAL FEDERAL") != 3 {
+		t.Errorf("modo básico não deve remover cabeçalhos repetidos:\n%s", basic)
 	}
 }

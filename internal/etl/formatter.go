@@ -9,7 +9,6 @@ import (
 	"time"
 )
 
-
 // pageMarkerRegex matches a line that is *only* a page marker, such as
 // "Página 12 de 35", "Pág. 3/10" or "página 4". Anchoring the whole line keeps
 // legitimate sentences that merely mention the word "página" intact.
@@ -63,8 +62,72 @@ func pageCountLabel(n int) string {
 	return fmt.Sprintf("%d páginas", n)
 }
 
+// edgeLineCount is how many non-empty lines at the top and at the bottom of a
+// page are candidates for repeated header/footer detection.
+const edgeLineCount = 3
+
+// normalizeEdgeLine maps lines that differ only by numbers (página, folha, data)
+// to the same key, so "fl. 1" and "fl. 2" count as the same footer.
+func normalizeEdgeLine(trimmed string) string {
+	return strings.Map(func(r rune) rune {
+		if r >= '0' && r <= '9' {
+			return '#'
+		}
+		return r
+	}, trimmed)
+}
+
+// edgeLines returns the normalized first and last edgeLineCount non-empty
+// lines of a page, without duplicates.
+func edgeLines(page string) map[string]bool {
+	var nonEmpty []string
+	for _, line := range strings.Split(page, "\n") {
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			nonEmpty = append(nonEmpty, trimmed)
+		}
+	}
+	edges := make(map[string]bool)
+	for i, line := range nonEmpty {
+		if i < edgeLineCount || i >= len(nonEmpty)-edgeLineCount {
+			edges[normalizeEdgeLine(line)] = true
+		}
+	}
+	return edges
+}
+
+// repeatedEdgeLines finds the normalized header/footer lines that appear at the
+// edges of at least 60% of a document's pages (documents with 3+ pages only).
+func repeatedEdgeLines(pages []string) map[string]bool {
+	if len(pages) < 3 {
+		return nil
+	}
+	counts := make(map[string]int)
+	for _, page := range pages {
+		for line := range edgeLines(page) {
+			counts[line]++
+		}
+	}
+	var repeated map[string]bool
+	for line, n := range counts {
+		if n*5 >= len(pages)*3 {
+			if repeated == nil {
+				repeated = make(map[string]bool)
+			}
+			repeated[line] = true
+		}
+	}
+	return repeated
+}
+
 // CleanText cleans text based on the configured cleaning level (none, basic, aggressive).
 func CleanText(text string, level string) string {
+	return cleanPage(text, level, nil)
+}
+
+// cleanPage is CleanText plus, in aggressive mode, removal of the edge lines
+// listed in repeated (see repeatedEdgeLines). Only edge positions are checked,
+// so the same sentence in the middle of a page survives.
+func cleanPage(text string, level string, repeated map[string]bool) string {
 	if level == "none" {
 		return text
 	}
@@ -72,14 +135,30 @@ func CleanText(text string, level string) string {
 	lines := strings.Split(text, "\n")
 	var cleanedLines []string
 
+	dropRepeated := level == "aggressive" && len(repeated) > 0
+	nonEmptyTotal := 0
+	if dropRepeated {
+		for _, line := range lines {
+			if strings.TrimSpace(line) != "" {
+				nonEmptyTotal++
+			}
+		}
+	}
+	pos := -1
+
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" {
 			continue
 		}
+		pos++
 
 		// Aggressive cleaning: drop whole-line headers/footers/signatures only.
 		if level == "aggressive" && isBoilerplateLine(trimmed) {
+			continue
+		}
+		if dropRepeated && (pos < edgeLineCount || pos >= nonEmptyTotal-edgeLineCount) &&
+			repeated[normalizeEdgeLine(trimmed)] {
 			continue
 		}
 
@@ -92,7 +171,6 @@ func CleanText(text string, level string) string {
 	}
 	return strings.Join(cleanedLines, "\n")
 }
-
 
 // GenerateConsolidatedOutput formats all extracted process data into structured XML tags.
 func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) string {
@@ -191,7 +269,7 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) st
 			var pages []pageEntry
 			for _, val := range d.paginas {
 				pData := val.(map[string]any)
-				
+
 				// Handle potential missing fields gracefully
 				ocrVal, _ := pData["ocr"].(bool)
 				imgVal, _ := pData["image"].(string)
@@ -208,8 +286,17 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) st
 				return pages[i].index < pages[j].index
 			})
 
+			var repeated map[string]bool
+			if cleaningLevel == "aggressive" {
+				contents := make([]string, len(pages))
+				for i, p := range pages {
+					contents[i] = p.content
+				}
+				repeated = repeatedEdgeLines(contents)
+			}
+
 			for _, p := range pages {
-				cleanedText := CleanText(p.content, cleaningLevel)
+				cleanedText := cleanPage(p.content, cleaningLevel, repeated)
 				sb.WriteString(fmt.Sprintf("        <pag num=\"%d\">\n", p.index))
 				sb.WriteString(cleanedText)
 				sb.WriteString("\n        </pag>\n")
