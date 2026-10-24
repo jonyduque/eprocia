@@ -103,5 +103,5 @@ test('em contêiner estreito os botões ficam só com ícone e mantêm nome aces
     assert.match(lista, new RegExp(`aria-label="${nome}"`), `${nome} sem aria-label`);
     assert.match(lista, new RegExp(`<span class="rotulo-acao">${nome}</span>`), `${nome} sem rótulo ocultável`);
   }
-  assert.match(lista, /class="btn-clear"[^>]*>\s*<svg[^>]*lucide-list-x/);
+  assert.match(lista, /class="btn-clear"[^>]*>\s*<Icone icone=\{ListX\}/);
 });

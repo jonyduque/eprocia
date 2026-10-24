@@ -67,16 +67,11 @@ Utilizaremos fontes sans-serif modernas que garantem legibilidade em tamanhos pe
     - Mono (Tags XML), se for usada: `12px` (`Consolas`, fonte do sistema)
 
 ## 4. Ícones
-Utilizaremos a biblioteca **Lucide React** (ou similar) por sua consistência e traços finos.
+Biblioteca **lucide-svelte**, sempre pelo componente `src/components/Icone.svelte` (`<Icone icone={CircleCheck} />`), que fixa o traço em `1.75`, o tamanho padrão em `16px` e `aria-hidden="true"`. Cada ícone é importado de `lucide-svelte/icons/<nome>`; nada de SVG copiado à mão nem `stroke-width` por uso. Exceção: a marca na barra de título (`brand-icon`), que reproduz `build/icon-pequeno.svg`.
 
-- **Estados:**
-    - `CheckCircle`: Processamento concluído.
-    - `Loader`: Em processamento (com animação de rotação).
-    - `AlertCircle`: Erro no arquivo.
-    - `FileText`: Representação de documento.
-    - `Settings`: Configurações.
-    - `Monitor`: Pasta monitorada.
-- **Tamanho padrão:** `16px` a `18px`.
+- **Estados da fila:** `CircleCheck` (concluído, `--success`), `LoaderCircle` girando pelo `--dur-spin` (em processamento, `--accent`), `CircleAlert` (erro, `--error`), `Clock` (aguardando), `CirclePause` (pausado, `--warning`), `CircleSlash` (cancelado).
+- **Ações:** `Copy`/`Check` (copiar o TXT), `FolderOpen` (abrir pasta), `Trash2` (remover, em todo lugar), `X` (cancelar/fechar), `CircleQuestionMark` (detalhes do erro), `Upload` (selecionar ZIP), `Settings` (configurações), `Monitor`/`Sun`/`Moon` (tema sistema/claro/escuro).
+- **Tamanhos:** `16px` por padrão; `14px` nos botões de ação da linha e da barra de título e `12px` em botões com texto e chips, para caber na densidade da lista. Ilustrações de estado vazio e da caixa de soltar podem ir a `32px`/`48px`.
 
 ## 5. Componentes Principais (UX)
 

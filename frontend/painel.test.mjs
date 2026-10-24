@@ -140,7 +140,8 @@ test('SVGs dos botões da barra de título e do painel são decorativos', () => 
   const ini = app.indexOf('<div class="titlebar-actions"');
   const fim = app.indexOf('<div class="sidebar-content"');
   const trecho = app.slice(ini, fim);
-  const svgs = trecho.match(/<svg[^>]*>/g);
-  assert.ok(svgs.length >= 6);
-  for (const s of svgs) assert.match(s, /aria-hidden="true"/, s);
+  // Icone.svelte sempre põe aria-hidden (conferido em icones.test.mjs).
+  const icones = trecho.match(/<Icone\b[^>]*>/g) ?? [];
+  assert.ok(icones.length >= 6);
+  assert.doesNotMatch(trecho, /<svg/);
 });

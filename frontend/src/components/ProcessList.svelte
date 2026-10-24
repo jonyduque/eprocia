@@ -1,4 +1,22 @@
 <script>
+  import Icone from './Icone.svelte';
+  import Archive from 'lucide-svelte/icons/archive';
+  import Check from 'lucide-svelte/icons/check';
+  import CircleAlert from 'lucide-svelte/icons/circle-alert';
+  import CircleCheck from 'lucide-svelte/icons/circle-check';
+  import CirclePause from 'lucide-svelte/icons/circle-pause';
+  import CircleQuestionMark from 'lucide-svelte/icons/circle-question-mark';
+  import CircleSlash from 'lucide-svelte/icons/circle-slash';
+  import Clock from 'lucide-svelte/icons/clock';
+  import Copy from 'lucide-svelte/icons/copy';
+  import FolderOpen from 'lucide-svelte/icons/folder-open';
+  import List from 'lucide-svelte/icons/list';
+  import ListX from 'lucide-svelte/icons/list-x';
+  import LoaderCircle from 'lucide-svelte/icons/loader-circle';
+  import Pause from 'lucide-svelte/icons/pause';
+  import Play from 'lucide-svelte/icons/play';
+  import Trash2 from 'lucide-svelte/icons/trash-2';
+  import X from 'lucide-svelte/icons/x';
   import {
     OpenDirectory,
     CopyOutput,
@@ -176,7 +194,7 @@
 <div class="list-card">
   <div class="list-header">
     <div class="header-left">
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-list"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><circle cx="3" cy="6" r="1"/><circle cx="3" cy="12" r="1"/><circle cx="3" cy="18" r="1"/></svg>
+      <Icone icone={List} />
       <h2 title="Fila de Processamento" tabindex="-1" bind:this={tituloEl}>Fila de Processamento</h2>
     </div>
     <div class="header-actions">
@@ -190,17 +208,17 @@
       {#if items.length > 0}
         {#if isPaused}
           <button class="btn-pause resume" on:click={handleResume} title="Retomar processamento da fila" aria-label="Retomar">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+            <Icone icone={Play} tamanho={12} />
             <span class="rotulo-acao">Retomar</span>
           </button>
         {:else}
           <button class="btn-pause" on:click={handlePause} title="Pausar fila de processamento" aria-label="Pausar">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></svg>
+            <Icone icone={Pause} tamanho={12} />
             <span class="rotulo-acao">Pausar</span>
           </button>
         {/if}
         <button class="btn-clear" on:click={handleClear} title="Limpar todos os itens da fila" aria-label="Limpar Fila">
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-list-x"><path d="M16 5H3"/><path d="M11 12H3"/><path d="M16 19H3"/><path d="m15.5 9.5 5 5"/><path d="m20.5 9.5-5 5"/></svg>
+          <Icone icone={ListX} tamanho={12} />
           <span class="rotulo-acao">Limpar Fila</span>
         </button>
       {/if}
@@ -210,7 +228,7 @@
   {#if aviso}
     <div class="queue-notice">
       <span class="queue-chip" role="status" title={aviso}>
-        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pause-circle"><circle cx="12" cy="12" r="10"/><line x1="10" x2="10" y1="15" y2="9"/><line x1="14" x2="14" y1="15" y2="9"/></svg>
+        <Icone icone={CirclePause} tamanho={12} />
         <span class="queue-chip-text">{aviso}</span>
       </span>
     </div>
@@ -223,7 +241,7 @@
       </div>
     {:else if filteredItems.length === 0}
       <div class="empty-state">
-        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-archive"><polyline points="21 8 21 21 3 21 3 8"/><rect width="22" height="5" x="1" y="3"/><line x1="10" x2="14" y1="12" y2="12"/></svg>
+        <Icone icone={Archive} tamanho={32} />
         <p>Nenhum processo no histórico.</p>
         <p class="sub-text">Arraste arquivos ZIP em qualquer lugar ou clique em "Selecionar" no painel ao lado.</p>
       </div>
@@ -242,17 +260,17 @@
             <!-- Status Icon -->
             <div class="status-col">
               {#if estado === 'processando'}
-                <div class="spinner-small" aria-hidden="true"></div>
+                <span class="spinner-small" aria-hidden="true"><Icone icone={LoaderCircle} cor="var(--accent)" /></span>
               {:else if estado === 'pausado'}
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pause-circle" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="10" x2="10" y1="15" y2="9"/><line x1="14" x2="14" y1="15" y2="9"/></svg>
+                <Icone icone={CirclePause} cor="var(--warning)" />
               {:else if estado === 'aguardando'}
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clock" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <Icone icone={Clock} cor="var(--text-secondary)" />
               {:else if estado === 'sucesso'}
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-circle" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <Icone icone={CircleCheck} cor="var(--success)" />
               {:else if estado === 'erro'}
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--error)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-alert-triangle" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                <Icone icone={CircleAlert} cor="var(--error)" />
               {:else if estado === 'cancelado'}
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ban" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 14.14 14.14"/></svg>
+                <Icone icone={CircleSlash} cor="var(--text-secondary)" />
               {/if}
               <span class="sr-only">{ROTULO_ESTADO[estado] ?? ''}</span>
             </div>
@@ -306,7 +324,7 @@
                   on:click={(e) => handleCancel(item.id, e)}
                   title="Cancelar processamento ativo"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  <Icone icone={X} tamanho={14} />
                 </button>
               {:else if item.status === 'pending'}
                 <button
@@ -315,7 +333,7 @@
                   on:click={(e) => handleCancel(item.id, e)}
                   title="Remover da fila"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  <Icone icone={X} tamanho={14} />
                 </button>
               {:else if item.status === 'success' && item.output_path}
                 <div class="success-actions">
@@ -327,9 +345,9 @@
                     aria-label="Copiar o TXT"
                   >
                     {#if copiadoId === item.id}
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check"><path d="M20 6 9 17l-5-5"/></svg>
+                      <Icone icone={Check} tamanho={14} />
                     {:else}
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                      <Icone icone={Copy} tamanho={14} />
                     {/if}
                   </button>
                   <button
@@ -338,7 +356,7 @@
                     on:click={() => handleOpenDir(item.output_path)}
                     title="Abrir pasta contendo o TXT"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-folder-open"><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"/></svg>
+                    <Icone icone={FolderOpen} tamanho={14} />
                   </button>
                   <button
                     class="btn-action btn-remove"
@@ -346,7 +364,7 @@
                     on:click={(e) => handleRemove(item.id, e)}
                     title="Remover da lista"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                    <Icone icone={Trash2} tamanho={14} />
                   </button>
                 </div>
               {:else}
@@ -363,7 +381,7 @@
                       aria-controls="erro-detalhe-{item.id}"
                       title={detalhesAbertos[item.id] ? 'Ocultar detalhes do erro' : 'Ver detalhes do erro'}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-help-circle" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                      <Icone icone={CircleQuestionMark} tamanho={14} />
                     </button>
                   {/if}
                   <button
@@ -372,7 +390,7 @@
                     on:click={(e) => handleRemove(item.id, e)}
                     title="Remover da lista"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                    <Icone icone={Trash2} tamanho={14} />
                   </button>
                 </div>
               {/if}
@@ -405,7 +423,7 @@
       >
         <span class="aviso-texto">{erroCopia}</span>
         <button class="aviso-fechar" on:click={avisoCopia.fechar} aria-label="Fechar aviso" title="Fechar aviso">
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          <Icone icone={X} tamanho={12} />
         </button>
       </div>
     {/if}
@@ -483,7 +501,7 @@
     color: var(--accent);
   }
 
-  .header-left svg {
+  .header-left :global(svg) {
     flex-shrink: 0;
   }
 
@@ -509,7 +527,7 @@
     overflow: hidden;
   }
 
-  .queue-chip svg {
+  .queue-chip :global(svg) {
     flex-shrink: 0;
   }
 
@@ -885,11 +903,7 @@
   }
 
   .spinner-small {
-    width: 14px;
-    height: 14px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
+    display: inline-flex;
     animation: spin var(--dur-spin) linear infinite;
   }
 

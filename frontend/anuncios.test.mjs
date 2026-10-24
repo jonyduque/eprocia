@@ -81,9 +81,10 @@ test('barra de progresso exposta como progressbar com valores', () => {
 test('ícones de status ocultos e acompanhados de texto para leitor de tela', () => {
   const i = lista.indexOf('<div class="status-col">');
   const col = lista.slice(i, lista.indexOf('</div>\n\n', i));
-  const svgs = col.match(/<svg[^>]*>/g) ?? [];
-  assert.ok(svgs.length >= 5);
-  for (const s of svgs) assert.match(s, /aria-hidden="true"/);
+  // Icone.svelte sempre põe aria-hidden (conferido em icones.test.mjs).
+  const icones = col.match(/<Icone\b[^>]*>/g) ?? [];
+  assert.ok(icones.length >= 6);
+  assert.doesNotMatch(col, /<svg/);
   assert.match(col, /spinner-small"[^>]*aria-hidden="true"/);
   assert.match(col, /class="sr-only"/);
   for (const rotulo of ['Concluído', 'Em processamento', 'Erro', 'Aguardando', 'Pausado', 'Cancelado']) {

@@ -1,4 +1,17 @@
 <script>
+  import Icone from './components/Icone.svelte';
+  import ChevronLeft from 'lucide-svelte/icons/chevron-left';
+  import ChevronRight from 'lucide-svelte/icons/chevron-right';
+  import Copy from 'lucide-svelte/icons/copy';
+  import FileArchive from 'lucide-svelte/icons/file-archive';
+  import FilePlusCorner from 'lucide-svelte/icons/file-plus-corner';
+  import Minus from 'lucide-svelte/icons/minus';
+  import Monitor from 'lucide-svelte/icons/monitor';
+  import Moon from 'lucide-svelte/icons/moon';
+  import Square from 'lucide-svelte/icons/square';
+  import Sun from 'lucide-svelte/icons/sun';
+  import Upload from 'lucide-svelte/icons/upload';
+  import X from 'lucide-svelte/icons/x';
   import { onMount, onDestroy, tick } from 'svelte';
   import {
     EventsOn,
@@ -307,7 +320,7 @@
   {#if dragActive}
     <div class="drag-overlay" transition:fade={{ duration: duracaoMovimento(DUR_FAST) }}>
       <div class="overlay-box">
-        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-archive"><path d="M4 22V4c0-.5.2-1 .6-1.4C5 2.2 5.5 2 6 2h8l6 6v12c0 .5-.2 1-.6 1.4-.4.4-.9.6-1.4.6H6c-.5 0-1-.2-1.4-.6C4.2 21 4 20.5 4 20Z"/><path d="M14 2v6h6"/><circle cx="10" cy="14" r="2"/><path d="M16 14h-4"/><path d="M12 12v4"/><path d="M8 14H6"/></svg>
+        <Icone icone={FileArchive} tamanho={48} cor="var(--accent)" />
         <p>Solte o arquivo ZIP em qualquer lugar para processar</p>
       </div>
     </div>
@@ -337,17 +350,17 @@
         aria-label="Tema: {NOME_TEMA[temaPref]}. Mudar para {NOME_TEMA[proximoTema(temaPref)]}"
       >
         {#if temaPref === 'system'}
-          <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-monitor"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
+          <Icone icone={Monitor} tamanho={14} />
         {:else if temaPref === 'light'}
-          <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+          <Icone icone={Sun} tamanho={14} />
         {:else}
-          <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-moon"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+          <Icone icone={Moon} tamanho={14} />
         {/if}
       </button>
 
       <!-- Minimize Window -->
       <button class="titlebar-btn" on:click={WindowMinimise} title="Minimizar" aria-label="Minimizar">
-        <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <Icone icone={Minus} tamanho={14} />
       </button>
 
       <!-- Maximize/Restore Window -->
@@ -358,15 +371,15 @@
         aria-label={maximizada ? 'Restaurar' : 'Maximizar'}
       >
         {#if maximizada}
-          <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+          <Icone icone={Copy} tamanho={14} />
         {:else}
-          <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
+          <Icone icone={Square} tamanho={14} />
         {/if}
       </button>
 
       <!-- Close Window (Hides to Tray) -->
       <button class="titlebar-btn btn-close" on:click={handleCloseWindow} title="Fechar (Minimiza para a bandeja)" aria-label="Fechar (minimiza para a bandeja)">
-        <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <Icone icone={X} tamanho={14} />
       </button>
     </div>
   </div>
@@ -393,9 +406,9 @@
           aria-controls="sidebar"
         >
           {#if sidebarCollapsed}
-            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            <Icone icone={ChevronRight} />
           {:else}
-            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            <Icone icone={ChevronLeft} />
           {/if}
         </button>
       </div>
@@ -408,7 +421,7 @@
         <!-- Manual Process Card -->
         <div class="manual-card">
           <div class="card-header">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-plus-2"><path d="M4 22V4c0-.5.2-1 .6-1.4C5 2.2 5.5 2 6 2h8l6 6v12c0 .5-.2 1-.6 1.4-.4.4-.9.6-1.4.6H6c-.5 0-1-.2-1.4-.6C4.2 21 4 20.5 4 20Z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg>
+            <Icone icone={FilePlusCorner} tamanho={12} />
             <h3>Importação Manual</h3>
           </div>
 
@@ -417,7 +430,7 @@
             class="manual-select-btn"
             on:click={triggerManualSelect}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <Icone icone={Upload} tamanho={14} />
             <span>Selecionar arquivos ZIP...</span>
           </button>
         </div>
@@ -432,7 +445,7 @@
           </div>
 
           <button class="collapsed-tool-btn" on:click={triggerManualSelect} title="Processar ZIP Manualmente">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <Icone icone={Upload} />
           </button>
         </div>
       {/if}
