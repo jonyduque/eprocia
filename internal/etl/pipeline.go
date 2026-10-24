@@ -382,6 +382,15 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 		defer func() { <-sem }()
 		return ocr.RunOCR(ctx, pdfPath, pageNum, cfg.OcrMode)
 	}
+	ocrEmLote := func(ctx context.Context, pdfPath string, paginas []int) ([]string, error) {
+		select {
+		case sem <- struct{}{}:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+		defer func() { <-sem }()
+		return ocr.RunOCRPaginas(ctx, pdfPath, paginas, cfg.OcrMode)
+	}
 
 	var processedDocsVal int32
 	var processedPagesVal int32
@@ -479,7 +488,8 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 				}
 				fonteDoc = fonte
 
-				parser := NewPDFParserDeLeitor(fonte.readerAt(), fonte.tamanho, f.DocName, fonte.materializar)
+				parser := NewPDFParserDeLeitor(fonte.readerAt(), fonte.tamanho, f.DocName, fonte.materializar).
+					comOCREmLote(ocrEmLote, numWorkers)
 				if fonte.leitor != nil {
 					parser.comLeitor(fonte.leitor, fonte.paginas)
 				} else if contados[i] {

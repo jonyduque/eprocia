@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -39,6 +40,22 @@ type PDFParser struct {
 	onceOCR    sync.Once
 	pathOCR    string
 	errOCR     error
+
+	lote      ocrLote
+	blocosOCR int
+}
+
+// ocrLote faz o OCR de várias páginas do mesmo PDF e devolve os textos na
+// ordem de paginas.
+type ocrLote func(ctx context.Context, caminho string, paginas []int) ([]string, error)
+
+// comOCREmLote faz ParsePages dividir as páginas que vão ao OCR em até blocos
+// chamadas de lote, em vez de uma chamada por página: cada processo de OCR
+// custa a partida e a carga do modelo, e blocos igual ao número de workers
+// mantém o paralelismo.
+func (p *PDFParser) comOCREmLote(lote ocrLote, blocos int) *PDFParser {
+	p.lote, p.blocosOCR = lote, max(blocos, 1)
+	return p
 }
 
 // NewPDFParserDeLeitor lê o PDF de r. nome só aparece nos logs; materializar
@@ -119,15 +136,7 @@ func (p *PDFParser) ParsePages(
 	// Concurrency is bounded by the shared OCR semaphore passed in via
 	// ocrRunner (see Pipeline.ProcessZip), so each OCR task just blocks on
 	// that instead of going through a second, redundant worker pool here.
-	runOCRTask := func(task ocrTask) {
-		defer wg.Done()
-		log.Printf("[PDFParser] Iniciando OCR para página %d...", task.pageNum)
-		caminho, err := p.caminhoParaOCR()
-		var ocrText, imgPath string
-		if err == nil {
-			ocrText, imgPath, err = ocrRunner(ctx, caminho, task.pageNum)
-		}
-
+	registrarOCR := func(task ocrTask, ocrText, imgPath string, err error) {
 		var pageData map[string]any
 		if err == nil {
 			log.Printf("[PDFParser] OCR concluído para página %d (tamanho: %d)", task.pageNum, len(ocrText))
@@ -160,6 +169,51 @@ func (p *PDFParser) ParsePages(
 			onPageComplete(task.pageNum)
 		}
 	}
+
+	runOCRTask := func(task ocrTask) {
+		log.Printf("[PDFParser] Iniciando OCR para página %d...", task.pageNum)
+		caminho, err := p.caminhoParaOCR()
+		var ocrText, imgPath string
+		if err == nil {
+			ocrText, imgPath, err = ocrRunner(ctx, caminho, task.pageNum)
+		}
+		registrarOCR(task, ocrText, imgPath, err)
+	}
+
+	runOCRBloco := func(tasks []ocrTask) {
+		defer wg.Done()
+		if len(tasks) == 1 {
+			runOCRTask(tasks[0])
+			return
+		}
+		paginas := make([]int, len(tasks))
+		for i, task := range tasks {
+			paginas[i] = task.pageNum
+		}
+		log.Printf("[PDFParser] Iniciando OCR em bloco das páginas %v...", paginas)
+		caminho, err := p.caminhoParaOCR()
+		var textos []string
+		if err == nil {
+			textos, err = p.lote(ctx, caminho, paginas)
+		}
+		if err == nil && len(textos) != len(tasks) {
+			err = fmt.Errorf("OCR em bloco devolveu %d textos para %d páginas", len(textos), len(tasks))
+		}
+		if err != nil {
+			// Uma página ruim derruba o tesseract do bloco inteiro; sozinhas,
+			// as outras ainda saem.
+			log.Printf("[PDFParser] OCR em bloco das páginas %v falhou: %v. Refazendo página a página...", paginas, err)
+			for _, task := range tasks {
+				runOCRTask(task)
+			}
+			return
+		}
+		for i, task := range tasks {
+			registrarOCR(task, textos[i], "", nil)
+		}
+	}
+
+	var pendentes []ocrTask
 
 	for pageNum := 1; pageNum <= numPages; pageNum++ {
 		// Check for context cancellation
@@ -203,11 +257,13 @@ func (p *PDFParser) ParsePages(
 		cleanText, needsOcr := an.texto, an.precisaOcr
 
 		if needsOcr && ocrRunner != nil {
-			wg.Add(1)
-			go runOCRTask(ocrTask{
-				pageNum:  pageNum,
-				fallback: cleanText,
-			})
+			task := ocrTask{pageNum: pageNum, fallback: cleanText}
+			if p.lote != nil {
+				pendentes = append(pendentes, task)
+			} else {
+				wg.Add(1)
+				go runOCRBloco([]ocrTask{task})
+			}
 		} else {
 			log.Printf("[PDFParser] Usando texto nativo para página %d (OCR habilitado: %t, precisa de OCR: %t)", pageNum, ocrEnabled, needsOcr)
 			pageData := map[string]any{
@@ -222,6 +278,14 @@ func (p *PDFParser) ParsePages(
 			if onPageComplete != nil {
 				onPageComplete(pageNum)
 			}
+		}
+	}
+
+	if len(pendentes) > 0 {
+		k := (len(pendentes) + p.blocosOCR - 1) / p.blocosOCR
+		for bloco := range slices.Chunk(pendentes, k) {
+			wg.Add(1)
+			go runOCRBloco(bloco)
 		}
 	}
 

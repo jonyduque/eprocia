@@ -30,6 +30,7 @@ import (
 	"eprocia/internal/etl"
 	"eprocia/internal/models"
 	"eprocia/internal/ocr"
+	"eprocia/scripts/bench/pdfgen"
 )
 
 // sink discards log output but, unlike io.Discard, keeps the formatting cost
@@ -144,6 +145,32 @@ func BenchmarkSintetico(b *testing.B) {
 	b.Run("ocr="+ocrMode(), func(b *testing.B) {
 		benchZip(b, filepath.Join("fixtures", "misto.zip"))
 	})
+	// Um documento escaneado longo, como as petições digitalizadas reais: é o
+	// caso em que o OCR agrupa páginas por processo (B-EF-04).
+	b.Run(fmt.Sprintf("escaneado%d/ocr=%s", paginasEscaneado, ocrMode()), func(b *testing.B) {
+		if ocrMode() == "none" {
+			b.Skip("sem OCR o documento escaneado só mede a extração nativa")
+		}
+		benchZip(b, zipEscaneado(b, paginasEscaneado))
+	})
+}
+
+const paginasEscaneado = 24
+
+// zipEscaneado grava em um diretório temporário um ZIP com um único PDF de n
+// páginas escaneadas.
+func zipEscaneado(b *testing.B, n int) string {
+	b.Helper()
+	pages := make([]pdfgen.Page, n)
+	for i := range pages {
+		pages[i] = pdfgen.ScannedPage(pdfgen.Text(12, i))
+	}
+	data := pdfgen.Zip([]pdfgen.Entry{{Name: "Evento 1 - INIC1.pdf", Data: pdfgen.Document(pages)}})
+	path := filepath.Join(b.TempDir(), "escaneado.zip")
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		b.Fatal(err)
+	}
+	return path
 }
 
 // BenchmarkParsePDF isolates the Go-side cost of each extraction path (no OCR).

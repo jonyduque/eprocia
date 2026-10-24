@@ -11,6 +11,8 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -193,140 +195,197 @@ func copiarEmbutido(src, dst string, buf []byte) error {
 	return err
 }
 
-// RunOCR runs OCR on a specific page of a PDF file using the specified mode (fast, normal, best).
-func RunOCR(ctx context.Context, pdfPath string, pageNum int, mode string) (string, string, error) {
-	log.Printf("[OCR] Iniciando RunOCR para o PDF %s, página %d, modo %s", pdfPath, pageNum, mode)
+// ferramentas reúne os caminhos dos executáveis e do tessdata de um modo.
+type ferramentas struct {
+	tess, pdftoppm, tessDir, popplerDir, tessdata string
+}
+
+func prepararFerramentas(mode string) (ferramentas, error) {
 	binDir, err := InitBinaries()
 	if err != nil {
 		log.Printf("[OCR] Falha ao inicializar binários: %v", err)
-		return "", "", err
+		return ferramentas{}, err
+	}
+	f := ferramentas{
+		tessDir:    filepath.Join(binDir, "tesseract"),
+		popplerDir: filepath.Join(binDir, "poppler"),
+	}
+	f.tess = filepath.Join(f.tessDir, "tesseract.exe")
+	f.pdftoppm = filepath.Join(f.popplerDir, "pdftoppm.exe")
+
+	if _, err := os.Stat(f.tess); err != nil {
+		return ferramentas{}, fmt.Errorf("embedded tesseract.exe not found at %s: %w", f.tess, err)
+	}
+	if _, err := os.Stat(f.pdftoppm); err != nil {
+		return ferramentas{}, fmt.Errorf("embedded pdftoppm.exe not found at %s: %w", f.pdftoppm, err)
 	}
 
-	tessPath := filepath.Join(binDir, "tesseract", "tesseract.exe")
-	pdfToPpmPath := filepath.Join(binDir, "poppler", "pdftoppm.exe")
-
-	log.Printf("[OCR] Verificando se os caminhos dos executáveis existem...")
-	// Verify paths exist
-	if _, err := os.Stat(tessPath); err != nil {
-		return "", "", fmt.Errorf("embedded tesseract.exe not found at %s: %w", tessPath, err)
-	}
-	if _, err := os.Stat(pdfToPpmPath); err != nil {
-		return "", "", fmt.Errorf("embedded pdftoppm.exe not found at %s: %w", pdfToPpmPath, err)
-	}
-
-	// Validate mode
 	if mode != "fast" && mode != "normal" && mode != "best" {
 		mode = "normal"
 	}
-	tessdataPath, err := tessdataDoModo(binDir, mode)
+	f.tessdata, err = tessdataDoModo(binDir, mode)
 	if err != nil {
 		log.Printf("[OCR] Falha ao extrair tessdata do modo %s: %v", mode, err)
+		return ferramentas{}, err
+	}
+	log.Printf("[OCR] Usando tessdata no modo %s em: %s", mode, f.tessdata)
+	return f, nil
+}
+
+// renderizar grava em dir as páginas primeira..ultima como p-<n>.png.
+func (f ferramentas) renderizar(ctx context.Context, pdfPath, dir string, primeira, ultima int) error {
+	log.Printf("[OCR] Executando pdftoppm para as páginas %d a %d do PDF %s...", primeira, ultima, pdfPath)
+	cmd := exec.CommandContext(ctx, f.pdftoppm,
+		"-f", strconv.Itoa(primeira),
+		"-l", strconv.Itoa(ultima),
+		"-png",
+		"-r", "150",
+		pdfPath,
+		filepath.Join(dir, "p"),
+	)
+	prepareCmd(cmd)
+	// As DLLs do Poppler são achadas pelo PATH.
+	cmd.Env = append(os.Environ(), "PATH="+f.popplerDir+";"+os.Getenv("PATH"))
+	if err := cmd.Run(); err != nil {
+		log.Printf("[OCR] pdftoppm falhou: %v", err)
+		return fmt.Errorf("embedded pdftoppm failed: %w", err)
+	}
+	return nil
+}
+
+// reconhecer roda o tesseract em dir sobre entrada (uma imagem ou um arquivo
+// com uma imagem por linha) e devolve o texto de saida.txt. Os caminhos são
+// relativos a dir, para que um %TEMP% com acentos não dependa de como o
+// tesseract decodifica o arquivo de lista.
+func (f ferramentas) reconhecer(ctx context.Context, dir, entrada string) (string, error) {
+	env := append(os.Environ(),
+		"PATH="+f.tessDir+";"+os.Getenv("PATH"),
+		"TESSDATA_PREFIX="+f.tessdata,
+		"OMP_NUM_THREADS=1",
+		"OMP_THREAD_LIMIT=1",
+	)
+	rodar := func(args ...string) error {
+		cmd := exec.CommandContext(ctx, f.tess, append([]string{entrada, "saida"}, args...)...)
+		cmd.Dir = dir
+		prepareCmd(cmd)
+		cmd.Env = env
+		return cmd.Run()
+	}
+
+	log.Printf("[OCR] Executando tesseract no idioma 'por'...")
+	if err := rodar("-l", "por"); err != nil {
+		log.Printf("[OCR] Tesseract em português falhou: %v. Tentando inglês como fallback...", err)
+		if err := rodar(); err != nil {
+			log.Printf("[OCR] Tesseract fallback (inglês) falhou: %v", err)
+			return "", fmt.Errorf("embedded tesseract failed: %w", err)
+		}
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "saida.txt"))
+	if err != nil {
+		return "", fmt.Errorf("failed to read OCR output: %w", err)
+	}
+	return string(b), nil
+}
+
+// RunOCR runs OCR on a specific page of a PDF file using the specified mode (fast, normal, best).
+func RunOCR(ctx context.Context, pdfPath string, pageNum int, mode string) (string, string, error) {
+	textos, imagens, err := ocrPaginas(ctx, pdfPath, []int{pageNum}, mode)
+	if err != nil {
 		return "", "", err
 	}
-	log.Printf("[OCR] Usando tessdata no modo %s em: %s", mode, tessdataPath)
+	return textos[0], imagens[0], nil
+}
 
-	// Create temp directory for this run's images and OCR output
+// RunOCRPaginas faz o OCR de várias páginas distintas do mesmo PDF e devolve os
+// textos na ordem de paginas. Abre um pdftoppm por trecho contíguo e um único
+// tesseract, que carrega o modelo uma vez para todas as páginas.
+func RunOCRPaginas(ctx context.Context, pdfPath string, paginas []int, mode string) ([]string, error) {
+	textos, _, err := ocrPaginas(ctx, pdfPath, paginas, mode)
+	return textos, err
+}
+
+func ocrPaginas(ctx context.Context, pdfPath string, paginas []int, mode string) ([]string, []string, error) {
+	if len(paginas) == 0 {
+		return nil, nil, nil
+	}
+	log.Printf("[OCR] Iniciando OCR do PDF %s, páginas %v, modo %s", pdfPath, paginas, mode)
+	f, err := prepararFerramentas(mode)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	tempDir, err := os.MkdirTemp("", "eprocia_ocr_run")
 	if err != nil {
-		return "", "", fmt.Errorf("failed to create run temp dir: %w", err)
+		return nil, nil, fmt.Errorf("failed to create run temp dir: %w", err)
 	}
 	defer func() {
 		log.Printf("[OCR] Removendo pasta temporária de processamento: %s", tempDir)
 		os.RemoveAll(tempDir)
 	}()
 
-	// Render PDF page to PNG using pdftoppm
-	imgPrefix := filepath.Join(tempDir, "page")
-	log.Printf("[OCR] Executando pdftoppm para extrair a página %d do PDF %s...", pageNum, pdfPath)
-	cmdPpm := exec.CommandContext(ctx, pdfToPpmPath,
-		"-f", fmt.Sprintf("%d", pageNum),
-		"-l", fmt.Sprintf("%d", pageNum),
-		"-png",
-		"-r", "150",
-		pdfPath,
-		imgPrefix,
-	)
-
-	// Set DLL search path for Poppler on Windows by modifying PATH environment variable
-	popplerDir := filepath.Join(binDir, "poppler")
-	prepareCmd(cmdPpm)
-	cmdPpm.Env = append(os.Environ(), "PATH="+popplerDir+";"+os.Getenv("PATH"))
-
-	log.Printf("[OCR] Rodando pdftoppm...")
-	if err := cmdPpm.Run(); err != nil {
-		log.Printf("[OCR] pdftoppm falhou: %v", err)
-		return "", "", fmt.Errorf("embedded pdftoppm failed: %w", err)
+	ordenadas := slices.Clone(paginas)
+	slices.Sort(ordenadas)
+	if len(slices.Compact(ordenadas)) != len(paginas) {
+		return nil, nil, fmt.Errorf("páginas repetidas no pedido de OCR: %v", paginas)
 	}
-	log.Printf("[OCR] pdftoppm terminou com sucesso.")
+	for i := 0; i < len(ordenadas); {
+		j := i
+		for j+1 < len(ordenadas) && ordenadas[j+1] == ordenadas[j]+1 {
+			j++
+		}
+		if err := f.renderizar(ctx, pdfPath, tempDir, ordenadas[i], ordenadas[j]); err != nil {
+			return nil, nil, err
+		}
+		i = j + 1
+	}
 
-	// Find the rendered PNG file
-	files, err := os.ReadDir(tempDir)
+	// O pdftoppm completa o número com zeros conforme o total de páginas do
+	// PDF (p-1.png, p-01.png...), então o nome é lido de volta do diretório.
+	entradas, err := os.ReadDir(tempDir)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to read run temp dir: %w", err)
+		return nil, nil, fmt.Errorf("failed to read run temp dir: %w", err)
 	}
-
-	var imgPath string
-	for _, file := range files {
-		if strings.HasPrefix(file.Name(), "page") && strings.HasSuffix(file.Name(), ".png") {
-			imgPath = filepath.Join(tempDir, file.Name())
-			break
+	porPagina := make(map[int]string, len(entradas))
+	for _, e := range entradas {
+		num, ok := strings.CutPrefix(e.Name(), "p-")
+		if num, ok2 := strings.CutSuffix(num, ".png"); ok && ok2 {
+			if n, err := strconv.Atoi(num); err == nil {
+				porPagina[n] = e.Name()
+			}
 		}
 	}
-
-	if imgPath == "" {
-		return "", "", fmt.Errorf("failed to find extracted page image in run temp dir")
+	nomes := make([]string, len(paginas))
+	imagens := make([]string, len(paginas))
+	for i, p := range paginas {
+		nome, ok := porPagina[p]
+		if !ok {
+			return nil, nil, fmt.Errorf("failed to find extracted image of page %d in run temp dir", p)
+		}
+		nomes[i] = nome
+		imagens[i] = filepath.Join(tempDir, nome)
 	}
-	log.Printf("[OCR] Imagem temporária da página encontrada em: %s", imgPath)
 
-	// Run tesseract OCR on the page image
-	txtOutputPrefix := filepath.Join(tempDir, "output")
-
-	// Exec tesseract
-	log.Printf("[OCR] Executando tesseract no idioma 'por'...")
-	cmdTess := exec.CommandContext(ctx, tessPath,
-		imgPath,
-		txtOutputPrefix,
-		"-l", "por",
-	)
-
-	// Set environment variables for Tesseract DLLs and traineddata path
-	tesseractDir := filepath.Join(binDir, "tesseract")
-	prepareCmd(cmdTess)
-	cmdTess.Env = append(os.Environ(),
-		"PATH="+tesseractDir+";"+os.Getenv("PATH"),
-		"TESSDATA_PREFIX="+tessdataPath,
-		"OMP_NUM_THREADS=1",
-		"OMP_THREAD_LIMIT=1",
-	)
-
-	if err := cmdTess.Run(); err != nil {
-		log.Printf("[OCR] Tesseract em português falhou: %v. Tentando inglês como fallback...", err)
-		// Fallback to default (usually English) if Portuguese model fails
-		cmdTessFallback := exec.CommandContext(ctx, tessPath,
-			imgPath,
-			txtOutputPrefix,
-		)
-		prepareCmd(cmdTessFallback)
-		cmdTessFallback.Env = append(os.Environ(),
-			"PATH="+tesseractDir+";"+os.Getenv("PATH"),
-			"TESSDATA_PREFIX="+tessdataPath,
-			"OMP_NUM_THREADS=1",
-			"OMP_THREAD_LIMIT=1",
-		)
-		if err := cmdTessFallback.Run(); err != nil {
-			log.Printf("[OCR] Tesseract fallback (inglês) falhou: %v", err)
-			return "", "", fmt.Errorf("embedded tesseract failed: %w", err)
+	entrada := nomes[0]
+	if len(nomes) > 1 {
+		entrada = "lista.txt"
+		if err := os.WriteFile(filepath.Join(tempDir, entrada), []byte(strings.Join(nomes, "\n")+"\n"), 0644); err != nil {
+			return nil, nil, fmt.Errorf("falha ao gravar a lista de imagens do OCR: %w", err)
 		}
 	}
-	log.Printf("[OCR] Tesseract OCR finalizado com sucesso.")
-
-	// Read result
-	txtPath := txtOutputPrefix + ".txt"
-	contentBytes, err := os.ReadFile(txtPath)
+	texto, err := f.reconhecer(ctx, tempDir, entrada)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to read OCR output: %w", err)
+		return nil, nil, err
+	}
+	log.Printf("[OCR] OCR concluído. Caracteres extraídos: %d", len(texto))
+	if len(nomes) == 1 {
+		return []string{texto}, imagens, nil
 	}
 
-	log.Printf("[OCR] OCR concluído. Caracteres extraídos: %d", len(contentBytes))
-	return string(contentBytes), imgPath, nil
+	// O tesseract separa o texto de cada imagem da lista com \f, sem
+	// separador depois da última, como na saída de uma imagem só.
+	partes := strings.Split(texto, "\f")
+	if len(partes) != len(nomes) {
+		return nil, nil, fmt.Errorf("o tesseract devolveu %d páginas para %d imagens", len(partes), len(nomes))
+	}
+	return partes, imagens, nil
 }
