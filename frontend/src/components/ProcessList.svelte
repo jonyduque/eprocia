@@ -1,18 +1,19 @@
 <script>
-  import { 
-    OpenDirectory, 
-    CopyOutput, 
-    CancelQueueItem, 
-    RemoveQueueItem, 
-    PauseQueue, 
-    ResumeQueue, 
-    ClearQueue 
+  import {
+    OpenDirectory,
+    CopyOutput,
+    CancelQueueItem,
+    RemoveQueueItem,
+    PauseQueue,
+    ResumeQueue,
+    ClearQueue
   } from '../wailsjs/go/main/App.js';
-  import { onDestroy } from 'svelte';
+  import { onDestroy, tick } from 'svelte';
   import { fly, fade } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { estadoItem, avisoFila } from '../lib/estado.js';
   import { criarAviso, duracaoMovimento, DUR_FAST, DUR_BASE } from '../lib/aviso.js';
+  import { formatarHora, filtrarItens, alvoFoco, escolherAcao } from '../lib/fila.js';
 
   export let items = [];
   export let isPaused = false;
@@ -30,10 +31,63 @@
 
   $: aviso = avisoFila(items, isPaused);
 
-  $: filteredItems = items.filter(item => 
-    item.name.toLowerCase().includes(filterText.toLowerCase()) ||
-    (item.message && item.message.toLowerCase().includes(filterText.toLowerCase()))
-  );
+  $: filteredItems = filtrarItens(items, filterText);
+
+  let detalhesAbertos = {};
+  function alternarDetalhes(id) {
+    detalhesAbertos = { ...detalhesAbertos, [id]: !detalhesAbertos[id] };
+  }
+
+  // Cancelar/Remover/Limpar Fila somem com a linha (ou trocam de botão) quando
+  // o queue:update chega; sem isto o foco cai no body.
+  let tituloEl;
+  let listaEl;
+  let focoPendente = null;
+
+  function guardarFoco(id, evento) {
+    const botao = evento?.currentTarget ?? null;
+    focoPendente = {
+      id,
+      botao,
+      acao: botao?.dataset?.acao ?? null,
+      idsAntes: filteredItems.map((i) => i.id),
+    };
+  }
+
+  function linhaDe(id) {
+    if (!listaEl) return null;
+    for (const linha of listaEl.querySelectorAll('.item-row[data-id]')) {
+      if (linha.dataset.id === String(id)) return linha;
+    }
+    return null;
+  }
+
+  async function devolverFoco() {
+    await tick();
+    const p = focoPendente;
+    if (!p) return;
+    const ids = filteredItems.map((i) => i.id);
+    const sumiu = p.id == null || !ids.includes(p.id);
+    if (!sumiu && p.botao?.isConnected) return;
+    focoPendente = null;
+    const ativo = document.activeElement;
+    // O usuário já levou o foco para outro lugar: não puxar de volta.
+    if (ativo && ativo !== document.body && ativo !== p.botao && ativo.isConnected) return;
+    const alvo = alvoFoco(p.idsAntes, p.id, ids);
+    const linha = alvo == null ? null : linhaDe(alvo);
+    if (linha) {
+      const botoes = [...linha.querySelectorAll('.actions-col button[data-acao]')];
+      const acao = escolherAcao(botoes.map((b) => b.dataset.acao), p.acao);
+      const botao = botoes.find((b) => b.dataset.acao === acao);
+      if (botao) {
+        botao.focus();
+        return;
+      }
+    }
+    tituloEl?.focus();
+  }
+
+  $: if (focoPendente) devolverFoco(filteredItems);
 
   async function handleOpenDir(path) {
     try {
@@ -68,12 +122,6 @@
     }
   }
 
-  function formatTime(timestamp) {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  }
-
   async function handlePause() {
     try {
       await PauseQueue();
@@ -90,26 +138,32 @@
     }
   }
 
-  async function handleCancel(id) {
+  async function handleCancel(id, evento) {
+    guardarFoco(id, evento);
     try {
       await CancelQueueItem(id);
     } catch (err) {
+      focoPendente = null;
       console.error('Erro ao cancelar:', err);
     }
   }
 
-  async function handleRemove(id) {
+  async function handleRemove(id, evento) {
+    guardarFoco(id, evento);
     try {
       await RemoveQueueItem(id);
     } catch (err) {
+      focoPendente = null;
       console.error('Erro ao remover:', err);
     }
   }
 
-  async function handleClear() {
+  async function handleClear(evento) {
+    guardarFoco(null, evento);
     try {
       await ClearQueue();
     } catch (err) {
+      focoPendente = null;
       console.error('Erro ao limpar fila:', err);
     }
   }
@@ -119,10 +173,10 @@
   <div class="list-header">
     <div class="header-left">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-list"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><circle cx="3" cy="6" r="1"/><circle cx="3" cy="12" r="1"/><circle cx="3" cy="18" r="1"/></svg>
-      <h2 title="Fila de Processamento">Fila de Processamento</h2>
+      <h2 title="Fila de Processamento" tabindex="-1" bind:this={tituloEl}>Fila de Processamento</h2>
     </div>
     <div class="header-actions">
-      <input 
+      <input
         type="search"
         placeholder="Filtrar..."
         aria-label="Filtrar fila por nome ou mensagem"
@@ -170,12 +224,13 @@
         <p class="sub-text">Arraste arquivos ZIP em qualquer lugar ou clique em "Selecionar" no painel ao lado.</p>
       </div>
     {:else}
-      <div class="items-list">
+      <div class="items-list" bind:this={listaEl}>
         {#each filteredItems as item (item.id)}
           {@const estado = estadoItem(item.status, isPaused)}
-          <div 
-            class="item-row {item.status}" 
+          <div
+            class="item-row {item.status}"
             class:has-progress={estado === 'processando'}
+            data-id={item.id}
             transition:fly={{ y: 8, duration: 200 }}
           >
             <!-- Status Icon -->
@@ -200,7 +255,7 @@
             <div class="info-col">
               <span class="file-name" title={item.path}>{item.name}</span>
               <div class="details-row">
-                <span class="timestamp">{formatTime(item.timestamp)}</span>
+                <span class="timestamp">{formatarHora(item.timestamp)}</span>
                 {#if estado === 'sucesso'}
                   <span class="meta-badge success">
                     {item.docs_count} docs | {item.pages_count} pág
@@ -239,26 +294,29 @@
             <!-- Actions -->
             <div class="actions-col">
               {#if item.status === 'processing'}
-                <button 
-                  class="btn-action btn-cancel" 
-                  on:click={() => handleCancel(item.id)} 
+                <button
+                  class="btn-action btn-cancel"
+                  data-acao="cancelar"
+                  on:click={(e) => handleCancel(item.id, e)}
                   title="Cancelar processamento ativo"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
               {:else if item.status === 'pending'}
-                <button 
-                  class="btn-action btn-cancel" 
-                  on:click={() => handleCancel(item.id)} 
+                <button
+                  class="btn-action btn-cancel"
+                  data-acao="cancelar"
+                  on:click={(e) => handleCancel(item.id, e)}
                   title="Remover da fila"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
               {:else if item.status === 'success' && item.output_path}
                 <div class="success-actions">
-                  <button 
-                    class="btn-action" 
-                    on:click={() => handleCopy(item)} 
+                  <button
+                    class="btn-action"
+                    data-acao="copiar"
+                    on:click={() => handleCopy(item)}
                     title={copiadoId === item.id ? 'Copiado!' : 'Copiar o TXT para colar na IA'}
                     aria-label="Copiar o TXT"
                   >
@@ -268,16 +326,18 @@
                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                     {/if}
                   </button>
-                  <button 
-                    class="btn-action" 
-                    on:click={() => handleOpenDir(item.output_path)} 
+                  <button
+                    class="btn-action"
+                    data-acao="abrir"
+                    on:click={() => handleOpenDir(item.output_path)}
                     title="Abrir pasta contendo o TXT"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-folder-open"><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"/></svg>
                   </button>
-                  <button 
-                    class="btn-action btn-remove" 
-                    on:click={() => handleRemove(item.id)} 
+                  <button
+                    class="btn-action btn-remove"
+                    data-acao="remover"
+                    on:click={(e) => handleRemove(item.id, e)}
                     title="Remover da lista"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
@@ -287,13 +347,23 @@
                 <!-- Error or Cancelled -->
                 <div class="error-actions">
                   {#if item.status === 'error'}
-                    <div class="error-tooltip-container" title={item.message}>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-help-circle"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
-                    </div>
+                    <button
+                      type="button"
+                      class="btn-action btn-detalhes"
+                      data-acao="detalhes"
+                      on:click={() => alternarDetalhes(item.id)}
+                      aria-label="Ver detalhes do erro"
+                      aria-expanded={!!detalhesAbertos[item.id]}
+                      aria-controls="erro-detalhe-{item.id}"
+                      title={detalhesAbertos[item.id] ? 'Ocultar detalhes do erro' : 'Ver detalhes do erro'}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-help-circle" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                    </button>
                   {/if}
-                  <button 
-                    class="btn-action btn-remove" 
-                    on:click={() => handleRemove(item.id)} 
+                  <button
+                    class="btn-action btn-remove"
+                    data-acao="remover"
+                    on:click={(e) => handleRemove(item.id, e)}
                     title="Remover da lista"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
@@ -301,6 +371,17 @@
                 </div>
               {/if}
             </div>
+
+            {#if item.status === 'error' && detalhesAbertos[item.id]}
+              <div
+                class="erro-detalhe"
+                id="erro-detalhe-{item.id}"
+                in:fade={{ duration: duracaoMovimento(DUR_FAST) }}
+              >
+                <p class="erro-detalhe-texto">{item.message || 'Erro no processamento'}</p>
+                <p class="erro-detalhe-caminho">Arquivo: {item.path}</p>
+              </div>
+            {/if}
           </div>
         {/each}
       </div>
@@ -562,6 +643,7 @@
 
   .item-row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     min-height: 52px;
     border: 1px solid var(--card-border);
@@ -573,9 +655,9 @@
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     box-shadow: var(--shadow-sm);
-    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
-                box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
-                background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
                 border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
                 padding-bottom 0.2s;
   }
@@ -751,11 +833,37 @@
     background-color: var(--error-soft);
   }
 
-  .error-tooltip-container {
+  .btn-detalhes {
     color: var(--error);
-    cursor: help;
-    display: flex;
-    align-items: center;
+  }
+
+  .btn-detalhes[aria-expanded='true'] {
+    background-color: var(--error-soft);
+  }
+
+  .erro-detalhe {
+    flex-basis: 100%;
+    margin-left: 30px;
+    padding: 6px 8px;
+    border-left: 2px solid var(--error);
+    border-radius: 4px;
+    background-color: var(--error-soft);
+    font-size: 11px;
+    color: var(--text-primary);
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: text;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .erro-detalhe p {
+    margin: 0;
+  }
+
+  .erro-detalhe-caminho {
+    margin-top: 2px;
+    color: var(--text-secondary);
   }
 
   .spinner-small {

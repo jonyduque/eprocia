@@ -73,6 +73,11 @@
   // Pausar a fila não interrompe o item em curso, que segue ativo.
   $: processingCount = contarAtivos(items);
 
+  $: monitorando = !!(config && config.watchdog_enabled && config.monitored_path);
+  $: textoMonitoramento = monitorando
+    ? `Monitorando: ${config.monitored_path}`
+    : (config && !config.watchdog_enabled && config.monitored_path ? 'Monitoramento pausado' : 'Sem monitoramento ativo');
+
   $: temaAtual = temaEfetivo(temaPref, sistemaEscuro);
   $: {
     document.documentElement.classList.toggle('light', temaAtual === 'light');
@@ -409,8 +414,9 @@
       {#if sidebarCollapsed}
         <!-- Collapsed Sidebar Vertical Tools -->
         <div class="collapsed-tools">
-          <div class="collapsed-indicator" class:active={config && config.watchdog_enabled && config.monitored_path} class:inactive={!config || !config.watchdog_enabled || !config.monitored_path} title={config && config.watchdog_enabled && config.monitored_path ? `Monitorando: ${config.monitored_path}` : (config && !config.watchdog_enabled && config.monitored_path ? 'Monitoramento pausado' : 'Sem monitoramento ativo')}>
-            <span class="collapsed-dot"></span>
+          <div class="collapsed-indicator" class:active={monitorando} class:inactive={!monitorando} role="status" title={textoMonitoramento}>
+            <span class="collapsed-dot" aria-hidden="true"></span>
+            <span class="sr-only">{textoMonitoramento}</span>
           </div>
 
           <button class="collapsed-tool-btn" on:click={triggerManualSelect} title="Processar ZIP Manualmente">
@@ -740,6 +746,18 @@
     padding: 16px 0;
     flex: 1;
     width: 100%;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .collapsed-indicator {
