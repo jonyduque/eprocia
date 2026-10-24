@@ -34,3 +34,27 @@ export function teclaDivisor(tecla, largura, larguraJanela) {
       return null;
   }
 }
+
+// Junta os movimentos do ponteiro num por quadro: a largura muda no máximo uma
+// vez por pintura, sempre com a posição mais recente. Soltar aplica na hora a
+// posição que ainda esperava o quadro, para a largura salva ser a final.
+export function criarArrasto(aplicar, relogio = globalThis) {
+  let id = 0;
+  let x = 0;
+  return {
+    mover(novoX) {
+      x = novoX;
+      if (id) return;
+      id = relogio.requestAnimationFrame(() => {
+        id = 0;
+        aplicar(x);
+      });
+    },
+    soltar() {
+      if (!id) return;
+      relogio.cancelAnimationFrame(id);
+      id = 0;
+      aplicar(x);
+    },
+  };
+}

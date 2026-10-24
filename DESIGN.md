@@ -102,5 +102,14 @@ Fila pausada: pausar só impede o próximo item de começar. O item em curso man
 - **Gap entre itens da lista:** `4px`.
 - **Raio de borda (Border Radius):** `4px` (cantos levemente arredondados, mantendo a sobriedade).
 
+## 7. Movimento
+- **Tokens** (`frontend/src/assets/css/style.css`): `--dur-fast` `150ms` (hover, foco, entradas pequenas), `--dur-base` `220ms` (troca de tema, toasts, barra de progresso), `--ease-out` `cubic-bezier(.2,.8,.2,1)` como curva única. Laços contínuos: `--dur-spin` `800ms` (spinner) e `--dur-pulse` `1500ms` (indicador "N ativos").
+- Toda `transition` e `animation` usa os tokens e nomeia as propriedades; nada de duração, `ease-*` ou `cubic-bezier` solto nos componentes.
+- Transições do Svelte (`fly`, `fade`) rodam em JS e não leem CSS: usam `duracaoMovimento(DUR_FAST | DUR_BASE)` de `src/lib/aviso.js`, que devolve `0` em `prefers-reduced-motion`.
+- `prefers-reduced-motion: reduce` zera `--dur-fast` e `--dur-base`, troca deslocamentos (hover da linha, `fly`) por troca direta, desliga o pulso e deixa o spinner em `2400ms` em vez de pará-lo, porque ele é o sinal de que o item está em processamento.
+- Animações contínuas só mexem em `transform`/`opacity` (o pulso é um anel num `::after`), para não repintar a cada quadro.
+- Overlay de soltar ZIP: entra e sai com `fade` (`--dur-fast`); a caixa cresce de `scale(0.98)`.
+- Divisor do painel: Pointer Events com captura, largura aplicada uma vez por quadro e presa aos limites (encosta no mínimo/máximo em vez de travar), sem transição de largura durante o arrasto; cursor `col-resize` e sem seleção de texto na janela toda enquanto arrasta. A alça captura `8px` e desenha uma linha de `2px`. O arrasto termina em `pointerup`, `pointercancel`, perda de captura ou quando a janela perde o foco.
+
 ---
 *Este design deve ser implementado no frontend do Wails v3 utilizando CSS Vanilla ou um framework leve que suporte as variáveis de cores definidas acima.*

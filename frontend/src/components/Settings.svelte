@@ -480,7 +480,7 @@
     border: 2px solid var(--border);
     border-top-color: var(--accent);
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    animation: spin var(--dur-spin) linear infinite;
   }
 
   @keyframes spin {

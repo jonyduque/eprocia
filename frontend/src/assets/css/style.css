@@ -55,6 +55,9 @@
   --dur-fast: 150ms;
   --dur-base: 220ms;
   --ease-out: cubic-bezier(.2, .8, .2, 1);
+  /* Laços contínuos (spinner e pulso de atividade). */
+  --dur-spin: 800ms;
+  --dur-pulse: 1500ms;
 
   --font-sans: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
 }
@@ -96,7 +99,16 @@
   :root {
     --dur-fast: 0ms;
     --dur-base: 0ms;
+    /* O spinner é o sinal de atividade: gira devagar em vez de parar. */
+    --dur-spin: 2400ms;
   }
+}
+
+/* Arrasto do divisor: cursor estável e sem seleção de texto em toda a janela. */
+:root.redimensionando,
+:root.redimensionando * {
+  cursor: col-resize !important;
+  user-select: none;
 }
 
 * {

@@ -21,7 +21,9 @@
   import ProcessList from './components/ProcessList.svelte';
   import { contarAtivos, rotuloFila } from './lib/estado.js';
   import { criarFilaPorQuadro } from './lib/quadro.js';
-  import { LARGURA_MIN_PAINEL, larguraMaxPainel, limitarPainel, teclaDivisor } from './lib/divisor.js';
+  import { fade } from 'svelte/transition';
+  import { LARGURA_MIN_PAINEL, criarArrasto, larguraMaxPainel, limitarPainel, teclaDivisor } from './lib/divisor.js';
+  import { DUR_FAST, duracaoMovimento } from './lib/aviso.js';
   import { gravarPainel, lerPainel } from './lib/painel.js';
   import {
     CONSULTA_ESCURO,
@@ -139,6 +141,7 @@
   });
 
   onDestroy(() => {
+    stopResizing();
     consultaTema.removeEventListener('change', mudouTemaDoSistema);
     filaQuadro.cancelar();
 
@@ -216,23 +219,33 @@
     }
   }
 
-  // Sidebar Resizing Handlers
+  // O painel começa em x = 0, então a posição do ponteiro é a própria largura.
+  const arrasto = criarArrasto((x) => {
+    sidebarWidth = limitarPainel(x, larguraJanela);
+  });
+
+  // A captura mantém os eventos no divisor mesmo com o ponteiro fora dele;
+  // blur cobre o Alt+Tab no meio do arrasto, que não gera pointerup.
   function startResizing(e) {
+    if (e.button !== 0) return;
     e.preventDefault();
     isResizing = true;
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', stopResizing);
+    e.currentTarget.setPointerCapture(e.pointerId);
+    document.documentElement.classList.add('redimensionando');
+    window.addEventListener('blur', stopResizing);
   }
 
-  function handleMouseMove(e) {
+  function handlePointerMove(e) {
     if (!isResizing) return;
-    sidebarWidth = limitarPainel(e.clientX, larguraJanela);
+    arrasto.mover(e.clientX);
   }
 
   function stopResizing() {
+    if (!isResizing) return;
+    arrasto.soltar();
     isResizing = false;
-    window.removeEventListener('mousemove', handleMouseMove);
-    window.removeEventListener('mouseup', stopResizing);
+    document.documentElement.classList.remove('redimensionando');
+    window.removeEventListener('blur', stopResizing);
     salvarPainel();
   }
 
@@ -292,7 +305,7 @@
 >
   <!-- Full Window Drag & Drop Overlay -->
   {#if dragActive}
-    <div class="drag-overlay">
+    <div class="drag-overlay" transition:fade={{ duration: duracaoMovimento(DUR_FAST) }}>
       <div class="overlay-box">
         <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-archive"><path d="M4 22V4c0-.5.2-1 .6-1.4C5 2.2 5.5 2 6 2h8l6 6v12c0 .5-.2 1-.6 1.4-.4.4-.9.6-1.4.6H6c-.5 0-1-.2-1.4-.6C4.2 21 4 20.5 4 20Z"/><path d="M14 2v6h6"/><circle cx="10" cy="14" r="2"/><path d="M16 14h-4"/><path d="M12 12v4"/><path d="M8 14H6"/></svg>
         <p>Solte o arquivo ZIP em qualquer lugar para processar</p>
@@ -366,6 +379,7 @@
       class="sidebar"
       style="width: {sidebarCollapsed ? '48px' : larguraPainel + 'px'}"
       class:collapsed={sidebarCollapsed}
+      class:resizing={isResizing}
     >
       <div class="sidebar-header-toggle">
         {#if !sidebarCollapsed}
@@ -438,7 +452,11 @@
           aria-valuetext="{larguraPainel} pixels"
           aria-controls="sidebar"
           tabindex="0"
-          on:mousedown={startResizing}
+          on:pointerdown={startResizing}
+          on:pointermove={handlePointerMove}
+          on:pointerup={stopResizing}
+          on:pointercancel={stopResizing}
+          on:lostpointercapture={stopResizing}
           on:keydown={handleResizeKeydown}
           class:resizing={isResizing}
         ></div>
@@ -525,7 +543,7 @@
   }
 
   @keyframes zoomIn {
-    from { transform: scale(0.95); opacity: 0; }
+    from { transform: scale(0.98); opacity: 0; }
     to { transform: scale(1); opacity: 1; }
   }
 
@@ -542,7 +560,7 @@
     padding: 0 12px;
     flex-shrink: 0;
     user-select: none;
-    transition: background-color 0.3s, border-color 0.3s;
+    transition: background-color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
   }
 
   .brand-title {
@@ -590,7 +608,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: color 0.15s, background-color 0.15s;
+    transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
   }
 
   .titlebar-btn:hover {
@@ -617,26 +635,38 @@
   }
 
   .pulse-dot {
+    position: relative;
     width: 5px;
     height: 5px;
     background-color: var(--accent);
     border-radius: 50%;
-    box-shadow: 0 0 0 0 var(--accent-ring);
-    animation: pulse 1.5s infinite;
+  }
+
+  /* Anel num pseudo-elemento: só transform e opacity, sem repintar a cada quadro. */
+  .pulse-dot::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background-color: var(--accent-ring);
+    animation: pulse var(--dur-pulse) var(--ease-out) infinite;
   }
 
   @keyframes pulse {
-    0% {
-      transform: scale(0.95);
-      box-shadow: 0 0 0 0 var(--accent-ring);
-    }
-    70% {
+    from {
       transform: scale(1);
-      box-shadow: 0 0 0 4px transparent;
+      opacity: 0.8;
     }
-    100% {
-      transform: scale(0.95);
-      box-shadow: 0 0 0 0 transparent;
+    to {
+      transform: scale(2.6);
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pulse-dot::after {
+      animation: none;
+      opacity: 0;
     }
   }
 
@@ -658,7 +688,12 @@
     position: relative;
     flex-shrink: 0;
     overflow: visible; /* Needed for resize handle to overlap */
-    transition: width 0.15s ease-in-out, background-color 0.3s, border-color 0.3s;
+    transition: width var(--dur-fast) var(--ease-out), background-color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
+  }
+
+  /* A largura acompanha o ponteiro 1:1; a transição só vale para recolher e teclado. */
+  .sidebar.resizing {
+    transition: none;
   }
 
   .sidebar.collapsed {
@@ -720,20 +755,31 @@
   }
 
   /* Resizing Handle */
+  /* Captura 8px centrados na borda; só a linha de 2px aparece. */
   .resize-handle {
     position: absolute;
     top: 0;
-    right: -2px;
+    right: -4px;
     bottom: 0;
-    width: 4px;
+    width: 8px;
     cursor: col-resize;
     z-index: 10;
-    transition: background-color 0.2s;
+    touch-action: none;
   }
 
-  .resize-handle:hover,
-  .resize-handle.resizing,
-  .resize-handle:focus-visible {
+  .resize-handle::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 3px;
+    width: 2px;
+    transition: background-color var(--dur-fast) var(--ease-out);
+  }
+
+  .resize-handle:hover::before,
+  .resize-handle.resizing::before,
+  .resize-handle:focus-visible::before {
     background-color: var(--accent);
   }
 
@@ -796,7 +842,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: color 0.15s, border-color 0.15s;
+    transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
   }
 
   .collapsed-tool-btn:hover {
@@ -826,7 +872,7 @@
     flex-direction: column;
     gap: 8px;
     box-shadow: var(--shadow-sm);
-    transition: background-color 0.3s, border-color 0.3s;
+    transition: background-color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
   }
 
   .manual-card .card-header {
@@ -859,7 +905,7 @@
     justify-content: center;
     gap: 8px;
     cursor: pointer;
-    transition: border-color 0.2s, background-color 0.2s;
+    transition: border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
   }
 
   .manual-select-btn:hover {
@@ -889,7 +935,7 @@
     color: var(--text-secondary);
     flex-shrink: 0;
     user-select: none;
-    transition: background-color 0.3s, border-color 0.3s;
+    transition: background-color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
   }
 
   .status-item {

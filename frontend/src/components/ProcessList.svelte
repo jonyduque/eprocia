@@ -231,7 +231,7 @@
             class="item-row {item.status}"
             class:has-progress={estado === 'processando'}
             data-id={item.id}
-            transition:fly={{ y: 8, duration: 200 }}
+            transition:fly={{ y: 8, duration: duracaoMovimento(DUR_BASE), easing: cubicOut }}
           >
             <!-- Status Icon -->
             <div class="status-col">
@@ -457,7 +457,7 @@
     overflow: hidden;
     container-type: inline-size;
     box-shadow: var(--shadow-lg);
-    transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
+    transition: background-color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
   }
 
   .list-header {
@@ -655,11 +655,11 @@
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     box-shadow: var(--shadow-sm);
-    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-                box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-                background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-                border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-                padding-bottom 0.2s;
+    transition: transform var(--dur-fast) var(--ease-out),
+                box-shadow var(--dur-fast) var(--ease-out),
+                background-color var(--dur-fast) var(--ease-out),
+                border-color var(--dur-fast) var(--ease-out),
+                padding-bottom var(--dur-fast) var(--ease-out);
   }
 
   .item-row:hover {
@@ -787,7 +787,7 @@
     background: linear-gradient(90deg, var(--accent) 0%, var(--success) 100%);
     border-radius: 4px;
     box-shadow: 0 0 8px var(--accent);
-    transition: width 0.2s ease-out;
+    transition: width var(--dur-base) var(--ease-out);
   }
 
   .actions-col {
@@ -815,7 +815,7 @@
     justify-content: center;
     padding: 4px;
     border-radius: 4px;
-    transition: color 0.15s, background-color 0.15s;
+    transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
   }
 
   .btn-action:hover {
@@ -872,7 +872,7 @@
     border: 2px solid var(--border);
     border-top-color: var(--accent);
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    animation: spin var(--dur-spin) linear infinite;
   }
 
   .truncate {
@@ -883,5 +883,11 @@
 
   @keyframes spin {
     to { transform: rotate(360deg); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .item-row:hover {
+      transform: none;
+    }
   }
 </style>
