@@ -104,7 +104,7 @@ func TestProcessZip_SaidaOrdenadaEContagens(t *testing.T) {
 	// onProgress é chamado por vários goroutines; guarda o maior estado visto.
 	var mu sync.Mutex
 	var maior [4]int
-	outPath, docs, pages, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfgSemOCR(),
+	outPath, docs, pages, tokens, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfgSemOCR(),
 		func(_ float64, _ string, pd, td, pp, tp int) {
 			mu.Lock()
 			defer mu.Unlock()
@@ -130,6 +130,9 @@ func TestProcessZip_SaidaOrdenadaEContagens(t *testing.T) {
 		t.Fatalf("falha ao ler saída: %v", err)
 	}
 	saida := string(b)
+	if want := EstimateTokens(saida); tokens != want || tokens == 0 {
+		t.Errorf("tokens estimados = %d, esperava %d (estimativa do .txt gravado)", tokens, want)
+	}
 
 	if !strings.Contains(saida, "Total de Documentos: 3") {
 		t.Errorf("cabeçalho sem o total de documentos:\n%s", saida)
@@ -182,7 +185,7 @@ func TestProcessZip_FixtureMistoContagensBatemComSaida(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	outPath, docs, pages, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfgSemOCR(), nil)
+	outPath, docs, pages, _, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfgSemOCR(), nil)
 	if err != nil {
 		t.Fatalf("ProcessZip falhou: %v", err)
 	}
@@ -215,7 +218,7 @@ func TestProcessZip_ZipSemPDFNemHTMLDevolveErro(t *testing.T) {
 		{"Evento 1 - NOTA1.txt", []byte("texto")},
 		{"__MACOSX/Evento 1 - DOC1.pdf", pdfComTexto("lixo do mac")},
 	})
-	outPath, docs, pages, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfgSemOCR(), nil)
+	outPath, docs, pages, _, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfgSemOCR(), nil)
 	if err == nil {
 		t.Fatal("esperava erro para ZIP sem PDF nem HTML")
 	}
@@ -232,7 +235,7 @@ func TestProcessZip_ZipIlegivelDevolveErro(t *testing.T) {
 	if err := os.WriteFile(zipPath, []byte("isto nao e um zip"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, _, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfgSemOCR(), nil); err == nil {
+	if _, _, _, _, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfgSemOCR(), nil); err == nil {
 		t.Fatal("esperava erro para ZIP ilegível")
 	}
 	if _, err := os.Stat(saidaDe(zipPath)); err == nil {
@@ -240,7 +243,7 @@ func TestProcessZip_ZipIlegivelDevolveErro(t *testing.T) {
 	}
 
 	ausente := filepath.Join(t.TempDir(), "nao-existe.zip")
-	if _, _, _, err := NewPipeline().ProcessZip(context.Background(), ausente, cfgSemOCR(), nil); err == nil {
+	if _, _, _, _, err := NewPipeline().ProcessZip(context.Background(), ausente, cfgSemOCR(), nil); err == nil {
 		t.Fatal("esperava erro para ZIP inexistente")
 	}
 }
@@ -254,7 +257,7 @@ func TestProcessZip_PDFTruncadoViraPlaceholderSemAbortarOsDemais(t *testing.T) {
 		{"Evento 3 - CERT1.html", []byte("<html><body>Certidao do evento tres</body></html>")},
 	})
 
-	outPath, docs, pages, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfgSemOCR(), nil)
+	outPath, docs, pages, _, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfgSemOCR(), nil)
 	if err != nil {
 		t.Fatalf("PDF truncado não deveria abortar o processamento: %v", err)
 	}
@@ -299,7 +302,7 @@ func TestProcessZip_CanceladoNoMeioNaoGravaSaidaNemDeixaTemporarios(t *testing.T
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var chamadas atomic.Int32
-	outPath, docs, pages, err := NewPipeline().ProcessZip(ctx, zipPath, cfgSemOCR(),
+	outPath, docs, pages, _, err := NewPipeline().ProcessZip(ctx, zipPath, cfgSemOCR(),
 		func(float64, string, int, int, int, int) {
 			chamadas.Add(1)
 			cancel()
@@ -327,7 +330,7 @@ func TestProcessZip_FalhaAoGravarSaidaDevolveErro(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	outPath, docs, pages, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfgSemOCR(), nil)
+	outPath, docs, pages, _, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfgSemOCR(), nil)
 	if err == nil {
 		t.Fatal("esperava erro quando a saída não pode ser gravada")
 	}

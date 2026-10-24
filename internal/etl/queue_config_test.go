@@ -14,11 +14,11 @@ import (
 func TestFila_SemConfigEComCarregamentoFalhandoMarcaErroESegue(t *testing.T) {
 	var chamadas int
 	var mu sync.Mutex
-	q, _ := novaFilaGravada(t, func(context.Context, string, *models.Config, func(float64, string, int, int, int, int)) (string, int, int, error) {
+	q, _ := novaFilaGravada(t, func(context.Context, string, *models.Config, func(float64, string, int, int, int, int)) (string, int, int, int, error) {
 		mu.Lock()
 		chamadas++
 		mu.Unlock()
-		return "x.txt", 1, 1, nil
+		return "x.txt", 1, 1, 0, nil
 	})
 	q.cfg = nil
 	errCfg := errors.New("invalid character 'o' looking for beginning of object key string")
@@ -45,9 +45,9 @@ func TestFila_SemConfigEComCarregamentoFalhandoMarcaErroESegue(t *testing.T) {
 func TestFila_SemConfigUsaAQueFoiCarregada(t *testing.T) {
 	carregada := &models.Config{OcrMode: "fast", CleaningLevel: "aggressive"}
 	recebida := make(chan *models.Config, 1)
-	q, _ := novaFilaGravada(t, func(_ context.Context, _ string, cfg *models.Config, _ func(float64, string, int, int, int, int)) (string, int, int, error) {
+	q, _ := novaFilaGravada(t, func(_ context.Context, _ string, cfg *models.Config, _ func(float64, string, int, int, int, int)) (string, int, int, int, error) {
 		recebida <- cfg
-		return "x.txt", 1, 1, nil
+		return "x.txt", 1, 1, 0, nil
 	})
 	q.cfg = nil
 	q.carregarConfig = func() (*models.Config, error) { return carregada, nil }

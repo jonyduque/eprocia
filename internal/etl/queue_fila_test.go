@@ -40,7 +40,7 @@ func (p *procFalso) canal(path string) chan error {
 // libera termina o processamento de path com o erro dado (nil = sucesso).
 func (p *procFalso) libera(path string, err error) { p.canal(path) <- err }
 
-func (p *procFalso) processar(ctx context.Context, path string, _ *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, error) {
+func (p *procFalso) processar(ctx context.Context, path string, _ *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error) {
 	p.mu.Lock()
 	p.emCurso++
 	if p.emCurso > p.maxEmCurso {
@@ -60,11 +60,11 @@ func (p *procFalso) processar(ctx context.Context, path string, _ *models.Config
 	select {
 	case err := <-p.canal(path):
 		if err != nil {
-			return "", 0, 0, err
+			return "", 0, 0, 0, err
 		}
-		return path + ".txt", 2, 6, nil
+		return path + ".txt", 2, 6, 0, nil
 	case <-ctx.Done():
-		return "", 0, 0, ctx.Err()
+		return "", 0, 0, 0, ctx.Err()
 	}
 }
 
@@ -231,7 +231,7 @@ func TestFila_PausaImpedeProximoEResumeRetoma(t *testing.T) {
 
 func TestFila_PanicViraErroEFilaSegue(t *testing.T) {
 	p := novoProcFalso()
-	processar := func(ctx context.Context, path string, cfg *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, error) {
+	processar := func(ctx context.Context, path string, cfg *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error) {
 		if path == "a.zip" {
 			panic("pdf corrompido")
 		}
@@ -378,9 +378,9 @@ func TestFila_AddFilesIgnoraDuplicadoEmAndamento(t *testing.T) {
 
 func TestFila_SetConfigChegaAoProcessador(t *testing.T) {
 	recebida := make(chan *models.Config, 1)
-	q, _ := novaFilaGravada(t, func(_ context.Context, _ string, cfg *models.Config, _ func(float64, string, int, int, int, int)) (string, int, int, error) {
+	q, _ := novaFilaGravada(t, func(_ context.Context, _ string, cfg *models.Config, _ func(float64, string, int, int, int, int)) (string, int, int, int, error) {
 		recebida <- cfg
-		return "", 0, 0, nil
+		return "", 0, 0, 0, nil
 	})
 	cfg := &models.Config{CleaningLevel: "aggressive", OcrMode: "best"}
 	q.SetConfig(cfg)

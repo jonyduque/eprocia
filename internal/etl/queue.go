@@ -18,22 +18,23 @@ import (
 
 // QueueItem represents an item in the execution queue.
 type QueueItem struct {
-	ID             string             `json:"id"`
-	Name           string             `json:"name"`
-	Path           string             `json:"path"`
-	Status         string             `json:"status"` // "pending", "processing", "paused", "cancelled", "success", "error"
-	Progress       float64            `json:"progress"`
-	Message        string             `json:"message"`
-	OutputPath     string             `json:"output_path"`
-	DocsCount      int                `json:"docs_count"`
-	PagesCount     int                `json:"pages_count"`
-	ProcessedDocs  int                `json:"processed_docs"`
-	TotalDocs      int                `json:"total_docs"`
-	ProcessedPages int                `json:"processed_pages"`
-	TotalPages     int                `json:"total_pages"`
-	Error          string             `json:"error,omitempty"`
-	Timestamp      int64              `json:"timestamp"`
-	cancel         context.CancelFunc `json:"-"`
+	ID              string             `json:"id"`
+	Name            string             `json:"name"`
+	Path            string             `json:"path"`
+	Status          string             `json:"status"` // "pending", "processing", "paused", "cancelled", "success", "error"
+	Progress        float64            `json:"progress"`
+	Message         string             `json:"message"`
+	OutputPath      string             `json:"output_path"`
+	DocsCount       int                `json:"docs_count"`
+	PagesCount      int                `json:"pages_count"`
+	EstimatedTokens int                `json:"estimated_tokens"`
+	ProcessedDocs   int                `json:"processed_docs"`
+	TotalDocs       int                `json:"total_docs"`
+	ProcessedPages  int                `json:"processed_pages"`
+	TotalPages      int                `json:"total_pages"`
+	Error           string             `json:"error,omitempty"`
+	Timestamp       int64              `json:"timestamp"`
+	cancel          context.CancelFunc `json:"-"`
 
 	ultimoEnvio  time.Time   // último queue:item deste item
 	envioPend    *time.Timer // queue:item agendado pelo limitador
@@ -65,7 +66,7 @@ type Queue struct {
 	emitir func(ctx context.Context, nome string, dados ...any)
 
 	// processar substitui pipeline.ProcessZip nos testes.
-	processar func(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, error)
+	processar func(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error)
 
 	// carregarConfig substitui config.Load nos testes.
 	carregarConfig func() (*models.Config, error)
@@ -214,21 +215,22 @@ func (q *Queue) copyItemsLocked() []*QueueItem {
 
 func copiarItem(item *QueueItem) *QueueItem {
 	return &QueueItem{
-		ID:             item.ID,
-		Name:           item.Name,
-		Path:           item.Path,
-		Status:         item.Status,
-		Progress:       item.Progress,
-		Message:        item.Message,
-		OutputPath:     item.OutputPath,
-		DocsCount:      item.DocsCount,
-		PagesCount:     item.PagesCount,
-		ProcessedDocs:  item.ProcessedDocs,
-		TotalDocs:      item.TotalDocs,
-		ProcessedPages: item.ProcessedPages,
-		TotalPages:     item.TotalPages,
-		Error:          item.Error,
-		Timestamp:      item.Timestamp,
+		ID:              item.ID,
+		Name:            item.Name,
+		Path:            item.Path,
+		Status:          item.Status,
+		Progress:        item.Progress,
+		Message:         item.Message,
+		OutputPath:      item.OutputPath,
+		DocsCount:       item.DocsCount,
+		PagesCount:      item.PagesCount,
+		EstimatedTokens: item.EstimatedTokens,
+		ProcessedDocs:   item.ProcessedDocs,
+		TotalDocs:       item.TotalDocs,
+		ProcessedPages:  item.ProcessedPages,
+		TotalPages:      item.TotalPages,
+		Error:           item.Error,
+		Timestamp:       item.Timestamp,
 	}
 }
 
@@ -426,7 +428,7 @@ func (q *Queue) processItem(item *QueueItem) {
 	if processar == nil {
 		processar = q.pipeline.ProcessZip
 	}
-	outputPath, docsCount, pagesCount, err := processar(ctx, item.Path, cfg, onProgress)
+	outputPath, docsCount, pagesCount, tokens, err := processar(ctx, item.Path, cfg, onProgress)
 
 	q.mu.Lock()
 	item.cancel = nil
@@ -445,13 +447,14 @@ func (q *Queue) processItem(item *QueueItem) {
 			item.Error = err.Error()
 		}
 	} else {
-		log.Printf("[Queue] Sucesso no processamento de %s. Docs: %d, Páginas: %d", item.Name, docsCount, pagesCount)
+		log.Printf("[Queue] Sucesso no processamento de %s. Docs: %d, Páginas: %d, Tokens estimados: %d", item.Name, docsCount, pagesCount, tokens)
 		item.Status = "success"
 		item.Progress = 1.0
 		item.Message = "Concluído"
 		item.OutputPath = outputPath
 		item.DocsCount = docsCount
 		item.PagesCount = pagesCount
+		item.EstimatedTokens = tokens
 		item.ProcessedDocs = docsCount
 		item.TotalDocs = docsCount
 		item.ProcessedPages = pagesCount

@@ -30,7 +30,7 @@ func TestProcessZip_SemOCRNaoGravaPDFTemporario(t *testing.T) {
 	}
 	zipPath := gravarZip(t, entradas)
 
-	outPath, docs, pages, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfgSemOCR(), nil)
+	outPath, docs, pages, _, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfgSemOCR(), nil)
 	if err != nil {
 		t.Fatalf("ProcessZip falhou: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestProcessZip_PreContagemNaoRetemPDFsEmMemoria(t *testing.T) {
 		retido = maxTotalPDFEmMemoria - mem.disponivel.Load()
 	}
 
-	if _, _, _, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfgSemOCR(), nil); err != nil {
+	if _, _, _, _, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfgSemOCR(), nil); err != nil {
 		t.Fatalf("ProcessZip falhou: %v", err)
 	}
 	if retido != 0 {
@@ -172,7 +172,7 @@ func TestProcessZip_OCRRealMaterializaERemoveTemporario(t *testing.T) {
 
 	cfg := cfgSemOCR()
 	cfg.OcrMode = "fast"
-	outPath, _, _, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfg, nil)
+	outPath, _, _, _, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfg, nil)
 	if err != nil {
 		t.Fatalf("ProcessZip falhou: %v", err)
 	}

@@ -27,6 +27,7 @@ function item(n, status, extra = {}) {
     output_path: '',
     docs_count: 0,
     pages_count: 0,
+    estimated_tokens: 0,
     processed_docs: 0,
     total_docs: 0,
     processed_pages: 0,
@@ -40,7 +41,7 @@ const sucesso = (n) => item(n, 'success', {
   progress: 100,
   message: 'Concluído',
   output_path: `${CONFIG.monitored_path}\\${processo(n)}.txt`,
-  docs_count: 57, pages_count: 142, processed_docs: 57, total_docs: 57, processed_pages: 142, total_pages: 142,
+  docs_count: 57, pages_count: 142, estimated_tokens: 98450, processed_docs: 57, total_docs: 57, processed_pages: 142, total_pages: 142,
 });
 
 const processando = (n, pct) => item(n, 'processing', {

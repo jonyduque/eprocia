@@ -253,17 +253,18 @@ func NewPipeline() *Pipeline {
 }
 
 // ProcessZip extracts, parses, OCRs (if needed), sorts, and formats a ZIP file.
-func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int)) (string, int, int, error) {
+// It returns the output path, document and page counts and the estimated tokens.
+func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int)) (string, int, int, int, error) {
 	// 1. Read ZIP files
 	files, rc, err := ReadZipFiles(zipPath)
 	if err != nil {
-		return "", 0, 0, err
+		return "", 0, 0, 0, err
 	}
 	defer rc.Close()
 
 	if len(files) == 0 {
 		errNoFiles := fmt.Errorf("no PDF or HTML documents found in ZIP")
-		return "", 0, 0, errNoFiles
+		return "", 0, 0, 0, errNoFiles
 	}
 
 	// 2. Sort documents chronologically and naturally
@@ -325,7 +326,7 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 	}
 	if err := ctx.Err(); err != nil {
 		log.Printf("[Pipeline] Processamento cancelado durante o pré-cálculo de páginas")
-		return "", 0, 0, err
+		return "", 0, 0, 0, err
 	}
 
 	totalPagesAll := 0
@@ -566,13 +567,13 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 	wg.Wait()
 
 	if errParseFirst != nil {
-		return "", 0, 0, errParseFirst
+		return "", 0, 0, 0, errParseFirst
 	}
 
 	// Double check for context cancellation before generating/writing the file
 	if err := ctx.Err(); err != nil {
 		log.Printf("[Pipeline] Processamento cancelado antes de salvar o arquivo de saída")
-		return "", 0, 0, err
+		return "", 0, 0, 0, err
 	}
 
 	// 4. Format consolidated output into XML
@@ -583,14 +584,14 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 	// WriteString não copia o texto para um []byte, como os.WriteFile exigiria.
 	out, err := os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		return "", 0, 0, err
+		return "", 0, 0, 0, err
 	}
 	_, err = out.WriteString(outputText)
 	if errClose := out.Close(); err == nil {
 		err = errClose
 	}
 	if err != nil {
-		return "", 0, 0, err
+		return "", 0, 0, 0, err
 	}
 
 	// Count total pages
@@ -605,5 +606,5 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 		}
 	}
 
-	return outputPath, totalFiles, totalPages, nil
+	return outputPath, totalFiles, totalPages, EstimateTokens(outputText), nil
 }

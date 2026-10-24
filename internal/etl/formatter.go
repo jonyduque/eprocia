@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // pageMarkerRegex matches a line that is *only* a page marker, such as
@@ -169,6 +170,17 @@ func cleanPage(text string, level string, repeated map[string]bool) string {
 	return strings.Join(cleanedLines, "\n")
 }
 
+// EstimateTokens approximates the LLM token count of text as one token per four
+// characters, a local heuristic with no tokenizer or network access.
+func EstimateTokens(text string) int {
+	return utf8.RuneCountInString(text) / 4
+}
+
+// tokensLine renders the <contexto> line that carries the token estimate.
+func tokensLine(n int) string {
+	return fmt.Sprintf("    Tokens estimados: %d\n", n)
+}
+
 // GenerateConsolidatedOutput formats all extracted process data into structured XML tags.
 func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) string {
 	var sb strings.Builder
@@ -193,8 +205,9 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) st
 	sb.WriteString("<contexto>\n")
 	sb.WriteString("    PROCESSO JUDICIAL - ORDEM CRONOLÓGICA\n")
 	sb.WriteString(fmt.Sprintf("    Total de Documentos: %d\n", totalDocs))
-	sb.WriteString(fmt.Sprintf("    Data de Consolidação: %s\n\n", time.Now().Format("02/01/2006 15:04:05")))
-	sb.WriteString("    <summary>\n")
+	sb.WriteString(fmt.Sprintf("    Data de Consolidação: %s\n", time.Now().Format("02/01/2006 15:04:05")))
+	tokensAt := sb.Len()
+	sb.WriteString("\n    <summary>\n")
 
 	// Sort events and documents to build the summary block
 	for _, num := range eventNums {
@@ -227,6 +240,8 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) st
 	}
 	sb.WriteString("    </summary>\n")
 	sb.WriteString("</contexto>\n\n")
+	header := sb.String()
+	sb.Reset()
 
 	// Loop over each Event chronologically
 	for _, num := range eventNums {
@@ -302,6 +317,26 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) st
 		}
 		sb.WriteString("</evento>\n")
 	}
+	body := sb.String()
 
-	return sb.String()
+	// The estimate covers the whole output, including its own line, whose
+	// length depends on the number; a few rounds reach the fixed point.
+	base := utf8.RuneCountInString(header) + utf8.RuneCountInString(body)
+	tokens := base / 4
+	for range 4 {
+		next := (base + utf8.RuneCountInString(tokensLine(tokens))) / 4
+		if next == tokens {
+			break
+		}
+		tokens = next
+	}
+
+	line := tokensLine(tokens)
+	var out strings.Builder
+	out.Grow(len(header) + len(line) + len(body))
+	out.WriteString(header[:tokensAt])
+	out.WriteString(line)
+	out.WriteString(header[tokensAt:])
+	out.WriteString(body)
+	return out.String()
 }

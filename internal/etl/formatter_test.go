@@ -340,3 +340,47 @@ func TestGenerateConsolidatedOutput_AggressiveDropsRepeatedHeadersFooters(t *tes
 		t.Errorf("modo básico não deve remover cabeçalhos repetidos:\n%s", basic)
 	}
 }
+
+func TestEstimateTokens(t *testing.T) {
+	casos := []struct {
+		texto string
+		want  int
+	}{
+		{"", 0},
+		{"abc", 0},
+		{"abcd", 1},
+		{"ação", 1}, // conta runas, não bytes
+		{strings.Repeat("x", 4001), 1000},
+	}
+	for _, c := range casos {
+		if got := EstimateTokens(c.texto); got != c.want {
+			t.Errorf("EstimateTokens(%q) = %d, esperava %d", c.texto, got, c.want)
+		}
+	}
+}
+
+func TestGenerateConsolidatedOutput_TokensEstimadosNoContexto(t *testing.T) {
+	paginas := map[string]any{}
+	for i := 1; i <= 40; i++ {
+		paginas[strconv.Itoa(i)] = map[string]any{"index": i, "ocr": false, "image": "", "content": strings.Repeat("palavra ", 50)}
+	}
+	eventos := map[string]any{
+		"1": map[string]any{
+			"index": 1,
+			"documentos": map[string]any{
+				"x": map[string]any{"index": 1, "nome": "Evento 1 - INIC1.pdf", "paginas": paginas},
+			},
+		},
+	}
+
+	output := GenerateConsolidatedOutput(eventos, "basic")
+
+	contexto, _, ok := strings.Cut(output, "</contexto>")
+	if !ok {
+		t.Fatalf("saída sem </contexto>:\n%s", output)
+	}
+	want := "    Tokens estimados: " + strconv.Itoa(EstimateTokens(output)) + "\n"
+	if !strings.Contains(contexto, want) {
+		t.Errorf("<contexto> deveria ter %q (estimativa da saída inteira):\n%s", want, contexto)
+	}
+}

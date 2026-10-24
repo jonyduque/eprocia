@@ -10,6 +10,7 @@ export namespace etl {
 	    output_path: string;
 	    docs_count: number;
 	    pages_count: number;
+	    estimated_tokens: number;
 	    processed_docs: number;
 	    total_docs: number;
 	    processed_pages: number;
@@ -32,6 +33,7 @@ export namespace etl {
 	        this.output_path = source["output_path"];
 	        this.docs_count = source["docs_count"];
 	        this.pages_count = source["pages_count"];
+	        this.estimated_tokens = source["estimated_tokens"];
 	        this.processed_docs = source["processed_docs"];
 	        this.total_docs = source["total_docs"];
 	        this.processed_pages = source["processed_pages"];

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { ESTADOS, instalarStubs } from './estados.mjs';
 
 // Fields of etl.QueueItem (internal/etl/queue.go) the UI reads.
-const CAMPOS = ['id', 'name', 'path', 'status', 'progress', 'message', 'output_path', 'docs_count', 'pages_count',
+const CAMPOS = ['id', 'name', 'path', 'status', 'progress', 'message', 'output_path', 'docs_count', 'pages_count', 'estimated_tokens',
   'processed_docs', 'total_docs', 'processed_pages', 'total_pages', 'timestamp'];
 const STATUS = new Set(['pending', 'processing', 'paused', 'cancelled', 'success', 'error']);
 

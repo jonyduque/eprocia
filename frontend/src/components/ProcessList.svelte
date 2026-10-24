@@ -55,6 +55,8 @@
   const mov = criarMovimentoFila();
   $: mov.atualizar(items, filterText);
 
+  const formatoTokens = new Intl.NumberFormat('pt-BR');
+
   let detalhesAbertos = {};
   function alternarDetalhes(id) {
     detalhesAbertos = { ...detalhesAbertos, [id]: !detalhesAbertos[id] };
@@ -282,7 +284,8 @@
                 <span class="timestamp">{formatarHora(item.timestamp)}</span>
                 {#if estado === 'sucesso'}
                   <span class="meta-badge success">
-                    {item.docs_count} docs | {item.pages_count} pág
+                    {item.docs_count} docs | {item.pages_count} pág{#if item.estimated_tokens > 0}
+                      | <span title="Estimativa local: 1 token a cada 4 caracteres">~{formatoTokens.format(item.estimated_tokens)} tokens</span>{/if}
                   </span>
                 {:else if estado === 'processando'}
                   <span class="progress-message">{item.message || 'Processando...'}</span>

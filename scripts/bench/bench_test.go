@@ -123,7 +123,7 @@ func benchZip(b *testing.B, src string) {
 
 	b.ResetTimer()
 	for b.Loop() {
-		if _, _, _, err := pipe.ProcessZip(context.Background(), zipPath, cfg, nil); err != nil {
+		if _, _, _, _, err := pipe.ProcessZip(context.Background(), zipPath, cfg, nil); err != nil {
 			b.Fatalf("ProcessZip: %v", err)
 		}
 	}

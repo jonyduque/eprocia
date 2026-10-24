@@ -57,7 +57,7 @@ func TestProcessZip_CanceladoNaoPreCalculaPaginas(t *testing.T) {
 
 	p := NewPipeline()
 	cfg := &models.Config{CleaningLevel: "none", OcrMode: "fast"}
-	_, _, _, err := p.ProcessZip(ctx, zipPath, cfg, func(float64, string, int, int, int, int) {})
+	_, _, _, _, err := p.ProcessZip(ctx, zipPath, cfg, func(float64, string, int, int, int, int) {})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("esperava context.Canceled, obtive %v", err)
 	}
@@ -108,7 +108,7 @@ func TestProcessZip_PanicNoPreCalculoNaoVazaTemporarios(t *testing.T) {
 
 	p := NewPipeline()
 	cfg := &models.Config{CleaningLevel: "none", OcrMode: "none"}
-	_, _, _, err := p.ProcessZip(context.Background(), zipPath, cfg, func(float64, string, int, int, int, int) {})
+	_, _, _, _, err := p.ProcessZip(context.Background(), zipPath, cfg, func(float64, string, int, int, int, int) {})
 	if err != nil {
 		t.Fatalf("panic no pré-cálculo deveria cair no fallback, obtive erro: %v", err)
 	}
@@ -151,7 +151,7 @@ func TestProcessZip_PDFComXrefInconsistenteNaoDerrubaApp(t *testing.T) {
 
 	p := NewPipeline()
 	cfg := &models.Config{CleaningLevel: "none", OcrMode: "none"}
-	outPath, _, _, err := p.ProcessZip(context.Background(), zipPath, cfg, func(float64, string, int, int, int, int) {})
+	outPath, _, _, _, err := p.ProcessZip(context.Background(), zipPath, cfg, func(float64, string, int, int, int, int) {})
 	if err != nil {
 		t.Fatalf("ProcessZip falhou: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestProcessZip_NaoEmiteEventosWails(t *testing.T) {
 		}
 		p := NewPipeline()
 		cfg := &models.Config{CleaningLevel: "none", OcrMode: "none"}
-		if _, _, _, err := p.ProcessZip(context.Background(), zipPath, cfg, func(float64, string, int, int, int, int) {}); err != nil {
+		if _, _, _, _, err := p.ProcessZip(context.Background(), zipPath, cfg, func(float64, string, int, int, int, int) {}); err != nil {
 			t.Fatal(err)
 		}
 		return

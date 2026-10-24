@@ -39,11 +39,11 @@ func (f *finalizados) esperar(t *testing.T, n int) []*QueueItem {
 }
 
 func TestFila_AvisaFimComSucessoEErro(t *testing.T) {
-	q, _ := novaFilaGravada(t, func(_ context.Context, path string, _ *models.Config, _ func(float64, string, int, int, int, int)) (string, int, int, error) {
+	q, _ := novaFilaGravada(t, func(_ context.Context, path string, _ *models.Config, _ func(float64, string, int, int, int, int)) (string, int, int, int, error) {
 		if path == "ruim.zip" {
-			return "", 0, 0, errors.New("ZIP corrompido")
+			return "", 0, 0, 0, errors.New("ZIP corrompido")
 		}
-		return "C:\\saida\\bom.txt", 3, 12, nil
+		return "C:\\saida\\bom.txt", 3, 12, 5000, nil
 	})
 	f := &finalizados{}
 	q.SetOnFinished(f.registrar)
@@ -56,7 +56,7 @@ func TestFila_AvisaFimComSucessoEErro(t *testing.T) {
 		porNome[it.Name] = it
 	}
 	bom, ruim := porNome["bom.zip"], porNome["ruim.zip"]
-	if bom == nil || bom.Status != "success" || bom.OutputPath != "C:\\saida\\bom.txt" || bom.DocsCount != 3 || bom.PagesCount != 12 {
+	if bom == nil || bom.Status != "success" || bom.OutputPath != "C:\\saida\\bom.txt" || bom.DocsCount != 3 || bom.PagesCount != 12 || bom.EstimatedTokens != 5000 {
 		t.Fatalf("aviso de sucesso: %+v", bom)
 	}
 	if ruim == nil || ruim.Status != "error" || ruim.Error != "ZIP corrompido" {
