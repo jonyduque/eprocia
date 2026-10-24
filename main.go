@@ -109,9 +109,9 @@ func onReady(app *App) func() {
 // piscar outra cor antes do WebView pintar.
 func corDeFundo(claro bool) *options.RGBA {
 	if claro {
-		return &options.RGBA{R: 0xF3, G: 0xF4, B: 0xF6, A: 255}
+		return &options.RGBA{R: 0xF8, G: 0xF9, B: 0xFA, A: 255}
 	}
-	return &options.RGBA{R: 0x0B, G: 0x0F, B: 0x19, A: 255}
+	return &options.RGBA{R: 0x12, G: 0x12, B: 0x12, A: 255}
 }
 
 // temaClaro segue o tema escolhido no app; o do Windows só vale para

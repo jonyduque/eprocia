@@ -6,7 +6,7 @@ Este documento define a identidade visual e as diretrizes de interface (UI/UX) d
 O eprocIA é uma ferramenta de produtividade. A interface deve ser "invisível" e funcional, priorizando o conteúdo processual sobre adornos visuais.
 
 - **Densidade:** Alta. Espaçamentos reduzidos (compact) para permitir a visualização de muitos itens na lista sem rolagem excessiva.
-- **Estilo:** Moderno, limpo, utilizando bordas sutis e sombras leves para separação de camadas.
+- **Estilo:** Moderno, limpo, utilizando bordas sutis e sombras leves para separação de camadas. Superfícies opacas: sem `backdrop-filter`/blur, sem gradientes (a marca na barra de título é a única exceção, por ser o ícone) e sem brilho colorido em pontos ou barras.
 
 ## 2. Cores e Temas
 
@@ -14,8 +14,8 @@ O aplicativo suporta troca dinâmica entre temas Claro e Escuro, respeitando as 
 
 - **Preferência em três estados:** sistema (padrão), claro e escuro, alternados pelo botão da barra de título e salvos em `localStorage.theme`. No modo sistema o app escuta `prefers-color-scheme` e troca na hora (regra em `frontend/src/lib/tema.js`).
 - **Sem flash na abertura:** um script inline em `index.html` aplica a classe `light` antes da montagem, e o `BackgroundColour` da janela nativa (`main.go`) segue o tema do Windows com o mesmo `--bg-main` do CSS.
-- **Uma fonte de verdade:** cores só por tokens de `frontend/src/assets/css/style.css`, definidos para os dois temas (`--overlay`, `--glass`, `--card-*`, `--shadow-*`, `--on-accent`...). Fundos tonais derivam do token base com `color-mix(in srgb, var(--accent) 12%, transparent)` (`--accent-soft`, `--error-soft`, `--warning-soft`...). Nenhum hex, `rgb()`/`rgba()` ou `white`/`black` solto nos componentes.
-- **Contraste (WCAG 1.4.3 e 1.4.11):** texto pequeno precisa de 4,5:1 nos dois temas. Texto branco (`--on-accent`) só sobre `--accent-strong` (`#2563EB`, hover `--accent-strong-hover` `#1D4ED8`); `--accent`, `--success` e `--error` ficam para ícones, bordas e preenchimentos. Texto verde ou vermelho usa `--success-strong` / `--error-strong` (escuro `#34D399` / `#F87171`, claro `#047857` / `#B91C1C`) sobre superfície neutra; os toasts seguem esse padrão. Contorno de controles (campos, selects, trilho do interruptor desligado) usa `--border-strong` (`#6B7280`, ao menos 3:1 contra `--surface` e `--bg-main`); `--border` fica só para divisórias. O teste `frontend/contraste.test.mjs` calcula esses pares.
+- **Uma fonte de verdade:** cores só por tokens de `frontend/src/assets/css/style.css`, definidos para os dois temas (`--overlay`, `--shadow-*`, `--on-accent`...). Fundos tonais derivam do token base com `color-mix(in srgb, var(--accent) 12%, transparent)` (`--accent-soft`, `--error-soft`, `--warning-soft`...). Nenhum hex, `rgb()`/`rgba()` ou `white`/`black` solto nos componentes.
+- **Contraste (WCAG 1.4.3 e 1.4.11):** texto pequeno precisa de 4,5:1 nos dois temas. Texto branco (`--on-accent`) só sobre `--accent-strong` (`#0056B3`, hover `--accent-strong-hover` `#004A99`); `--accent`, `--success` e `--error` ficam para ícones, bordas e preenchimentos. Texto verde ou vermelho usa `--success-strong` / `--error-strong` (escuro `#75B798` / `#EA868F`, claro `#1E7E34` / `#B02A37`) sobre superfície neutra; os toasts seguem esse padrão. Contorno de controles (campos, selects, trilho do interruptor desligado) usa `--border-strong` (`#6C757D`, ao menos 3:1 contra `--surface` e `--bg-main`); `--border` fica só para divisórias. Texto secundário passa de 4,5:1 sobre `--surface` e `--bg-main`; ícones de estado, de 3:1 sobre `--surface`. Os testes `frontend/contraste.test.mjs` e `frontend/paleta.test.mjs` calculam esses pares e conferem os hex desta seção contra `style.css`.
 - **Foco visível:** uma regra global em `style.css` (`:where(button, input, select, textarea, a, [tabindex]):focus-visible`) desenha `outline: 2px solid var(--focus-ring)` com `outline-offset: 1px`. Componentes não removem o outline. No interruptor o input é invisível, então o anel vai no trilho (`.switch input:focus-visible + .slider`, offset `2px`).
 - **Botões com estado:** recolher/expandir o painel tem `aria-expanded` e `aria-controls="sidebar"`; o de tema diz o atual e o próximo no `aria-label` ("Tema: sistema. Mudar para claro"); maximizar vira "Restaurar" (ícone `copy`) quando `WindowIsMaximised` diz que a janela está maximizada, conferido na montagem e a cada `resize`. Botões só com ícone têm `aria-label`, e o SVG leva `aria-hidden="true"`.
 - **Anúncios (WCAG 4.1.3):** mensagens de status vão em regiões vivas sempre montadas (o conteúdo entra e sai dentro delas): sucesso em `role="status" aria-live="polite"`, erro em `role="alert"`. Barras de progresso têm `role="progressbar"` com `aria-valuemin`/`aria-valuemax`/`aria-valuenow` (0 a 100) e `aria-label`. Ícones de estado levam `aria-hidden="true"` e um texto `.sr-only` (Em processamento, Aguardando, Pausado, Concluído, Erro, Cancelado). Campos sem rótulo visível usam `aria-label` descritivo; o filtro da fila é `type="search"` e, sem resultado, mostra "Nenhum item corresponde ao filtro" em `role="status"`. O ponto da barra recolhida tem `role="status"` e o texto do monitoramento em `.sr-only`.
@@ -26,7 +26,7 @@ O aplicativo suporta troca dinâmica entre temas Claro e Escuro, respeitando as 
 - **Fundo Principal:** `#F8F9FA` (Cinza muito claro)
 - **Superfícies (Cards/Lista):** `#FFFFFF`
 - **Texto Primário:** `#212529` (Cinza quase preto)
-- **Texto Secundário:** `#6C757D`
+- **Texto Secundário:** `#646C75` (o `#6C757D` original ficava em 4,45:1 sobre o fundo)
 - **Bordas:** `#DEE2E6`
 
 ### 2.2 Tema Escuro (Dark Mode)
@@ -41,6 +41,19 @@ O aplicativo suporta troca dinâmica entre temas Claro e Escuro, respeitando as 
 - **Sucesso:** `#28A745` (Verde)
 - **Erro/Alerta:** `#DC3545` (Vermelho)
 - **Processamento/Link:** `#007BFF`
+
+Os destaques são iguais nos dois temas. Texto verde/vermelho usa as variantes `-strong` descritas acima.
+
+### 2.4 Tokens de apoio
+- `--accent-strong`: a primária (`#0056B3`), fundo do botão primário com texto branco.
+- `--accent`: ícones, bordas de destaque, divisor e anel de foco. No claro é a primária; no escuro é `--processing`, porque `#0056B3` não chega a 3:1 sobre `#1E1E1E`.
+- `--processing`: barra de progresso (sólida, sem gradiente) e link.
+- `--focus-ring`: igual a `--accent`, 3:1 contra `--surface` e `--bg-main`.
+- `--surface-hover`: fundo de linha e botão sob o ponteiro (escuro `#262626`, claro `#F1F3F5`); sempre diferente de `--border`.
+- `--border-strong`: contorno de controles e borda da linha sob o ponteiro (`#6C757D`).
+- `--warning`: fila pausada e watchdog parado (escuro `#F59E0B`, claro `#D97706`), com `--warning-soft`/`--warning-line` derivados.
+- `--shadow-sm`: única sombra de camada, `0 1px 3px`, só no contêiner da lista e em cartões flutuantes. `--shadow-overlay` (`0 4px 12px`) fica para a caixa de soltar ZIP.
+- Movimento: `--dur-fast`, `--dur-base`, `--ease-out`, `--dur-spin` e `--dur-pulse` (seção 7).
 
 ## 3. Tipografia
 Utilizaremos fontes sans-serif modernas que garantem legibilidade em tamanhos pequenos.
@@ -100,13 +113,14 @@ Fila pausada: pausar só impede o próximo item de começar. O item em curso man
 ## 6. Layout e Espaçamento (Grades)
 - **Padding padrão:** `8px` (em vez dos tradicionais 16px ou 24px).
 - **Gap entre itens da lista:** `4px`.
-- **Raio de borda (Border Radius):** `4px` (cantos levemente arredondados, mantendo a sobriedade).
+- **Raio de borda (Border Radius):** `4px` (cantos levemente arredondados, mantendo a sobriedade); até `6px` só no contêiner da lista e na caixa de soltar. Indicadores redondos usam `50%`.
+- **Linhas da fila:** fundo `--surface`, borda `1px` `--border`, sem sombra; no hover só trocam fundo (`--surface-hover`) e borda (`--border-strong`) em `--dur-fast`, sem deslocamento.
 
 ## 7. Movimento
 - **Tokens** (`frontend/src/assets/css/style.css`): `--dur-fast` `150ms` (hover, foco, entradas pequenas), `--dur-base` `220ms` (troca de tema, toasts, barra de progresso), `--ease-out` `cubic-bezier(.2,.8,.2,1)` como curva única. Laços contínuos: `--dur-spin` `800ms` (spinner) e `--dur-pulse` `1500ms` (indicador "N ativos").
 - Toda `transition` e `animation` usa os tokens e nomeia as propriedades; nada de duração, `ease-*` ou `cubic-bezier` solto nos componentes.
 - Transições do Svelte (`fly`, `fade`) rodam em JS e não leem CSS: usam `duracaoMovimento(DUR_FAST | DUR_BASE)` de `src/lib/aviso.js`, que devolve `0` em `prefers-reduced-motion`.
-- `prefers-reduced-motion: reduce` zera `--dur-fast` e `--dur-base`, troca deslocamentos (hover da linha, `fly`) por troca direta, desliga o pulso e deixa o spinner em `2400ms` em vez de pará-lo, porque ele é o sinal de que o item está em processamento.
+- `prefers-reduced-motion: reduce` zera `--dur-fast` e `--dur-base`, troca deslocamentos (`fly`) por troca direta, desliga o pulso e deixa o spinner em `2400ms` em vez de pará-lo, porque ele é o sinal de que o item está em processamento.
 - Animações contínuas só mexem em `transform`/`opacity` (o pulso é um anel num `::after`), para não repintar a cada quadro.
 - Linhas da fila: só o item que chega pelo `queue:update` entra com `fly` (`8px`, `--dur-base`); o que sai da fila sai com `fade` (`--dur-fast`) e as demais deslizam com `animate:flip` (`--dur-fast`). Mudanças vindas do filtro não animam (entrada, saída e flip com duração `0`); `criarMovimentoFila` em `src/lib/fila.js` faz essa distinção.
 - Recolher/expandir o painel: o conteúdo fica montado (`inert` quando recolhido) e anima só a opacidade. Ao recolher, some com fade (`--dur-fast`) preso à largura anterior e cortado pelo `overflow: hidden` da coluna de `48px`; ao expandir, aparece depois da largura (atraso de `--dur-fast`). As ferramentas da coluna recolhida entram com `fade` atrasado do mesmo jeito.

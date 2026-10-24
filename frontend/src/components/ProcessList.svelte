@@ -452,17 +452,15 @@
     outline-offset: 1px;
   }
   .list-card {
-    background-color: var(--glass);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--glass-border);
-    border-radius: 12px;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
     flex: 1;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     container-type: inline-size;
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-sm);
     transition: background-color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
   }
 
@@ -472,8 +470,8 @@
     align-items: center;
     gap: 8px;
     padding: 8px 12px;
-    border-bottom: 1px solid var(--glass-border);
-    background-color: var(--bg-glass);
+    border-bottom: 1px solid var(--border);
+    background-color: var(--surface);
   }
 
   .header-left {
@@ -652,27 +650,20 @@
     flex-wrap: wrap;
     align-items: center;
     min-height: 52px;
-    border: 1px solid var(--card-border);
-    border-radius: 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
     padding: 8px 12px;
     position: relative;
     gap: 10px;
-    background-color: var(--card-bg);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    box-shadow: var(--shadow-sm);
-    transition: transform var(--dur-fast) var(--ease-out),
-                box-shadow var(--dur-fast) var(--ease-out),
-                background-color var(--dur-fast) var(--ease-out),
+    background-color: var(--surface);
+    transition: background-color var(--dur-fast) var(--ease-out),
                 border-color var(--dur-fast) var(--ease-out),
                 padding-bottom var(--dur-fast) var(--ease-out);
   }
 
   .item-row:hover {
-    transform: translateY(-1px);
-    background-color: var(--card-bg-hover);
-    border-color: var(--card-border-hover);
-    box-shadow: var(--shadow-md);
+    background-color: var(--surface-hover);
+    border-color: var(--border-strong);
   }
 
   .item-row.has-progress {
@@ -790,9 +781,8 @@
 
   .progress-bar {
     height: 100%;
-    background: linear-gradient(90deg, var(--accent) 0%, var(--success) 100%);
+    background-color: var(--processing);
     border-radius: 4px;
-    box-shadow: 0 0 8px var(--accent);
     transition: width var(--dur-base) var(--ease-out);
   }
 
@@ -889,11 +879,5 @@
 
   @keyframes spin {
     to { transform: rotate(360deg); }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .item-row:hover {
-      transform: none;
-    }
   }
 </style>

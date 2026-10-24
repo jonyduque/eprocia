@@ -500,8 +500,6 @@
     flex-direction: column;
     height: 100vh;
     background-color: var(--bg-main);
-    background-image: radial-gradient(at 0% 0%, var(--accent-glow) 0px, transparent 50%),
-                      radial-gradient(at 100% 100%, var(--success-glow) 0px, transparent 50%);
     color: var(--text-primary);
     overflow: hidden;
     position: relative;
@@ -524,7 +522,7 @@
 
   .overlay-box {
     border: 2px dashed var(--accent);
-    border-radius: 8px;
+    border-radius: 6px;
     padding: 32px;
     background-color: var(--surface);
     display: flex;
@@ -549,10 +547,8 @@
   /* Custom Frameless Titlebar */
   .custom-titlebar {
     height: 38px;
-    background-color: var(--glass);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--glass-border);
+    background-color: var(--surface);
+    border-bottom: 1px solid var(--border);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -629,7 +625,7 @@
     font-weight: 600;
     background-color: var(--accent-soft);
     padding: 2px 8px;
-    border-radius: 12px;
+    border-radius: 4px;
     margin-right: 8px;
   }
 
@@ -680,10 +676,8 @@
   .sidebar {
     display: flex;
     flex-direction: column;
-    background-color: var(--glass);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-right: 1px solid var(--glass-border);
+    background-color: var(--surface);
+    border-right: 1px solid var(--border);
     position: relative;
     flex-shrink: 0;
     overflow: visible; /* Needed for resize handle to overlap */
@@ -706,7 +700,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 8px 12px;
-    border-bottom: 1px solid var(--glass-border);
+    border-bottom: 1px solid var(--border);
     height: 38px;
     flex-shrink: 0;
     width: 100%;
@@ -844,12 +838,10 @@
 
   .collapsed-indicator.active .collapsed-dot {
     background-color: var(--success);
-    box-shadow: 0 0 6px var(--success);
   }
 
   .collapsed-indicator.inactive .collapsed-dot {
     background-color: var(--warning);
-    box-shadow: 0 0 6px var(--warning);
   }
 
   .collapsed-tool-btn {
@@ -858,7 +850,7 @@
     color: var(--text-secondary);
     width: 32px;
     height: 32px;
-    border-radius: 6px;
+    border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -883,16 +875,13 @@
 
   /* Manual process card */
   .manual-card {
-    background-color: var(--card-bg);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid var(--card-border);
-    border-radius: 10px;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
     padding: 12px;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    box-shadow: var(--shadow-sm);
     transition: background-color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
   }
 
@@ -944,10 +933,8 @@
   /* Footer */
   footer {
     height: 26px;
-    background-color: var(--glass);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-top: 1px solid var(--glass-border);
+    background-color: var(--surface);
+    border-top: 1px solid var(--border);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -992,12 +979,10 @@
 
   .status-dot.active {
     background-color: var(--success);
-    box-shadow: 0 0 6px var(--success);
   }
 
   .status-dot.inactive {
     background-color: var(--warning);
-    box-shadow: 0 0 6px var(--warning);
   }
 
   .status-text {

@@ -103,7 +103,7 @@ test('componentes não têm cor solta', () => {
 test('overlay e fundos tonais vêm de tokens por tema', () => {
   const escuro = regra(css, ':root');
   const claro = regra(css, ':root.light');
-  for (const token of ['--overlay', '--glass', '--glass-border', '--on-accent']) {
+  for (const token of ['--overlay', '--shadow-sm', '--on-accent']) {
     assert.match(escuro, new RegExp(`${token}:`), `${token} no tema escuro`);
     assert.match(claro, new RegExp(`${token}:`), `${token} no tema claro`);
   }

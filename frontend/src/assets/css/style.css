@@ -1,56 +1,45 @@
 :root {
-  /* Theme Variables (Default: Dark Mode) */
+  /* Tema escuro (padrão). Paleta em DESIGN.md §2. */
   color-scheme: dark;
-  --bg-main: #0B0F19;
-  --surface: #111827;
-  --surface-hover: #1F2937;
-  --text-primary: #F3F4F6;
-  --text-secondary: #9CA3AF;
-  --border: #1F2937;
-  --border-strong: #6B7280;
-  --border-focus: #3B82F6;
-  --focus-ring: var(--border-focus);
-  --accent: #3B82F6;
-  --accent-hover: #2563EB;
-  --success: #10B981;
-  --error: #EF4444;
+  --bg-main: #121212;
+  --surface: #1E1E1E;
+  --surface-hover: #262626;
+  --text-primary: #E9ECEF;
+  --text-secondary: #ADB5BD;
+  --border: #2C2C2C;
+  --border-strong: #6C757D;
+  /* No escuro o azul jurídico não chega a 3:1; ícones e foco usam o de processamento. */
+  --accent: var(--processing);
+  --focus-ring: var(--accent);
+  --processing: #007BFF;
+  --success: #28A745;
+  --error: #DC3545;
   --warning: #F59E0B;
   --on-accent: #FFFFFF;
   /* Marca (build/icon-pequeno.svg): igual nos dois temas. */
   --brand-from: #1A7CF0;
   --brand-to: #0056B3;
   --on-brand: #FFFFFF;
-  --accent-strong: #2563EB;
-  --accent-strong-hover: #1D4ED8;
-  --success-strong: #34D399;
-  --error-strong: #F87171;
-  --accent-text: #93C5FD;
-  --overlay: rgba(11, 15, 25, 0.92);
-  --glass: rgba(17, 24, 39, 0.45);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --card-bg: rgba(255, 255, 255, 0.02);
-  --card-bg-hover: rgba(255, 255, 255, 0.05);
-  --card-border: rgba(255, 255, 255, 0.04);
-  --card-border-hover: rgba(255, 255, 255, 0.1);
+  --accent-strong: #0056B3;
+  --accent-strong-hover: #004A99;
+  --success-strong: #75B798;
+  --error-strong: #EA868F;
+  --accent-text: #6EA8FE;
+  --overlay: rgba(18, 18, 18, 0.92);
   --track: rgba(255, 255, 255, 0.06);
-  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.2);
-  --shadow-overlay: 0 10px 25px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-overlay: 0 4px 12px rgba(0, 0, 0, 0.4);
 
   /* Tons derivados: acompanham o tema porque partem dos tokens acima. */
   --accent-faint: color-mix(in srgb, var(--accent) 8%, transparent);
   --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
   --accent-line: color-mix(in srgb, var(--accent) 25%, transparent);
-  --accent-glow: color-mix(in srgb, var(--accent) 5%, transparent);
   --accent-ring: color-mix(in srgb, var(--accent) 70%, transparent);
   --success-faint: color-mix(in srgb, var(--success) 8%, transparent);
   --success-soft: color-mix(in srgb, var(--success) 15%, transparent);
-  --success-glow: color-mix(in srgb, var(--success) 3%, transparent);
   --error-soft: color-mix(in srgb, var(--error) 10%, transparent);
   --warning-soft: color-mix(in srgb, var(--warning) 12%, transparent);
   --warning-line: color-mix(in srgb, var(--warning) 30%, transparent);
-  --bg-glass: color-mix(in srgb, var(--bg-main) 35%, transparent);
 
   --dur-fast: 150ms;
   --dur-base: 220ms;
@@ -64,34 +53,21 @@
 
 :root.light {
   color-scheme: light;
-  --bg-main: #F3F4F6;
+  --bg-main: #F8F9FA;
   --surface: #FFFFFF;
-  --surface-hover: #F9FAFB;
-  --text-primary: #111827;
-  --text-secondary: #4B5563;
-  --border: #E5E7EB;
-  --border-strong: #6B7280;
-  --border-focus: #2563EB;
-  --accent: #2563EB;
-  --accent-hover: #1D4ED8;
-  --success: #059669;
-  --error: #DC2626;
+  --surface-hover: #F1F3F5;
+  --text-primary: #212529;
+  --text-secondary: #646C75;
+  --border: #DEE2E6;
+  --accent: var(--accent-strong);
   --warning: #D97706;
-  --success-strong: #047857;
-  --error-strong: #B91C1C;
-  --accent-text: #1D4ED8;
-  --overlay: rgba(243, 244, 246, 0.92);
-  --glass: rgba(255, 255, 255, 0.45);
-  --glass-border: rgba(0, 0, 0, 0.08);
-  --card-bg: rgba(255, 255, 255, 0.5);
-  --card-bg-hover: rgba(255, 255, 255, 0.85);
-  --card-border: rgba(0, 0, 0, 0.05);
-  --card-border-hover: rgba(0, 0, 0, 0.09);
+  --success-strong: #1E7E34;
+  --error-strong: #B02A37;
+  --accent-text: #0056B3;
+  --overlay: rgba(248, 249, 250, 0.92);
   --track: rgba(0, 0, 0, 0.06);
-  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.03);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 8px 32px rgba(31, 38, 135, 0.05);
-  --shadow-overlay: 0 10px 25px rgba(0, 0, 0, 0.12);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-overlay: 0 4px 12px rgba(0, 0, 0, 0.12);
   --on-accent: #FFFFFF;
 }
 

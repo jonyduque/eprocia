@@ -163,11 +163,11 @@ test('pulso anima só transform/opacity num pseudo-elemento e para em reduced-mo
   assert.match(bloco, /\.pulse-dot::after[^{]*\{[^}]*animation:\s*none/);
 });
 
-test('hover da linha não desloca em reduced-motion', () => {
-  const s = estilo(lista);
-  const m = s.indexOf('@media (prefers-reduced-motion: reduce)');
-  assert.ok(m >= 0, 'ProcessList sem regra de reduced-motion');
-  assert.match(s.slice(m), /\.item-row:hover\s*\{[^}]*transform:\s*none/);
+// F-VI-05 tirou o deslocamento do hover; nada a trocar em reduced-motion.
+test('hover da linha não desloca', () => {
+  for (const m of estilo(lista).matchAll(/\.item-row:hover\s*\{([^}]*)\}/g)) {
+    assert.doesNotMatch(m[1], /transform/);
+  }
 });
 
 test('transições do Svelte passam por duracaoMovimento', () => {
