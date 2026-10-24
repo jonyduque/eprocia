@@ -1,9 +1,10 @@
 <script>
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import {
     EventsOn,
     WindowMinimise,
     WindowToggleMaximise,
+    WindowIsMaximised,
     OnFileDrop,
     OnFileDropOff
   } from './wailsjs/runtime/runtime.js';
@@ -20,7 +21,8 @@
   import ProcessList from './components/ProcessList.svelte';
   import { contarAtivos, rotuloFila } from './lib/estado.js';
   import { criarFilaPorQuadro } from './lib/quadro.js';
-  import { LARGURA_MIN_PAINEL, larguraMaxPainel, limitarPainel } from './lib/divisor.js';
+  import { LARGURA_MIN_PAINEL, larguraMaxPainel, limitarPainel, teclaDivisor } from './lib/divisor.js';
+  import { gravarPainel, lerPainel } from './lib/painel.js';
   import {
     CONSULTA_ESCURO,
     NOME_TEMA,
@@ -46,11 +48,14 @@
   let isPaused = false;
   let isWorking = false;
 
-  // Sidebar State
-  let sidebarWidth = 320; // Default width increased to fit all settings and buttons nicely
-  let sidebarCollapsed = false;
-  let isResizing = false;
+  // Lido antes da montagem para o painel já abrir com a largura salva.
   let larguraJanela = window.innerWidth;
+  const painelSalvo = lerPainel(armazenamento(), larguraJanela);
+  let sidebarWidth = painelSalvo.largura;
+  let sidebarCollapsed = painelSalvo.recolhido;
+  let isResizing = false;
+  let maximizada = false;
+  let botaoRecolher;
 
   // sidebarWidth guarda a escolha do usuário; a largura exibida é recalculada
   // quando a janela muda, e a escolha volta se a janela crescer de novo.
@@ -79,6 +84,7 @@
 
   onMount(async () => {
     consultaTema.addEventListener('change', mudouTemaDoSistema);
+    atualizarMaximizada();
 
     // Load initial config
     await refreshConfig();
@@ -169,6 +175,21 @@
     gravarTemaNoBackend(temaPref);
   }
 
+  // O Wails não emite evento de maximizar; o resize da janela cobre o botão,
+  // o duplo clique na barra e o encaixe do Windows.
+  async function atualizarMaximizada() {
+    try {
+      maximizada = Boolean(await WindowIsMaximised());
+    } catch {
+      // Fora do Wails (capturas visuais) o rótulo fica em Maximizar.
+    }
+  }
+
+  function alternarMaximizar() {
+    WindowToggleMaximise();
+    atualizarMaximizada();
+  }
+
   // Handle window close by hiding
   async function handleCloseWindow() {
     try {
@@ -207,18 +228,31 @@
     isResizing = false;
     window.removeEventListener('mousemove', handleMouseMove);
     window.removeEventListener('mouseup', stopResizing);
+    salvarPainel();
   }
 
-  function handleResizeKeydown(e) {
-    if (e.key === 'ArrowLeft') {
-      sidebarWidth = limitarPainel(larguraPainel - 10, larguraJanela);
-    } else if (e.key === 'ArrowRight') {
-      sidebarWidth = limitarPainel(larguraPainel + 10, larguraJanela);
+  async function handleResizeKeydown(e) {
+    const acao = teclaDivisor(e.key, larguraPainel, larguraJanela);
+    if (!acao) return;
+    e.preventDefault();
+    if (acao.recolher) {
+      toggleSidebar();
+      // O divisor some com o painel recolhido; o foco vai para o botão que o reabre.
+      await tick();
+      botaoRecolher?.focus();
+      return;
     }
+    sidebarWidth = acao.largura;
+    salvarPainel();
   }
 
   function toggleSidebar() {
     sidebarCollapsed = !sidebarCollapsed;
+    salvarPainel();
+  }
+
+  function salvarPainel() {
+    gravarPainel(armazenamento(), { largura: sidebarWidth, recolhido: sidebarCollapsed });
   }
 
   // Web Drag and Drop handlers (to show visual overlay when dragging over the window)
@@ -240,7 +274,7 @@
   }
 </script>
 
-<svelte:window bind:innerWidth={larguraJanela} />
+<svelte:window bind:innerWidth={larguraJanela} on:resize={atualizarMaximizada} />
 
 <div
   class="app-container"
@@ -282,30 +316,39 @@
         class="titlebar-btn"
         on:click={toggleTheme}
         title="Tema: {NOME_TEMA[temaPref]} (clique para {NOME_TEMA[proximoTema(temaPref)]})"
-        aria-label="Tema: {NOME_TEMA[temaPref]}"
+        aria-label="Tema: {NOME_TEMA[temaPref]}. Mudar para {NOME_TEMA[proximoTema(temaPref)]}"
       >
         {#if temaPref === 'system'}
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-monitor"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
+          <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-monitor"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
         {:else if temaPref === 'light'}
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+          <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
         {:else}
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-moon"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+          <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-moon"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
         {/if}
       </button>
 
       <!-- Minimize Window -->
-      <button class="titlebar-btn" on:click={WindowMinimise} title="Minimizar">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <button class="titlebar-btn" on:click={WindowMinimise} title="Minimizar" aria-label="Minimizar">
+        <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </button>
 
       <!-- Maximize/Restore Window -->
-      <button class="titlebar-btn" on:click={WindowToggleMaximise} title="Maximizar">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
+      <button
+        class="titlebar-btn"
+        on:click={alternarMaximizar}
+        title={maximizada ? 'Restaurar' : 'Maximizar'}
+        aria-label={maximizada ? 'Restaurar' : 'Maximizar'}
+      >
+        {#if maximizada}
+          <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+        {:else}
+          <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
+        {/if}
       </button>
 
       <!-- Close Window (Hides to Tray) -->
-      <button class="titlebar-btn btn-close" on:click={handleCloseWindow} title="Fechar (Minimiza para a bandeja)">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      <button class="titlebar-btn btn-close" on:click={handleCloseWindow} title="Fechar (Minimiza para a bandeja)" aria-label="Fechar (minimiza para a bandeja)">
+        <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
   </div>
@@ -314,6 +357,7 @@
   <main class="grid-layout">
     <!-- Sidebar (Collapsible & Resizable) -->
     <aside
+      id="sidebar"
       class="sidebar"
       style="width: {sidebarCollapsed ? '48px' : larguraPainel + 'px'}"
       class:collapsed={sidebarCollapsed}
@@ -322,11 +366,19 @@
         {#if !sidebarCollapsed}
           <span class="sidebar-title">Painel de Controle</span>
         {/if}
-        <button class="btn-toggle-sidebar" on:click={toggleSidebar} title={sidebarCollapsed ? "Expandir menu" : "Recolher menu"}>
+        <button
+          class="btn-toggle-sidebar"
+          bind:this={botaoRecolher}
+          on:click={toggleSidebar}
+          title={sidebarCollapsed ? 'Expandir painel' : 'Recolher painel'}
+          aria-label={sidebarCollapsed ? 'Expandir painel' : 'Recolher painel'}
+          aria-expanded={!sidebarCollapsed}
+          aria-controls="sidebar"
+        >
           {#if sidebarCollapsed}
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           {:else}
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           {/if}
         </button>
       </div>
@@ -377,6 +429,8 @@
           aria-valuemin={LARGURA_MIN_PAINEL}
           aria-valuemax={maxPainel}
           aria-valuenow={larguraPainel}
+          aria-valuetext="{larguraPainel} pixels"
+          aria-controls="sidebar"
           tabindex="0"
           on:mousedown={startResizing}
           on:keydown={handleResizeKeydown}
@@ -671,7 +725,9 @@
     transition: background-color 0.2s;
   }
 
-  .resize-handle:hover, .resize-handle.resizing {
+  .resize-handle:hover,
+  .resize-handle.resizing,
+  .resize-handle:focus-visible {
     background-color: var(--accent);
   }
 

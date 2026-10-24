@@ -13,3 +13,24 @@ export function larguraMaxPainel(larguraJanela) {
 export function limitarPainel(largura, larguraJanela) {
   return Math.min(larguraMaxPainel(larguraJanela), Math.max(LARGURA_MIN_PAINEL, largura));
 }
+
+export const PASSO_TECLADO = 10;
+
+// Ação do teclado no divisor: nova largura ou recolher o painel; null deixa a
+// tecla seguir o comportamento padrão (Tab, por exemplo).
+export function teclaDivisor(tecla, largura, larguraJanela) {
+  switch (tecla) {
+    case 'ArrowLeft':
+      return { largura: limitarPainel(largura - PASSO_TECLADO, larguraJanela) };
+    case 'ArrowRight':
+      return { largura: limitarPainel(largura + PASSO_TECLADO, larguraJanela) };
+    case 'Home':
+      return { largura: LARGURA_MIN_PAINEL };
+    case 'End':
+      return { largura: larguraMaxPainel(larguraJanela) };
+    case 'Enter':
+      return { recolher: true };
+    default:
+      return null;
+  }
+}
