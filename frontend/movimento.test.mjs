@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { criarArrasto } from './src/lib/divisor.js';
+import { criarMovimentoFila } from './src/lib/fila.js';
 
 const raiz = dirname(fileURLToPath(import.meta.url));
 const ler = (...p) => readFileSync(join(raiz, ...p), 'utf8').replace(/\r\n/g, '\n');
@@ -171,10 +172,9 @@ test('hover da linha não desloca em reduced-motion', () => {
 
 test('transições do Svelte passam por duracaoMovimento', () => {
   for (const [nome, f] of [['App', app], ['ProcessList', lista], ['Settings', settings]]) {
-    const usos = f.match(/(?:transition|in|out):(?:fly|fade)=\{\{[^}]*\}\}/g) || [];
-    for (const u of usos) assert.match(u, /duration:\s*duracaoMovimento\(DUR_(FAST|BASE)\)/, `${nome}: ${u}`);
+    const usos = f.match(/(?:transition|in|out):(?:fly|fade)(?:\|global)?=\{\{[^}]*\}\}/g) || [];
+    for (const u of usos) assert.match(u, /duration:\s*(?:[^,?]*\?\s*)?duracaoMovimento\(DUR_(FAST|BASE)\)/, `${nome}: ${u}`);
   }
-  assert.match(lista, /transition:fly=\{\{ y: 8, duration: duracaoMovimento\(DUR_BASE\), easing: cubicOut \}\}/);
 });
 
 test('DESIGN.md tem a seção Movimento com tokens e reduced-motion', () => {
@@ -194,4 +194,86 @@ test('overlay de soltar entra e sai com fade e a caixa cresce de 0.98', () => {
   const s = estilo(app);
   assert.match(regra(s, '.overlay-box'), /animation:\s*zoomIn var\(--dur-fast\) var\(--ease-out\)/);
   assert.match(s, /@keyframes zoomIn\s*\{\s*from\s*\{\s*transform:\s*scale\(0\.98\)/);
+});
+
+// --- F-AN-05 ---------------------------------------------------------------
+
+test('movimento da fila separa item novo, removido e mudança de filtro', () => {
+  const mov = criarMovimentoFila();
+  const a = { id: 'a', name: 'a.zip' };
+  const b = { id: 'b', name: 'b.zip' };
+  const c = { id: 'c', name: 'c.zip' };
+
+  mov.atualizar([a, b], '');
+  mov.atualizar([a, b, c], '');
+  assert.equal(mov.novo('c'), true, 'item que chegou pelo queue:update entra animado');
+  assert.equal(mov.novo('a'), false);
+  assert.equal(mov.porFiltro(), false);
+
+  mov.atualizar([a, b, c], 'b');
+  assert.equal(mov.porFiltro(), true, 'digitar no filtro desliga o deslocamento');
+  assert.equal(mov.novo('c'), false, 'item que reaparece pelo filtro não é novo');
+  assert.equal(mov.removido('a'), false, 'item escondido pelo filtro não foi removido');
+
+  mov.atualizar([a, b, c], '');
+  assert.equal(mov.porFiltro(), true);
+  assert.equal(mov.novo('a'), false, 'limpar o filtro não anima as linhas que voltam');
+
+  mov.atualizar([a, c], '');
+  assert.equal(mov.porFiltro(), false);
+  assert.equal(mov.removido('b'), true, 'item removido da fila sai com fade');
+  assert.equal(mov.novo('a'), false);
+
+  mov.atualizar([{ ...a, progress: 0.5 }, c], '');
+  assert.equal(mov.novo('a'), false, 'atualização de progresso não reanima a linha');
+});
+
+test('linha da fila: só entrada com fly, saída com fade e flip, controlados por criarMovimentoFila', () => {
+  const linha = tag(lista, 'class="item-row {item.status}"');
+  assert.doesNotMatch(linha, /transition:fly/);
+  assert.match(linha, /in:fly\|global=\{\{ y: 8, duration: mov\.novo\(item\.id\) \? duracaoMovimento\(DUR_BASE\) : 0, easing: cubicOut \}\}/);
+  assert.match(linha, /out:fade=\{\{ duration: mov\.removido\(item\.id\) \? duracaoMovimento\(DUR_FAST\) : 0 \}\}/);
+  assert.match(linha, /animate:flip=\{\{ duration: mov\.porFiltro\(\) \? 0 : duracaoMovimento\(DUR_FAST\), easing: cubicOut \}\}/);
+  assert.match(lista, /import \{ flip \} from 'svelte\/animate'/);
+  assert.match(lista, /const mov = criarMovimentoFila\(\)/);
+  assert.match(lista, /\$: mov\.atualizar\(items, filterText\)/);
+});
+
+// --- F-AN-06 ---------------------------------------------------------------
+
+test('conteúdo do painel fica montado, inerte e some com fade ao recolher', () => {
+  const conteudo = tag(app, 'class="sidebar-content"');
+  assert.match(conteudo, /inert=\{sidebarCollapsed\}/);
+  assert.doesNotMatch(conteudo, /hidden=/, 'hidden troca o conteúdo no mesmo quadro');
+  const s = estilo(app);
+  assert.doesNotMatch(s, /\.sidebar-content\[hidden\]/);
+  assert.match(regra(s, '.sidebar.collapsed'), /overflow:\s*hidden/, 'conteúdo de 280px não vaza na coluna de 48px');
+  const aberto = regra(s, '.sidebar-content');
+  assert.match(aberto, /transition:\s*opacity var\(--dur-fast\) var\(--ease-out\) var\(--dur-fast\)/, 'ao expandir, aparece depois da largura');
+  const fechado = regra(s, '.sidebar.collapsed .sidebar-content');
+  assert.match(fechado, /position:\s*absolute/);
+  assert.match(fechado, /width:\s*var\(--largura-painel\)/, 'não se espreme enquanto a coluna encolhe');
+  assert.match(fechado, /opacity:\s*0/);
+  assert.match(fechado, /visibility:\s*hidden/);
+  assert.match(fechado, /transition:\s*opacity var\(--dur-fast\) var\(--ease-out\), visibility var\(--dur-fast\) linear/);
+  assert.match(tag(app, 'class="sidebar"'), /style:--largura-painel="\{larguraPainel\}px"/);
+});
+
+test('título do painel some com fade e as ferramentas recolhidas entram depois da largura', () => {
+  const ini = app.indexOf('<div class="sidebar-header-toggle">');
+  const cab = app.slice(ini, app.indexOf('<button', ini));
+  assert.doesNotMatch(cab, /\{#if/, 'título não pode ser desmontado de repente');
+  const s = estilo(app);
+  const titulo = regra(s, '.sidebar.collapsed .sidebar-title');
+  assert.match(titulo, /opacity:\s*0/);
+  assert.match(titulo, /visibility:\s*hidden/);
+  assert.match(regra(s, '.sidebar-title'), /transition:\s*opacity var\(--dur-fast\) var\(--ease-out\) var\(--dur-fast\)/);
+  assert.match(tag(app, 'class="collapsed-tools"'), /in:fade=\{\{ duration: duracaoMovimento\(DUR_FAST\), delay: duracaoMovimento\(DUR_FAST\) \}\}/);
+});
+
+test('DESIGN.md descreve o movimento da fila e do painel recolhível', () => {
+  const sec = design.slice(design.indexOf('## 7. Movimento'));
+  assert.match(sec, /animate:flip/);
+  assert.match(sec, /filtro/);
+  assert.match(sec, /Recolher\/expandir o painel/);
 });

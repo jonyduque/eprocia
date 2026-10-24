@@ -47,7 +47,7 @@ test('Settings fica montado com o painel recolhido', () => {
   const abertos = (antes.match(/\{#if\b/g) || []).length;
   const fechados = (antes.match(/\{\/if\}/g) || []).length;
   assert.equal(abertos, fechados, 'Settings não pode estar dentro de um {#if}');
-  assert.match(app, /class="sidebar-content"[^>]*hidden=\{sidebarCollapsed\}/);
+  assert.match(app, /class="sidebar-content"[^>]*inert=\{sidebarCollapsed\}/);
 });
 
 test('cópia que falha avisa o usuário', () => {

@@ -378,13 +378,12 @@
       id="sidebar"
       class="sidebar"
       style="width: {sidebarCollapsed ? '48px' : larguraPainel + 'px'}"
+      style:--largura-painel="{larguraPainel}px"
       class:collapsed={sidebarCollapsed}
       class:resizing={isResizing}
     >
       <div class="sidebar-header-toggle">
-        {#if !sidebarCollapsed}
-          <span class="sidebar-title">Painel de Controle</span>
-        {/if}
+        <span class="sidebar-title">Painel de Controle</span>
         <button
           class="btn-toggle-sidebar"
           bind:this={botaoRecolher}
@@ -403,7 +402,7 @@
       </div>
 
       <!-- Escondido, não desmontado: o Settings mantém o aviso e a config. -->
-      <div class="sidebar-content" hidden={sidebarCollapsed}>
+      <div class="sidebar-content" inert={sidebarCollapsed}>
         <!-- Settings Component -->
         <Settings bind:config {erroConfig} aoFalharSalvar={refreshConfig} />
 
@@ -427,7 +426,7 @@
 
       {#if sidebarCollapsed}
         <!-- Collapsed Sidebar Vertical Tools -->
-        <div class="collapsed-tools">
+        <div class="collapsed-tools" in:fade={{ duration: duracaoMovimento(DUR_FAST), delay: duracaoMovimento(DUR_FAST) }}>
           <div class="collapsed-indicator" class:active={monitorando} class:inactive={!monitorando} role="status" title={textoMonitoramento}>
             <span class="collapsed-dot" aria-hidden="true"></span>
             <span class="sr-only">{textoMonitoramento}</span>
@@ -699,6 +698,7 @@
   .sidebar.collapsed {
     align-items: center;
     width: 48px !important;
+    overflow: hidden;
   }
 
   .sidebar-header-toggle {
@@ -723,6 +723,19 @@
     letter-spacing: 0.5px;
     font-weight: 700;
     color: var(--text-secondary);
+    white-space: nowrap;
+    transition: opacity var(--dur-fast) var(--ease-out) var(--dur-fast);
+  }
+
+  /* Recolher: o conteúdo some com fade enquanto a coluna encolhe, preso à
+     largura anterior e cortado pelo overflow do aside; expandir: só aparece
+     depois que a largura terminou (atraso de --dur-fast). */
+  .sidebar.collapsed .sidebar-title {
+    position: absolute;
+    left: 12px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--dur-fast) var(--ease-out), visibility var(--dur-fast) linear;
   }
 
   .btn-toggle-sidebar {
@@ -749,9 +762,17 @@
     gap: 8px;
     flex: 1;
     overflow-y: auto;
+    transition: opacity var(--dur-fast) var(--ease-out) var(--dur-fast);
   }
-  .sidebar-content[hidden] {
-    display: none;
+  .sidebar.collapsed .sidebar-content {
+    position: absolute;
+    top: 38px;
+    left: 0;
+    bottom: 0;
+    width: var(--largura-painel);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--dur-fast) var(--ease-out), visibility var(--dur-fast) linear;
   }
 
   /* Resizing Handle */

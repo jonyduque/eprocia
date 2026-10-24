@@ -10,10 +10,11 @@
   } from '../wailsjs/go/main/App.js';
   import { onDestroy, tick } from 'svelte';
   import { fly, fade } from 'svelte/transition';
+  import { flip } from 'svelte/animate';
   import { cubicOut } from 'svelte/easing';
   import { estadoItem, avisoFila } from '../lib/estado.js';
   import { criarAviso, duracaoMovimento, DUR_FAST, DUR_BASE } from '../lib/aviso.js';
-  import { formatarHora, filtrarItens, alvoFoco, escolherAcao } from '../lib/fila.js';
+  import { formatarHora, filtrarItens, alvoFoco, escolherAcao, criarMovimentoFila } from '../lib/fila.js';
 
   export let items = [];
   export let isPaused = false;
@@ -32,6 +33,9 @@
   $: aviso = avisoFila(items, isPaused);
 
   $: filteredItems = filtrarItens(items, filterText);
+
+  const mov = criarMovimentoFila();
+  $: mov.atualizar(items, filterText);
 
   let detalhesAbertos = {};
   function alternarDetalhes(id) {
@@ -231,7 +235,9 @@
             class="item-row {item.status}"
             class:has-progress={estado === 'processando'}
             data-id={item.id}
-            transition:fly={{ y: 8, duration: duracaoMovimento(DUR_BASE), easing: cubicOut }}
+            in:fly|global={{ y: 8, duration: mov.novo(item.id) ? duracaoMovimento(DUR_BASE) : 0, easing: cubicOut }}
+            out:fade={{ duration: mov.removido(item.id) ? duracaoMovimento(DUR_FAST) : 0 }}
+            animate:flip={{ duration: mov.porFiltro() ? 0 : duracaoMovimento(DUR_FAST), easing: cubicOut }}
           >
             <!-- Status Icon -->
             <div class="status-col">

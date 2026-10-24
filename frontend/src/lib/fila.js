@@ -51,3 +51,27 @@ export function escolherAcao(disponiveis, preferida) {
   }
   return disponiveis[0] ?? null;
 }
+
+// As transições das linhas leem isto quando começam, depois do $: que chama
+// atualizar: só o que chegou pelo queue:update entra animado, só o que saiu
+// da fila sai com fade, e o filtro não move nada.
+export function criarMovimentoFila() {
+  let presentes = new Set();
+  let novos = new Set();
+  let filtro = '';
+  let filtrou = false;
+
+  return {
+    atualizar(items, textoFiltro = '') {
+      const ids = new Set(items.map((i) => i.id));
+      novos = new Set();
+      for (const id of ids) if (!presentes.has(id)) novos.add(id);
+      presentes = ids;
+      filtrou = textoFiltro !== filtro;
+      filtro = textoFiltro;
+    },
+    novo: (id) => novos.has(id),
+    removido: (id) => !presentes.has(id),
+    porFiltro: () => filtrou,
+  };
+}
