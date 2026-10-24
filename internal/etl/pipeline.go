@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"os"
 	"path/filepath"
 	stdRuntime "runtime"
@@ -269,10 +270,7 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 	SortProcessFiles(files)
 
 	// Define active worker limits based on CPU count
-	numWorkers := stdRuntime.NumCPU() - 1
-	if numWorkers < 1 {
-		numWorkers = 1
-	}
+	numWorkers := max(stdRuntime.NumCPU()-1, 1)
 
 	// Pré-contagem das páginas para o progresso, sem tocar o disco para PDFs que
 	// cabem em memória. É serial e não retém os PDFs para o processamento: com
@@ -392,13 +390,13 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 		return ocr.RunOCRPaginas(ctx, pdfPath, paginas, cfg.OcrMode)
 	}
 
-	var processedDocsVal int32
-	var processedPagesVal int32
+	var processedDocsVal atomic.Int32
+	var processedPagesVal atomic.Int32
 
 	// Progress reporting helper
 	reportProgress := func(msg string) {
-		pDocs := int(atomic.LoadInt32(&processedDocsVal))
-		pPages := int(atomic.LoadInt32(&processedPagesVal))
+		pDocs := int(processedDocsVal.Load())
+		pPages := int(processedPagesVal.Load())
 
 		progress := 0.0
 		if totalPagesAll > 0 {
@@ -418,9 +416,7 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 	docSem := make(chan struct{}, numWorkers)
 
 	for i, f := range files {
-		wg.Add(1)
-		go func(i int, f models.ProcessFile) {
-			defer wg.Done()
+		wg.Go(func() {
 
 			// Um panic não recuperado neste goroutine derruba o app inteiro; o
 			// documento é marcado com erro e os demais seguem.
@@ -480,7 +476,7 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 							"image":   "",
 							"content": fmt.Sprintf("[ERRO ao extrair PDF do ZIP: %s]", err.Error()),
 						}
-						atomic.AddInt32(&processedPagesVal, 1)
+						processedPagesVal.Add(1)
 						reportProgress(fmt.Sprintf("Erro ao abrir %s", f.DocName))
 						return
 					}
@@ -496,8 +492,8 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 					parser.comPaginas(contagens[i])
 				}
 				pdfPages, errParse := parser.ParsePages(ctx, cfg.OcrMode != "none", ocrRunner, func(pageNum int) {
-					atomic.AddInt32(&processedPagesVal, 1)
-					pDocs := int(atomic.LoadInt32(&processedDocsVal))
+					processedPagesVal.Add(1)
+					pDocs := int(processedDocsVal.Load())
 					reportProgress(fmt.Sprintf("Processando %s (pág. %d/%d) [Docs: %d/%d]", f.DocName, pageNum, docPageCounts[f.Name], pDocs, totalFiles))
 				})
 				fonte.liberar()
@@ -522,9 +518,7 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 				}
 
 				// Copy the pages map returned by ParsePages into the document's paginas map
-				for k, v := range pdfPages {
-					paginasMap[k] = v
-				}
+				maps.Copy(paginasMap, pdfPages)
 			} else if f.Extension == ".html" || f.Extension == ".htm" {
 				zipReader, err := f.ZipFileRef.Open()
 				if err != nil {
@@ -534,7 +528,7 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 						"image":   "",
 						"content": fmt.Sprintf("[ERRO ao abrir arquivo no ZIP: %s]", err.Error()),
 					}
-					atomic.AddInt32(&processedPagesVal, 1)
+					processedPagesVal.Add(1)
 					reportProgress(fmt.Sprintf("Erro ao abrir %s", f.DocName))
 					return
 				}
@@ -548,7 +542,7 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 						"image":   "",
 						"content": fmt.Sprintf("[ERRO ao analisar HTML: %s]", errParse.Error()),
 					}
-					atomic.AddInt32(&processedPagesVal, 1)
+					processedPagesVal.Add(1)
 					reportProgress(fmt.Sprintf("Erro ao analisar HTML %s", f.DocName))
 					return
 				}
@@ -558,15 +552,15 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 					"image":   "",
 					"content": htmlText,
 				}
-				atomic.AddInt32(&processedPagesVal, 1)
-				pDocs := int(atomic.LoadInt32(&processedDocsVal))
+				processedPagesVal.Add(1)
+				pDocs := int(processedDocsVal.Load())
 				reportProgress(fmt.Sprintf("Processando %s (HTML concluído) [Docs: %d/%d]", f.DocName, pDocs, totalFiles))
 			}
 
 			log.Printf("[Pipeline] Documento %s finalizado com %d páginas", f.DocName, len(paginasMap))
-			pDocs := int(atomic.AddInt32(&processedDocsVal, 1))
+			pDocs := int(processedDocsVal.Add(1))
 			reportProgress(fmt.Sprintf("Concluído %d/%d: %s", pDocs, totalFiles, f.DocName))
-		}(i, f)
+		})
 	}
 
 	wg.Wait()

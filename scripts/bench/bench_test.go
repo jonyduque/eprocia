@@ -69,9 +69,7 @@ func startPeak() *peakSampler {
 			s.peak.Store(v)
 		}
 	}
-	s.wg.Add(1)
-	go func() {
-		defer s.wg.Done()
+	s.wg.Go(func() {
 		t := time.NewTicker(5 * time.Millisecond)
 		defer t.Stop()
 		for {
@@ -83,7 +81,7 @@ func startPeak() *peakSampler {
 			case <-t.C:
 			}
 		}
-	}()
+	})
 	return s
 }
 
@@ -100,8 +98,7 @@ func copyToTemp(b *testing.B, src string) string {
 	data, err := os.ReadFile(src)
 	if err != nil {
 		// Only the cause: the path may hold a real process name (EPROCIA_BENCH_DIR).
-		var pe *fs.PathError
-		if errors.As(err, &pe) {
+		if pe, ok := errors.AsType[*fs.PathError](err); ok {
 			err = pe.Err
 		}
 		b.Fatalf("falha ao ler o ZIP de entrada: %v", err)

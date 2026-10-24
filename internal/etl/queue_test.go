@@ -56,11 +56,11 @@ func TestSetContext_ConcorrenteComBroadcast(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		for i := 0; i < 200; i++ {
+		for range 200 {
 			q.SetContext(nil)
 		}
 	}()
-	for i := 0; i < 200; i++ {
+	for range 200 {
 		q.Pause()
 		q.Resume()
 	}

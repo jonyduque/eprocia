@@ -131,7 +131,7 @@ func (p *PDFParser) ParsePages(
 	paginasMap := make(map[string]any)
 	var mapMu sync.Mutex
 	var wg sync.WaitGroup
-	var ocrFailures int32
+	var ocrFailures atomic.Int32
 
 	// Concurrency is bounded by the shared OCR semaphore passed in via
 	// ocrRunner (see Pipeline.ProcessZip), so each OCR task just blocks on
@@ -152,7 +152,7 @@ func (p *PDFParser) ParsePages(
 				content = fmt.Sprintf("[ERRO de OCR: %s]", err.Error())
 			}
 			log.Printf("[PDFParser] Falha no OCR para página %d: %v. Usando texto nativo como fallback (%d chars).", task.pageNum, err, len(task.fallback))
-			atomic.AddInt32(&ocrFailures, 1)
+			ocrFailures.Add(1)
 			pageData = map[string]any{
 				"index":    task.pageNum,
 				"ocr":      false,
@@ -181,7 +181,6 @@ func (p *PDFParser) ParsePages(
 	}
 
 	runOCRBloco := func(tasks []ocrTask) {
-		defer wg.Done()
 		if len(tasks) == 1 {
 			runOCRTask(tasks[0])
 			return
@@ -261,8 +260,7 @@ func (p *PDFParser) ParsePages(
 			if p.lote != nil {
 				pendentes = append(pendentes, task)
 			} else {
-				wg.Add(1)
-				go runOCRBloco([]ocrTask{task})
+				wg.Go(func() { runOCRBloco([]ocrTask{task}) })
 			}
 		} else {
 			log.Printf("[PDFParser] Usando texto nativo para página %d (OCR habilitado: %t, precisa de OCR: %t)", pageNum, ocrEnabled, needsOcr)
@@ -284,8 +282,7 @@ func (p *PDFParser) ParsePages(
 	if len(pendentes) > 0 {
 		k := (len(pendentes) + p.blocosOCR - 1) / p.blocosOCR
 		for bloco := range slices.Chunk(pendentes, k) {
-			wg.Add(1)
-			go runOCRBloco(bloco)
+			wg.Go(func() { runOCRBloco(bloco) })
 		}
 	}
 
@@ -296,7 +293,7 @@ func (p *PDFParser) ParsePages(
 		return nil, err
 	}
 
-	if n := atomic.LoadInt32(&ocrFailures); n > 0 {
+	if n := ocrFailures.Load(); n > 0 {
 		log.Printf("[PDFParser] ATENÇÃO: %d página(s) de %s com falha de OCR.", n, p.filePath)
 	}
 	log.Printf("[PDFParser] Análise concluída. %d páginas retornadas.", len(paginasMap))

@@ -12,7 +12,7 @@ import (
 
 type eventoGravado struct {
 	nome   string
-	dados  []interface{}
+	dados  []any
 	quando time.Time
 }
 
@@ -21,7 +21,7 @@ type gravadorEventos struct {
 	eventos []eventoGravado
 }
 
-func (g *gravadorEventos) emitir(_ context.Context, nome string, dados ...interface{}) {
+func (g *gravadorEventos) emitir(_ context.Context, nome string, dados ...any) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.eventos = append(g.eventos, eventoGravado{nome: nome, dados: dados, quando: time.Now()})
@@ -77,7 +77,7 @@ func TestProgresso_NaoReenviaListaNemStatusPorPagina(t *testing.T) {
 		}
 		return "saida.txt", 1, paginas, nil
 	})
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		q.items = append(q.items, &QueueItem{ID: fmt.Sprintf("h%d", i), Name: fmt.Sprintf("antigo%d.zip", i), Status: "success"})
 	}
 
@@ -161,7 +161,7 @@ func TestStatus_EmitidoSoQuandoMuda(t *testing.T) {
 	if len(st) != 2 {
 		t.Fatalf("esperava 2 queue:status (pausou, retomou), obtive %d", len(st))
 	}
-	if st[0].dados[0].(map[string]interface{})["isPaused"] != true || st[1].dados[0].(map[string]interface{})["isPaused"] != false {
+	if st[0].dados[0].(map[string]any)["isPaused"] != true || st[1].dados[0].(map[string]any)["isPaused"] != false {
 		t.Errorf("sequência de status errada: %v, %v", st[0].dados, st[1].dados)
 	}
 }

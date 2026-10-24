@@ -1,10 +1,11 @@
 package etl
 
 import (
+	"cmp"
 	"fmt"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -81,7 +82,7 @@ func normalizeEdgeLine(trimmed string) string {
 // lines of a page, without duplicates.
 func edgeLines(page string) map[string]bool {
 	var nonEmpty []string
-	for _, line := range strings.Split(page, "\n") {
+	for line := range strings.SplitSeq(page, "\n") {
 		if trimmed := strings.TrimSpace(line); trimmed != "" {
 			nonEmpty = append(nonEmpty, trimmed)
 		}
@@ -178,7 +179,7 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) st
 		evData := val.(map[string]any)
 		eventNums = append(eventNums, evData["index"].(int))
 	}
-	sort.Ints(eventNums)
+	slices.Sort(eventNums)
 
 	// Count total documents
 	totalDocs := 0
@@ -216,8 +217,8 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) st
 				pages: len(paginasMap),
 			})
 		}
-		sort.Slice(docs, func(i, j int) bool {
-			return docs[i].index < docs[j].index
+		slices.SortFunc(docs, func(a, b docSummaryEntry) int {
+			return cmp.Compare(a.index, b.index)
 		})
 
 		for _, d := range docs {
@@ -248,8 +249,8 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) st
 				paginas: dData["paginas"].(map[string]any),
 			})
 		}
-		sort.Slice(docs, func(i, j int) bool {
-			return docs[i].index < docs[j].index
+		slices.SortFunc(docs, func(a, b docEntry) int {
+			return cmp.Compare(a.index, b.index)
 		})
 
 		for _, d := range docs {
@@ -278,8 +279,8 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) st
 					content: contentVal,
 				})
 			}
-			sort.Slice(pages, func(i, j int) bool {
-				return pages[i].index < pages[j].index
+			slices.SortFunc(pages, func(a, b pageEntry) int {
+				return cmp.Compare(a.index, b.index)
 			})
 
 			var repeated map[string]bool

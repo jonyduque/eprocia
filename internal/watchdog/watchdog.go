@@ -1,7 +1,9 @@
 package watchdog
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
@@ -80,8 +82,10 @@ func (w *Watcher) Start(path string) error {
 		return fmt.Errorf("failed to add path to watcher: %w", err)
 	}
 
-	w.wg.Add(1)
-	go w.watchLoop(w.watcher, w.done)
+	// Cópias locais: o closure não pode ler w.watcher/w.done depois que um
+	// novo Start os reatribuir.
+	watcherAtual, done := w.watcher, w.done
+	w.wg.Go(func() { w.watchLoop(watcherAtual, done) })
 
 	// ZIPs baixados enquanto o app estava fechado não geram evento do fsnotify.
 	pendentes, err := pendingZips(path, time.Now().Add(-janelaPendentes), w.falhas.Ignorar)
@@ -90,9 +94,7 @@ func (w *Watcher) Start(path string) error {
 	}
 	if len(pendentes) > 0 {
 		log.Printf("Watchdog: %d ZIP(s) pendente(s) encontrados em %s", len(pendentes), path)
-		w.wg.Add(1)
-		go func(done chan struct{}) {
-			defer w.wg.Done()
+		w.wg.Go(func() {
 			// Em série, para a fila receber na ordem de download.
 			for _, p := range pendentes {
 				select {
@@ -102,7 +104,7 @@ func (w *Watcher) Start(path string) error {
 				}
 				w.handleNewFile(p, done)
 			}
-		}(w.done)
+		})
 	}
 
 	log.Printf("Watchdog started monitoring: %s", path)
@@ -141,8 +143,6 @@ func (w *Watcher) GetCurrentPath() string {
 // Recebe watcher e done por argumento: Start os reatribui sob w.mu, e um
 // goroutine da pasta anterior não pode enxergar os da nova.
 func (w *Watcher) watchLoop(watcher *fsnotify.Watcher, done chan struct{}) {
-	defer w.wg.Done()
-
 	for {
 		select {
 		case event, ok := <-watcher.Events:
@@ -154,13 +154,9 @@ func (w *Watcher) watchLoop(watcher *fsnotify.Watcher, done chan struct{}) {
 			if event.Has(fsnotify.Create) || event.Has(fsnotify.Write) || event.Has(fsnotify.Rename) {
 				if strings.ToLower(filepath.Ext(event.Name)) == ".zip" {
 					// Launch a goroutine to wait for the file to be completely written/unlocked
-					// wg.Add aqui é seguro: watchLoop ainda conta no wg, então
+					// wg.Go aqui é seguro: watchLoop ainda conta no wg, então
 					// o contador não está em zero enquanto stopLocked espera.
-					w.wg.Add(1)
-					go func(nome string) {
-						defer w.wg.Done()
-						w.handleNewFile(nome, done)
-					}(event.Name)
+					w.wg.Go(func() { w.handleNewFile(event.Name, done) })
 				}
 			}
 
@@ -185,14 +181,14 @@ func (w *Watcher) handleNewFile(filePath string, done <-chan struct{}) {
 	ticker := time.NewTicker(200 * time.Millisecond)
 	defer ticker.Stop()
 
-	for i := 0; i < retries; i++ {
+	for range retries {
 		select {
 		case <-done:
 			return
 		case <-ticker.C:
 			info, err := os.Stat(filePath)
 			if err != nil {
-				if os.IsNotExist(err) {
+				if errors.Is(err, fs.ErrNotExist) {
 					// File might have been renamed or deleted
 					return
 				}

@@ -25,9 +25,7 @@ func TestExecutarTray_PrendeThreadDoSO(t *testing.T) {
 	pare := make(chan struct{})
 	var wg sync.WaitGroup
 	for i := 0; i < 4*runtime.GOMAXPROCS(0); i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for {
 				select {
 				case <-pare:
@@ -44,7 +42,7 @@ func TestExecutarTray_PrendeThreadDoSO(t *testing.T) {
 				}
 				runtime.Gosched()
 			}
-		}()
+		})
 	}
 
 	fim := make(chan struct{})
@@ -55,7 +53,7 @@ func TestExecutarTray_PrendeThreadDoSO(t *testing.T) {
 		inicial = threadAtual()
 		rodando.Store(true)
 		defer rodando.Store(false)
-		for i := 0; i < 200; i++ {
+		for range 200 {
 			time.Sleep(time.Millisecond)
 			runtime.Gosched()
 			if threadAtual() != inicial {

@@ -50,7 +50,7 @@ func main() {
 		DragAndDrop: &options.DragAndDrop{
 			EnableFileDrop: true,
 		},
-		Bind: []interface{}{
+		Bind: []any{
 			app,
 		},
 	})

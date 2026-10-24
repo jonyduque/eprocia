@@ -2,10 +2,11 @@ package etl
 
 import (
 	"archive/zip"
+	"cmp"
 	"math"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -68,15 +69,24 @@ func ParseFileInfo(f *zip.File) models.ProcessFile {
 // SortProcessFiles sorts process files chronologically: by event number, then
 // by document number inside the event, falling back to a natural name compare.
 func SortProcessFiles(files []models.ProcessFile) {
-	sort.Slice(files, func(i, j int) bool {
-		if files[i].EventNum != files[j].EventNum {
-			return files[i].EventNum < files[j].EventNum
-		}
-		if files[i].DocNum != files[j].DocNum {
-			return files[i].DocNum < files[j].DocNum
-		}
-		return CompareNatural(files[i].DocName, files[j].DocName)
+	slices.SortFunc(files, func(a, b models.ProcessFile) int {
+		return cmp.Or(
+			cmp.Compare(a.EventNum, b.EventNum),
+			cmp.Compare(a.DocNum, b.DocNum),
+			compareNaturalInt(a.DocName, b.DocName),
+		)
 	})
+}
+
+// compareNaturalInt adapta CompareNatural (menor-que) ao contrato -1/0/+1 de slices.SortFunc.
+func compareNaturalInt(a, b string) int {
+	switch {
+	case CompareNatural(a, b):
+		return -1
+	case CompareNatural(b, a):
+		return 1
+	}
+	return 0
 }
 
 // CompareNatural compares two strings naturally (runs of digits compared as numbers).

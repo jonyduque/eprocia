@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"slices"
 	"sync"
 	"time"
 
@@ -61,7 +62,7 @@ type Queue struct {
 	ultimoTrabalhou bool
 
 	// emitir substitui runtime.EventsEmit nos testes.
-	emitir func(ctx context.Context, nome string, dados ...interface{})
+	emitir func(ctx context.Context, nome string, dados ...any)
 
 	// processar substitui pipeline.ProcessZip nos testes.
 	processar func(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, error)
@@ -176,7 +177,7 @@ func (q *Queue) AddFiles(paths []string) {
 			Status:    "pending",
 			Progress:  0.0,
 			Message:   "Na fila...",
-			Timestamp: time.Now().UnixNano() / int64(time.Millisecond),
+			Timestamp: time.Now().UnixMilli(),
 		}
 		// Prepend to show newest on top
 		q.items = append([]*QueueItem{item}, q.items...)
@@ -328,9 +329,9 @@ func (q *Queue) startProcessing() {
 
 	// Find the next pending item, starting from the oldest (bottom of stack)
 	var nextItem *QueueItem
-	for i := len(q.items) - 1; i >= 0; i-- {
-		if q.items[i].Status == "pending" {
-			nextItem = q.items[i]
+	for _, v := range slices.Backward(q.items) {
+		if v.Status == "pending" {
+			nextItem = v
 			break
 		}
 	}
@@ -343,15 +344,11 @@ func (q *Queue) startProcessing() {
 
 	log.Printf("[Queue] Próximo item para processamento: %s (%s)", nextItem.Name, nextItem.Path)
 	q.isWorking = true
-	// Add sob q.mu com encerrada == false: Shutdown marca encerrada antes de
+	// Go sob q.mu com encerrada == false: Shutdown marca encerrada antes de
 	// esperar, então nenhum Add acontece com o contador em zero durante o Wait.
-	q.wg.Add(1)
+	// processItem só pega q.mu depois do Unlock abaixo.
+	q.wg.Go(func() { q.processItem(nextItem) })
 	q.mu.Unlock()
-
-	go func() {
-		defer q.wg.Done()
-		q.processItem(nextItem)
-	}()
 }
 
 func (q *Queue) processItem(item *QueueItem) {
@@ -489,7 +486,7 @@ func (q *Queue) broadcast() {
 		return
 	}
 	q.statusEmitido, q.ultimoPausado, q.ultimoTrabalhou = true, isPaused, isWorking
-	q.emitir(ctx, "queue:status", map[string]interface{}{
+	q.emitir(ctx, "queue:status", map[string]any{
 		"isPaused":  isPaused,
 		"isWorking": isWorking,
 	})
@@ -543,12 +540,7 @@ func (q *Queue) enviarItem(item *QueueItem, geracao uint64) {
 }
 
 func (q *Queue) contemLocked(item *QueueItem) bool {
-	for _, it := range q.items {
-		if it == item {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(q.items, item)
 }
 
 // pararEnvioPendente exige q.mu travado. O broadcast que sucede leva o estado final.

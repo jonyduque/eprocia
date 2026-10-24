@@ -220,7 +220,7 @@ func TestFila_PausaImpedeProximoEResumeRetoma(t *testing.T) {
 
 	pausou := false
 	for _, e := range g.doTipo("queue:status") {
-		if st, _ := e.dados[0].(map[string]interface{}); st["isPaused"] == true {
+		if st, _ := e.dados[0].(map[string]any); st["isPaused"] == true {
 			pausou = true
 		}
 	}
