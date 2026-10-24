@@ -184,7 +184,33 @@ Status: pendente
 - **Veredito:** mantido
 - **Justificativa do cético:** Os blocos 204-205, 211-214 e 258-259 têm contagem 0, e a linha 150 impede a chamada de HasDrawnContent no teste ContentsArray. Os contornos de armadilhas já documentadas ficam sem regressão.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `a758577a4572a8759412ef630b5e5a1e86770d53`
+- **Benchstat:**
+
+```
+Modo padrão sem OCR (EPROCIA_BENCH_OCR não definido), -count=6, antes=HEAD a7dc62e, depois=árvore atual.
+sec/op:
+Sintetico/ocr=none-12       60.34m ±9%  -> 53.11m ±16%  -11.98% (p=0.004 n=6)
+ParsePDF/nativo-12          1.123m ±5%  -> 1.081m ±5%   -3.80% (p=0.002 n=6)
+ParsePDF/escaneado-12       259.2µ ±11% -> 235.7µ ±9%   ~ (p=0.093 n=6)
+ParsePDF/vetorial-12        15.76m ±6%  -> 14.90m ±5%   -5.42% (p=0.026 n=6)
+ParsePDF/contents-array-12  149.8µ ±11% -> 160.5µ ±9%   ~ (p=0.240 n=6)
+geomean                     2.106m -> 2.004m  -4.84%
+gc-pausa-sec/op: Sintetico 4.268m ±27% -> 3.827m ±13% ~ (p=0.310)
+pico-mem-B: Sintetico 26.86Mi ±15% -> 27.11Mi ±0% +0.93% (p=0.002)
+procs/op: Sintetico 0 -> 0 ~
+B/op:
+Sintetico/ocr=none-12       16.66Mi -> 16.77Mi  +0.66% (p=0.002)
+ParsePDF/nativo-12          262.7Ki -> 262.6Ki  ~ (p=0.121)
+ParsePDF/escaneado-12       54.07Ki -> 54.09Ki  +0.04% (p=0.015)
+ParsePDF/vetorial-12        1.844Mi -> 1.844Mi  ~ (p=0.729)
+ParsePDF/contents-array-12  34.85Ki -> 34.86Ki  +0.01% (p=0.004)
+geomean 437.1Ki -> 437.7Ki +0.14%
+allocs/op: Sintetico 293.8k -> 293.8k +0.02% (p=0.041); demais iguais.
+Segunda rodada de sec/op não foi necessária: nenhum sec/op piorou com p<0,05.
+```
 
 ### B-TE-02 — Cancelamento dentro de ParsePages não tem teste nem checagem de vazamento de goroutines
 
@@ -197,7 +223,33 @@ Status: pendente
 - **Veredito:** mantido (TE); mantido (GM)
 - **Justificativa do cético:** Os blocos 111-114 e 184-186 têm contagem 0, não há nenhum teste de cancelamento em internal e o pprof do Go 1.27.1 registra o perfil goroutineleak.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `a758577a4572a8759412ef630b5e5a1e86770d53`
+- **Benchstat:**
+
+```
+Modo padrão sem OCR (EPROCIA_BENCH_OCR não definido), -count=6, antes=HEAD a7dc62e, depois=árvore atual.
+sec/op:
+Sintetico/ocr=none-12       60.34m ±9%  -> 53.11m ±16%  -11.98% (p=0.004 n=6)
+ParsePDF/nativo-12          1.123m ±5%  -> 1.081m ±5%   -3.80% (p=0.002 n=6)
+ParsePDF/escaneado-12       259.2µ ±11% -> 235.7µ ±9%   ~ (p=0.093 n=6)
+ParsePDF/vetorial-12        15.76m ±6%  -> 14.90m ±5%   -5.42% (p=0.026 n=6)
+ParsePDF/contents-array-12  149.8µ ±11% -> 160.5µ ±9%   ~ (p=0.240 n=6)
+geomean                     2.106m -> 2.004m  -4.84%
+gc-pausa-sec/op: Sintetico 4.268m ±27% -> 3.827m ±13% ~ (p=0.310)
+pico-mem-B: Sintetico 26.86Mi ±15% -> 27.11Mi ±0% +0.93% (p=0.002)
+procs/op: Sintetico 0 -> 0 ~
+B/op:
+Sintetico/ocr=none-12       16.66Mi -> 16.77Mi  +0.66% (p=0.002)
+ParsePDF/nativo-12          262.7Ki -> 262.6Ki  ~ (p=0.121)
+ParsePDF/escaneado-12       54.07Ki -> 54.09Ki  +0.04% (p=0.015)
+ParsePDF/vetorial-12        1.844Mi -> 1.844Mi  ~ (p=0.729)
+ParsePDF/contents-array-12  34.85Ki -> 34.86Ki  +0.01% (p=0.004)
+geomean 437.1Ki -> 437.7Ki +0.14%
+allocs/op: Sintetico 293.8k -> 293.8k +0.02% (p=0.041); demais iguais.
+Segunda rodada de sec/op não foi necessária: nenhum sec/op piorou com p<0,05.
+```
 
 ### B-TE-03 — Config corrompida: o ramo de JSON inválido não é testado e o efeito no app (erro engolido no startup) nunca é exercitado
 
@@ -992,7 +1044,10 @@ Status: feito
 - **Veredito:** rebaixado (AN, de alta para média); mantido (RS, transição); rebaixado (RS, clamp); rebaixado (DF)
 - **Justificativa do cético:** A transição sem exceção no arrasto, o cursor restrito à alça e o descarte fora da faixa foram confirmados. É incômodo visual num gesto raro, e o efeito do clamp quase some com mouse real, que dispara muito mais eventos que os 12 passos sintéticos da captura.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `833373e047fe117da6c00de3e7fa3c601db12954`
+- **Capturas:** antes em [`capturas/2026-10-15/antes/`](capturas/2026-10-15/antes/), depois em [`capturas/2026-10-15/depois-F-AN-02+F-AN-03+F-AN-04/`](capturas/2026-10-15/depois-F-AN-02%2BF-AN-03%2BF-AN-04/). Exemplo: [antes](capturas/2026-10-15/antes/1440x900-escuro-processando.png) e [depois](capturas/2026-10-15/depois-F-AN-02%2BF-AN-03%2BF-AN-04/1440x900-escuro-processando.png) em 1440x900 escuro, processando.
 
 ### F-AN-03 — Movimento sem tokens, durações e curvas soltas, animações infinitas e nenhuma regra de prefers-reduced-motion
 
@@ -1005,7 +1060,10 @@ Status: pendente
 - **Veredito:** rebaixado (AN, de alta para média); rebaixado (VI); mantido (AN, durações); mantido (AC); mantido (DF)
 - **Justificativa do cético:** Confirmados a ausência de `@media`/`reduced-motion`, as animações infinitas e as durações soltas. É ajuste de acessibilidade e consistência num app desktop interno, não quebra nada, e a repintura de um ponto de 5px é quase desprezível.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `833373e047fe117da6c00de3e7fa3c601db12954`
+- **Capturas:** antes em [`capturas/2026-10-15/antes/`](capturas/2026-10-15/antes/), depois em [`capturas/2026-10-15/depois-F-AN-02+F-AN-03+F-AN-04/`](capturas/2026-10-15/depois-F-AN-02%2BF-AN-03%2BF-AN-04/). Exemplo: [antes](capturas/2026-10-15/antes/1440x900-escuro-processando.png) e [depois](capturas/2026-10-15/depois-F-AN-02%2BF-AN-03%2BF-AN-04/1440x900-escuro-processando.png) em 1440x900 escuro, processando.
 
 ### F-VI-04 — Paleta de tokens diverge do DESIGN.md (cinzas e acentos estilo Tailwind no lugar das cores definidas)
 
@@ -1018,7 +1076,10 @@ Status: pendente
 - **Veredito:** mantido
 - **Justificativa do cético:** A divergência da especificação é real (style.css:3-31 contra DESIGN.md:16-30). A afirmação de que os cards "quase somem" é exagerada, porque na captura as bordas aparecem.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `517ec8a92d48d349f958c450ee12abbbffabc49d`
+- **Capturas:** antes em [`capturas/2026-10-15/antes/`](capturas/2026-10-15/antes/), depois em [`capturas/2026-10-15/depois-F-VI-04+F-VI-05/`](capturas/2026-10-15/depois-F-VI-04%2BF-VI-05/). Exemplo: [antes](capturas/2026-10-15/antes/1440x900-escuro-processando.png) e [depois](capturas/2026-10-15/depois-F-VI-04%2BF-VI-05/1440x900-escuro-processando.png) em 1440x900 escuro, processando.
 
 ### B-EF-03 — Pré-contagem serial grava cada PDF em disco e o reabre, e essa reabertura domina o tempo sem OCR
 
@@ -1332,7 +1393,10 @@ Status: feito
 - **Veredito:** mantido (VI); rebaixado (DF); mantido (AN)
 - **Justificativa do cético:** Os valores foram confirmados em ProcessList.svelte e App.svelte, contra o raio de 4px do DESIGN.md:78. O custo de GPU do blur por linha é especulativo e não foi medido; a parte estética se sustenta.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `517ec8a92d48d349f958c450ee12abbbffabc49d`
+- **Capturas:** antes em [`capturas/2026-10-15/antes/`](capturas/2026-10-15/antes/), depois em [`capturas/2026-10-15/depois-F-VI-04+F-VI-05/`](capturas/2026-10-15/depois-F-VI-04%2BF-VI-05/). Exemplo: [antes](capturas/2026-10-15/antes/1440x900-escuro-processando.png) e [depois](capturas/2026-10-15/depois-F-VI-04%2BF-VI-05/1440x900-escuro-processando.png) em 1440x900 escuro, processando.
 
 ### F-VI-06 — Lista pouco densa: linhas com 52px de altura mínima e 8px de espaço contra os 40px e 4px do DESIGN
 
@@ -1345,7 +1409,10 @@ Status: pendente
 - **Veredito:** mantido
 - **Justificativa do cético:** Valores confirmados em ProcessList.svelte:382-415 contra DESIGN.md:60 e :77, e a captura mostra as linhas com cerca de 52px.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `406dacab40c19397c71d58e3d88a651b5fab8fe1`
+- **Capturas:** antes em [`capturas/2026-10-15/antes/`](capturas/2026-10-15/antes/), depois em [`capturas/2026-10-15/depois-F-VI-06+F-VI-10/`](capturas/2026-10-15/depois-F-VI-06%2BF-VI-10/). Exemplo: [antes](capturas/2026-10-15/antes/1440x900-escuro-processando.png) e [depois](capturas/2026-10-15/depois-F-VI-06%2BF-VI-10/1440x900-escuro-processando.png) em 1440x900 escuro, processando.
 
 ### B-ES-06 — Pré-cálculo de páginas ignora cancelamento
 
@@ -1451,7 +1518,9 @@ Status: feito
 - **Veredito:** mantido
 - **Justificativa do cético:** Melhoria real e barata; a heurística de dividir por 4 é aproximada, o que a gravidade baixa já reflete.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `708b6a8c86029d8e9ffe2c1047f8906a247fc1be`
 
 ### B-RN-06 — Nenhuma notificação quando o processamento termina com a janela oculta
 
@@ -1479,7 +1548,14 @@ Status: feito
 - **Veredito:** mantido
 - **Justificativa do cético:** hideConsole tem 100% de cobertura, mas nenhum teste confere SysProcAttr/CreationFlags.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `d9b91f7462753336b8cc363ea468ad8fc0a8d148`
+- **Benchstat:**
+
+```
+Não rodei o benchmark. Nenhum pacote alterado pela tarefa aparece em go list -deps ./scripts/bench, que só lista o próprio eprocia/scripts/bench. A tarefa só mexeu em arquivos _test.go de internal/ocr.
+```
 
 ### F-VI-07 — Formulário de configurações com alinhamentos mistos e textos cortados no painel estreito
 
@@ -1699,7 +1775,10 @@ Status: feito
 - **Veredito:** mantido
 - **Justificativa do cético:** Settings.svelte:204 tem h2 de 14px contra os 16px do DESIGN.md:40, e a captura mostra os três níveis de cabeçalho.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `406dacab40c19397c71d58e3d88a651b5fab8fe1`
+- **Capturas:** antes em [`capturas/2026-10-15/antes/`](capturas/2026-10-15/antes/), depois em [`capturas/2026-10-15/depois-F-VI-06+F-VI-10/`](capturas/2026-10-15/depois-F-VI-06%2BF-VI-10/). Exemplo: [antes](capturas/2026-10-15/antes/1440x900-escuro-processando.png) e [depois](capturas/2026-10-15/depois-F-VI-06%2BF-VI-10/1440x900-escuro-processando.png) em 1440x900 escuro, processando.
 
 ### F-AC-06 — Campo de filtro sem rótulo, só com placeholder
 
@@ -1789,7 +1868,10 @@ Status: feito
 - **Veredito:** mantido
 - **Justificativa do cético:** Os botões em 243, 257 e 280 têm só title, e o de maximizar tem o title fixo.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `3b0912daeee3d4b273c18ff7aa06c1a95fe922d9`
+- **Capturas:** antes em [`capturas/2026-10-15/antes/`](capturas/2026-10-15/antes/), depois em [`capturas/2026-10-15/depois-F-AC-07+F-AC-08+F-RS-03/`](capturas/2026-10-15/depois-F-AC-07%2BF-AC-08%2BF-RS-03/). Exemplo: [antes](capturas/2026-10-15/antes/1440x900-escuro-processando.png) e [depois](capturas/2026-10-15/depois-F-AC-07%2BF-AC-08%2BF-RS-03/1440x900-escuro-processando.png) em 1440x900 escuro, processando.
 
 ### F-AC-08 — Divisor redimensionável com teclado incompleto (sem Home/End nem preventDefault)
 
@@ -1802,7 +1884,10 @@ Status: pendente
 - **Veredito:** rebaixado
 - **Justificativa do cético:** O teclado incompleto se confirma. Mas o div com tabindex não tem `outline: none` e recebe o anel `:focus-visible` padrão do WebView2, então o foco aparece. Para um slider que responde a ArrowLeft/Right, `aria-orientation="horizontal"` é coerente, e a troca para separator é preferência.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `3b0912daeee3d4b273c18ff7aa06c1a95fe922d9`
+- **Capturas:** antes em [`capturas/2026-10-15/antes/`](capturas/2026-10-15/antes/), depois em [`capturas/2026-10-15/depois-F-AC-07+F-AC-08+F-RS-03/`](capturas/2026-10-15/depois-F-AC-07%2BF-AC-08%2BF-RS-03/). Exemplo: [antes](capturas/2026-10-15/antes/1440x900-escuro-processando.png) e [depois](capturas/2026-10-15/depois-F-AC-07%2BF-AC-08%2BF-RS-03/1440x900-escuro-processando.png) em 1440x900 escuro, processando.
 
 ### F-RS-03 — Largura e estado recolhido do painel não são persistidos
 
@@ -1815,7 +1900,10 @@ Status: pendente
 - **Veredito:** rebaixado
 - **Justificativa do cético:** Confirmado, mas é conveniência, sem defeito funcional: o painel volta ao padrão razoável de 320px.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `3b0912daeee3d4b273c18ff7aa06c1a95fe922d9`
+- **Capturas:** antes em [`capturas/2026-10-15/antes/`](capturas/2026-10-15/antes/), depois em [`capturas/2026-10-15/depois-F-AC-07+F-AC-08+F-RS-03/`](capturas/2026-10-15/depois-F-AC-07%2BF-AC-08%2BF-RS-03/). Exemplo: [antes](capturas/2026-10-15/antes/1440x900-escuro-processando.png) e [depois](capturas/2026-10-15/depois-F-AC-07%2BF-AC-08%2BF-RS-03/1440x900-escuro-processando.png) em 1440x900 escuro, processando.
 
 ### F-AN-04 — Overlay de arrastar e soltar some de uma vez e só a caixa anima na entrada
 
@@ -1828,7 +1916,10 @@ Status: pendente
 - **Veredito:** mantido
 - **Justificativa do cético:** Confirmado; problema cosmético real de gravidade baixa.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `833373e047fe117da6c00de3e7fa3c601db12954`
+- **Capturas:** antes em [`capturas/2026-10-15/antes/`](capturas/2026-10-15/antes/), depois em [`capturas/2026-10-15/depois-F-AN-02+F-AN-03+F-AN-04/`](capturas/2026-10-15/depois-F-AN-02%2BF-AN-03%2BF-AN-04/). Exemplo: [antes](capturas/2026-10-15/antes/1440x900-escuro-processando.png) e [depois](capturas/2026-10-15/depois-F-AN-02%2BF-AN-03%2BF-AN-04/1440x900-escuro-processando.png) em 1440x900 escuro, processando.
 
 ### F-DF-02 — Recolher a barra lateral desmonta Settings, e cada expansão refaz GetConfig e mostra o spinner
 
@@ -1910,7 +2001,10 @@ Status: feito
 - **Veredito:** mantido
 - **Justificativa do cético:** O custo é real, mas pequeno e derivado de F-DF-01.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `8719411b0a85e8db4fb7fd6468159cf09e17423f`
+- **Capturas:** antes em [`capturas/2026-10-15/antes/`](capturas/2026-10-15/antes/), depois em [`capturas/2026-10-15/depois-F-AC-09+F-AC-10+F-DF-03/`](capturas/2026-10-15/depois-F-AC-09%2BF-AC-10%2BF-DF-03/). Exemplo: [antes](capturas/2026-10-15/antes/1440x900-escuro-processando.png) e [depois](capturas/2026-10-15/depois-F-AC-09%2BF-AC-10%2BF-DF-03/1440x900-escuro-processando.png) em 1440x900 escuro, processando.
 
 ### B-GM-01 — Modernizadores do go fix pendentes: atomic.Int32, max, maps.Copy, slices.Backward, for range n, any
 
@@ -1923,7 +2017,46 @@ Status: pendente
 - **Veredito:** rebaixado
 - **Justificativa do cético:** Os trechos existem, mas hoje todo acesso aos contadores já passa por atomic; o ganho é prevenção e legibilidade, sem bug atual.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `a7dc62ef81fc2fb82bdbb8f9c8a4c8196ba82595`
+- **Benchstat:**
+
+```
+Sintético e ParsePDF, ocr=none, -count=6, antes=HEAD f339b05, depois=árvore atual
+                           sec/op antes      sec/op depois     vs base
+Sintetico/ocr=none-12      55.03m ± 15%      54.15m ± 15%      ~ (p=0.485 n=6)
+ParsePDF/nativo-12         1.010m ±  3%      1.001m ±  8%      ~ (p=0.818 n=6)
+ParsePDF/escaneado-12      220.0µ ±  4%      224.2µ ±  3%      ~ (p=0.394 n=6)
+ParsePDF/vetorial-12       14.44m ±  2%      14.66m ±  2%      ~ (p=0.093 n=6)
+ParsePDF/contents-array-12 149.6µ ±  4%      146.2µ ±  3%      -2.25% (p=0.041 n=6)
+geomean                    1.925m            1.920m            -0.27%
+
+                           gc-pausa-sec/op
+Sintetico/ocr=none-12      4.185m ± 32%      3.913m ± 39%      ~ (p=0.394 n=6)
+
+                           pico-mem-B
+Sintetico/ocr=none-12      26.86Mi ± 15%     22.86Mi ± 0%      -14.89% (p=0.015 n=6)
+
+                           procs/op
+Sintetico/ocr=none-12      0.000 ± 0%        0.000 ± 0%        ~ (p=1.000 n=6) (todas as amostras iguais)
+
+                           B/op
+Sintetico/ocr=none-12      16.70Mi ± 0%      16.76Mi ± 0%      ~ (p=0.065 n=6)
+ParsePDF/nativo-12         262.7Ki ± 0%      262.7Ki ± 0%      ~ (p=0.310 n=6)
+ParsePDF/escaneado-12      54.09Ki ± 0%      54.09Ki ± 0%      ~ (p=0.665 n=6)
+ParsePDF/vetorial-12       1.845Mi ± 0%      1.844Mi ± 0%      ~ (p=0.394 n=6)
+ParsePDF/contents-array-12 34.87Ki ± 0%      34.86Ki ± 0%      -0.04% (p=0.002 n=6)
+geomean                    437.4Ki           437.6Ki           +0.05%
+
+                           allocs/op
+Sintetico/ocr=none-12      291.9k ± 0%       293.9k ± 0%       +0.66% (p=0.002 n=6)
+ParsePDF/nativo-12         2.303k ± 0%       2.303k ± 0%       ~ (p=1.000 n=6)
+ParsePDF/escaneado-12      326.0 ± 0%        326.0 ± 0%        ~ (p=1.000 n=6)
+ParsePDF/vetorial-12       104.6k ± 0%       104.6k ± 0%       ~ (p=0.242 n=6)
+ParsePDF/contents-array-12 231.0 ± 0%        231.0 ± 0%        ~ (p=1.000 n=6)
+geomean                    5.557k            5.564k            +0.13%
+```
 
 ### B-GM-02 — sort.Slice com closures por índice no lugar de slices.SortFunc/cmp.Compare
 
@@ -1936,7 +2069,46 @@ Status: pendente
 - **Veredito:** mantido
 - **Justificativa do cético:** Modernização legítima de legibilidade; o ganho de desempenho é desprezível e o risco de indexar errado é hipotético.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `a7dc62ef81fc2fb82bdbb8f9c8a4c8196ba82595`
+- **Benchstat:**
+
+```
+Sintético e ParsePDF, ocr=none, -count=6, antes=HEAD f339b05, depois=árvore atual
+                           sec/op antes      sec/op depois     vs base
+Sintetico/ocr=none-12      55.03m ± 15%      54.15m ± 15%      ~ (p=0.485 n=6)
+ParsePDF/nativo-12         1.010m ±  3%      1.001m ±  8%      ~ (p=0.818 n=6)
+ParsePDF/escaneado-12      220.0µ ±  4%      224.2µ ±  3%      ~ (p=0.394 n=6)
+ParsePDF/vetorial-12       14.44m ±  2%      14.66m ±  2%      ~ (p=0.093 n=6)
+ParsePDF/contents-array-12 149.6µ ±  4%      146.2µ ±  3%      -2.25% (p=0.041 n=6)
+geomean                    1.925m            1.920m            -0.27%
+
+                           gc-pausa-sec/op
+Sintetico/ocr=none-12      4.185m ± 32%      3.913m ± 39%      ~ (p=0.394 n=6)
+
+                           pico-mem-B
+Sintetico/ocr=none-12      26.86Mi ± 15%     22.86Mi ± 0%      -14.89% (p=0.015 n=6)
+
+                           procs/op
+Sintetico/ocr=none-12      0.000 ± 0%        0.000 ± 0%        ~ (p=1.000 n=6) (todas as amostras iguais)
+
+                           B/op
+Sintetico/ocr=none-12      16.70Mi ± 0%      16.76Mi ± 0%      ~ (p=0.065 n=6)
+ParsePDF/nativo-12         262.7Ki ± 0%      262.7Ki ± 0%      ~ (p=0.310 n=6)
+ParsePDF/escaneado-12      54.09Ki ± 0%      54.09Ki ± 0%      ~ (p=0.665 n=6)
+ParsePDF/vetorial-12       1.845Mi ± 0%      1.844Mi ± 0%      ~ (p=0.394 n=6)
+ParsePDF/contents-array-12 34.87Ki ± 0%      34.86Ki ± 0%      -0.04% (p=0.002 n=6)
+geomean                    437.4Ki           437.6Ki           +0.05%
+
+                           allocs/op
+Sintetico/ocr=none-12      291.9k ± 0%       293.9k ± 0%       +0.66% (p=0.002 n=6)
+ParsePDF/nativo-12         2.303k ± 0%       2.303k ± 0%       ~ (p=1.000 n=6)
+ParsePDF/escaneado-12      326.0 ± 0%        326.0 ± 0%        ~ (p=1.000 n=6)
+ParsePDF/vetorial-12       104.6k ± 0%       104.6k ± 0%       ~ (p=0.242 n=6)
+ParsePDF/contents-array-12 231.0 ± 0%        231.0 ± 0%        ~ (p=1.000 n=6)
+geomean                    5.557k            5.564k            +0.13%
+```
 
 ### B-GM-03 — APIs antigas: os.IsNotExist no lugar de errors.Is(fs.ErrNotExist), e UnixNano()/Millisecond no lugar de UnixMilli()
 
@@ -1949,7 +2121,46 @@ Status: pendente
 - **Veredito:** mantido
 - **Justificativa do cético:** Hoje os erros vêm direto de os.Stat/ReadFile, então a troca é preventiva e de estilo.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `a7dc62ef81fc2fb82bdbb8f9c8a4c8196ba82595`
+- **Benchstat:**
+
+```
+Sintético e ParsePDF, ocr=none, -count=6, antes=HEAD f339b05, depois=árvore atual
+                           sec/op antes      sec/op depois     vs base
+Sintetico/ocr=none-12      55.03m ± 15%      54.15m ± 15%      ~ (p=0.485 n=6)
+ParsePDF/nativo-12         1.010m ±  3%      1.001m ±  8%      ~ (p=0.818 n=6)
+ParsePDF/escaneado-12      220.0µ ±  4%      224.2µ ±  3%      ~ (p=0.394 n=6)
+ParsePDF/vetorial-12       14.44m ±  2%      14.66m ±  2%      ~ (p=0.093 n=6)
+ParsePDF/contents-array-12 149.6µ ±  4%      146.2µ ±  3%      -2.25% (p=0.041 n=6)
+geomean                    1.925m            1.920m            -0.27%
+
+                           gc-pausa-sec/op
+Sintetico/ocr=none-12      4.185m ± 32%      3.913m ± 39%      ~ (p=0.394 n=6)
+
+                           pico-mem-B
+Sintetico/ocr=none-12      26.86Mi ± 15%     22.86Mi ± 0%      -14.89% (p=0.015 n=6)
+
+                           procs/op
+Sintetico/ocr=none-12      0.000 ± 0%        0.000 ± 0%        ~ (p=1.000 n=6) (todas as amostras iguais)
+
+                           B/op
+Sintetico/ocr=none-12      16.70Mi ± 0%      16.76Mi ± 0%      ~ (p=0.065 n=6)
+ParsePDF/nativo-12         262.7Ki ± 0%      262.7Ki ± 0%      ~ (p=0.310 n=6)
+ParsePDF/escaneado-12      54.09Ki ± 0%      54.09Ki ± 0%      ~ (p=0.665 n=6)
+ParsePDF/vetorial-12       1.845Mi ± 0%      1.844Mi ± 0%      ~ (p=0.394 n=6)
+ParsePDF/contents-array-12 34.87Ki ± 0%      34.86Ki ± 0%      -0.04% (p=0.002 n=6)
+geomean                    437.4Ki           437.6Ki           +0.05%
+
+                           allocs/op
+Sintetico/ocr=none-12      291.9k ± 0%       293.9k ± 0%       +0.66% (p=0.002 n=6)
+ParsePDF/nativo-12         2.303k ± 0%       2.303k ± 0%       ~ (p=1.000 n=6)
+ParsePDF/escaneado-12      326.0 ± 0%        326.0 ± 0%        ~ (p=1.000 n=6)
+ParsePDF/vetorial-12       104.6k ± 0%       104.6k ± 0%       ~ (p=0.242 n=6)
+ParsePDF/contents-array-12 231.0 ± 0%        231.0 ± 0%        ~ (p=1.000 n=6)
+geomean                    5.557k            5.564k            +0.13%
+```
 
 ### B-GM-04 — sync.WaitGroup.Go no lugar de Add(1)/go/defer Done separados (pipeline, pdf_parser, watchdog)
 
@@ -1962,7 +2173,46 @@ Status: pendente
 - **Veredito:** rebaixado
 - **Justificativa do cético:** Os pares estão balanceados e corretos hoje; é refatoração de estilo para manutenção futura.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `a7dc62ef81fc2fb82bdbb8f9c8a4c8196ba82595`
+- **Benchstat:**
+
+```
+Sintético e ParsePDF, ocr=none, -count=6, antes=HEAD f339b05, depois=árvore atual
+                           sec/op antes      sec/op depois     vs base
+Sintetico/ocr=none-12      55.03m ± 15%      54.15m ± 15%      ~ (p=0.485 n=6)
+ParsePDF/nativo-12         1.010m ±  3%      1.001m ±  8%      ~ (p=0.818 n=6)
+ParsePDF/escaneado-12      220.0µ ±  4%      224.2µ ±  3%      ~ (p=0.394 n=6)
+ParsePDF/vetorial-12       14.44m ±  2%      14.66m ±  2%      ~ (p=0.093 n=6)
+ParsePDF/contents-array-12 149.6µ ±  4%      146.2µ ±  3%      -2.25% (p=0.041 n=6)
+geomean                    1.925m            1.920m            -0.27%
+
+                           gc-pausa-sec/op
+Sintetico/ocr=none-12      4.185m ± 32%      3.913m ± 39%      ~ (p=0.394 n=6)
+
+                           pico-mem-B
+Sintetico/ocr=none-12      26.86Mi ± 15%     22.86Mi ± 0%      -14.89% (p=0.015 n=6)
+
+                           procs/op
+Sintetico/ocr=none-12      0.000 ± 0%        0.000 ± 0%        ~ (p=1.000 n=6) (todas as amostras iguais)
+
+                           B/op
+Sintetico/ocr=none-12      16.70Mi ± 0%      16.76Mi ± 0%      ~ (p=0.065 n=6)
+ParsePDF/nativo-12         262.7Ki ± 0%      262.7Ki ± 0%      ~ (p=0.310 n=6)
+ParsePDF/escaneado-12      54.09Ki ± 0%      54.09Ki ± 0%      ~ (p=0.665 n=6)
+ParsePDF/vetorial-12       1.845Mi ± 0%      1.844Mi ± 0%      ~ (p=0.394 n=6)
+ParsePDF/contents-array-12 34.87Ki ± 0%      34.86Ki ± 0%      -0.04% (p=0.002 n=6)
+geomean                    437.4Ki           437.6Ki           +0.05%
+
+                           allocs/op
+Sintetico/ocr=none-12      291.9k ± 0%       293.9k ± 0%       +0.66% (p=0.002 n=6)
+ParsePDF/nativo-12         2.303k ± 0%       2.303k ± 0%       ~ (p=1.000 n=6)
+ParsePDF/escaneado-12      326.0 ± 0%        326.0 ± 0%        ~ (p=1.000 n=6)
+ParsePDF/vetorial-12       104.6k ± 0%       104.6k ± 0%       ~ (p=0.242 n=6)
+ParsePDF/contents-array-12 231.0 ± 0%        231.0 ± 0%        ~ (p=1.000 n=6)
+geomean                    5.557k            5.564k            +0.13%
+```
 
 ### B-EF-04 — Um pdftoppm e um tesseract por página, com o modelo recarregado a cada vez
 
@@ -1975,7 +2225,64 @@ Status: pendente
 - **Veredito:** rebaixado
 - **Justificativa do cético:** O ganho foi medido em série, mas no pipeline as páginas já correm em paralelo com NumCPU-1 workers, o que dilui o custo de inicialização no tempo de parede. Blocos de k páginas reduzem esse paralelismo, e o custo M não compensa o ganho incerto. Só vale aplicar com benchmark que mostre ganho com p < 0,05.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `f339b05038f2ff92d731ee16d4d779b609b70c15`
+- **Benchstat:**
+
+```
+Rodada principal (-count=10, base HEAD b3411e6 vs árvore atual):
+
+sec/op                              antes             depois            vs base
+Sintetico/ocr=none-12               173.93m ± 232%    60.27m ±  5%      -65.35% (p=0.000 n=10)
+ParsePDF/nativo-12                  5.517m ± 117%     1.242m ±  7%      -77.48% (p=0.000 n=10)
+ParsePDF/escaneado-12               1504.9µ ±  51%    334.1µ ± 21%      -77.80% (p=0.000 n=10)
+ParsePDF/vetorial-12                63.32m ±  71%     17.22m ± 22%      -72.81% (p=0.000 n=10)
+ParsePDF/contents-array-12          1104.9µ ± 1656%   210.3µ ± 27%      -80.97% (p=0.007 n=10)
+Sintetico/ocr=fast-12               4.948 ±  38%      5.923 ± 51%       ~ (p=0.075 n=10)
+Sintetico/escaneado24/ocr=fast-12   12.469 ±  15%     9.915 ± 12%       -20.49% (p=0.000 n=10)
+
+gc-pausa-sec/op
+Sintetico/ocr=none-12               23.693m ± 257%    3.556m ±  10%     -84.99% (p=0.000 n=10)
+Sintetico/ocr=fast-12               282.32m ± 506%    91.94m ± 201%     -67.43% (p=0.043 n=10)
+Sintetico/escaneado24/ocr=fast-12   196.96m ± 284%    24.42m ± 180%     -87.60% (p=0.001 n=10)
+
+pico-mem-B
+Sintetico/ocr=none-12               31.02Mi ± 28%     22.86Mi ± 0%      -26.30% (p=0.001 n=10)
+Sintetico/ocr=fast-12               27.47Mi ± 15%     23.10Mi ± 1%      -15.94% (p=0.001 n=10)
+Sintetico/escaneado24/ocr=fast-12   75.60Mi ±  5%     67.36Mi ± 0%      -10.90% (p=0.001 n=10)
+
+procs/op
+Sintetico/ocr=none-12               0.000 ± 0%        0.000 ± 0%        ~ (p=1.000 n=10)
+Sintetico/ocr=fast-12               10.00 ± 0%        10.00 ± 0%        ~ (p=1.000 n=10)
+Sintetico/escaneado24/ocr=fast-12   48.00 ± 0%        16.00 ± 0%        -66.67% (p=0.000 n=10)
+
+B/op
+Sintetico/ocr=none-12               16.20Mi ± 2%      16.58Mi ± 0%      +2.37% (p=0.000 n=10)
+ParsePDF/nativo-12                  262.5Ki ± 0%      262.7Ki ± 0%      +0.09% (p=0.035 n=10)
+ParsePDF/escaneado-12               53.96Ki ± 0%      54.12Ki ± 0%      +0.30% (p=0.000 n=10)
+ParsePDF/vetorial-12                1.844Mi ± 0%      1.845Mi ± 0%      +0.03% (p=0.023 n=10)
+ParsePDF/contents-array-12          34.79Ki ± 0%      34.88Ki ± 0%      +0.24% (p=0.000 n=10)
+Sintetico/ocr=fast-12               17.88Mi ± 1%      17.91Mi ± 1%      ~ (p=0.684 n=10)
+Sintetico/escaneado24/ocr=fast-12   9.242Mi ± 1%      4.178Mi ± 3%      -54.79% (p=0.000 n=10)
+
+allocs/op
+Sintetico/ocr=none-12               291.6k ± 0%       291.9k ± 0%       +0.07% (p=0.000 n=10)
+ParsePDF/nativo-12                  2.301k ± 0%       2.303k ± 0%       +0.09% (p=0.000 n=10)
+ParsePDF/escaneado-12               324.0 ± 0%        326.0 ± 0%        +0.62% (p=0.000 n=10)
+ParsePDF/vetorial-12                104.6k ± 0%       104.6k ± 0%       +0.00% (p=0.000 n=10)
+ParsePDF/contents-array-12          229.0 ± 0%        231.0 ± 0%        +0.87% (p=0.000 n=10)
+Sintetico/ocr=fast-12               296.6k ± 0%       296.8k ± 0%       +0.07% (p=0.019 n=10)
+Sintetico/escaneado24/ocr=fast-12   29.21k ± 0%       14.62k ± 0%       -49.94% (p=0.000 n=10)
+
+Rodada de confirmação de misto.zip, base e atual intercalados (10 vezes cada):
+Sintetico/ocr=fast-12  sec/op        3.874 ± 13%     3.558 ± 14%    ~ (p=0.123 n=10)
+                       gc-pausa      19.60m ± 220%   17.24m ± 29%   ~ (p=0.684 n=10)
+                       pico-mem-B    20.83Mi ± 11%   22.58Mi ± 18%  ~ (p=0.987 n=10)
+                       procs/op      10.00 ± 0%      10.00 ± 0%     ~ (p=1.000 n=10)
+                       B/op          18.16Mi ± 1%    18.19Mi ± 1%   ~ (p=0.912 n=10)
+                       allocs/op     298.2k ± 0%     298.3k ± 0%    ~ (p=0.148 n=10)
+```
 
 ### B-TE-07 — RunOCR: binário ausente, falha do pdftoppm e fallback do Tesseract sem teste, e TestRunOCR vira skip se a extração falhar
 
@@ -1988,7 +2295,14 @@ Status: pendente
 - **Veredito:** rebaixado
 - **Justificativa do cético:** O Skipf e o embed versionado foram confirmados, mas RunOCR já tem 83,2% de cobertura com o caminho feliz real; as lacunas são ramos de erro defensivos de baixo risco.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `d9b91f7462753336b8cc363ea468ad8fc0a8d148`
+- **Benchstat:**
+
+```
+Não rodei o benchmark. Nenhum pacote alterado pela tarefa aparece em go list -deps ./scripts/bench, que só lista o próprio eprocia/scripts/bench. A tarefa só mexeu em arquivos _test.go de internal/ocr.
+```
 
 ### F-AC-09 — Foco se perde ao remover ou cancelar item e ao limpar a fila
 
@@ -2001,7 +2315,10 @@ Status: pendente
 - **Veredito:** mantido
 - **Justificativa do cético:** Os botões ficam em linhas `{#each ... (item.id)}` que somem com a atualização, e não há código que devolva o foco.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `8719411b0a85e8db4fb7fd6468159cf09e17423f`
+- **Capturas:** antes em [`capturas/2026-10-15/antes/`](capturas/2026-10-15/antes/), depois em [`capturas/2026-10-15/depois-F-AC-09+F-AC-10+F-DF-03/`](capturas/2026-10-15/depois-F-AC-09%2BF-AC-10%2BF-DF-03/). Exemplo: [antes](capturas/2026-10-15/antes/1440x900-escuro-processando.png) e [depois](capturas/2026-10-15/depois-F-AC-09%2BF-AC-10%2BF-DF-03/1440x900-escuro-processando.png) em 1440x900 escuro, processando.
 
 ### F-AC-10 — Mensagem completa de erro do item só fica acessível por title num div não focável
 
@@ -2014,7 +2331,10 @@ Status: pendente
 - **Veredito:** rebaixado
 - **Justificativa do cético:** O texto completo está no DOM, cortado só por CSS, então o leitor de tela lê tudo. Quem perde a mensagem é o usuário de teclado que enxerga, o que é bem menos grave.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `8719411b0a85e8db4fb7fd6468159cf09e17423f`
+- **Capturas:** antes em [`capturas/2026-10-15/antes/`](capturas/2026-10-15/antes/), depois em [`capturas/2026-10-15/depois-F-AC-09+F-AC-10+F-DF-03/`](capturas/2026-10-15/depois-F-AC-09%2BF-AC-10%2BF-DF-03/). Exemplo: [antes](capturas/2026-10-15/antes/1440x900-escuro-processando.png) e [depois](capturas/2026-10-15/depois-F-AC-09%2BF-AC-10%2BF-DF-03/1440x900-escuro-processando.png) em 1440x900 escuro, processando.
 
 ### F-AN-05 — O fly em cada linha da lista anima ao filtrar, e as outras linhas pulam
 
@@ -2027,7 +2347,10 @@ Status: pendente
 - **Veredito:** rebaixado
 - **Justificativa do cético:** A parte do filtro é verdadeira. A alegação de que o histórico inteiro anima no boot é falsa: no Svelte 4.2.20 as transições são locais, e quando a lista sai de vazia é o bloco `{:else}` (116) que cria os itens, então o intro não roda.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `42157c9afb1133dc710b84d29465e1bcaeecccd4`
+- **Capturas:** antes em [`capturas/2026-10-15/antes/`](capturas/2026-10-15/antes/), depois em [`capturas/2026-10-15/depois-F-AN-05+F-AN-06/`](capturas/2026-10-15/depois-F-AN-05%2BF-AN-06/). Exemplo: [antes](capturas/2026-10-15/antes/1440x900-escuro-processando.png) e [depois](capturas/2026-10-15/depois-F-AN-05%2BF-AN-06/1440x900-escuro-processando.png) em 1440x900 escuro, processando.
 
 ### F-AN-06 — Ao recolher ou expandir, o conteúdo da sidebar aparece e some de repente enquanto a largura anima
 
@@ -2040,7 +2363,10 @@ Status: pendente
 - **Veredito:** rebaixado
 - **Justificativa do cético:** O defeito existe, mas dura 150ms e só aparece ao clicar no botão de recolher.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `42157c9afb1133dc710b84d29465e1bcaeecccd4`
+- **Capturas:** antes em [`capturas/2026-10-15/antes/`](capturas/2026-10-15/antes/), depois em [`capturas/2026-10-15/depois-F-AN-05+F-AN-06/`](capturas/2026-10-15/depois-F-AN-05%2BF-AN-06/). Exemplo: [antes](capturas/2026-10-15/antes/1440x900-escuro-processando.png) e [depois](capturas/2026-10-15/depois-F-AN-05%2BF-AN-06/1440x900-escuro-processando.png) em 1440x900 escuro, processando.
 
 ### F-VI-11 — Ícones copiados como SVG inline, com traço e versões inconsistentes e fora do mapeamento do DESIGN
 
@@ -2053,7 +2379,10 @@ Status: pendente
 - **Veredito:** rebaixado
 - **Justificativa do cético:** É consistência fina de ícones e higiene de marcação, sem efeito no uso.
 
-Status: pendente
+Status: feito
+
+- **Commit:** `7625271fbb2d6db079d42f1f53221854e3ae3fb3`
+- **Capturas:** antes em [`capturas/2026-10-15/antes/`](capturas/2026-10-15/antes/), depois em [`capturas/2026-10-15/depois-F-VI-11/`](capturas/2026-10-15/depois-F-VI-11/). Exemplo: [antes](capturas/2026-10-15/antes/1440x900-escuro-processando.png) e [depois](capturas/2026-10-15/depois-F-VI-11/1440x900-escuro-processando.png) em 1440x900 escuro, processando.
 
 ## Revisão final da branch
 
@@ -2077,6 +2406,19 @@ Dead code:
 
 Messages not in pt-BR:
 - `internal/etl/pdf_parser.go:93,101,106,112`: "failed to create pdf reader", "failed to open pdf", "failed to stat pdf". These were moved into `abrir()` by B-EF-03 and still read in English; they can end up in the output text when parsing fails.
+
+## Revisão final da branch (segunda rodada)
+
+Nenhum problema bloqueante. As verificações passaram: `go vet ./...` limpo, `go test ./... -count=1` todo ok, `svelte-check` com 0 erros e 0 avisos, e os 138 testes de `node --test frontend/*.test.mjs` passaram.
+
+Nenhum zip, pdf ou saída .txt foi commitado. Os 368 arquivos binários são PNGs de captura em `docs/revisao/capturas/2026-10-15/`. A mudança em `models.ts` é a regenerada pelo Wails e casa com o campo `EstimatedTokens`. O `package.json.md5` passou a bater com o `package.json` atual. Não sobraram tokens CSS sem uso nem estilos glass ou de gradiente.
+
+Achados menores:
+- `internal/etl/pdf_parser.go:268` e `:291` (interação entre B-EF-04 e o progresso): com OCR em lote, as páginas pendentes só vão para o OCR depois que a leitura do texto nativo do documento inteiro termina. Antes, o OCR começava junto com a leitura. Além disso, o `onPageComplete` só dispara quando o bloco inteiro termina, então a barra de progresso fica parada e depois salta.
+- `internal/etl/pdf_parser.go:218`: o OCR em lote grava `"image": ""`, enquanto o caminho de página única grava a imagem. As duas saídas ficam inconsistentes. O caminho de página única aponta para uma pasta temporária que já foi apagada, então nenhum dos dois serve.
+- `internal/ocr/tesseract.go:362` (e `:217`, `:280`, `:319`): o erro reescrito "failed to find extracted image of page %d in run temp dir" continua em inglês, ao lado dos novos em português ("páginas repetidas no pedido de OCR", na `:329`). As mensagens do arquivo ficam misturadas.
+- `internal/etl/formatter.go:326` e `pipeline.go:609`: o cálculo de tokens é feito duas vezes, uma no formatter (ponto fixo de até 4 rodadas) e outra no pipeline com `EstimateTokens(outputText)`. Os dois só batem se o ponto fixo convergir. Seria melhor o formatter devolver o número.
+- `PRD.md:78-89`: a linha nova "Tokens estimados" no `<contexto>` não está no formato do §6. "Data de Consolidação" também não está, mas isso já vinha de antes da branch.
 
 ## Capturas
 
