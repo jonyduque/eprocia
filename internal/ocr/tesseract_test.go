@@ -3,6 +3,7 @@ package ocr
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -43,7 +44,7 @@ func TestRunOCR(t *testing.T) {
 	// Initialize and extract embedded binaries
 	binPath, errInit := InitBinaries()
 	if errInit != nil {
-		t.Skipf("Skipping OCR integration test: failed to initialize embedded binaries: %v", errInit)
+		t.Fatalf("falha ao extrair os binários embutidos: %v", errInit)
 	}
 
 	tmpDir, err := os.MkdirTemp("", "ocr_test")
@@ -176,5 +177,123 @@ func TestRunOCRPaginas_UmTesseractPorBloco(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// trocarEstadoInit substitui o cache de InitBinaries/tessdataDoModo durante o
+// teste e devolve o original no fim.
+func trocarEstadoInit(t *testing.T, dir string, tessdata map[string]string) {
+	t.Helper()
+	initMu.Lock()
+	velhoDir, velhoTess := binDir, tessdataDirs
+	binDir, tessdataDirs = dir, tessdata
+	initMu.Unlock()
+	t.Cleanup(func() {
+		initMu.Lock()
+		binDir, tessdataDirs = velhoDir, velhoTess
+		initMu.Unlock()
+	})
+}
+
+func TestRunOCR_BinarioAusente(t *testing.T) {
+	casos := []struct{ presente, ausente string }{
+		{filepath.Join("poppler", "pdftoppm.exe"), "tesseract.exe"},
+		{filepath.Join("tesseract", "tesseract.exe"), "pdftoppm.exe"},
+	}
+	for _, c := range casos {
+		dir := t.TempDir()
+		arq := filepath.Join(dir, c.presente)
+		if err := os.MkdirAll(filepath.Dir(arq), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(arq, nil, 0755); err != nil {
+			t.Fatal(err)
+		}
+		trocarEstadoInit(t, dir, map[string]string{})
+		antes := SpawnedProcesses()
+		_, _, err := RunOCR(context.Background(), filepath.Join(dir, "x.pdf"), 1, "fast")
+		if err == nil || !strings.Contains(err.Error(), c.ausente) || !strings.Contains(err.Error(), "not found") {
+			t.Errorf("sem %s: erro = %v, quero 'not found' citando o executável", c.ausente, err)
+		}
+		if got := SpawnedProcesses() - antes; got != 0 {
+			t.Errorf("sem %s: abriu %d processos, quero 0", c.ausente, got)
+		}
+	}
+}
+
+func TestRunOCR_PDFInvalido(t *testing.T) {
+	if _, err := InitBinaries(); err != nil {
+		t.Fatalf("falha ao extrair os binários embutidos: %v", err)
+	}
+	lixo := filepath.Join(t.TempDir(), "lixo.pdf")
+	if err := os.WriteFile(lixo, []byte("isto não é um PDF"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	for _, caminho := range []string{lixo, filepath.Join(t.TempDir(), "inexistente.pdf")} {
+		_, _, err := RunOCR(context.Background(), caminho, 1, "fast")
+		if err == nil || !strings.Contains(err.Error(), "embedded pdftoppm failed") {
+			t.Errorf("RunOCR(%s): erro = %v, quero 'embedded pdftoppm failed'", filepath.Base(caminho), err)
+		}
+	}
+}
+
+// Com o contexto já cancelado nenhum processo chega a ser iniciado.
+func TestRunOCR_ContextoCancelado(t *testing.T) {
+	if _, err := InitBinaries(); err != nil {
+		t.Fatalf("falha ao extrair os binários embutidos: %v", err)
+	}
+	caminho := pdfDePalavras(t, []string{"CANCELADO"})
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, _, err := RunOCR(ctx, caminho, 1, "fast")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("erro = %v, quero context.Canceled", err)
+	}
+}
+
+func TestRunOCR_ModoInvalidoUsaNormal(t *testing.T) {
+	dir, err := InitBinaries()
+	if err != nil {
+		t.Fatalf("falha ao extrair os binários embutidos: %v", err)
+	}
+	cache := map[string]string{}
+	trocarEstadoInit(t, dir, cache)
+	if _, _, err := RunOCR(context.Background(), pdfDePalavras(t, []string{"NORMAL"}), 1, "inexistente"); err != nil {
+		t.Fatalf("RunOCR: %v", err)
+	}
+	initMu.Lock()
+	defer initMu.Unlock()
+	if _, ok := cache["normal"]; !ok || len(cache) != 1 {
+		t.Errorf("tessdata extraídos = %v, quero só o do modo normal", cache)
+	}
+}
+
+// Sem por.traineddata o tesseract com -l por falha e o segundo, sem -l, usa o
+// eng.traineddata do mesmo TESSDATA_PREFIX.
+func TestRunOCR_FallbackSemPortugues(t *testing.T) {
+	dir, err := InitBinaries()
+	if err != nil {
+		t.Fatalf("falha ao extrair os binários embutidos: %v", err)
+	}
+	soIngles := t.TempDir()
+	eng, err := EmbeddedFiles.ReadFile("embed/tessdata/eng.traineddata")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(soIngles, "eng.traineddata"), eng, 0644); err != nil {
+		t.Fatal(err)
+	}
+	trocarEstadoInit(t, dir, map[string]string{"fast": soIngles})
+
+	antes := SpawnedProcesses()
+	texto, _, err := RunOCR(context.Background(), pdfDePalavras(t, []string{"FALLBACK"}), 1, "fast")
+	if err != nil {
+		t.Fatalf("RunOCR: %v", err)
+	}
+	if got := SpawnedProcesses() - antes; got != 3 {
+		t.Errorf("abriu %d processos, quero 3 (pdftoppm, tesseract por, tesseract sem -l)", got)
+	}
+	if !strings.Contains(strings.ToUpper(texto), "FALLBACK") {
+		t.Errorf("texto = %q, quero FALLBACK", texto)
 	}
 }
