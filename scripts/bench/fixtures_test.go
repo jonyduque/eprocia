@@ -30,9 +30,9 @@ func TestFixtures_UpToDate(t *testing.T) {
 
 func parse(t *testing.T, name string) (pages map[string]any, ocrPages int) {
 	t.Helper()
-	runner := func(context.Context, string, int) (string, string, error) {
+	runner := func(context.Context, string, int) (string, error) {
 		ocrPages++
-		return "texto ocr", "", nil
+		return "texto ocr", nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -70,7 +70,7 @@ func TestFixtures_LegibleToOCR(t *testing.T) {
 	}
 	for _, name := range []string{"escaneado.pdf", "vetorial.pdf"} {
 		path, _ := filepath.Abs(filepath.Join("fixtures", name))
-		text, _, err := ocr.RunOCR(context.Background(), path, 1, "fast")
+		text, err := ocr.RunOCR(context.Background(), path, 1, "fast")
 		if err != nil {
 			t.Fatalf("%s: RunOCR: %v", name, err)
 		}

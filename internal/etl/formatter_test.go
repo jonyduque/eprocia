@@ -126,14 +126,14 @@ func TestGenerateConsolidatedOutput_EscapesDocumentName(t *testing.T) {
 					"index": 1,
 					"nome":  `A & B "x" <y>.pdf`,
 					"paginas": map[string]any{
-						"1": map[string]any{"index": 1, "ocr": false, "image": "", "content": "texto"},
+						"1": map[string]any{"index": 1, "ocr": false, "content": "texto"},
 					},
 				},
 			},
 		},
 	}
 
-	output := GenerateConsolidatedOutput(eventos, "basic")
+	output, _ := GenerateConsolidatedOutput(eventos, "basic")
 
 	want := `nome="A &amp; B &quot;x&quot; &lt;y&gt;.pdf"`
 	if !strings.Contains(output, want) {
@@ -153,13 +153,11 @@ func TestGenerateConsolidatedOutput(t *testing.T) {
 						"1": map[string]any{
 							"index":   1,
 							"ocr":     false,
-							"image":   "",
 							"content": "Initial petition text page 1",
 						},
 						"2": map[string]any{
 							"index":   2,
 							"ocr":     false,
-							"image":   "",
 							"content": "Initial petition text page 2",
 						},
 					},
@@ -176,7 +174,6 @@ func TestGenerateConsolidatedOutput(t *testing.T) {
 						"1": map[string]any{
 							"index":   1,
 							"ocr":     false,
-							"image":   "",
 							"content": "Judge order text page 1",
 						},
 					},
@@ -185,7 +182,7 @@ func TestGenerateConsolidatedOutput(t *testing.T) {
 		},
 	}
 
-	output := GenerateConsolidatedOutput(eventos, "basic")
+	output, _ := GenerateConsolidatedOutput(eventos, "basic")
 
 	// Verify XML structure tags exist
 	if !strings.Contains(output, "<contexto>") || !strings.Contains(output, "</contexto>") {
@@ -209,7 +206,7 @@ func TestGenerateConsolidatedOutput(t *testing.T) {
 // event prefix, no extension, singular for one page).
 func TestGenerateConsolidatedOutput_SummaryLineFormat(t *testing.T) {
 	page := func(i int) map[string]any {
-		return map[string]any{"index": i, "ocr": false, "image": "", "content": "texto"}
+		return map[string]any{"index": i, "ocr": false, "content": "texto"}
 	}
 	eventos := map[string]any{
 		"1": map[string]any{
@@ -227,7 +224,7 @@ func TestGenerateConsolidatedOutput_SummaryLineFormat(t *testing.T) {
 		},
 	}
 
-	output := GenerateConsolidatedOutput(eventos, "basic")
+	output, _ := GenerateConsolidatedOutput(eventos, "basic")
 
 	for _, want := range []string{"    - Evento 1 - INIC1: 3 páginas\n", "    - Evento 1 - PROC2: 1 página\n"} {
 		if !strings.Contains(output, want) {
@@ -309,7 +306,7 @@ func TestGenerateConsolidatedOutput_AggressiveDropsRepeatedHeadersFooters(t *tes
 	for i, body := range bodies {
 		n := i + 1
 		paginas[strconv.Itoa(n)] = map[string]any{
-			"index": n, "ocr": false, "image": "",
+			"index": n, "ocr": false,
 			"content": "TRIBUNAL REGIONAL FEDERAL\n" + body + "\nProcesso 5001234-10.2024 - fl. " + strconv.Itoa(n),
 		}
 	}
@@ -322,7 +319,7 @@ func TestGenerateConsolidatedOutput_AggressiveDropsRepeatedHeadersFooters(t *tes
 		},
 	}
 
-	aggressive := GenerateConsolidatedOutput(eventos, "aggressive")
+	aggressive, _ := GenerateConsolidatedOutput(eventos, "aggressive")
 	for _, body := range bodies {
 		if !strings.Contains(aggressive, body) {
 			t.Errorf("corpo %q sumiu da saída agressiva:\n%s", body, aggressive)
@@ -335,7 +332,7 @@ func TestGenerateConsolidatedOutput_AggressiveDropsRepeatedHeadersFooters(t *tes
 		t.Errorf("rodapé repetido não foi removido no modo agressivo:\n%s", aggressive)
 	}
 
-	basic := GenerateConsolidatedOutput(eventos, "basic")
+	basic, _ := GenerateConsolidatedOutput(eventos, "basic")
 	if strings.Count(basic, "TRIBUNAL REGIONAL FEDERAL") != 3 {
 		t.Errorf("modo básico não deve remover cabeçalhos repetidos:\n%s", basic)
 	}
@@ -362,7 +359,7 @@ func TestEstimateTokens(t *testing.T) {
 func TestGenerateConsolidatedOutput_TokensEstimadosNoContexto(t *testing.T) {
 	paginas := map[string]any{}
 	for i := 1; i <= 40; i++ {
-		paginas[strconv.Itoa(i)] = map[string]any{"index": i, "ocr": false, "image": "", "content": strings.Repeat("palavra ", 50)}
+		paginas[strconv.Itoa(i)] = map[string]any{"index": i, "ocr": false, "content": strings.Repeat("palavra ", 50)}
 	}
 	eventos := map[string]any{
 		"1": map[string]any{
@@ -373,14 +370,38 @@ func TestGenerateConsolidatedOutput_TokensEstimadosNoContexto(t *testing.T) {
 		},
 	}
 
-	output := GenerateConsolidatedOutput(eventos, "basic")
+	output, tokens := GenerateConsolidatedOutput(eventos, "basic")
 
 	contexto, _, ok := strings.Cut(output, "</contexto>")
 	if !ok {
 		t.Fatalf("saída sem </contexto>:\n%s", output)
 	}
-	want := "    Tokens estimados: " + strconv.Itoa(EstimateTokens(output)) + "\n"
+	if tokens != EstimateTokens(output) {
+		t.Errorf("tokens devolvidos = %d, estimativa da saída inteira = %d", tokens, EstimateTokens(output))
+	}
+	want := "    Tokens estimados: " + strconv.Itoa(tokens) + "\n"
 	if !strings.Contains(contexto, want) {
-		t.Errorf("<contexto> deveria ter %q (estimativa da saída inteira):\n%s", want, contexto)
+		t.Errorf("<contexto> deveria ter %q (o mesmo número devolvido):\n%s", want, contexto)
+	}
+}
+
+// O ponto fixo da linha de tokens converge em qualquer tamanho de saída,
+// inclusive quando a própria linha faz o número ganhar um dígito.
+func TestGenerateConsolidatedOutput_TokensBatemEmTodoTamanho(t *testing.T) {
+	for n := range 1200 {
+		eventos := map[string]any{
+			"1": map[string]any{
+				"index": 1,
+				"documentos": map[string]any{
+					"x": map[string]any{"index": 1, "nome": "Evento 1 - INIC1.pdf", "paginas": map[string]any{
+						"1": map[string]any{"index": 1, "ocr": false, "content": strings.Repeat("a", 3400+n)},
+					}},
+				},
+			},
+		}
+		output, tokens := GenerateConsolidatedOutput(eventos, "none")
+		if tokens != EstimateTokens(output) || !strings.Contains(output, "Tokens estimados: "+strconv.Itoa(tokens)+"\n") {
+			t.Fatalf("n=%d: tokens = %d, estimativa = %d", n, tokens, EstimateTokens(output))
+		}
 	}
 }

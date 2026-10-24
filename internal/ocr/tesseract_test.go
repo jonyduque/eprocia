@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/iotest"
 )
 
 // buildTestPDF constructs a valid minimal PDF by dynamically calculating offsets for the xref table.
@@ -69,7 +70,7 @@ func TestRunOCR(t *testing.T) {
 	}
 
 	// Run using the fast mode
-	text, _, err := RunOCR(context.Background(), pdfPath, 1, "fast")
+	text, err := RunOCR(context.Background(), pdfPath, 1, "fast")
 	if err != nil {
 		t.Fatalf("RunOCR failed: %v", err)
 	}
@@ -159,7 +160,7 @@ func TestRunOCRPaginas_UmTesseractPorBloco(t *testing.T) {
 	}
 	for _, c := range casos {
 		antes := SpawnedProcesses()
-		textos, err := RunOCRPaginas(context.Background(), caminho, c.paginas, "fast")
+		textos, err := RunOCRPaginas(context.Background(), caminho, c.paginas, "fast", nil)
 		if err != nil {
 			t.Fatalf("RunOCRPaginas(%v): %v", c.paginas, err)
 		}
@@ -177,6 +178,64 @@ func TestRunOCRPaginas_UmTesseractPorBloco(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// Cada página de um bloco é avisada uma vez, assim que o texto dela chega pela
+// saída do tesseract, e não só quando o bloco inteiro termina.
+func TestRunOCRPaginas_AvisaCadaPagina(t *testing.T) {
+	if _, err := InitBinaries(); err != nil {
+		t.Fatalf("falha ao extrair os binários embutidos: %v", err)
+	}
+	palavras := []string{"PRIMEIRA", "SEGUNDA", "TERCEIRA", "QUARTA"}
+	caminho := pdfDePalavras(t, palavras)
+
+	paginas := []int{4, 1, 3}
+	var avisadas []int
+	textos, err := RunOCRPaginas(context.Background(), caminho, paginas, "fast", func(p int) {
+		avisadas = append(avisadas, p)
+	})
+	if err != nil {
+		t.Fatalf("RunOCRPaginas: %v", err)
+	}
+	if fmt.Sprint(avisadas) != fmt.Sprint(paginas) {
+		t.Errorf("páginas avisadas = %v, quero %v na ordem do pedido", avisadas, paginas)
+	}
+	for i, p := range paginas {
+		if !strings.Contains(strings.ToUpper(textos[i]), palavras[p-1]) {
+			t.Errorf("texto da página %d = %q, quero %s", p, textos[i], palavras[p-1])
+		}
+		// A saída padrão do tesseract no Windows é em modo texto; o arquivo
+		// que ele gravava antes tinha só \n.
+		if strings.Contains(textos[i], "\r") {
+			t.Errorf("texto da página %d tem \\r: %q", p, textos[i])
+		}
+	}
+}
+
+func TestSeparadorPaginas(t *testing.T) {
+	var avisos []int
+	s := &separadorPaginas{aoConcluir: func(i int) { avisos = append(avisos, i) }}
+	for _, parte := range []string{"um", "\fd", "ois\f", "", "\ftrês"} {
+		s.Write([]byte(parte))
+	}
+	if fmt.Sprint(avisos) != "[0 1 2]" {
+		t.Errorf("avisos = %v, quero [0 1 2] (a última só se conclui no fim do processo)", avisos)
+	}
+	if got := s.String(); got != "um\fdois\f\ftrês" {
+		t.Errorf("texto acumulado = %q", got)
+	}
+
+	avisos = nil
+	s = &separadorPaginas{aoConcluir: func(i int) { avisos = append(avisos, i) }}
+	if _, err := s.ReadFrom(iotest.OneByteReader(strings.NewReader("um\r\n\fdois\r\n"))); err != nil {
+		t.Fatalf("ReadFrom: %v", err)
+	}
+	if fmt.Sprint(avisos) != "[0]" {
+		t.Errorf("avisos via ReadFrom = %v, quero [0]", avisos)
+	}
+	if got := s.String(); got != "um\n\fdois\n" {
+		t.Errorf("texto via ReadFrom = %q, quero \\r\\n trocado por \\n", got)
 	}
 }
 
@@ -211,9 +270,9 @@ func TestRunOCR_BinarioAusente(t *testing.T) {
 		}
 		trocarEstadoInit(t, dir, map[string]string{})
 		antes := SpawnedProcesses()
-		_, _, err := RunOCR(context.Background(), filepath.Join(dir, "x.pdf"), 1, "fast")
-		if err == nil || !strings.Contains(err.Error(), c.ausente) || !strings.Contains(err.Error(), "not found") {
-			t.Errorf("sem %s: erro = %v, quero 'not found' citando o executável", c.ausente, err)
+		_, err := RunOCR(context.Background(), filepath.Join(dir, "x.pdf"), 1, "fast")
+		if err == nil || !strings.Contains(err.Error(), c.ausente) || !strings.Contains(err.Error(), "não encontrado") {
+			t.Errorf("sem %s: erro = %v, quero 'não encontrado' citando o executável", c.ausente, err)
 		}
 		if got := SpawnedProcesses() - antes; got != 0 {
 			t.Errorf("sem %s: abriu %d processos, quero 0", c.ausente, got)
@@ -230,9 +289,9 @@ func TestRunOCR_PDFInvalido(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, caminho := range []string{lixo, filepath.Join(t.TempDir(), "inexistente.pdf")} {
-		_, _, err := RunOCR(context.Background(), caminho, 1, "fast")
-		if err == nil || !strings.Contains(err.Error(), "embedded pdftoppm failed") {
-			t.Errorf("RunOCR(%s): erro = %v, quero 'embedded pdftoppm failed'", filepath.Base(caminho), err)
+		_, err := RunOCR(context.Background(), caminho, 1, "fast")
+		if err == nil || !strings.Contains(err.Error(), "falha no pdftoppm embutido") {
+			t.Errorf("RunOCR(%s): erro = %v, quero 'falha no pdftoppm embutido'", filepath.Base(caminho), err)
 		}
 	}
 }
@@ -245,7 +304,7 @@ func TestRunOCR_ContextoCancelado(t *testing.T) {
 	caminho := pdfDePalavras(t, []string{"CANCELADO"})
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, _, err := RunOCR(ctx, caminho, 1, "fast")
+	_, err := RunOCR(ctx, caminho, 1, "fast")
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("erro = %v, quero context.Canceled", err)
 	}
@@ -258,7 +317,7 @@ func TestRunOCR_ModoInvalidoUsaNormal(t *testing.T) {
 	}
 	cache := map[string]string{}
 	trocarEstadoInit(t, dir, cache)
-	if _, _, err := RunOCR(context.Background(), pdfDePalavras(t, []string{"NORMAL"}), 1, "inexistente"); err != nil {
+	if _, err := RunOCR(context.Background(), pdfDePalavras(t, []string{"NORMAL"}), 1, "inexistente"); err != nil {
 		t.Fatalf("RunOCR: %v", err)
 	}
 	initMu.Lock()
@@ -286,7 +345,7 @@ func TestRunOCR_FallbackSemPortugues(t *testing.T) {
 	trocarEstadoInit(t, dir, map[string]string{"fast": soIngles})
 
 	antes := SpawnedProcesses()
-	texto, _, err := RunOCR(context.Background(), pdfDePalavras(t, []string{"FALLBACK"}), 1, "fast")
+	texto, err := RunOCR(context.Background(), pdfDePalavras(t, []string{"FALLBACK"}), 1, "fast")
 	if err != nil {
 		t.Fatalf("RunOCR: %v", err)
 	}

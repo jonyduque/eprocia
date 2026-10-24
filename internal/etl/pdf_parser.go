@@ -18,13 +18,6 @@ type ocrTask struct {
 	fallback string
 }
 
-// PageData represents the extracted data of a single page.
-type PageData struct {
-	PageNum int    `json:"page_num"`
-	Text    string `json:"text"`
-	IsOcr   bool   `json:"is_ocr"`
-}
-
 // PDFParser wraps the PDF file processing.
 type PDFParser struct {
 	filePath string
@@ -46,8 +39,9 @@ type PDFParser struct {
 }
 
 // ocrLote faz o OCR de várias páginas do mesmo PDF e devolve os textos na
-// ordem de paginas.
-type ocrLote func(ctx context.Context, caminho string, paginas []int) ([]string, error)
+// ordem de paginas, chamando aoConcluir com cada página assim que o texto dela
+// fica pronto.
+type ocrLote func(ctx context.Context, caminho string, paginas []int, aoConcluir func(pagina int)) ([]string, error)
 
 // comOCREmLote faz ParsePages dividir as páginas que vão ao OCR em até blocos
 // chamadas de lote, em vez de uma chamada por página: cada processo de OCR
@@ -110,7 +104,7 @@ func (p *PDFParser) abrir() (*pdf.Reader, int, func(), error) {
 func (p *PDFParser) ParsePages(
 	ctx context.Context,
 	ocrEnabled bool,
-	ocrRunner func(context.Context, string, int) (string, string, error),
+	ocrRunner func(context.Context, string, int) (string, error),
 	onPageComplete func(pageNum int),
 ) (map[string]any, error) {
 	reader, numPages, fechar, err := p.abrir()
@@ -133,17 +127,29 @@ func (p *PDFParser) ParsePages(
 	var wg sync.WaitGroup
 	var ocrFailures atomic.Int32
 
+	// O OCR em lote avisa cada página assim que o texto dela sai do tesseract;
+	// se o bloco cair depois e for refeito página a página, a página não pode
+	// contar duas vezes no progresso.
+	reportadas := make([]atomic.Bool, numPages+1)
+	concluir := func(pageNum int) {
+		if onPageComplete == nil || pageNum < 1 || pageNum > numPages {
+			return
+		}
+		if !reportadas[pageNum].Swap(true) {
+			onPageComplete(pageNum)
+		}
+	}
+
 	// Concurrency is bounded by the shared OCR semaphore passed in via
 	// ocrRunner (see Pipeline.ProcessZip), so each OCR task just blocks on
 	// that instead of going through a second, redundant worker pool here.
-	registrarOCR := func(task ocrTask, ocrText, imgPath string, err error) {
+	registrarOCR := func(task ocrTask, ocrText string, err error) {
 		var pageData map[string]any
 		if err == nil {
 			log.Printf("[PDFParser] OCR concluído para página %d (tamanho: %d)", task.pageNum, len(ocrText))
 			pageData = map[string]any{
 				"index":   task.pageNum,
 				"ocr":     true,
-				"image":   imgPath,
 				"content": ocrText,
 			}
 		} else {
@@ -156,7 +162,6 @@ func (p *PDFParser) ParsePages(
 			pageData = map[string]any{
 				"index":    task.pageNum,
 				"ocr":      false,
-				"image":    "",
 				"content":  content,
 				"ocr_erro": err.Error(),
 			}
@@ -165,9 +170,7 @@ func (p *PDFParser) ParsePages(
 		mapMu.Lock()
 		paginasMap[fmt.Sprintf("%d", task.pageNum)] = pageData
 		mapMu.Unlock()
-		if onPageComplete != nil {
-			onPageComplete(task.pageNum)
-		}
+		concluir(task.pageNum)
 	}
 
 	runOCRTask := func(task ocrTask) {
@@ -176,11 +179,11 @@ func (p *PDFParser) ParsePages(
 		}
 		log.Printf("[PDFParser] Iniciando OCR para página %d...", task.pageNum)
 		caminho, err := p.caminhoParaOCR()
-		var ocrText, imgPath string
+		var ocrText string
 		if err == nil {
-			ocrText, imgPath, err = ocrRunner(ctx, caminho, task.pageNum)
+			ocrText, err = ocrRunner(ctx, caminho, task.pageNum)
 		}
-		registrarOCR(task, ocrText, imgPath, err)
+		registrarOCR(task, ocrText, err)
 	}
 
 	runOCRBloco := func(tasks []ocrTask) {
@@ -196,7 +199,7 @@ func (p *PDFParser) ParsePages(
 		caminho, err := p.caminhoParaOCR()
 		var textos []string
 		if err == nil {
-			textos, err = p.lote(ctx, caminho, paginas)
+			textos, err = p.lote(ctx, caminho, paginas, concluir)
 		}
 		if err == nil && len(textos) != len(tasks) {
 			err = fmt.Errorf("OCR em bloco devolveu %d textos para %d páginas", len(textos), len(tasks))
@@ -215,11 +218,21 @@ func (p *PDFParser) ParsePages(
 			return
 		}
 		for i, task := range tasks {
-			registrarOCR(task, textos[i], "", nil)
+			registrarOCR(task, textos[i], nil)
 		}
 	}
 
+	// Um bloco vai ao OCR assim que junta tamBloco páginas, enquanto o texto
+	// nativo das seguintes ainda é lido. tamBloco é o bloco que sairia se todas
+	// as páginas fossem ao OCR, então um documento todo escaneado ainda dá um
+	// bloco por worker; o que sobrar no fim se divide pelos blocos restantes.
 	var pendentes []ocrTask
+	tamBloco := (numPages + p.blocosOCR - 1) / max(p.blocosOCR, 1)
+	despachados := 0
+	despachar := func(bloco []ocrTask) {
+		despachados++
+		wg.Go(func() { runOCRBloco(bloco) })
+	}
 
 	for pageNum := 1; pageNum <= numPages; pageNum++ {
 		// Check for context cancellation
@@ -251,13 +264,10 @@ func (p *PDFParser) ParsePages(
 			paginasMap[fmt.Sprintf("%d", pageNum)] = map[string]any{
 				"index":   pageNum,
 				"ocr":     false,
-				"image":   "",
 				"content": content,
 			}
 			mapMu.Unlock()
-			if onPageComplete != nil {
-				onPageComplete(pageNum)
-			}
+			concluir(pageNum)
 			continue
 		}
 		cleanText, needsOcr := an.texto, an.precisaOcr
@@ -266,6 +276,10 @@ func (p *PDFParser) ParsePages(
 			task := ocrTask{pageNum: pageNum, fallback: cleanText}
 			if p.lote != nil {
 				pendentes = append(pendentes, task)
+				if len(pendentes) == tamBloco {
+					despachar(pendentes)
+					pendentes = nil
+				}
 			} else {
 				wg.Go(func() { runOCRBloco([]ocrTask{task}) })
 			}
@@ -274,22 +288,20 @@ func (p *PDFParser) ParsePages(
 			pageData := map[string]any{
 				"index":   pageNum,
 				"ocr":     false,
-				"image":   "",
 				"content": cleanText,
 			}
 			mapMu.Lock()
 			paginasMap[fmt.Sprintf("%d", pageNum)] = pageData
 			mapMu.Unlock()
-			if onPageComplete != nil {
-				onPageComplete(pageNum)
-			}
+			concluir(pageNum)
 		}
 	}
 
 	if len(pendentes) > 0 {
-		k := (len(pendentes) + p.blocosOCR - 1) / p.blocosOCR
+		restantes := max(p.blocosOCR-despachados, 1)
+		k := (len(pendentes) + restantes - 1) / restantes
 		for bloco := range slices.Chunk(pendentes, k) {
-			wg.Go(func() { runOCRBloco(bloco) })
+			despachar(bloco)
 		}
 	}
 

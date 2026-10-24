@@ -372,23 +372,23 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 
 	// OCR Runner wrapper using the internal ocr module with global semaphore to limit concurrent execs
 	sem := make(chan struct{}, numWorkers)
-	ocrRunner := func(ctx context.Context, pdfPath string, pageNum int) (string, string, error) {
+	ocrRunner := func(ctx context.Context, pdfPath string, pageNum int) (string, error) {
 		select {
 		case sem <- struct{}{}:
 		case <-ctx.Done():
-			return "", "", ctx.Err()
+			return "", ctx.Err()
 		}
 		defer func() { <-sem }()
 		return ocr.RunOCR(ctx, pdfPath, pageNum, cfg.OcrMode)
 	}
-	ocrEmLote := func(ctx context.Context, pdfPath string, paginas []int) ([]string, error) {
+	ocrEmLote := func(ctx context.Context, pdfPath string, paginas []int, aoConcluir func(int)) ([]string, error) {
 		select {
 		case sem <- struct{}{}:
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}
 		defer func() { <-sem }()
-		return ocr.RunOCRPaginas(ctx, pdfPath, paginas, cfg.OcrMode)
+		return ocr.RunOCRPaginas(ctx, pdfPath, paginas, cfg.OcrMode, aoConcluir)
 	}
 
 	var processedDocsVal atomic.Int32
@@ -439,7 +439,6 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 				paginasMap["1"] = map[string]any{
 					"index":   1,
 					"ocr":     false,
-					"image":   "",
 					"content": fmt.Sprintf("[ERRO ao processar documento: %v]", r),
 				}
 				reportProgress(fmt.Sprintf("Erro ao processar %s", f.DocName))
@@ -474,7 +473,6 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 						paginasMap["1"] = map[string]any{
 							"index":   1,
 							"ocr":     false,
-							"image":   "",
 							"content": fmt.Sprintf("[ERRO ao extrair PDF do ZIP: %s]", err.Error()),
 						}
 						processedPagesVal.Add(1)
@@ -512,7 +510,6 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 					paginasMap["1"] = map[string]any{
 						"index":   1,
 						"ocr":     false,
-						"image":   "",
 						"content": fmt.Sprintf("[ERRO ao analisar PDF: %s]", errParse.Error()),
 					}
 					return
@@ -526,7 +523,6 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 					paginasMap["1"] = map[string]any{
 						"index":   1,
 						"ocr":     false,
-						"image":   "",
 						"content": fmt.Sprintf("[ERRO ao abrir arquivo no ZIP: %s]", err.Error()),
 					}
 					processedPagesVal.Add(1)
@@ -540,7 +536,6 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 					paginasMap["1"] = map[string]any{
 						"index":   1,
 						"ocr":     false,
-						"image":   "",
 						"content": fmt.Sprintf("[ERRO ao analisar HTML: %s]", errParse.Error()),
 					}
 					processedPagesVal.Add(1)
@@ -550,7 +545,6 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 				paginasMap["1"] = map[string]any{
 					"index":   1,
 					"ocr":     false,
-					"image":   "",
 					"content": htmlText,
 				}
 				processedPagesVal.Add(1)
@@ -577,7 +571,7 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 	}
 
 	// 4. Format consolidated output into XML
-	outputText := GenerateConsolidatedOutput(eventos, cfg.CleaningLevel)
+	outputText, tokens := GenerateConsolidatedOutput(eventos, cfg.CleaningLevel)
 
 	// 5. Save consolidated output to the same directory
 	outputPath := strings.TrimSuffix(zipPath, filepath.Ext(zipPath)) + ".txt"
@@ -606,5 +600,5 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 		}
 	}
 
-	return outputPath, totalFiles, totalPages, EstimateTokens(outputText), nil
+	return outputPath, totalFiles, totalPages, tokens, nil
 }

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -132,6 +133,9 @@ func TestProcessZip_SaidaOrdenadaEContagens(t *testing.T) {
 	saida := string(b)
 	if want := EstimateTokens(saida); tokens != want || tokens == 0 {
 		t.Errorf("tokens estimados = %d, esperava %d (estimativa do .txt gravado)", tokens, want)
+	}
+	if want := "Tokens estimados: " + strconv.Itoa(tokens) + "\n"; !strings.Contains(saida, want) {
+		t.Errorf("o .txt gravado deveria trazer %q, o mesmo número devolvido:\n%s", want, saida)
 	}
 
 	if !strings.Contains(saida, "Total de Documentos: 3") {

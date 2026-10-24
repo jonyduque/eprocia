@@ -103,11 +103,11 @@ func TestPDFParser_DeLeitor_MaterializaUmaVezSoComOCR(t *testing.T) {
 	}
 	var mu sync.Mutex
 	vistos := map[string]int{}
-	runner := func(_ context.Context, path string, pageNum int) (string, string, error) {
+	runner := func(_ context.Context, path string, pageNum int) (string, error) {
 		mu.Lock()
 		vistos[path]++
 		mu.Unlock()
-		return fmt.Sprintf("OCR pagina %d", pageNum), "", nil
+		return fmt.Sprintf("OCR pagina %d", pageNum), nil
 	}
 
 	parser := NewPDFParserDeLeitor(bytes.NewReader(dados), int64(len(dados)), "doc.pdf", materializar)
@@ -140,9 +140,9 @@ func TestPDFParser_DeLeitor_MaterializaUmaVezSoComOCR(t *testing.T) {
 func TestPDFParser_DeLeitor_FalhaAoMaterializarMarcaPagina(t *testing.T) {
 	dados := pdfDuasPaginasEscaneadas()
 	materializar := func() (string, error) { return "", fmt.Errorf("disco cheio") }
-	runner := func(context.Context, string, int) (string, string, error) {
+	runner := func(context.Context, string, int) (string, error) {
 		t.Error("OCR não deveria rodar sem arquivo")
-		return "", "", nil
+		return "", nil
 	}
 	pages, err := NewPDFParserDeLeitor(bytes.NewReader(dados), int64(len(dados)), "doc.pdf", materializar).
 		ParsePages(context.Background(), true, runner, nil)

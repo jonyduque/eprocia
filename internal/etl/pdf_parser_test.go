@@ -120,9 +120,9 @@ func TestPDFParser_ParsePages_UsesOcrForImagePage(t *testing.T) {
 	parser := parserDeArquivo(t, pdfPath)
 
 	ocrCalled := false
-	ocrRunner := func(ctx context.Context, path string, pageNum int) (string, string, error) {
+	ocrRunner := func(ctx context.Context, path string, pageNum int) (string, error) {
 		ocrCalled = true
-		return "OCR Extracted Text", "mock_image.png", nil
+		return "OCR Extracted Text", nil
 	}
 
 	pages, err := parser.ParsePages(context.Background(), true, ocrRunner, nil)
@@ -150,8 +150,8 @@ func TestPDFParser_ParsePages_UsesOcrForImagePage(t *testing.T) {
 	if content != "OCR Extracted Text" {
 		t.Errorf("expected page text to be 'OCR Extracted Text', got %q", content)
 	}
-	if page["image"].(string) != "mock_image.png" {
-		t.Errorf("expected page image to be 'mock_image.png', got %q", page["image"])
+	if _, tem := page["image"]; tem {
+		t.Errorf("a página não deveria ter o campo image (caminho de imagem temporária já apagada): %v", page["image"])
 	}
 }
 
@@ -170,8 +170,8 @@ func TestPDFParser_ParsePages_OcrFailureMarksPage(t *testing.T) {
 		t.Fatalf("failed to write test pdf: %v", err)
 	}
 
-	ocrRunner := func(ctx context.Context, path string, pageNum int) (string, string, error) {
-		return "", "", errors.New("tesseract ausente")
+	ocrRunner := func(ctx context.Context, path string, pageNum int) (string, error) {
+		return "", errors.New("tesseract ausente")
 	}
 	completed := 0
 	pages, err := parserDeArquivo(t, pdfPath).ParsePages(context.Background(), true, ocrRunner, func(int) { completed++ })
@@ -183,8 +183,8 @@ func TestPDFParser_ParsePages_OcrFailureMarksPage(t *testing.T) {
 	if page["ocr"].(bool) {
 		t.Errorf("expected ocr=false after OCR failure")
 	}
-	if page["image"].(string) != "" {
-		t.Errorf("expected empty image after OCR failure, got %q", page["image"])
+	if _, tem := page["image"]; tem {
+		t.Errorf("a página não deveria ter o campo image: %v", page["image"])
 	}
 	content := page["content"].(string)
 	if !strings.HasPrefix(content, "[ERRO de OCR:") || !strings.Contains(content, "tesseract ausente") {
@@ -200,7 +200,7 @@ func TestPDFParser_ParsePages_OcrFailureMarksPage(t *testing.T) {
 
 // parsePagesWithDeadline runs ParsePages but fails the test instead of hanging
 // forever: the PDF library spins in an infinite loop on unreadable content streams.
-func parsePagesWithDeadline(t *testing.T, objects []string, ocrRunner func(context.Context, string, int) (string, string, error)) map[string]any {
+func parsePagesWithDeadline(t *testing.T, objects []string, ocrRunner func(context.Context, string, int) (string, error)) map[string]any {
 	t.Helper()
 	pdfPath := filepath.Join(t.TempDir(), "test.pdf")
 	if err := os.WriteFile(pdfPath, buildPDF(objects), 0644); err != nil {
@@ -241,8 +241,8 @@ func TestPDFParser_ParsePages_ContentsArrayDoesNotHang(t *testing.T) {
 		"4 0 obj\n<< /Length 8 >>\nstream\n/Im1 Do\nendstream\nendobj",
 		"5 0 obj\n<< /Type /XObject /Subtype /Image /Width 200 /Height 200 /ColorSpace /DeviceGray /BitsPerComponent 8 /Length 0 >>\nstream\nendstream\nendobj",
 	}
-	ocrRunner := func(ctx context.Context, path string, pageNum int) (string, string, error) {
-		return "OCR Extracted Text", "mock_image.png", nil
+	ocrRunner := func(ctx context.Context, path string, pageNum int) (string, error) {
+		return "OCR Extracted Text", nil
 	}
 
 	pages := parsePagesWithDeadline(t, objects, ocrRunner)
@@ -283,8 +283,8 @@ func TestPDFParser_ParsePages_VectorTextPageUsesOcr(t *testing.T) {
 		"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> /Contents 4 0 R >>\nendobj",
 		fmt.Sprintf("4 0 obj\n<< /Length %d >>\nstream\n%sendstream\nendobj", len(content), content),
 	}
-	ocrRunner := func(ctx context.Context, path string, pageNum int) (string, string, error) {
-		return "OCR Extracted Text", "mock_image.png", nil
+	ocrRunner := func(ctx context.Context, path string, pageNum int) (string, error) {
+		return "OCR Extracted Text", nil
 	}
 
 	pages := parsePagesWithDeadline(t, objects, ocrRunner)
@@ -303,9 +303,9 @@ func TestPDFParser_ParsePages_BlankPageSkipsOcr(t *testing.T) {
 		"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> /Contents 4 0 R >>\nendobj",
 		"4 0 obj\n<< /Length 4 >>\nstream\nq Q\nendstream\nendobj",
 	}
-	ocrRunner := func(ctx context.Context, path string, pageNum int) (string, string, error) {
+	ocrRunner := func(ctx context.Context, path string, pageNum int) (string, error) {
 		t.Errorf("OCR must not run on a blank page")
-		return "", "", nil
+		return "", nil
 	}
 
 	parsePagesWithDeadline(t, objects, ocrRunner)
@@ -313,7 +313,7 @@ func TestPDFParser_ParsePages_BlankPageSkipsOcr(t *testing.T) {
 
 // parsePagesSemPanic runs ParsePages and turns a panic into a test failure: in
 // the app, ParsePages runs in a pipeline goroutine and a panic kills the process.
-func parsePagesSemPanic(t *testing.T, objects []string, ocrRunner func(context.Context, string, int) (string, string, error)) (pages map[string]any, err error) {
+func parsePagesSemPanic(t *testing.T, objects []string, ocrRunner func(context.Context, string, int) (string, error)) (pages map[string]any, err error) {
 	t.Helper()
 	pdfPath := filepath.Join(t.TempDir(), "test.pdf")
 	if err := os.WriteFile(pdfPath, buildPDF(objects), 0644); err != nil {
@@ -360,8 +360,8 @@ func TestPDFParser_ParsePages_XrefInconsistenteEmHasImagesNaoEntraEmPanic(t *tes
 		"4 0 obj\n<< /Length 4 >>\nstream\nq Q\nendstream\nendobj",
 		"9 0 obj\n<< /Im1 6 0 R >>\nendobj",
 	}
-	ocrRunner := func(ctx context.Context, path string, pageNum int) (string, string, error) {
-		return "OCR Extracted Text", "mock_image.png", nil
+	ocrRunner := func(ctx context.Context, path string, pageNum int) (string, error) {
+		return "OCR Extracted Text", nil
 	}
 
 	pages, err := parsePagesSemPanic(t, objects, ocrRunner)
@@ -537,7 +537,7 @@ func objetosPaginasComImagem(n int) []string {
 
 // esperarParsePages roda ParsePages com ctx e falha o teste se não voltar no
 // prazo (wg.Wait preso no cancelamento).
-func esperarParsePages(t *testing.T, parser *PDFParser, ctx context.Context, ocrRunner func(context.Context, string, int) (string, string, error), onPage func(int)) (map[string]any, error) {
+func esperarParsePages(t *testing.T, parser *PDFParser, ctx context.Context, ocrRunner func(context.Context, string, int) (string, error), onPage func(int)) (map[string]any, error) {
 	t.Helper()
 	type resultado struct {
 		pages map[string]any
@@ -579,18 +579,18 @@ func TestPDFParser_ParsePages_CancelamentoDuranteOCR(t *testing.T) {
 	vaga := make(chan struct{}, 1)
 	var trabalhos, depoisDoRetorno atomic.Int32
 	var retornou atomic.Bool
-	ocrRunner := func(ctx context.Context, _ string, _ int) (string, string, error) {
+	ocrRunner := func(ctx context.Context, _ string, _ int) (string, error) {
 		if retornou.Load() {
 			depoisDoRetorno.Add(1)
 		}
 		select {
 		case vaga <- struct{}{}:
 		case <-ctx.Done():
-			return "", "", ctx.Err()
+			return "", ctx.Err()
 		}
 		trabalhos.Add(1)
 		cancel()
-		return "", "", ctx.Err()
+		return "", ctx.Err()
 	}
 
 	_, err := esperarParsePages(t, parserDeArquivo(t, caminho), ctx, ocrRunner, nil)
@@ -615,11 +615,11 @@ func TestPDFParser_ParsePages_CancelamentoNoLoteNaoRefazPorPagina(t *testing.T) 
 	defer cancel()
 
 	var chamadasRunner atomic.Int32
-	ocrRunner := func(ctx context.Context, _ string, _ int) (string, string, error) {
+	ocrRunner := func(ctx context.Context, _ string, _ int) (string, error) {
 		chamadasRunner.Add(1)
-		return "OCR", "", nil
+		return "OCR", nil
 	}
-	lote := func(ctx context.Context, _ string, paginas []int) ([]string, error) {
+	lote := func(ctx context.Context, _ string, paginas []int, _ func(int)) ([]string, error) {
 		cancel()
 		return nil, ctx.Err()
 	}
@@ -641,9 +641,9 @@ func TestPDFParser_ParsePages_ContextoJaCancelado(t *testing.T) {
 	cancel()
 
 	var chamadas, concluidas atomic.Int32
-	ocrRunner := func(ctx context.Context, _ string, _ int) (string, string, error) {
+	ocrRunner := func(ctx context.Context, _ string, _ int) (string, error) {
 		chamadas.Add(1)
-		return "OCR", "", nil
+		return "OCR", nil
 	}
 	pages, err := esperarParsePages(t, parserDeArquivo(t, caminho), ctx, ocrRunner, func(int) { concluidas.Add(1) })
 	if !errors.Is(err, context.Canceled) {
@@ -670,9 +670,9 @@ func TestPDFParser_ParsePages_FiltroNaoSuportadoNaoEntraEmPanic(t *testing.T) {
 				"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> /Contents 4 0 R >>\nendobj",
 				"4 0 obj\n" + stream + "\nendobj",
 			}
-			runnerProibido := func(context.Context, string, int) (string, string, error) {
+			runnerProibido := func(context.Context, string, int) (string, error) {
 				t.Errorf("OCR não deveria rodar em página sem imagem nem conteúdo legível")
-				return "", "", nil
+				return "", nil
 			}
 			pages, err := parsePagesSemPanic(t, semImagem, runnerProibido)
 			if err != nil {
@@ -688,8 +688,8 @@ func TestPDFParser_ParsePages_FiltroNaoSuportadoNaoEntraEmPanic(t *testing.T) {
 				semImagem[3],
 				"5 0 obj\n<< /Type /XObject /Subtype /Image /Width 200 /Height 200 /ColorSpace /DeviceGray /BitsPerComponent 8 /Length 0 >>\nstream\nendstream\nendobj",
 			}
-			runner := func(context.Context, string, int) (string, string, error) {
-				return "OCR Extracted Text", "", nil
+			runner := func(context.Context, string, int) (string, error) {
+				return "OCR Extracted Text", nil
 			}
 			pages, err = parsePagesSemPanic(t, comImagem, runner)
 			if err != nil {
@@ -751,8 +751,8 @@ func TestPDFParser_ParsePages_VetorialComContentsEmArrayUsaOcr(t *testing.T) {
 	if !HasDrawnContent(primeiraPagina(t, objects)) {
 		t.Fatalf("HasDrawnContent ignorou a soma dos streams do array")
 	}
-	ocrRunner := func(context.Context, string, int) (string, string, error) {
-		return "OCR Extracted Text", "", nil
+	ocrRunner := func(context.Context, string, int) (string, error) {
+		return "OCR Extracted Text", nil
 	}
 
 	pages := parsePagesWithDeadline(t, objects, ocrRunner)

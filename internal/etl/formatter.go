@@ -181,8 +181,10 @@ func tokensLine(n int) string {
 	return fmt.Sprintf("    Tokens estimados: %d\n", n)
 }
 
-// GenerateConsolidatedOutput formats all extracted process data into structured XML tags.
-func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) string {
+// GenerateConsolidatedOutput formats all extracted process data into structured
+// XML tags and returns it with the token estimate written in <contexto>, which
+// equals EstimateTokens of the returned text.
+func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (string, int) {
 	var sb strings.Builder
 
 	// 1. Sort event numbers chronologically
@@ -274,8 +276,6 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) st
 			// Sort pages of this document numerically
 			type pageEntry struct {
 				index   int
-				ocr     bool
-				image   string
 				content string
 			}
 			var pages []pageEntry
@@ -283,14 +283,10 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) st
 				pData := val.(map[string]any)
 
 				// Handle potential missing fields gracefully
-				ocrVal, _ := pData["ocr"].(bool)
-				imgVal, _ := pData["image"].(string)
 				contentVal, _ := pData["content"].(string)
 
 				pages = append(pages, pageEntry{
 					index:   pData["index"].(int),
-					ocr:     ocrVal,
-					image:   imgVal,
 					content: contentVal,
 				})
 			}
@@ -320,10 +316,12 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) st
 	body := sb.String()
 
 	// The estimate covers the whole output, including its own line, whose
-	// length depends on the number; a few rounds reach the fixed point.
+	// length depends on the number. The map from estimate to estimate is
+	// monotonic and starts below its fixed point, so it climbs to it in a few
+	// rounds (the line adds under 10 tokens); the bound is only a safety net.
 	base := utf8.RuneCountInString(header) + utf8.RuneCountInString(body)
 	tokens := base / 4
-	for range 4 {
+	for range 16 {
 		next := (base + utf8.RuneCountInString(tokensLine(tokens))) / 4
 		if next == tokens {
 			break
@@ -338,5 +336,5 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) st
 	out.WriteString(line)
 	out.WriteString(header[tokensAt:])
 	out.WriteString(body)
-	return out.String()
+	return out.String(), tokens
 }
