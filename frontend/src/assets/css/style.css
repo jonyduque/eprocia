@@ -49,6 +49,11 @@
   --dur-pulse: 1500ms;
 
   --font-sans: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  /* Escala tipográfica (DESIGN.md §3). */
+  --fs-title: 16px;
+  --fs-section: 12px;
+  --fs-base: 13px;
+  --fs-meta: 11px;
 }
 
 :root.light {
@@ -97,7 +102,7 @@ body {
   font-family: var(--font-sans);
   background-color: var(--bg-main);
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--fs-base);
   line-height: 1.5;
   user-select: none;
   overflow: hidden;

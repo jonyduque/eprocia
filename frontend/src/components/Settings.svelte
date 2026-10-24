@@ -88,7 +88,7 @@
 
 <div class="settings-card">
   <div class="card-header">
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
     <h2>Configurações</h2>
   </div>
 
@@ -213,15 +213,12 @@
 </div>
 
 <style>
+  /* Seção do painel, sem moldura de cartão: o rótulo pequeno já separa. */
   .settings-card {
-    background-color: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 12px;
+    padding: 0 0 8px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    box-shadow: var(--shadow-sm);
+    gap: 8px;
     position: relative;
     overflow: hidden;
   }
@@ -229,17 +226,17 @@
   .card-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 8px;
-    color: var(--accent);
+    gap: 6px;
+    color: var(--text-secondary);
   }
 
   .card-header h2 {
-    font-size: 14px;
+    font-size: var(--fs-section);
     font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
     margin: 0;
-    color: var(--text-primary);
+    color: var(--text-secondary);
   }
 
   .settings-form {
@@ -268,13 +265,13 @@
   }
 
   label {
-    font-size: 12px;
-    font-weight: 600;
+    font-size: var(--fs-base);
+    font-weight: 500;
     color: var(--text-primary);
   }
 
   .help-text {
-    font-size: 11px;
+    font-size: var(--fs-meta);
     color: var(--text-secondary);
     margin: 0;
   }
@@ -292,7 +289,7 @@
     border-radius: 4px;
     background-color: var(--bg-main);
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--fs-base);
     font-family: inherit;
     white-space: nowrap;
     overflow: hidden;
@@ -310,7 +307,7 @@
     border-radius: 4px;
     background-color: var(--bg-main);
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--fs-base);
     cursor: pointer;
     font-family: inherit;
     width: 100%;
@@ -319,7 +316,7 @@
 
   button {
     font-family: inherit;
-    font-size: 12px;
+    font-size: var(--fs-base);
     font-weight: 500;
     padding: 6px 10px;
     border-radius: 4px;
@@ -425,7 +422,7 @@
     gap: 8px;
     padding: 8px;
     text-align: center;
-    font-size: 11px;
+    font-size: var(--fs-meta);
     font-weight: 500;
     background-color: var(--surface);
     border-top: 1px solid currentColor;

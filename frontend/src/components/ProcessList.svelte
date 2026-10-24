@@ -419,7 +419,7 @@
     justify-content: center;
     gap: 8px;
     padding: 8px 12px;
-    font-size: 11px;
+    font-size: var(--fs-meta);
     font-weight: 500;
     color: var(--error-strong);
     background-color: var(--surface);
@@ -499,7 +499,7 @@
     gap: 4px;
     padding: 1px 8px;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: var(--fs-meta);
     font-weight: 500;
     color: var(--warning);
     background-color: var(--warning-soft);
@@ -519,7 +519,7 @@
   }
 
   .header-left h2 {
-    font-size: 14px;
+    font-size: var(--fs-title);
     font-weight: 600;
     margin: 0;
     color: var(--text-primary);
@@ -542,7 +542,7 @@
     border-radius: 4px;
     background-color: var(--surface);
     color: var(--text-primary);
-    font-size: 11px;
+    font-size: var(--fs-meta);
     flex: 0 1 140px;
     width: 140px;
     min-width: 80px;
@@ -557,7 +557,7 @@
     background-color: transparent;
     border: 1px solid var(--border);
     color: var(--text-secondary);
-    font-size: 11px;
+    font-size: var(--fs-meta);
     padding: 4px 8px;
     border-radius: 4px;
     cursor: pointer;
@@ -577,7 +577,7 @@
     background-color: var(--surface-hover);
     border: 1px solid var(--border);
     color: var(--text-primary);
-    font-size: 11px;
+    font-size: var(--fs-meta);
     padding: 4px 8px;
     border-radius: 4px;
     cursor: pointer;
@@ -629,45 +629,40 @@
 
   .empty-state p {
     margin: 0;
-    font-size: 13px;
+    font-size: var(--fs-base);
     font-weight: 500;
   }
 
   .empty-state .sub-text {
-    font-size: 11px;
+    font-size: var(--fs-meta);
     max-width: 250px;
   }
 
   .items-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 10px;
+    gap: 4px;
+    padding: 8px;
   }
 
   .item-row {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    min-height: 52px;
+    min-height: 36px;
     border: 1px solid var(--border);
     border-radius: 4px;
-    padding: 8px 12px;
+    padding: 4px 8px;
     position: relative;
-    gap: 10px;
+    gap: 8px;
     background-color: var(--surface);
     transition: background-color var(--dur-fast) var(--ease-out),
-                border-color var(--dur-fast) var(--ease-out),
-                padding-bottom var(--dur-fast) var(--ease-out);
+                border-color var(--dur-fast) var(--ease-out);
   }
 
   .item-row:hover {
     background-color: var(--surface-hover);
     border-color: var(--border-strong);
-  }
-
-  .item-row.has-progress {
-    padding-bottom: 14px;
   }
 
   .status-col {
@@ -681,27 +676,41 @@
   .info-col {
     flex: 1;
     display: flex;
-    flex-direction: column;
-    justify-content: center;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
     min-width: 0;
   }
 
   .file-name {
-    font-size: 12px;
-    font-weight: 600;
+    flex: 1 1 auto;
+    min-width: 96px;
+    font-size: var(--fs-base);
+    font-weight: 500;
     color: var(--text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
+  /* Mensagem e contadores à direita do nome, na mesma faixa. */
   .details-row {
+    flex: 0 1 auto;
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 8px;
-    font-size: 11px;
+    font-size: var(--fs-meta);
     color: var(--text-secondary);
     min-width: 0;
+    overflow: hidden;
+  }
+
+  .details-row > span {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .timestamp {
@@ -710,11 +719,11 @@
   }
 
   .meta-badge {
-    padding: 1px 6px;
+    padding: 0 6px;
     border-radius: 3px;
-    font-size: 10px;
+    font-size: var(--fs-meta);
     font-weight: 600;
-    flex-shrink: 0;
+    flex: 0 1 auto;
   }
 
   .meta-badge.success {
@@ -729,18 +738,32 @@
     font-weight: 500;
   }
 
+  /* A mensagem cede espaço antes dos contadores. */
   .progress-message {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    flex: 0 100 auto;
     color: var(--accent);
+  }
+
+  @container (max-width: 480px) {
+    .progress-message {
+      display: none;
+    }
+  }
+
+  /* Fila no mínimo: os contadores valem mais que o horário e o "Aguardando". */
+  @container (max-width: 420px) {
+    .timestamp,
+    .pending-message {
+      display: none;
+    }
+
+    .file-name {
+      min-width: 64px;
+    }
   }
 
   .paused-message {
     color: var(--warning);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   .pending-message {
@@ -770,24 +793,23 @@
 
   .progress-bar-container {
     position: absolute;
-    bottom: 5px;
-    left: 12px;
-    right: 12px;
-    height: 4px;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
     background-color: var(--track);
-    border-radius: 4px;
     overflow: hidden;
   }
 
   .progress-bar {
     height: 100%;
     background-color: var(--processing);
-    border-radius: 4px;
     transition: width var(--dur-base) var(--ease-out);
   }
 
+  /* Três botões de 22px (copiar, abrir, remover) sem invadir os contadores. */
   .actions-col {
-    width: 60px;
+    width: 74px;
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -844,7 +866,7 @@
     border-left: 2px solid var(--error);
     border-radius: 4px;
     background-color: var(--error-soft);
-    font-size: 11px;
+    font-size: var(--fs-meta);
     color: var(--text-primary);
     user-select: text;
     -webkit-user-select: text;

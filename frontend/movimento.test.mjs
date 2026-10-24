@@ -259,15 +259,12 @@ test('conteúdo do painel fica montado, inerte e some com fade ao recolher', () 
   assert.match(tag(app, 'class="sidebar"'), /style:--largura-painel="\{larguraPainel\}px"/);
 });
 
-test('título do painel some com fade e as ferramentas recolhidas entram depois da largura', () => {
+test('cabeçalho do painel só com o botão e ferramentas recolhidas entram depois da largura', () => {
+  // F-VI-10: o título "Painel de Controle" saiu; nada no cabeçalho aparece ou some de repente.
   const ini = app.indexOf('<div class="sidebar-header-toggle">');
   const cab = app.slice(ini, app.indexOf('<button', ini));
-  assert.doesNotMatch(cab, /\{#if/, 'título não pode ser desmontado de repente');
-  const s = estilo(app);
-  const titulo = regra(s, '.sidebar.collapsed .sidebar-title');
-  assert.match(titulo, /opacity:\s*0/);
-  assert.match(titulo, /visibility:\s*hidden/);
-  assert.match(regra(s, '.sidebar-title'), /transition:\s*opacity var\(--dur-fast\) var\(--ease-out\) var\(--dur-fast\)/);
+  assert.doesNotMatch(cab, /\{#if/);
+  assert.doesNotMatch(cab, /<span/);
   assert.match(tag(app, 'class="collapsed-tools"'), /in:fade=\{\{ duration: duracaoMovimento\(DUR_FAST\), delay: duracaoMovimento\(DUR_FAST\) \}\}/);
 });
 

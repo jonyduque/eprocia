@@ -59,10 +59,11 @@ Os destaques são iguais nos dois temas. Texto verde/vermelho usa as variantes `
 Utilizaremos fontes sans-serif modernas que garantem legibilidade em tamanhos pequenos.
 
 - **Família Principal:** `"Segoe UI Variable"`, `"Segoe UI"`, `system-ui` (fontes do Windows; nada é baixado da rede, conforme RNF01 do PRD).
-- **Tamanhos:**
-    - Títulos: `16px` (Semibold)
-    - Texto Base: `13px` (Regular)
-    - Metadados/Logs: `11px` (Regular)
+- **Tamanhos** (tokens em `style.css`; nenhum `font-size` em px nos componentes):
+    - Títulos (`--fs-title`): `16px` (Semibold). Título da fila e texto da caixa de soltar.
+    - Rótulo de seção (`--fs-section`): `12px` (Semibold, maiúsculas, `--text-secondary`). Seções do painel ("Configurações", "Importação Manual").
+    - Texto Base (`--fs-base`): `13px` (Regular; `500` em nomes de arquivo e rótulos de campo). Inclui a marca na barra de título (`600`).
+    - Metadados/Logs (`--fs-meta`): `11px` (Regular). Horário, mensagens e contadores da fila, textos de ajuda e rodapé.
     - Mono (Tags XML), se for usada: `12px` (`Consolas`, fonte do sistema)
 
 ## 4. Ícones
@@ -80,12 +81,13 @@ Utilizaremos a biblioteca **Lucide React** (ou similar) por sua consistência e 
 ## 5. Componentes Principais (UX)
 
 ### 5.1 Lista de Processos (Compacta)
-Cada linha deve ter altura máxima de `40px`, contendo:
+Cada linha ocupa uma faixa de `36px` (máximo `40px`; padding `4px 8px`), nesta ordem:
 - Ícone de status.
-- Nome do arquivo ZIP.
-- Timestamp de processamento.
-- Contador de erros (se houver).
-- Botão discreto para abrir a pasta de saída.
+- Nome do arquivo ZIP (`13px`/`500`, reticências, ao menos `96px`).
+- À direita, em `11px`: horário tabular, mensagem e contadores (docs/páginas). A mensagem encolhe antes dos contadores e some com a fila abaixo de `480px`; abaixo de `420px` somem também o horário e o "Aguardando na fila", e o nome pode encolher até `64px`.
+- Ações discretas (copiar, abrir pasta, remover/cancelar).
+
+Em processamento, a barra de progresso tem `2px` e fica colada à borda inferior da linha, sem aumentar a altura. Os detalhes de erro abrem abaixo da faixa.
 
 Cabeçalho da fila sempre em uma linha: o título trunca com reticências, o campo Filtrar encolhe de `140px` até `80px` (não cresce no foco) e os botões não encolhem. Com a fila abaixo de `420px` (container query), Pausar/Retomar/Limpar Fila mostram só o ícone, com o nome no `aria-label` e no `title`.
 
@@ -101,6 +103,7 @@ Fila pausada: pausar só impede o próximo item de começar. O item em curso man
 
 ### 5.3 Painel de Configurações
 - Precisa ficar legível a 280px de largura sem cortar palavra.
+- Sem título geral: o cabeçalho do painel tem só o botão de recolher. "Configurações" e "Importação Manual" são seções sem moldura de cartão, com rótulo pequeno (`--fs-section`) e divisor de `1px` (`--border`) entre elas.
 - Interruptores: rótulo à esquerda, switch à direita, linha de `32px`.
 - Selects com opções curtas (ex.: Nenhuma, Básica, Agressiva); a explicação da opção escolhida vai num `.help-text` de `11px` abaixo do select.
 - Caminho da pasta monitorada com reticências e o caminho completo no `title`.
@@ -112,7 +115,7 @@ Fila pausada: pausar só impede o próximo item de começar. O item em curso man
 
 ## 6. Layout e Espaçamento (Grades)
 - **Padding padrão:** `8px` (em vez dos tradicionais 16px ou 24px).
-- **Gap entre itens da lista:** `4px`.
+- **Gap entre itens da lista:** `4px`, com padding `8px` no contêiner.
 - **Raio de borda (Border Radius):** `4px` (cantos levemente arredondados, mantendo a sobriedade); até `6px` só no contêiner da lista e na caixa de soltar. Indicadores redondos usam `50%`.
 - **Linhas da fila:** fundo `--surface`, borda `1px` `--border`, sem sombra; no hover só trocam fundo (`--surface-hover`) e borda (`--border-strong`) em `--dur-fast`, sem deslocamento.
 

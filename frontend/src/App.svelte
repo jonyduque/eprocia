@@ -383,7 +383,6 @@
       class:resizing={isResizing}
     >
       <div class="sidebar-header-toggle">
-        <span class="sidebar-title">Painel de Controle</span>
         <button
           class="btn-toggle-sidebar"
           bind:this={botaoRecolher}
@@ -409,7 +408,7 @@
         <!-- Manual Process Card -->
         <div class="manual-card">
           <div class="card-header">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-plus-2"><path d="M4 22V4c0-.5.2-1 .6-1.4C5 2.2 5.5 2 6 2h8l6 6v12c0 .5-.2 1-.6 1.4-.4.4-.9.6-1.4.6H6c-.5 0-1-.2-1.4-.6C4.2 21 4 20.5 4 20Z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-plus-2"><path d="M4 22V4c0-.5.2-1 .6-1.4C5 2.2 5.5 2 6 2h8l6 6v12c0 .5-.2 1-.6 1.4-.4.4-.9.6-1.4.6H6c-.5 0-1-.2-1.4-.6C4.2 21 4 20.5 4 20Z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg>
             <h3>Importação Manual</h3>
           </div>
 
@@ -534,7 +533,7 @@
   }
 
   .overlay-box p {
-    font-size: 14px;
+    font-size: var(--fs-title);
     font-weight: 600;
     color: var(--text-primary);
   }
@@ -579,8 +578,8 @@
   }
 
   .brand-title h1 {
-    font-size: 13px;
-    font-weight: 700;
+    font-size: var(--fs-base);
+    font-weight: 600;
     margin: 0;
     line-height: 1.2;
     color: var(--text-primary);
@@ -620,7 +619,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 10px;
+    font-size: var(--fs-meta);
     color: var(--accent);
     font-weight: 600;
     background-color: var(--accent-soft);
@@ -695,9 +694,10 @@
     overflow: hidden;
   }
 
+  /* Só o botão de recolher: o painel não repete um título acima das seções. */
   .sidebar-header-toggle {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     padding: 8px 12px;
     border-bottom: 1px solid var(--border);
@@ -709,27 +709,6 @@
   .sidebar.collapsed .sidebar-header-toggle {
     justify-content: center;
     padding: 8px 0;
-  }
-
-  .sidebar-title {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-weight: 700;
-    color: var(--text-secondary);
-    white-space: nowrap;
-    transition: opacity var(--dur-fast) var(--ease-out) var(--dur-fast);
-  }
-
-  /* Recolher: o conteúdo some com fade enquanto a coluna encolhe, preso à
-     largura anterior e cortado pelo overflow do aside; expandir: só aparece
-     depois que a largura terminou (atraso de --dur-fast). */
-  .sidebar.collapsed .sidebar-title {
-    position: absolute;
-    left: 12px;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity var(--dur-fast) var(--ease-out), visibility var(--dur-fast) linear;
   }
 
   .btn-toggle-sidebar {
@@ -874,30 +853,29 @@
   }
 
   /* Manual process card */
+  /* Seção do painel: divisor de 1px no lugar da moldura de cartão. */
   .manual-card {
-    background-color: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 12px;
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    transition: background-color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
+    transition: border-color var(--dur-base) var(--ease-out);
   }
 
   .manual-card .card-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    color: var(--accent);
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 6px;
+    gap: 6px;
+    color: var(--text-secondary);
   }
 
   .manual-card h3 {
-    font-size: 13px;
+    font-size: var(--fs-section);
     font-weight: 600;
-    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
     margin: 0;
   }
 
@@ -905,7 +883,7 @@
     background-color: var(--bg-main);
     border: 1px solid var(--border);
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--fs-base);
     font-weight: 600;
     width: 100%;
     padding: 10px 8px;
@@ -939,7 +917,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 0 12px;
-    font-size: 11px;
+    font-size: var(--fs-meta);
     color: var(--text-secondary);
     flex-shrink: 0;
     user-select: none;
@@ -986,7 +964,7 @@
   }
 
   .status-text {
-    font-size: 11px;
+    font-size: var(--fs-meta);
   }
 
   .font-tabular {

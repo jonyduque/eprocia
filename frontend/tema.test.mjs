@@ -131,7 +131,8 @@ test('opções curtas com texto de ajuda abaixo do select', () => {
   for (const o of opcoes) assert.ok(o.length <= 12, `opção longa: ${o}`);
   for (const o of ['Nenhuma', 'Básica', 'Agressiva']) assert.ok(opcoes.includes(o), o);
   assert.ok((settings.match(/class="help-text"/g) || []).length >= 2);
-  assert.match(regra(estilo(settings), '.help-text'), /font-size:\s*11px/);
+  // --fs-meta é 11px (DESIGN.md §3).
+  assert.match(regra(estilo(settings), '.help-text'), /font-size:\s*var\(--fs-meta\)/);
 });
 
 test('pasta monitorada com title e reticências', () => {
