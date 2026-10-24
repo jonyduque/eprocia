@@ -2,14 +2,19 @@ package etl
 
 import (
 	"bytes"
+	"compress/zlib"
 	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/pprof"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/dslipak/pdf"
 )
 
 // buildPDF constructs a valid minimal PDF by dynamically calculating offsets for the xref table.
@@ -488,5 +493,316 @@ func TestParsePages_ErroDeAberturaEmPortugues(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "falha ao abrir o PDF") {
 		t.Fatalf("mensagem fora do padrão pt-BR: %q", err)
+	}
+}
+
+// assertNoLeaks falha o teste se o detector de vazamento do runtime achar
+// goroutines bloqueadas para sempre (canal ou trava inalcançável).
+func assertNoLeaks(t *testing.T) {
+	t.Helper()
+	perfil := pprof.Lookup("goroutineleak")
+	if perfil == nil {
+		t.Skip("perfil goroutineleak indisponível neste runtime")
+	}
+	var buf bytes.Buffer
+	// WriteTo roda o GC com detecção de vazamento antes de Count ler o total.
+	if err := perfil.WriteTo(&buf, 1); err != nil {
+		t.Fatalf("falha ao gravar o perfil goroutineleak: %v", err)
+	}
+	if n := perfil.Count(); n > 0 {
+		t.Fatalf("%d goroutine(s) vazada(s):\n%s", n, buf.String())
+	}
+}
+
+// objetosPaginasComImagem monta um PDF com n páginas escaneadas (sem texto,
+// com imagem grande), todas candidatas ao OCR.
+func objetosPaginasComImagem(n int) []string {
+	kids := make([]string, n)
+	for i := range n {
+		kids[i] = fmt.Sprintf("%d 0 R", 4+i)
+	}
+	objects := []string{
+		"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
+		fmt.Sprintf("2 0 obj\n<< /Type /Pages /Kids [%s] /Count %d >>\nendobj", strings.Join(kids, " "), n),
+		"3 0 obj\n<< /Type /XObject /Subtype /Image /Width 200 /Height 200 /ColorSpace /DeviceGray /BitsPerComponent 8 /Length 0 >>\nstream\nendstream\nendobj",
+	}
+	for i := range n {
+		objects = append(objects, fmt.Sprintf("%d 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /XObject << /Im1 3 0 R >> >> /Contents %d 0 R >>\nendobj", 4+i, 4+n+i))
+	}
+	for i := range n {
+		objects = append(objects, fmt.Sprintf("%d 0 obj\n<< /Length 8 >>\nstream\n/Im1 Do\nendstream\nendobj", 4+n+i))
+	}
+	return objects
+}
+
+// esperarParsePages roda ParsePages com ctx e falha o teste se não voltar no
+// prazo (wg.Wait preso no cancelamento).
+func esperarParsePages(t *testing.T, parser *PDFParser, ctx context.Context, ocrRunner func(context.Context, string, int) (string, string, error), onPage func(int)) (map[string]any, error) {
+	t.Helper()
+	type resultado struct {
+		pages map[string]any
+		err   error
+	}
+	done := make(chan resultado, 1)
+	go func() {
+		pages, err := parser.ParsePages(ctx, true, ocrRunner, onPage)
+		done <- resultado{pages, err}
+	}()
+	select {
+	case r := <-done:
+		return r.pages, r.err
+	case <-time.After(5 * time.Second):
+		t.Fatalf("ParsePages não voltou após o cancelamento")
+		return nil, nil
+	}
+}
+
+func gravarPDF(t *testing.T, objects []string) string {
+	t.Helper()
+	caminho := filepath.Join(t.TempDir(), "test.pdf")
+	if err := os.WriteFile(caminho, buildPDF(objects), 0644); err != nil {
+		t.Fatalf("falha ao gravar pdf de teste: %v", err)
+	}
+	return caminho
+}
+
+// O runner cancela o contexto no primeiro OCR. Como no pipeline, ele segura a
+// vaga de OCR (semáforo de 1) e os demais só esperam vaga ou cancelamento:
+// nenhuma outra página pode chegar a fazer OCR, e ParsePages tem de voltar com
+// context.Canceled sem deixar goroutine para trás.
+func TestPDFParser_ParsePages_CancelamentoDuranteOCR(t *testing.T) {
+	const n = 6
+	caminho := gravarPDF(t, objetosPaginasComImagem(n))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	vaga := make(chan struct{}, 1)
+	var trabalhos, depoisDoRetorno atomic.Int32
+	var retornou atomic.Bool
+	ocrRunner := func(ctx context.Context, _ string, _ int) (string, string, error) {
+		if retornou.Load() {
+			depoisDoRetorno.Add(1)
+		}
+		select {
+		case vaga <- struct{}{}:
+		case <-ctx.Done():
+			return "", "", ctx.Err()
+		}
+		trabalhos.Add(1)
+		cancel()
+		return "", "", ctx.Err()
+	}
+
+	_, err := esperarParsePages(t, parserDeArquivo(t, caminho), ctx, ocrRunner, nil)
+	retornou.Store(true)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("esperava context.Canceled, obtive %v", err)
+	}
+	if got := trabalhos.Load(); got != 1 {
+		t.Errorf("esperava OCR em 1 página antes do cancelamento, obtive %d", got)
+	}
+	if got := depoisDoRetorno.Load(); got != 0 {
+		t.Errorf("runner chamado %d vez(es) depois de ParsePages voltar", got)
+	}
+	assertNoLeaks(t)
+}
+
+// Quando o OCR em bloco falha por cancelamento, refazer página a página só
+// gasta processos com um contexto que já morreu.
+func TestPDFParser_ParsePages_CancelamentoNoLoteNaoRefazPorPagina(t *testing.T) {
+	caminho := gravarPDF(t, objetosPaginasComImagem(4))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var chamadasRunner atomic.Int32
+	ocrRunner := func(ctx context.Context, _ string, _ int) (string, string, error) {
+		chamadasRunner.Add(1)
+		return "OCR", "", nil
+	}
+	lote := func(ctx context.Context, _ string, paginas []int) ([]string, error) {
+		cancel()
+		return nil, ctx.Err()
+	}
+
+	parser := parserDeArquivo(t, caminho).comOCREmLote(lote, 1)
+	_, err := esperarParsePages(t, parser, ctx, ocrRunner, nil)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("esperava context.Canceled, obtive %v", err)
+	}
+	if got := chamadasRunner.Load(); got != 0 {
+		t.Errorf("OCR por página chamado %d vez(es) após o cancelamento do lote", got)
+	}
+	assertNoLeaks(t)
+}
+
+func TestPDFParser_ParsePages_ContextoJaCancelado(t *testing.T) {
+	caminho := gravarPDF(t, objetosPaginasComImagem(3))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	var chamadas, concluidas atomic.Int32
+	ocrRunner := func(ctx context.Context, _ string, _ int) (string, string, error) {
+		chamadas.Add(1)
+		return "OCR", "", nil
+	}
+	pages, err := esperarParsePages(t, parserDeArquivo(t, caminho), ctx, ocrRunner, func(int) { concluidas.Add(1) })
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("esperava context.Canceled, obtive %v", err)
+	}
+	if pages != nil {
+		t.Errorf("esperava nenhuma página com o contexto cancelado, obtive %d", len(pages))
+	}
+	if chamadas.Load() != 0 || concluidas.Load() != 0 {
+		t.Errorf("esperava nenhum OCR nem progresso, obtive %d OCR e %d páginas", chamadas.Load(), concluidas.Load())
+	}
+	assertNoLeaks(t)
+}
+
+// A biblioteca de PDF entra em panic com filtro de stream desconhecido. A
+// página sem imagem tem de sair vazia (sem OCR); com imagem, ir ao OCR.
+func TestPDFParser_ParsePages_FiltroNaoSuportadoNaoEntraEmPanic(t *testing.T) {
+	for _, filtro := range []string{"/Foo", "/JBIG2Decode"} {
+		t.Run(filtro, func(t *testing.T) {
+			stream := fmt.Sprintf("<< /Length 13 /Filter %s >>\nstream\nqualquercoisa\nendstream", filtro)
+			semImagem := []string{
+				"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
+				"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj",
+				"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> /Contents 4 0 R >>\nendobj",
+				"4 0 obj\n" + stream + "\nendobj",
+			}
+			runnerProibido := func(context.Context, string, int) (string, string, error) {
+				t.Errorf("OCR não deveria rodar em página sem imagem nem conteúdo legível")
+				return "", "", nil
+			}
+			pages, err := parsePagesSemPanic(t, semImagem, runnerProibido)
+			if err != nil {
+				t.Fatalf("ParsePages falhou: %v", err)
+			}
+			if p := pages["1"].(map[string]any); p["content"].(string) != "" || p["ocr"].(bool) {
+				t.Errorf("esperava página vazia sem OCR, obtive %+v", p)
+			}
+
+			comImagem := []string{
+				semImagem[0], semImagem[1],
+				"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /XObject << /Im1 5 0 R >> >> /Contents 4 0 R >>\nendobj",
+				semImagem[3],
+				"5 0 obj\n<< /Type /XObject /Subtype /Image /Width 200 /Height 200 /ColorSpace /DeviceGray /BitsPerComponent 8 /Length 0 >>\nstream\nendstream\nendobj",
+			}
+			runner := func(context.Context, string, int) (string, string, error) {
+				return "OCR Extracted Text", "", nil
+			}
+			pages, err = parsePagesSemPanic(t, comImagem, runner)
+			if err != nil {
+				t.Fatalf("ParsePages falhou: %v", err)
+			}
+			if p := pages["1"].(map[string]any); !p["ocr"].(bool) || p["content"].(string) != "OCR Extracted Text" {
+				t.Errorf("esperava OCR na página com imagem, obtive %+v", p)
+			}
+		})
+	}
+}
+
+func TestExtractNativeText_FiltroNaoSuportadoViraErro(t *testing.T) {
+	objects := []string{
+		"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
+		"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj",
+		"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> /Contents 4 0 R >>\nendobj",
+		"4 0 obj\n<< /Length 13 /Filter /Foo >>\nstream\nqualquercoisa\nendstream\nendobj",
+	}
+	page := primeiraPagina(t, objects)
+	if _, err := ExtractNativeText(page); err == nil || !strings.Contains(err.Error(), "pânico") {
+		t.Errorf("esperava erro de pânico recuperado, obtive %v", err)
+	}
+	if HasDrawnContent(page) {
+		t.Errorf("filtro ilegível não pode contar como conteúdo desenhado")
+	}
+}
+
+// primeiraPagina abre o PDF e devolve a página 1 sem passar por ParsePages.
+func primeiraPagina(t *testing.T, objects []string) pdf.Page {
+	t.Helper()
+	dados := buildPDF(objects)
+	reader, n, err := abrirLeitorPDF(bytes.NewReader(dados), int64(len(dados)), 0)
+	if err != nil {
+		t.Fatalf("falha ao abrir pdf de teste: %v", err)
+	}
+	paginas, _, err := listarPaginas(reader, n)
+	if err != nil || len(paginas) == 0 {
+		t.Fatalf("falha ao listar páginas: %v", err)
+	}
+	return paginas[0]
+}
+
+// Página vetorial (iLovePDF) cujo /Contents é um array: nenhum stream passa
+// sozinho do limiar, mas a soma passa, e a página tem de ir ao OCR.
+func TestPDFParser_ParsePages_VetorialComContentsEmArrayUsaOcr(t *testing.T) {
+	var paths strings.Builder
+	for paths.Len() < drawnContentMinBytes*3/4 {
+		paths.WriteString("40.16 196.8 m\n744.32 196.8 l\n744.32 199.04 l\nh\nf\n")
+	}
+	content := paths.String()
+	objects := []string{
+		"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
+		"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj",
+		"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> /Contents [4 0 R 5 0 R] >>\nendobj",
+		fmt.Sprintf("4 0 obj\n<< /Length %d >>\nstream\n%sendstream\nendobj", len(content), content),
+		fmt.Sprintf("5 0 obj\n<< /Length %d >>\nstream\n%sendstream\nendobj", len(content), content),
+	}
+	if !HasDrawnContent(primeiraPagina(t, objects)) {
+		t.Fatalf("HasDrawnContent ignorou a soma dos streams do array")
+	}
+	ocrRunner := func(context.Context, string, int) (string, string, error) {
+		return "OCR Extracted Text", "", nil
+	}
+
+	pages := parsePagesWithDeadline(t, objects, ocrRunner)
+
+	if p := pages["1"].(map[string]any); !p["ocr"].(bool) || p["content"].(string) != "OCR Extracted Text" {
+		t.Errorf("esperava OCR na página vetorial com /Contents em array, obtive %+v", p)
+	}
+}
+
+// /Length maior que os dados do arquivo: o stream não pode travar a leitura.
+func TestPDFParser_ParsePages_LengthMaiorQueOsDadosNaoTrava(t *testing.T) {
+	objects := []string{
+		"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
+		"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj",
+		"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> /Contents 4 0 R >>\nendobj",
+		"4 0 obj\n<< /Length 999999 >>\nstream\nBT\n/F1 12 Tf\n72 712 Td\n(Hello World) Tj\nET\nendstream\nendobj",
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("ParsePages entrou em panic: %v", r)
+		}
+	}()
+	pages := parsePagesWithDeadline(t, objects, nil)
+	if _, ok := pages["1"].(map[string]any); !ok {
+		t.Errorf("esperava a página 1 no resultado, obtive %+v", pages)
+	}
+}
+
+// Stream Flate truncado: a leitura falha no meio, e o lexer da biblioteca
+// engoliria o erro e giraria para sempre. Tem de virar erro de extração.
+func TestPDFParser_ParsePages_StreamTruncadoNaoTrava(t *testing.T) {
+	var z bytes.Buffer
+	w := zlib.NewWriter(&z)
+	for range 200 {
+		fmt.Fprintf(w, "BT\n/F1 12 Tf\n72 712 Td\n(Linha %d) Tj\nET\n", z.Len())
+	}
+	w.Close()
+	truncado := z.Bytes()[:z.Len()/2]
+	objects := []string{
+		"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
+		"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj",
+		"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> /Contents 4 0 R >>\nendobj",
+		fmt.Sprintf("4 0 obj\n<< /Length %d /Filter /FlateDecode >>\nstream\n%s\nendstream\nendobj", len(truncado), truncado),
+	}
+	if _, err := ExtractNativeText(primeiraPagina(t, objects)); err == nil || !strings.Contains(err.Error(), "ilegível") {
+		t.Errorf("esperava erro de stream ilegível, obtive %v", err)
+	}
+
+	pages := parsePagesWithDeadline(t, objects, nil)
+	if p := pages["1"].(map[string]any); p["content"].(string) != "" {
+		t.Errorf("esperava página sem texto, obtive %+v", p)
 	}
 }

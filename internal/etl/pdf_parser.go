@@ -171,6 +171,9 @@ func (p *PDFParser) ParsePages(
 	}
 
 	runOCRTask := func(task ocrTask) {
+		if ctx.Err() != nil {
+			return
+		}
 		log.Printf("[PDFParser] Iniciando OCR para página %d...", task.pageNum)
 		caminho, err := p.caminhoParaOCR()
 		var ocrText, imgPath string
@@ -197,6 +200,10 @@ func (p *PDFParser) ParsePages(
 		}
 		if err == nil && len(textos) != len(tasks) {
 			err = fmt.Errorf("OCR em bloco devolveu %d textos para %d páginas", len(textos), len(tasks))
+		}
+		if err != nil && ctx.Err() != nil {
+			log.Printf("[PDFParser] OCR em bloco das páginas %v interrompido por cancelamento: %v", paginas, ctx.Err())
+			return
 		}
 		if err != nil {
 			// Uma página ruim derruba o tesseract do bloco inteiro; sozinhas,
@@ -489,17 +496,13 @@ func ExtractNativeText(page pdf.Page) (text string, err error) {
 	}
 
 	log.Printf("[PDFParser] Chamando page.GetTextByRow()...")
+	// Não há fallback para GetPlainText: na v0.0.2 o recover de GetTextByRow
+	// não chega ao retorno (resultados sem nome), então err é sempre nil e um
+	// conteúdo malformado devolve zero linhas e o fallback nunca rodava.
 	rows, err := page.GetTextByRow()
 	if err != nil {
-		log.Printf("[PDFParser] GetTextByRow() retornou erro: %v. Tentando GetPlainText()...", err)
-		// Fallback to plain text if row parsing fails
-		b, err := page.GetPlainText(nil)
-		if err != nil {
-			log.Printf("[PDFParser] GetPlainText() falhou: %v", err)
-			return "", err
-		}
-		log.Printf("[PDFParser] GetPlainText() funcionou. Chars obtidos: %d", len(b))
-		return b, nil
+		log.Printf("[PDFParser] GetTextByRow() retornou erro: %v", err)
+		return "", err
 	}
 
 	log.Printf("[PDFParser] GetTextByRow() encontrou %d linhas de texto.", len(rows))
