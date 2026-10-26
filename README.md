@@ -164,8 +164,6 @@ Com opções:
 | `-Uninstall` | Remove app, atalhos e entrada de desinstalação; mantém as configurações. |
 | `-Uninstall -Purge` | Remove também configurações, dados do WebView2 e cache do OCR. |
 
-Enquanto o repositório for privado, o `irm` anônimo não alcança o script. Com o GitHub CLI logado, use `& ([scriptblock]::Create((gh api repos/jonyduque/eprocia/contents/install.ps1 -H 'Accept: application/vnd.github.raw')))`. Os downloads usam `GITHUB_TOKEN`, `GH_TOKEN` ou `gh auth token` quando o acesso anônimo é negado.
-
 ## ⚙️ Configurações
 
 | Opção | Valores | O que muda |
@@ -239,8 +237,8 @@ Detalhes no [`CLAUDE.md`](CLAUDE.md).
 
 O executável inclui:
 
-- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) e os modelos `tessdata` (Apache 2.0)
-- [Poppler](https://poppler.freedesktop.org/) `pdftoppm` (GPL)
+- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) 5.5.0 e os modelos `tessdata` (Apache 2.0)
+- [Poppler](https://poppler.freedesktop.org/) 25.07.0 `pdftoppm` e suas DLLs (GPL; código-fonte em [poppler-25.07.0.tar.xz](https://poppler.freedesktop.org/poppler-25.07.0.tar.xz))
 - [Wails](https://wails.io) (MIT), [Svelte](https://svelte.dev) (MIT), [Lucide](https://lucide.dev) (ISC)
 
 <div align="center">
