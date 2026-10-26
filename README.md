@@ -9,7 +9,8 @@
 100% offline · OCR embutido · ordem cronológica por evento
 
 [![CI](https://github.com/jonyduque/eprocia/actions/workflows/ci.yml/badge.svg)](https://github.com/jonyduque/eprocia/actions/workflows/ci.yml)
-![Versão](https://img.shields.io/badge/vers%C3%A3o-0.3.0-0056B3)
+[![Versão](https://img.shields.io/github/v/release/jonyduque/eprocia?label=vers%C3%A3o&color=0056B3)](https://github.com/jonyduque/eprocia/releases/latest)
+[![Licença](https://img.shields.io/badge/licen%C3%A7a-GPL--3.0-blue)](LICENSE)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white)
 ![Go](https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white)
 ![Wails](https://img.shields.io/badge/Wails-v2-DF0000)
@@ -233,7 +234,11 @@ Detalhes no [`CLAUDE.md`](CLAUDE.md).
 
 </details>
 
-## 📜 Componentes de terceiros
+## 📜 Licença
+
+O eprocIA é software livre sob a [GNU General Public License v3.0](LICENSE): você pode usar, estudar, modificar e redistribuir, desde que as versões distribuídas mantenham a mesma licença e o código-fonte disponível.
+
+### Componentes de terceiros
 
 O executável inclui:
 
