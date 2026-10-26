@@ -23,6 +23,12 @@ wails build
 # Publish with `gh release create vX.Y.Z --target main` (creates the tag remotely).
 wails build -clean -nsis
 
+# Per-user install (no admin; elevated shells re-run it unelevated as the
+# session user via a one-off scheduled task). Must stay Windows PowerShell 5.1
+# compatible, UTF-8 with BOM, CRLF. Read the version from FileMajorPart etc.:
+# Wails writes the string table under language 0000, which FileVersionInfo ignores.
+powershell -ExecutionPolicy Bypass -File scripts/instalacao/instalar.ps1 [-Origem exe] [-Desinstalar]
+
 # Go tests (whole repo)
 go test ./...
 

@@ -3,3 +3,6 @@ scripts/bench/fixtures/** binary
 
 # OCR binaries embedded via go:embed; the version stamp hashes their exact bytes.
 internal/ocr/embed/** binary
+
+# Scripts de instalação rodam no Windows PowerShell 5.1 e no cmd.
+scripts/instalacao/* text eol=crlf

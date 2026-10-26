@@ -137,6 +137,21 @@ O `.txt` sai com o mesmo nome do ZIP e segue o formato do [PRD §6](PRD.md):
 
 Requisitos: Windows 10 ou 11 (64 bits) com o WebView2, que já vem no Windows 11.
 
+### 🙋 Instalação só para o seu usuário (script)
+
+[`scripts/instalacao/instalar.ps1`](scripts/instalacao/instalar.ps1) instala sem pedir administrador, em `%LOCALAPPDATA%\Programs\eprocIA`, com atalhos no menu Iniciar e na área de trabalho e entrada em **Aplicativos instalados**. Mesmo num terminal elevado, ele reexecuta a instalação sem privilégios como o usuário dono da sessão, então nada vai para o perfil do administrador.
+
+```powershell
+# exe ao lado do script, ou baixa a release mais recente pelo gh (confere o SHA-256)
+powershell -ExecutionPolicy Bypass -File instalar.ps1
+# outras formas
+powershell -ExecutionPolicy Bypass -File instalar.ps1 -Origem .\eprocia.exe -SemAtalhoNaAreaDeTrabalho -NaoAbrir
+powershell -ExecutionPolicy Bypass -File instalar.ps1 -Versao v0.3.0
+powershell -ExecutionPolicy Bypass -File instalar.ps1 -Desinstalar [-RemoverDados]
+```
+
+O `instalar.cmd` faz o mesmo com duplo clique. Para atualizar, rode de novo com o app fechado pela bandeja. Se "Iniciar com o Windows" estiver ligado, ele passa a abrir a cópia instalada.
+
 ## ⚙️ Configurações
 
 | Opção | Valores | O que muda |
