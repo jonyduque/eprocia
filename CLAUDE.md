@@ -23,11 +23,14 @@ wails build
 # Publish with `gh release create vX.Y.Z --target main` (creates the tag remotely).
 wails build -clean -nsis
 
-# Per-user install (no admin; elevated shells re-run it unelevated as the
-# session user via a one-off scheduled task). Must stay Windows PowerShell 5.1
-# compatible, UTF-8 with BOM, CRLF. Read the version from FileMajorPart etc.:
+# Per-user install, also `irm .../install.ps1 | iex` (no admin; elevated shells
+# re-run it unelevated as the session user via a one-off scheduled task). Must
+# stay Windows PowerShell 5.1 compatible and saved WITHOUT a BOM (a BOM breaks
+# `irm | iex`); under -File the 5.1 re-reads itself as UTF-8, so never put
+# characters whose UTF-8 bytes include 0x91-0x94 (arrows, Ó, Ô) in the source:
+# 5.1 parses those as smart quotes. Read the version from FileMajorPart etc.:
 # Wails writes the string table under language 0000, which FileVersionInfo ignores.
-powershell -ExecutionPolicy Bypass -File scripts/instalacao/instalar.ps1 [-Origem exe] [-Desinstalar]
+pwsh -File install.ps1 -DryRun   # -From exe, -Uninstall [-Purge], ...
 
 # Go tests (whole repo)
 go test ./...

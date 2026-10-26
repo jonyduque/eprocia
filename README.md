@@ -137,20 +137,34 @@ O `.txt` sai com o mesmo nome do ZIP e segue o formato do [PRD §6](PRD.md):
 
 Requisitos: Windows 10 ou 11 (64 bits) com o WebView2, que já vem no Windows 11.
 
-### 🙋 Instalação só para o seu usuário (script)
+### ⚡ Instalação por linha de comando (só para o seu usuário)
 
-[`scripts/instalacao/instalar.ps1`](scripts/instalacao/instalar.ps1) instala sem pedir administrador, em `%LOCALAPPDATA%\Programs\eprocIA`, com atalhos no menu Iniciar e na área de trabalho e entrada em **Aplicativos instalados**. Mesmo num terminal elevado, ele reexecuta a instalação sem privilégios como o usuário dono da sessão, então nada vai para o perfil do administrador.
+No PowerShell:
 
 ```powershell
-# exe ao lado do script, ou baixa a release mais recente pelo gh (confere o SHA-256)
-powershell -ExecutionPolicy Bypass -File instalar.ps1
-# outras formas
-powershell -ExecutionPolicy Bypass -File instalar.ps1 -Origem .\eprocia.exe -SemAtalhoNaAreaDeTrabalho -NaoAbrir
-powershell -ExecutionPolicy Bypass -File instalar.ps1 -Versao v0.3.0
-powershell -ExecutionPolicy Bypass -File instalar.ps1 -Desinstalar [-RemoverDados]
+irm https://raw.githubusercontent.com/jonyduque/eprocia/main/install.ps1 | iex
 ```
 
-O `instalar.cmd` faz o mesmo com duplo clique. Para atualizar, rode de novo com o app fechado pela bandeja. Se "Iniciar com o Windows" estiver ligado, ele passa a abrir a cópia instalada.
+O [`install.ps1`](install.ps1) baixa a release mais recente, confere o SHA-256 com o `SHA256SUMS.txt` e instala em `%LOCALAPPDATA%\Programs\eprocIA`, com atalhos no menu Iniciar e na área de trabalho e entrada em **Aplicativos instalados**. Nunca pede administrador. Num terminal elevado, ele roda de novo sem privilégios como o dono da sessão do Windows, então nada vai para o perfil do administrador. Para atualizar, rode de novo com o app fechado pela bandeja.
+
+Com opções:
+
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/jonyduque/eprocia/main/install.ps1))) -DryRun
+```
+
+| Opção | O que faz |
+|---|---|
+| `-Version v0.3.0` | Instala essa release em vez da mais recente. |
+| `-Dir <pasta>` | Instala em outra pasta. |
+| `-From <eprocia.exe>` | Instala um exe local, sem baixar. |
+| `-NoDesktop` | Sem atalho na área de trabalho. |
+| `-NoStart` | Não abre o app ao terminar. |
+| `-DryRun` | Mostra o que faria e pergunta se deve fazer. |
+| `-Uninstall` | Remove app, atalhos e entrada de desinstalação; mantém as configurações. |
+| `-Uninstall -Purge` | Remove também configurações, dados do WebView2 e cache do OCR. |
+
+Enquanto o repositório for privado, o `irm` anônimo não alcança o script. Com o GitHub CLI logado, use `& ([scriptblock]::Create((gh api repos/jonyduque/eprocia/contents/install.ps1 -H 'Accept: application/vnd.github.raw')))`. Os downloads usam `GITHUB_TOKEN`, `GH_TOKEN` ou `gh auth token` quando o acesso anônimo é negado.
 
 ## ⚙️ Configurações
 
