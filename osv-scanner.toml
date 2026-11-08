@@ -12,13 +12,12 @@ vulnerability.ignore = true
 effectiveUntil = 2027-02-08
 reason = "Só no build dev do Wails (wails dev); fora do exe publicado."
 
-# Ferramenta de build do frontend (devDependency), não vai para o exe. Sem versão corrigida.
-[[PackageOverrides]]
-name = "deepmerge"
-ecosystem = "npm"
-vulnerability.ignore = true
-effectiveUntil = 2027-02-08
-reason = "devDependency do build do frontend; sem correção publicada."
+# deepmerge: ferramenta de build do frontend (devDependency), não vai para o exe. Sem versão
+# corrigida. Por ID: a regra por pacote (PackageOverrides) não pegou o pacote npm.
+[[IgnoredVulns]]
+id = "GHSA-gcqx-w48m-w2h4"
+ignoreUntil = 2027-02-08
+reason = "deepmerge: devDependency do build do frontend; sem correção publicada."
 
 # Correção só num pseudo-commit, sem versão publicada; o govulncheck não acha chamada ao código
 # afetado. Atualizar quando sair a versão do golang.org/x/crypto com a correção.
