@@ -107,4 +107,4 @@ Known traps (fixed on 2026-10-14; keep them fixed):
 - `getlantern/systray` on Windows needs ICO data; a PNG fails with `Unable to set icon` and leaves no way to reopen or quit a hidden window.
 - `tesseract.exe` and `pdftoppm.exe` started from the GUI app need `CREATE_NO_WINDOW` (`internal/ocr/proc_windows.go`), or every OCR'd page flashes a console window.
 - Pages whose text is drawn as vector outlines (iLovePDF) have no native text and no large images; `HasDrawnContent` sends them to OCR.
-- The published Wails CLI v2.12.0 is built with `x/tools v0.30.0` and fails under Go 1.27 with `package "bytes" without types was imported`. Rebuild it with `pwsh scripts/build/recompilar-wails.ps1` (or fall back to `GOTOOLCHAIN=go1.25.5 wails build`).
+- The published Wails CLI (v2.12.0 with `x/tools v0.30.0`, v2.13.0 with `v0.44.0`) fails under Go 1.27 with `package "bytes" without types was imported`. Rebuild it with `pwsh scripts/build/recompilar-wails.ps1` (defaults to the go.mod version, v2.13.0). Drop the script once a published Wails CLI builds this repo under the go.mod Go version.

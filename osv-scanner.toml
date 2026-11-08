@@ -1,0 +1,28 @@
+# Exceções do osv-scanner (security.yml). Cada uma diz por que o alerta não atinge o eprocIA e
+# vence numa data, para ser revista: depois dela o alerta volta a falhar o workflow.
+# Conferido em 2026-11-08 com `govulncheck -show verbose ./...`: nenhuma delas é chamada.
+
+# O Wails só importa o echo no servidor de desenvolvimento
+# (internal/frontend/devserver/devserver.go, `//go:build dev`), usado pelo `wails dev`.
+# O exe publicado (`wails build`) não contém o echo. Rever quando o Wails atualizar o echo.
+[[PackageOverrides]]
+name = "github.com/labstack/echo/v4"
+ecosystem = "Go"
+vulnerability.ignore = true
+effectiveUntil = 2027-02-08
+reason = "Só no build dev do Wails (wails dev); fora do exe publicado."
+
+# Ferramenta de build do frontend (devDependency), não vai para o exe. Sem versão corrigida.
+[[PackageOverrides]]
+name = "deepmerge"
+ecosystem = "npm"
+vulnerability.ignore = true
+effectiveUntil = 2027-02-08
+reason = "devDependency do build do frontend; sem correção publicada."
+
+# Correção só num pseudo-commit, sem versão publicada; o govulncheck não acha chamada ao código
+# afetado. Atualizar quando sair a versão do golang.org/x/crypto com a correção.
+[[IgnoredVulns]]
+id = "GO-2026-5932"
+ignoreUntil = 2027-02-08
+reason = "Código afetado não é chamado (govulncheck); sem versão corrigida publicada."

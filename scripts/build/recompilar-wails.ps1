@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-  Passo 0 do toolchain: recompila o Wails CLI v2.12.0 com golang.org/x/tools atual.
+  Passo 0 do toolchain: recompila o Wails CLI (padrão v2.13.0) com golang.org/x/tools atual.
 
 .DESCRIPTION
-  O Wails CLI v2.12.0 publicado foi compilado com x/tools v0.30.0, que falha com
+  O Wails CLI publicado (v2.12.0 com x/tools v0.30.0, v2.13.0 com v0.44.0) falha com
   Go 1.27 ("package "bytes" without types was imported"). Este script copia o
   módulo do cache para um diretório temporário, atualiza x/tools e instala o CLI
   em GOBIN (ou GOPATH\bin). Não altera o go.mod do projeto.
@@ -12,7 +12,7 @@
   pwsh scripts/build/recompilar-wails.ps1
 #>
 param(
-  [string]$Versao = 'v2.12.0'
+  [string]$Versao = 'v2.13.0'
 )
 $ErrorActionPreference = 'Stop'
 
