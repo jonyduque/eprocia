@@ -68,7 +68,7 @@ jobs:
       - name: go test -race
         run: go test ./... -race -count=1
 
-      # O Wails CLI v2.12.0 publicado não funciona com Go 1.27 (ver CLAUDE.md).
+      # O Wails CLI publicado (até a v2.13.0) não funciona com Go 1.27 (ver CLAUDE.md).
       - name: Wails CLI
         run: pwsh scripts/build/recompilar-wails.ps1
 

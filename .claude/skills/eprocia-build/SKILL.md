@@ -7,7 +7,7 @@ description: Toolchain e gate de build do eprocIA — Passo 0 (Wails CLI compat�
 
 ## Passo 0 — toolchain (uma vez, antes da primeira correção)
 
-1. **Wails CLI compatível com Go 1.27.** O CLI v2.12.0 publicado traz `x/tools v0.30.0` e falha com `package "bytes" without types was imported`. Confira com:
+1. **Wails CLI compatível com Go 1.27.** O CLI publicado (v2.12.0 com `x/tools v0.30.0`, v2.13.0 com `v0.44.0`) falha com `package "bytes" without types was imported`. Confira com:
    ```bash
    go version -m "$(command -v wails)" | grep x/tools
    ```
