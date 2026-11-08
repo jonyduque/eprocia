@@ -1,0 +1,55 @@
+# Vulnerabilidades conhecidas nas dependências, a cada push, pull request e toda segunda: um
+# alerta novo pode atingir um lockfile que não mudou.
+# - osv-scanner lê o go.sum e o frontend/package-lock.json (base OSV) e manda o SARIF para a
+#   aba Security.
+# - govulncheck só acusa vulnerabilidade em código Go que o eprocIA de fato chama. Roda no
+#   Windows porque o app só compila lá (systray, CREATE_NO_WINDOW, embed do OCR).
+name: security
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  schedule:
+    - cron: '17 9 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  osv-scanner:
+    permissions:
+      contents: read
+      security-events: write # SARIF na aba Security
+      actions: read
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
+    with:
+      scan-args: |-
+        --recursive
+        ./
+
+  govulncheck:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      # main.go embute frontend/dist; para a análise basta a pasta existir.
+      - name: frontend/dist provisório
+        run: |
+          New-Item -ItemType Directory -Force frontend/dist | Out-Null
+          Set-Content frontend/dist/index.html '<!doctype html>'
+
+      # Versão fixa: o go run confere o módulo no sum.golang.org.
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...

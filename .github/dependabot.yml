@@ -1,0 +1,16 @@
+# PRs de versão só para as GitHub Actions (fixadas por SHA). Go e npm ficam presos no go.sum e
+# no package-lock.json: vulnerabilidades neles chegam pelos alertas do Dependabot e pelo
+# workflow security.yml.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 14 # ignora releases com menos de 14 dias (releases sequestradas caem em dias)
+    groups:
+      actions:
+        patterns: ['*']
+    commit-message:
+      prefix: chore(ci)
