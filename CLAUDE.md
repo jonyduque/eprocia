@@ -49,7 +49,7 @@ go vet ./...
 node --test .claude/hooks/hooks.test.mjs .claude/statusline.test.mjs .claude/workflows/workflows.test.mjs scripts/visual/estados.test.mjs
 ```
 
-CI (`.github/workflows/ci.yml`, Windows runner, push/PR to `main`) runs the same gate minus the smoke test, plus `gofmt -l`. The local checkout uses `core.autocrlf=true`, so `gofmt -l` on the working copy lists every file; check formatting with `git show HEAD:<file> | gofmt -d` or trust CI, which checks out with LF. `go.sum` and the OCR binaries in `internal/ocr/embed/` are versioned (a clean clone must build).
+CI (`.github/workflows/ci.yml`, Windows runner, push/PR to `main`) runs the same gate minus the smoke test, plus `gofmt -l`. `security.yml` runs osv-scanner (all lockfiles, with `--config=./osv-scanner.toml`, whose exceptions each carry a reason and an expiry date) and govulncheck on every push and weekly. `release.yml` builds and attests the release from a `v*` tag as a draft; tags `v*` are immutable by ruleset, so rehearse with a pre-release tag only after bumping `productVersion`. The local checkout uses `core.autocrlf=true`, so `gofmt -l` on the working copy lists every file; check formatting with `git show HEAD:<file> | gofmt -d` or trust CI, which checks out with LF. `go.sum` and the OCR binaries in `internal/ocr/embed/` are versioned (a clean clone must build).
 
 There is no repo-level lint config beyond `go vet`; no frontend test suite. `go test ./...` includes `scripts/bench`, whose `TestFixtures_LegibleToOCR` runs the real OCR (a few seconds; skipped with `-short`).
 
