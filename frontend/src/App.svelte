@@ -42,7 +42,6 @@
   import { LARGURA_MIN_PAINEL, criarArrasto, larguraMaxPainel, limitarPainel, teclaDivisor } from './lib/divisor.js';
   import { DUR_BASE, DUR_FAST, criarAviso, duracaoMovimento } from './lib/aviso.js';
   import { OPCOES_LIMPEZA, OPCOES_OCR, nivelOpcao, proximaOpcao, rotuloOpcao } from './lib/atividade.js';
-
   import { cubicOut } from 'svelte/easing';
   import { gravarPainel, lerPainel } from './lib/painel.js';
   import {

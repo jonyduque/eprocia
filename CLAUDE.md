@@ -45,8 +45,11 @@ cd frontend && npm run build
 
 go vet ./...
 
-# Harness tests (hooks, statusline, workflows, visual stubs) and frontend lib tests
-node --test .claude/hooks/hooks.test.mjs .claude/statusline.test.mjs .claude/workflows/workflows.test.mjs scripts/visual/estados.test.mjs frontend/src/lib/atividade.test.mjs
+# Harness tests (hooks, statusline, workflows, visual stubs)
+node --test .claude/hooks/hooks.test.mjs .claude/statusline.test.mjs .claude/workflows/workflows.test.mjs scripts/visual/estados.test.mjs
+
+# Frontend logic tests (frontend/*.test.mjs, importing src/lib; CI runs the same glob)
+node --test (Get-ChildItem frontend -Filter *.test.mjs).FullName   # pwsh
 ```
 
 CI (`.github/workflows/ci.yml`, Windows runner, push/PR to `main`) runs the same gate minus the smoke test, plus `gofmt -l`. `security.yml` runs osv-scanner (all lockfiles, with `--config=./osv-scanner.toml`, whose exceptions each carry a reason and an expiry date) and govulncheck on every push and weekly. `release.yml` builds and attests the release from a `v*` tag as a draft; tags `v*` are immutable by ruleset, so rehearse with a pre-release tag only after bumping `productVersion`. The local checkout uses `core.autocrlf=true`, so `gofmt -l` on the working copy lists every file; check formatting with `git show HEAD:<file> | gofmt -d` or trust CI, which checks out with LF. `go.sum` and the OCR binaries in `internal/ocr/embed/` are versioned (a clean clone must build).

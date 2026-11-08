@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { OPCOES_OCR, OPCOES_LIMPEZA, nivelOpcao, proximaOpcao, rotuloOpcao, ordenarDocs, resumoAtividade, segmentos } from './atividade.js';
+import { OPCOES_OCR, OPCOES_LIMPEZA, nivelOpcao, proximaOpcao, rotuloOpcao, ordenarDocs, resumoAtividade, segmentos } from './src/lib/atividade.js';
 
 describe('opções', () => {
   it('cicla e volta ao início', () => {
