@@ -1,4 +1,5 @@
-# Exceções do osv-scanner (security.yml). Cada uma diz por que o alerta não atinge o eprocIA e
+# Exceções do osv-scanner (security.yml passa --config, para valer também no frontend/).
+# Cada uma diz por que o alerta não atinge o eprocIA e
 # vence numa data, para ser revista: depois dela o alerta volta a falhar o workflow.
 # Conferido em 2026-11-08 com `govulncheck -show verbose ./...`: nenhuma delas é chamada.
 
@@ -13,7 +14,7 @@ effectiveUntil = 2027-02-08
 reason = "Só no build dev do Wails (wails dev); fora do exe publicado."
 
 # deepmerge: ferramenta de build do frontend (devDependency), não vai para o exe. Sem versão
-# corrigida. Por ID: a regra por pacote (PackageOverrides) não pegou o pacote npm.
+# corrigida.
 [[IgnoredVulns]]
 id = "GHSA-gcqx-w48m-w2h4"
 ignoreUntil = 2027-02-08

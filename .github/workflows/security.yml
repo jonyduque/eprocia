@@ -24,7 +24,9 @@ jobs:
       actions: read
     uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
     with:
+      # Um config só para todos os lockfiles: sem --config, cada pasta (frontend/) procura o seu.
       scan-args: |-
+        --config=./osv-scanner.toml
         --recursive
         ./
 
