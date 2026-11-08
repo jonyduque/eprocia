@@ -380,6 +380,8 @@ func (q *Queue) processItem(item *QueueItem) {
 	item.cancel = cancel
 	item.Status = "processing"
 	item.Message = "Iniciando..."
+	item.Progress = 0
+	item.ProcessedDocs, item.TotalDocs, item.ProcessedPages, item.TotalPages = 0, 0, 0, 0
 	cfg := q.cfg
 	q.mu.Unlock()
 
@@ -390,11 +392,14 @@ func (q *Queue) processItem(item *QueueItem) {
 			item.Name, progress*100, message, processedDocs, totalDocs, processedPages, totalPages)
 		q.mu.Lock()
 		if item.Status == "processing" {
-			item.Progress = progress
+			// Os documentos rodam em paralelo e o pipeline lê os contadores sem
+			// trava, então um aviso pode chegar depois de outro mais novo: os
+			// números só avançam.
+			item.Progress = max(item.Progress, progress)
 			item.Message = message
-			item.ProcessedDocs = processedDocs
+			item.ProcessedDocs = max(item.ProcessedDocs, processedDocs)
 			item.TotalDocs = totalDocs
-			item.ProcessedPages = processedPages
+			item.ProcessedPages = max(item.ProcessedPages, processedPages)
 			item.TotalPages = totalPages
 		}
 		q.mu.Unlock()
