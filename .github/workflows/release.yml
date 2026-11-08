@@ -1,0 +1,128 @@
+# Compila a release a partir da tag, atesta a procedência dos arquivos e sobe tudo numa release
+# RASCUNHO. Uma pessoa escreve as notas e publica (gh release edit <tag> --draft=false).
+#
+# Contrato com quem já baixou o eprocIA (install.ps1 e usuários):
+# - nomes: eprocia-<versão>-windows-amd64.exe, eprocia-<versão>-windows-amd64-instalador.exe,
+#   install.ps1, LICENSE, SHA256SUMS.txt;
+# - SHA256SUMS.txt: "<sha256 minúsculo> *<nome>\n", só os dois exe;
+# - o install.ps1 segue releases/latest, que ignora rascunhos e pre-releases: tag com hífen
+#   (v0.3.1-rc1) sai como pre-release e serve de ensaio.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write # cria a release rascunho
+      id-token: write # token OIDC da atestação
+      attestations: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Desligar autocrlf
+        run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      # Sem cache em todo o job: um cache envenenado não pode chegar ao binário publicado.
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
+      # v0.3.1 ou v0.3.1-rc1: a parte antes do hífen tem de ser a productVersion do wails.json,
+      # que vai para o exe e para o instalador.
+      - name: Versão
+        id: versao
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ($env:TAG -notmatch '^v(\d+\.\d+\.\d+)(-[0-9A-Za-z.]+)?$') { throw "tag fora do formato vX.Y.Z[-pre]: $env:TAG" }
+          $base = $Matches[1]
+          $produto = (Get-Content wails.json -Raw | ConvertFrom-Json).info.productVersion
+          if ($base -ne $produto) { throw "a tag $env:TAG não bate com productVersion $produto do wails.json" }
+          "versao=$($env:TAG.Substring(1))" >> $env:GITHUB_OUTPUT
+
+      - name: Frontend (npm ci, build)
+        working-directory: frontend
+        run: |
+          npm ci
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm run build
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      # O Wails CLI v2.12.0 publicado não funciona com Go 1.27 (ver CLAUDE.md).
+      - name: Wails CLI
+        run: pwsh scripts/build/recompilar-wails.ps1
+
+      - name: NSIS
+        run: |
+          $nsis = 'C:\Program Files (x86)\NSIS'
+          if (-not (Test-Path "$nsis\makensis.exe")) {
+            choco install nsis -y --no-progress
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+          $nsis >> $env:GITHUB_PATH
+
+      - name: wails build
+        run: |
+          $env:PATH = "$(go env GOPATH)\bin;$env:PATH"
+          makensis /VERSION
+          wails build -clean -s -nsis -trimpath
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - name: Montar dist
+        env:
+          VERSAO: ${{ steps.versao.outputs.versao }}
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $exe = "eprocia-$env:VERSAO-windows-amd64.exe"
+          $inst = "eprocia-$env:VERSAO-windows-amd64-instalador.exe"
+          Copy-Item build/bin/eprocia.exe "dist/$exe"
+          $instalador = @(Get-ChildItem build/bin -Filter '*installer*.exe')
+          if ($instalador.Count -ne 1) { throw "esperava um instalador em build/bin, achei $($instalador.Count)" }
+          Copy-Item $instalador[0].FullName "dist/$inst"
+          Copy-Item install.ps1, LICENSE dist/
+          # Mesmo formato das releases anteriores, que o install.ps1 lê: "<hex> *<nome>" + LF.
+          $linhas = foreach ($n in $exe, $inst) {
+            $h = (Get-FileHash "dist/$n" -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$h *$n`n"
+          }
+          [IO.File]::WriteAllText("$PWD/dist/SHA256SUMS.txt", -join $linhas)
+          Get-ChildItem dist | Format-Table Name, Length
+
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            dist/eprocia-*.exe
+            dist/install.ps1
+
+      - name: Release rascunho
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          $extra = @()
+          if ($env:TAG -like '*-*') { $extra += '--prerelease' }
+          $arquivos = (Get-ChildItem dist).FullName
+          gh release create $env:TAG @arquivos --draft @extra --verify-tag --title $env:TAG --notes "Rascunho gerado pelo workflow de release. Escreva as notas antes de publicar."
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
