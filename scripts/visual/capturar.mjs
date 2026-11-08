@@ -135,6 +135,26 @@ async function main() {
           };
           await salvar('');
 
+          // Painéis que abrem dentro da linha: a atividade dos documentos do item
+          // em processamento e o formulário de reprocessar de um item concluído.
+          if (nome === 'processando') {
+            const linha = await page.$('.item-row.processing .info-btn');
+            if (linha) {
+              await linha.click();
+              await page.waitForTimeout(300);
+              await salvar('-atividade');
+              await linha.click();
+            }
+          }
+          if (nome === 'fila') {
+            const botao = await page.$('.item-row.success button[data-acao="reprocessar"]');
+            if (botao) {
+              await botao.click();
+              await page.waitForTimeout(300);
+              await salvar('-reprocessar');
+            }
+          }
+
           // The divider and collapsed sidebar only vary with the layout, so one state is enough.
           if (nome === 'processando') {
             if (await arrastarDivisor(page, 20)) await salvar('-divisor-minimo');

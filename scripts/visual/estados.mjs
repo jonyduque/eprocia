@@ -51,6 +51,26 @@ const processando = (n, pct) => item(n, 'processing', {
   processed_pages: Math.round(142 * pct / 100), total_pages: 142,
 });
 
+// Atividade por documento (etl.InstantaneoAtividade) de um item em processamento.
+function atividade(n) {
+  const docs = [];
+  const estados = ['ocr', 'ocr', 'lendo', 'erro', 'aguardando', 'aguardando', 'aguardando'];
+  for (let i = 1; i <= 24; i++) {
+    const estado = i <= 14 ? 'concluido' : (estados[i - 15] ?? 'aguardando');
+    const paginas = 1 + ((i * 7) % 11);
+    docs.push({
+      nome: `Evento ${i} - DOC${(i % 3) + 1}.pdf`,
+      evento: i,
+      estado,
+      paginas,
+      feitas: estado === 'concluido' ? paginas : estado === 'ocr' || estado === 'lendo' ? Math.floor(paginas / 2) : 0,
+      ocr: estado === 'ocr' ? 2 : 0,
+      ...(estado === 'erro' ? { erro: 'falha ao abrir o PDF: xref inválida' } : {}),
+    });
+  }
+  return { item_id: item(n, 'processing').id, docs, limite_docs: 7, limite_ocr: 7, ocr_ativos: 3 };
+}
+
 export const ESTADOS = {
   vazio: { config: { ...CONFIG, monitored_path: '', watchdog_enabled: false }, fila: [], pausado: false },
   fila: {
@@ -62,6 +82,7 @@ export const ESTADOS = {
     config: CONFIG,
     fila: [sucesso(1), processando(2, 42), item(3, 'pending'), item(4, 'pending')],
     pausado: false,
+    atividades: { [item(2, 'processing').id]: atividade(2) },
   },
   erro: {
     config: CONFIG,
@@ -88,12 +109,14 @@ export function instalarStubs({ estado, tema }) {
     GetConfig: estado.config,
     GetQueue: estado.fila,
     IsQueuePaused: estado.pausado,
+    GetQueueActivity: (id) => estado.atividades?.[id] ?? null,
     SelectZipFiles: [],
     SelectDirectory: '',
     SelectZipFile: '',
   };
   const app = new Proxy({}, {
-    get: (_, nome) => () => Promise.resolve(structuredClone(dados[nome])),
+    get: (_, nome) => (...args) => Promise.resolve(structuredClone(
+      typeof dados[nome] === 'function' ? dados[nome](...args) : dados[nome])),
   });
   window.go = { main: { App: app } };
   window.runtime = new Proxy({}, {

@@ -17,7 +17,7 @@ node scripts/visual/capturar.mjs --saida <dir> --rapido               # 1024x768
 node scripts/visual/capturar.mjs --saida <dir> --estados fila,erro    # só alguns estados
 ```
 
-- Matriz completa: 800×600, 1024×768, 1440×900, 1920×1080 × escuro/claro × `vazio`, `fila`, `processando`, `erro`, `configuracoes` = 40 capturas, mais 3 por tamanho e tema no estado `processando`: `-divisor-minimo` (arrastado até x=20), `-divisor-maximo` (até a borda direita) e `-recolhido` (painel recolhido). Total: 64.
+- Matriz completa: 800×600, 1024×768, 1440×900, 1920×1080 × escuro/claro × `vazio`, `fila`, `processando`, `erro`, `configuracoes` = 40 capturas, mais 3 por tamanho e tema no estado `processando`: `-divisor-minimo` (arrastado até x=20), `-divisor-maximo` (até a borda direita) e `-recolhido` (painel recolhido), mais `-atividade` (painel de atividade do item em processamento aberto) em `processando` e `-reprocessar` (formulário de reprocessar aberto) em `fila`. Total: 80. A atividade fictícia fica em `ESTADOS.<estado>.atividades` (por id do item) e é servida pelo stub de `GetQueueActivity`.
 - Nome: `<L>x<A>-<tema>-<estado>[-variação].png`.
 - O Playwright `1.63.0` é instalado uma vez em `%LOCALAPPDATA%\eprocia-harness\` (fora do `package.json`) e usa o Chrome instalado (`channel: 'chrome'`), com o Chromium do Playwright como reserva.
 - As capturas usam `reducedMotion: 'reduce'` para não pegar animações no meio.
