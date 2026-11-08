@@ -8,6 +8,8 @@
   import Minus from 'lucide-svelte/icons/minus';
   import Monitor from 'lucide-svelte/icons/monitor';
   import Moon from 'lucide-svelte/icons/moon';
+  import ScanText from 'lucide-svelte/icons/scan-text';
+  import Sparkles from 'lucide-svelte/icons/sparkles';
   import Square from 'lucide-svelte/icons/square';
   import Sun from 'lucide-svelte/icons/sun';
   import Upload from 'lucide-svelte/icons/upload';
@@ -28,15 +30,20 @@
     SelectZipFiles,
     IsQueuePaused,
     Hide,
-    SetTheme
+    SetTheme,
+    SaveConfig,
+    SelectDirectory
   } from './wailsjs/go/main/App.js';
   import Settings from './components/Settings.svelte';
   import ProcessList from './components/ProcessList.svelte';
   import { contarAtivos, rotuloFila } from './lib/estado.js';
   import { criarFilaPorQuadro } from './lib/quadro.js';
-  import { fade } from 'svelte/transition';
+  import { fade, fly } from 'svelte/transition';
   import { LARGURA_MIN_PAINEL, criarArrasto, larguraMaxPainel, limitarPainel, teclaDivisor } from './lib/divisor.js';
-  import { DUR_FAST, duracaoMovimento } from './lib/aviso.js';
+  import { DUR_BASE, DUR_FAST, criarAviso, duracaoMovimento } from './lib/aviso.js';
+  import { OPCOES_LIMPEZA, OPCOES_OCR, nivelOpcao, proximaOpcao, rotuloOpcao } from './lib/atividade.js';
+
+  import { cubicOut } from 'svelte/easing';
   import { gravarPainel, lerPainel } from './lib/painel.js';
   import {
     CONSULTA_ESCURO,
@@ -53,6 +60,8 @@
   const versao = __APP_VERSION__;
 
   let items = [];
+  // Atividade por documento de cada item (queue:atividade), por id.
+  let atividades = {};
   // Lido já na inicialização: o bloco reativo abaixo não pode desfazer a
   // classe que o script de index.html aplicou antes da montagem.
   let temaPref = lerPreferencia(armazenamento());
@@ -120,7 +129,16 @@
 
     // Register Wails event listeners for queue updates
     unsubscribers.push(
-      EventsOn('queue:update', (data) => filaQuadro.lista(data))
+      EventsOn('queue:update', (data) => {
+        filaQuadro.lista(data);
+        podarAtividades(data);
+      })
+    );
+
+    unsubscribers.push(
+      EventsOn('queue:atividade', (inst) => {
+        if (inst?.item_id) atividades = { ...atividades, [inst.item_id]: inst };
+      })
     );
 
     // Progresso chega item a item; id desconhecido é ignorado.
@@ -155,6 +173,7 @@
 
   onDestroy(() => {
     stopResizing();
+    aviso.limpar();
     consultaTema.removeEventListener('change', mudouTemaDoSistema);
     filaQuadro.cancelar();
 
@@ -168,6 +187,68 @@
       OnFileDropOff();
     } catch (e) {}
   });
+
+  // Item removido ou de volta à fila (reprocessar) não mostra a atividade antiga.
+  function podarAtividades(lista) {
+    const vivos = new Set((lista || []).filter((i) => i.status !== 'pending').map((i) => i.id));
+    const ids = Object.keys(atividades);
+    if (ids.every((id) => vivos.has(id))) return;
+    atividades = Object.fromEntries(Object.entries(atividades).filter(([id]) => vivos.has(id)));
+  }
+
+  // Mudanças rápidas da config fora do formulário (painel recolhido e rodapé).
+  // O Settings recebe a config nova pelo bind; o aviso aparece aqui porque o
+  // formulário pode estar recolhido.
+  let avisoRapido = null;
+  const aviso = criarAviso((a) => { avisoRapido = a; });
+  let anuncio = '';
+
+  async function salvarRapido(mudanca, texto) {
+    if (!config) return;
+    const novo = { ...config, ...mudanca };
+    try {
+      await SaveConfig(novo);
+      config = novo;
+      anuncio = texto;
+    } catch (err) {
+      const msg = String(err?.message ?? err);
+      // "configurações salvas, mas..." já se explica sozinha.
+      aviso.mostrar(/^configurações salvas/i.test(msg) ? msg[0].toUpperCase() + msg.slice(1) : 'Erro ao salvar: ' + msg, 'error');
+      await refreshConfig();
+    }
+  }
+
+  function ciclarOcr() {
+    const prox = proximaOpcao(OPCOES_OCR, config?.ocr_mode);
+    salvarRapido({ ocr_mode: prox.valor }, `OCR: ${prox.rotulo}`);
+  }
+
+  function ciclarLimpeza() {
+    const prox = proximaOpcao(OPCOES_LIMPEZA, config?.cleaning_level);
+    salvarRapido({ cleaning_level: prox.valor }, `Higienização: ${prox.rotulo}`);
+  }
+
+  // Sem pasta configurada, ligar o monitoramento começa pela escolha da pasta.
+  async function alternarMonitoramento() {
+    if (!config) return;
+    if (!config.monitored_path) {
+      try {
+        const pasta = await SelectDirectory();
+        if (pasta) await salvarRapido({ monitored_path: pasta, watchdog_enabled: true }, 'Monitoramento ativado');
+      } catch (err) {
+        aviso.mostrar('Erro ao selecionar pasta: ' + (err?.message ?? err), 'error');
+      }
+      return;
+    }
+    const ligar = !config.watchdog_enabled;
+    await salvarRapido({ watchdog_enabled: ligar }, ligar ? 'Monitoramento ativado' : 'Monitoramento pausado');
+  }
+
+  $: rotuloOcr = rotuloOpcao(OPCOES_OCR, config?.ocr_mode);
+  $: rotuloLimpeza = rotuloOpcao(OPCOES_LIMPEZA, config?.cleaning_level);
+  $: acaoMonitor = !config?.monitored_path
+    ? 'Escolher pasta e ativar o monitoramento'
+    : (config.watchdog_enabled ? 'Pausar o monitoramento' : 'Ativar o monitoramento');
 
   async function refreshConfig() {
     try {
@@ -439,13 +520,54 @@
       {#if sidebarCollapsed}
         <!-- Collapsed Sidebar Vertical Tools -->
         <div class="collapsed-tools" in:fade={{ duration: duracaoMovimento(DUR_FAST), delay: duracaoMovimento(DUR_FAST) }}>
-          <div class="collapsed-indicator" class:active={monitorando} class:inactive={!monitorando} role="status" title={textoMonitoramento}>
+          <button
+            type="button"
+            class="collapsed-indicator"
+            class:active={monitorando}
+            class:inactive={!monitorando}
+            on:click={alternarMonitoramento}
+            title="{textoMonitoramento}. Clique para {acaoMonitor.toLowerCase()}"
+            aria-label="{textoMonitoramento}. {acaoMonitor}"
+            aria-pressed={monitorando}
+            disabled={!config}
+          >
             <span class="collapsed-dot" aria-hidden="true"></span>
-            <span class="sr-only">{textoMonitoramento}</span>
-          </div>
+          </button>
 
-          <button class="collapsed-tool-btn" on:click={triggerManualSelect} title="Processar ZIP Manualmente">
+          <button class="collapsed-tool-btn" on:click={triggerManualSelect} title="Processar ZIP Manualmente" aria-label="Processar ZIP manualmente">
             <Icone icone={Upload} />
+          </button>
+
+          <button
+            type="button"
+            class="collapsed-tool-btn nivel-btn"
+            on:click={ciclarOcr}
+            disabled={!config}
+            title="OCR: {rotuloOcr}. Clique para {rotuloOpcao(OPCOES_OCR, proximaOpcao(OPCOES_OCR, config?.ocr_mode).valor)}"
+            aria-label="OCR: {rotuloOcr}. Mudar para {rotuloOpcao(OPCOES_OCR, proximaOpcao(OPCOES_OCR, config?.ocr_mode).valor)}"
+          >
+            <Icone icone={ScanText} tamanho={14} />
+            <span class="nivel" aria-hidden="true">
+              {#each OPCOES_OCR.slice(1) as _, i}
+                <span class="nivel-ponto" class:cheio={i < nivelOpcao(OPCOES_OCR, config?.ocr_mode)}></span>
+              {/each}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            class="collapsed-tool-btn nivel-btn"
+            on:click={ciclarLimpeza}
+            disabled={!config}
+            title="Higienização: {rotuloLimpeza}. Clique para {rotuloOpcao(OPCOES_LIMPEZA, proximaOpcao(OPCOES_LIMPEZA, config?.cleaning_level).valor)}"
+            aria-label="Higienização: {rotuloLimpeza}. Mudar para {rotuloOpcao(OPCOES_LIMPEZA, proximaOpcao(OPCOES_LIMPEZA, config?.cleaning_level).valor)}"
+          >
+            <Icone icone={Sparkles} tamanho={14} />
+            <span class="nivel" aria-hidden="true">
+              {#each OPCOES_LIMPEZA.slice(1) as _, i}
+                <span class="nivel-ponto" class:cheio={i < nivelOpcao(OPCOES_LIMPEZA, config?.cleaning_level)}></span>
+              {/each}
+            </span>
           </button>
         </div>
       {/if}
@@ -476,14 +598,24 @@
 
     <!-- Right Process List Area -->
     <section class="content-area">
-      <ProcessList bind:items={items} {isPaused} />
+      <ProcessList bind:items={items} {isPaused} {atividades} {config} />
     </section>
   </main>
 
   <!-- Footer Status Bar -->
   <footer>
     <div class="status-item status-main">
-      <span class="status-dot" class:active={config && config.watchdog_enabled && config.monitored_path} class:inactive={!config || !config.watchdog_enabled || !config.monitored_path}></span>
+      <button
+        type="button"
+        class="status-dot-btn"
+        on:click={alternarMonitoramento}
+        disabled={!config}
+        title={acaoMonitor}
+        aria-label={acaoMonitor}
+        aria-pressed={monitorando}
+      >
+        <span class="status-dot" class:active={monitorando} class:inactive={!monitorando}></span>
+      </button>
       {#if config && config.watchdog_enabled && config.monitored_path}
         <span class="status-text truncate" title={config.monitored_path}>
           Pasta monitorada: <strong>{config.monitored_path}</strong>
@@ -504,6 +636,24 @@
       {/if}
     </div>
   </footer>
+
+  <!-- Sempre montadas: o leitor de tela só anuncia mudanças numa região que
+       já existia antes da mensagem. -->
+  <div class="sr-only" role="status" aria-live="polite">{anuncio}</div>
+  <div class="aviso-rapido-regiao" role="alert" aria-atomic="true">
+    {#if avisoRapido}
+      <div
+        class="aviso-rapido"
+        in:fly={{ y: 8, duration: duracaoMovimento(DUR_BASE), easing: cubicOut }}
+        out:fade={{ duration: duracaoMovimento(DUR_FAST) }}
+      >
+        <span class="aviso-rapido-texto">{avisoRapido.texto}</span>
+        <button class="aviso-rapido-fechar" on:click={aviso.fechar} aria-label="Fechar aviso" title="Fechar aviso">
+          <Icone icone={X} tamanho={12} />
+        </button>
+      </div>
+    {/if}
+  </div>
 </div>
 
 <style>
@@ -813,19 +963,65 @@
     border: 0;
   }
 
+  /* Botão de 24px em volta do ponto de 6px: alvo fácil sem mudar o visual. */
   .collapsed-indicator {
-    width: 16px;
-    height: 16px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    background: transparent;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease-out);
+  }
+
+  .collapsed-indicator:hover {
+    background-color: var(--surface-hover);
+  }
+
+  .collapsed-indicator:hover .collapsed-dot {
+    transform: scale(1.4);
+  }
+
+  .collapsed-indicator:disabled,
+  .collapsed-tool-btn:disabled,
+  .status-dot-btn:disabled {
+    cursor: default;
+    opacity: 0.6;
   }
 
   .collapsed-dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
+    transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+  }
+
+  /* Ícone com os pontos de nível embaixo: o nível muda a cada clique. */
+  .nivel-btn {
+    flex-direction: column;
+    gap: 3px;
+    height: 36px;
+  }
+
+  .nivel {
+    display: flex;
+    gap: 2px;
+  }
+
+  .nivel-ponto {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: var(--border-strong);
+    transition: background-color var(--dur-fast) var(--ease-out);
+  }
+
+  .nivel-ponto.cheio {
+    background-color: var(--accent);
   }
 
   .collapsed-indicator.active .collapsed-dot {
@@ -961,11 +1157,82 @@
     background-color: var(--border);
   }
 
+  .status-dot-btn {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    margin: 0 -6px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .status-dot-btn:hover {
+    background-color: var(--surface-hover);
+  }
+
+  .status-dot-btn:hover .status-dot {
+    transform: scale(1.4);
+  }
+
   .status-dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
     flex-shrink: 0;
+    transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+  }
+
+  .aviso-rapido-regiao {
+    position: absolute;
+    left: 50%;
+    bottom: 34px;
+    transform: translateX(-50%);
+    z-index: 900;
+    max-width: min(480px, calc(100% - 32px));
+  }
+
+  .aviso-rapido {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    font-size: var(--fs-meta);
+    font-weight: 500;
+    color: var(--error-strong);
+    background-color: var(--surface);
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    box-shadow: var(--shadow-overlay);
+  }
+
+  .aviso-rapido-texto {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .aviso-rapido-fechar {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .aviso-rapido-fechar:hover {
+    background-color: var(--error-soft);
   }
 
   .status-dot.active {
