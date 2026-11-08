@@ -192,3 +192,47 @@ func TestProcessZip_NaoEmiteEventosWails(t *testing.T) {
 		t.Fatalf("ProcessZip tentou emitir evento Wails: %v\n%s", err, out)
 	}
 }
+
+// O formato ZIP aceita duas entradas com o mesmo caminho. Cada uma é um
+// documento: nenhuma pode sumir da saída nem dividir o mapa de páginas com a
+// outra (duas goroutines escrevendo no mesmo mapa).
+func TestProcessZip_EntradasComMesmoNomeSaoDocumentosDistintos(t *testing.T) {
+	zipPath := filepath.Join(t.TempDir(), "processo.zip")
+	buf := new(bytes.Buffer)
+	zw := zip.NewWriter(buf)
+	const n = 8
+	for i := range n {
+		w, err := zw.Create("Evento 1 - DOC1.html")
+		if err != nil {
+			t.Fatalf("falha ao criar entrada: %v", err)
+		}
+		_, _ = fmt.Fprintf(w, "<html><body><p>conteudo-%d</p></body></html>", i)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatalf("falha ao fechar zip: %v", err)
+	}
+	if err := os.WriteFile(zipPath, buf.Bytes(), 0644); err != nil {
+		t.Fatalf("falha ao gravar zip: %v", err)
+	}
+
+	cfg := &models.Config{CleaningLevel: "none", OcrMode: "none"}
+	outPath, docs, _, _, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfg, nil)
+	if err != nil {
+		t.Fatalf("ProcessZip falhou: %v", err)
+	}
+	saida, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("falha ao ler saída: %v", err)
+	}
+	if docs != n {
+		t.Errorf("docs = %d, esperava %d", docs, n)
+	}
+	for i := range n {
+		if !strings.Contains(string(saida), fmt.Sprintf("conteudo-%d", i)) {
+			t.Errorf("documento %d sumiu da saída", i)
+		}
+	}
+	if !strings.Contains(string(saida), fmt.Sprintf("Total de Documentos: %d", n)) {
+		t.Errorf("total de documentos errado na saída:\n%s", saida)
+	}
+}

@@ -330,9 +330,7 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 	}
 
 	totalPagesAll := 0
-	docPageCounts := make(map[string]int, totalFiles)
-	for i, f := range files {
-		docPageCounts[f.Name] = contagens[i]
+	for i := range files {
 		totalPagesAll += contagens[i]
 	}
 	log.Printf("[Pipeline] Pré-cálculo concluído: %d documentos, %d páginas no total", totalFiles, totalPagesAll)
@@ -340,16 +338,20 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 	eventos := make(map[string]any)
 
 	// Group files by EventNum to pre-populate map
-	eventsMap := make(map[int][]models.ProcessFile)
+	eventsMap := make(map[int][]int)
 	var eventNums []int
-	for _, f := range files {
+	for i, f := range files {
 		if _, exists := eventsMap[f.EventNum]; !exists {
 			eventNums = append(eventNums, f.EventNum)
 		}
-		eventsMap[f.EventNum] = append(eventsMap[f.EventNum], f)
+		eventsMap[f.EventNum] = append(eventsMap[f.EventNum], i)
 	}
 
-	// Initialize the events map structure
+	// Initialize the events map structure. Cada goroutine recebe o mapa de
+	// páginas do seu documento por índice: a chave do documento leva o índice
+	// porque o ZIP aceita duas entradas com o mesmo caminho, e elas não podem
+	// dividir o mesmo mapa.
+	paginasDoc := make([]map[string]any, totalFiles)
 	for _, eventNum := range eventNums {
 		eventKey := fmt.Sprintf("%d", eventNum)
 		documentosMap := make(map[string]any)
@@ -358,14 +360,12 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 			"documentos": documentosMap,
 		}
 
-		eventFiles := eventsMap[eventNum]
-		for index, f := range eventFiles {
-			docKey := f.Name
-			paginasMap := make(map[string]any)
-			documentosMap[docKey] = map[string]any{
+		for index, i := range eventsMap[eventNum] {
+			paginasDoc[i] = make(map[string]any)
+			documentosMap[fmt.Sprintf("%d:%s", i, files[i].Name)] = map[string]any{
 				"index":   index + 1,
-				"nome":    f.DocName,
-				"paginas": paginasMap,
+				"nome":    files[i].DocName,
+				"paginas": paginasDoc[i],
 			}
 		}
 	}
@@ -431,8 +431,7 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 				if fonteDoc != nil {
 					fonteDoc.liberarBuffer(false)
 				}
-				docData := eventos[fmt.Sprintf("%d", f.EventNum)].(map[string]any)["documentos"].(map[string]any)[f.Name].(map[string]any)
-				paginasMap := docData["paginas"].(map[string]any)
+				paginasMap := paginasDoc[i]
 				for k := range paginasMap {
 					delete(paginasMap, k)
 				}
@@ -457,12 +456,7 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 				return
 			}
 
-			// Retrieve docData and its paginas map
-			eventKey := fmt.Sprintf("%d", f.EventNum)
-			eventData := eventos[eventKey].(map[string]any)
-			documentosMap := eventData["documentos"].(map[string]any)
-			docData := documentosMap[f.Name].(map[string]any)
-			paginasMap := docData["paginas"].(map[string]any)
+			paginasMap := paginasDoc[i]
 
 			if f.Extension == ".pdf" {
 				fonte := fontes[i]
@@ -493,7 +487,7 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 				pdfPages, errParse := parser.ParsePages(ctx, cfg.OcrMode != "none", ocrRunner, func(pageNum int) {
 					processedPagesVal.Add(1)
 					pDocs := int(processedDocsVal.Load())
-					reportProgress(fmt.Sprintf("Processando %s (pág. %d/%d) [Docs: %d/%d]", f.DocName, pageNum, docPageCounts[f.Name], pDocs, totalFiles))
+					reportProgress(fmt.Sprintf("Processando %s (pág. %d/%d) [Docs: %d/%d]", f.DocName, pageNum, contagens[i], pDocs, totalFiles))
 				})
 				fonte.liberar()
 
