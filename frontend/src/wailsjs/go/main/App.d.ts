@@ -15,6 +15,8 @@ export function GetConfig():Promise<models.Config>;
 
 export function GetQueue():Promise<Array<etl.QueueItem>>;
 
+export function GetQueueActivity(arg1:string):Promise<etl.InstantaneoAtividade>;
+
 export function Greet(arg1:string):Promise<string>;
 
 export function Hide():Promise<void>;
@@ -30,6 +32,8 @@ export function ProcessFile(arg1:string):Promise<string>;
 export function Quit():Promise<void>;
 
 export function RemoveQueueItem(arg1:string):Promise<void>;
+
+export function ReprocessQueueItem(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function ResumeQueue():Promise<void>;
 

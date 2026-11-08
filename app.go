@@ -394,6 +394,24 @@ func (a *App) RemoveQueueItem(id string) {
 	}
 }
 
+// ReprocessQueueItem devolve à fila um item concluído, com erro ou cancelado,
+// usando o OCR e a higienização informados só para ele.
+func (a *App) ReprocessQueueItem(id, ocrMode, cleaningLevel string) error {
+	if a.queue == nil {
+		return fmt.Errorf("fila não inicializada")
+	}
+	return a.queue.Reprocessar(id, ocrMode, cleaningLevel)
+}
+
+// GetQueueActivity devolve o estado de cada documento do item (o que está em
+// paralelo, em OCR, concluído ou com erro), ou nil se ele ainda não rodou.
+func (a *App) GetQueueActivity(id string) *etl.InstantaneoAtividade {
+	if a.queue == nil {
+		return nil
+	}
+	return a.queue.GetAtividade(id)
+}
+
 // ClearQueue cancels all processes and clears the queue list.
 func (a *App) ClearQueue() {
 	if a.queue != nil {

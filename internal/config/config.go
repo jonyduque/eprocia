@@ -35,6 +35,16 @@ func TemaValido(t string) bool {
 	return t == "system" || t == "light" || t == "dark"
 }
 
+// ModoOCRValido diz se m é um dos modos de OCR que o pipeline conhece.
+func ModoOCRValido(m string) bool {
+	return m == "none" || m == "fast" || m == "normal" || m == "best"
+}
+
+// LimpezaValida diz se l é um dos níveis de higienização do formatter.
+func LimpezaValida(l string) bool {
+	return l == "none" || l == "basic" || l == "aggressive"
+}
+
 // GetConfigPath returns the default path to the config.json file.
 func GetConfigPath() (string, error) {
 	configDir, err := os.UserConfigDir()
