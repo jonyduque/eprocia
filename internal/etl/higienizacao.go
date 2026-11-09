@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // Níveis de higienização aceitos em config.Limpeza.
@@ -272,6 +273,132 @@ func planoChancelas(linhas []string, html bool) ([]bool, map[int]string) {
 		}
 	}
 	return saem, marcadores
+}
+
+// siglasUF são as 27 siglas de unidade federativa, que H3b nunca remove.
+var siglasUF = map[string]bool{
+	"AC": true, "AL": true, "AP": true, "AM": true, "BA": true, "CE": true, "DF": true,
+	"ES": true, "GO": true, "MA": true, "MT": true, "MS": true, "MG": true, "PA": true,
+	"PB": true, "PR": true, "PE": true, "PI": true, "RJ": true, "RN": true, "RS": true,
+	"RO": true, "RR": true, "SC": true, "SP": true, "SE": true, "TO": true,
+}
+
+var (
+	romanoRegex = regexp.MustCompile(`^[IVXLC]+$`)
+	alineaRegex = regexp.MustCompile(`^[a-z]\)$`)
+)
+
+// linhaLetraSolta (H3b) informa se l é ruído de OCR: 1 ou 2 letras, sem dígito
+// nem outro caractere, que não são numeral romano, alínea nem sigla de UF.
+func linhaLetraSolta(l string) bool {
+	if romanoRegex.MatchString(l) || alineaRegex.MatchString(l) || siglasUF[l] {
+		return false
+	}
+	n := 0
+	for _, r := range l {
+		if !unicode.IsLetter(r) {
+			return false
+		}
+		n++
+	}
+	return n >= 1 && n <= 2
+}
+
+// marcadorCertificado substitui, na Máxima, a página de certificado de
+// assinatura de plataforma privada.
+const marcadorCertificado = "[certificado de assinatura eletrônica]"
+
+var (
+	certificadoTituloRegex = regexp.MustCompile(`(?i)Termos\s+de\s+Assinatura\s+e\s+Registro\s+Eletr[ôo]nico`)
+	certificadoCampoRegex  = regexp.MustCompile(`(?i)^(Enviado:|Visualizado:|Assinado:|Aceito:|N[íi]vel\s+de\s+seguran[çc]a)`)
+)
+
+// paginaCertificado informa se a página (linhas já básicas) é um certificado de
+// assinatura de plataforma: traz o título "Termos de Assinatura e Registro
+// Eletrônico" ou 3 ou mais linhas que começam com Enviado:, Visualizado:,
+// Assinado:, Aceito: ou Nível de segurança. Os campos têm de ser de pelo menos
+// 2 tipos, para que uma sequência de e-mails ("Enviado:" repetido) não conte.
+func paginaCertificado(linhas []string) bool {
+	tipos := map[string]bool{}
+	n := 0
+	for _, l := range linhas {
+		if certificadoTituloRegex.MatchString(l) {
+			return true
+		}
+		if m := certificadoCampoRegex.FindStringSubmatch(l); m != nil {
+			n++
+			tipos[strings.ToLower(strings.Join(strings.Fields(m[1]), " "))] = true
+		}
+	}
+	return n >= 3 && len(tipos) >= 2
+}
+
+// Limites de H9.
+const refluirMinRunas = 40
+
+var listaRegex = regexp.MustCompile(`^([a-z]\)|[IVXLC]+ ?[-–.)]|•|-|\d+[.)])`)
+
+// linhaTabela informa se l parece linha de tabela ou extrato: tem R$ ou 2 ou
+// mais palavras com dígito.
+func linhaTabela(l string) bool {
+	if strings.Contains(l, "R$") {
+		return true
+	}
+	n := 0
+	for f := range strings.FieldsSeq(l) {
+		if strings.ContainsFunc(f, unicode.IsDigit) {
+			n++
+		}
+	}
+	return n >= 2
+}
+
+// linhaMarcador informa se l é um marcador da higienização ("[assinado: ...]",
+// "[certificado ...]", referências), que nunca reflui.
+func linhaMarcador(l string) bool {
+	return strings.HasPrefix(l, "[") && strings.HasSuffix(l, "]")
+}
+
+// juntaLinhas diz se a linha b continua a linha a (H9) e se a junção é de
+// hifenização (sem espaço e sem o hífen). Na dúvida, não junta.
+func juntaLinhas(a, b string) (junta, hifen bool) {
+	if a == "" || b == "" || linhaMarcador(a) || linhaMarcador(b) || linhaTabela(a) || linhaTabela(b) || listaRegex.MatchString(b) {
+		return false, false
+	}
+	prim, _ := utf8.DecodeRuneInString(b)
+	if semHifen, ok := strings.CutSuffix(a, "-"); ok {
+		antes, _ := utf8.DecodeLastRuneInString(semHifen)
+		return unicode.IsLetter(antes) && unicode.IsLower(prim), true
+	}
+	if strings.ContainsAny(a[len(a)-1:], ".:;?!") || utf8.RuneCountInString(a) < refluirMinRunas {
+		return false, false
+	}
+	return unicode.IsLower(prim) || unicode.IsDigit(prim), false
+}
+
+// refluir (H9) junta as linhas de um mesmo parágrafo: a linha i+1 entra na i
+// quando a i tem 40 ou mais runas e não termina em . : ; ? !, nenhuma das duas
+// parece tabela (R$ ou 2+ palavras com dígito) nem é marcador, e a i+1 não
+// começa com marcador de lista e começa com minúscula ou dígito. Uma palavra
+// hifenizada no fim da linha junta com a próxima, sem espaço e sem o hífen,
+// quando esta começa com minúscula. As regras olham as linhas originais, não o
+// parágrafo já juntado.
+func refluir(linhas []string) []string {
+	var out []string
+	for i, l := range linhas {
+		if i > 0 {
+			if junta, hifen := juntaLinhas(linhas[i-1], l); junta {
+				if hifen {
+					out[len(out)-1] = strings.TrimSuffix(out[len(out)-1], "-") + l
+				} else {
+					out[len(out)-1] += " " + l
+				}
+				continue
+			}
+		}
+		out = append(out, l)
+	}
+	return out
 }
 
 // linhaSoSimbolos informa se l não tem letra nem dígito e não contém §, º, ª ou %.

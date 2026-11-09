@@ -116,7 +116,10 @@ func repeatedEdgeLines(pages []string) map[string]bool {
 // mesma frase no meio da página sobrevive. O timbre fica na primeira página em
 // que aparece (ctx.jaVistas). As chancelas de assinatura nas bordas viram
 // "[assinado: ...]" (resumirChancelas) antes das bordas repetidas, e o marcador
-// nunca passa por elas. Só aggressive junta a página numa linha.
+// nunca passa por elas. Só aggressive troca a página de certificado de
+// plataforma pelo marcador (antes de tudo, sem tocar no estado do documento:
+// o timbre fica para a próxima página de conteúdo), tira as letras soltas
+// (H3b) e reflui os parágrafos (H9).
 func cleanPage(text string, level string, ctx *ctxDocumento) string {
 	if level == NivelNenhum {
 		return text
@@ -124,6 +127,9 @@ func cleanPage(text string, level string, ctx *ctxDocumento) string {
 	lines := linhasBasicas(text)
 	if level != NivelPadrao && level != NivelMaximo {
 		return strings.Join(lines, "\n")
+	}
+	if level == NivelMaximo && paginaCertificado(lines) {
+		return marcadorCertificado
 	}
 
 	var repeated map[string]bool
@@ -155,7 +161,7 @@ func cleanPage(text string, level string, ctx *ctxDocumento) string {
 			}
 			continue
 		}
-		if pageMarkerRegex.MatchString(line) || linhaSoSimbolos(line) {
+		if pageMarkerRegex.MatchString(line) || linhaSoSimbolos(line) || (level == NivelMaximo && linhaLetraSolta(line)) {
 			continue
 		}
 		if len(repeated) > 0 && !paginaCurta(len(lines)) && (pos < edgeLineCount || pos >= len(lines)-edgeLineCount) {
@@ -174,8 +180,7 @@ func cleanPage(text string, level string, ctx *ctxDocumento) string {
 	if level == NivelPadrao {
 		return strings.Join(cleanedLines, "\n")
 	}
-	// Junta numa linha só para economizar o máximo de tokens.
-	return strings.Join(cleanedLines, " ")
+	return strings.Join(refluir(cleanedLines), "\n")
 }
 
 // duplicadaMinRunas é o tamanho mínimo (em runas, após linhasBasicas) de uma

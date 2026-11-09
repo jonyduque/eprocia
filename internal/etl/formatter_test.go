@@ -75,8 +75,9 @@ Line 2 with text
 	if !strings.Contains(aggCleaned, "Documento assinado") {
 		t.Error("cleanPage('aggressive') não tira mais linha solta de assinatura (H6)")
 	}
-	if strings.Contains(aggCleaned, "\n") {
-		t.Error("cleanPage('aggressive') should merge lines into space-separated string")
+	// H9: linhas curtas não refluem, então as quebras ficam.
+	if !strings.Contains(aggCleaned, "Line 1 with spaces\n") {
+		t.Errorf("cleanPage('aggressive') devia manter a quebra depois de linha curta: %q", aggCleaned)
 	}
 }
 
@@ -115,6 +116,19 @@ A paginação do processo foi suspensa.`
 		if strings.Contains(got, s) {
 			t.Errorf("aggressive cleaning kept boilerplate %q; got %q", s, got)
 		}
+	}
+
+	// H9: as quebras entre parágrafos ficam (cada linha aqui fecha uma frase ou
+	// a próxima começa com maiúscula).
+	want := strings.Join([]string{
+		"O autor requer a juntada, conforme a página inicial dos autos.",
+		"Alega a parte que a assinatura eletrônica do contrato é nula.",
+		"Assinatura eletrônica realizada por Fulano de Tal",
+		"Documento assinado eletronicamente por Beltrano",
+		"A paginação do processo foi suspensa.",
+	}, "\n")
+	if got != want {
+		t.Errorf("aggressive devia manter as quebras entre parágrafos:\ngot  %q\nquer %q", got, want)
 	}
 }
 
@@ -822,15 +836,16 @@ func TestPadraoEMaxima_MantemAssinaturaSolta(t *testing.T) {
 	}
 }
 
-func TestMaxima_JuntaNumaLinhaComTimbreSoNaPagina1(t *testing.T) {
+func TestMaxima_MantemQuebrasComTimbreSoNaPagina1(t *testing.T) {
 	saida, _ := GenerateConsolidatedOutput(docPadrao(
 		pg("TIMBRE FICTÍCIO", "um", ""), pg("TIMBRE FICTÍCIO", "dois", ""), pg("TIMBRE FICTÍCIO", "tres", "")), NivelMaximo)
 	if got := strings.Count(saida, "TIMBRE FICTÍCIO"); got != 1 {
 		t.Errorf("timbre devia aparecer 1 vez, apareceu %d", got)
 	}
+	// Linhas curtas não refluem (H9): a página não vira uma linha só.
 	for n := 1; n <= 3; n++ {
-		if p := strings.TrimSpace(pagina(t, saida, n)); strings.Contains(p, "\n") {
-			t.Errorf("pág. %d devia ficar numa linha só: %q", n, p)
+		if p := strings.TrimSpace(pagina(t, saida, n)); strings.Count(p, "\n") < 10 {
+			t.Errorf("pág. %d devia manter as quebras: %q", n, p)
 		}
 	}
 	if !strings.Contains(pagina(t, saida, 1), "TIMBRE FICTÍCIO") {

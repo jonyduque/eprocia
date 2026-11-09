@@ -376,3 +376,198 @@ func TestCleanPage_MaximaTiraCabecalhoComEspacoIrregular(t *testing.T) {
 		}
 	}
 }
+
+func TestLinhaLetraSolta(t *testing.T) {
+	for _, l := range []string{"o", "Ss", "E", "xy", "é"} {
+		if !linhaLetraSolta(l) {
+			t.Errorf("%q devia ser letra solta", l)
+		}
+	}
+	for _, l := range []string{"II", "a)", "x)", "SP", "RJ", "5", "a1", "IV", "C", "abc", "", "§", "a."} {
+		if linhaLetraSolta(l) {
+			t.Errorf("%q não é letra solta", l)
+		}
+	}
+}
+
+func TestMaxima_TiraLetraSolta(t *testing.T) {
+	pag := "Primeira frase do texto.\no\nSegunda frase do texto.\nSs\nII\nSP\na)\n5"
+	got := cleanPage(pag, NivelMaximo, &ctxDocumento{jaVistas: map[string]bool{}})
+	want := "Primeira frase do texto.\nSegunda frase do texto.\nII\nSP\na)\n5"
+	if got != want {
+		t.Errorf("Máxima: got %q, quer %q", got, want)
+	}
+	if got := cleanPage(pag, NivelPadrao, &ctxDocumento{jaVistas: map[string]bool{}}); !strings.Contains(got, "\no\n") || !strings.Contains(got, "\nSs\n") {
+		t.Errorf("Padrão não tira letra solta: %q", got)
+	}
+}
+
+func TestRefluir_Paragrafo(t *testing.T) {
+	in := []string{
+		"O autor FULANO DE TAL ajuizou a presente ação em face do réu,",
+		"alegando que o contrato firmado em 01/01/2026 não foi cumprido",
+		"pela parte contrária, o que lhe causou prejuízos.",
+		"Segundo parágrafo começa aqui.",
+	}
+	want := []string{
+		"O autor FULANO DE TAL ajuizou a presente ação em face do réu, alegando que o contrato firmado em 01/01/2026 não foi cumprido pela parte contrária, o que lhe causou prejuízos.",
+		"Segundo parágrafo começa aqui.",
+	}
+	if got := refluir(in); !slices.Equal(got, want) {
+		t.Errorf("got %q, quer %q", got, want)
+	}
+}
+
+func TestRefluir_MantemQuebra(t *testing.T) {
+	longa := "Esta linha tem bem mais de quarenta runas de comprimento"
+	for _, c := range []struct {
+		nome string
+		in   []string
+	}{
+		{"linha curta", []string{"Linha curta sem ponto", "continua em minúscula"}},
+		{"termina em ponto", []string{longa + ".", "continua em minúscula"}},
+		{"termina em dois-pontos", []string{longa + ":", "continua em minúscula"}},
+		{"termina em ponto e vírgula", []string{longa + ";", "continua em minúscula"}},
+		{"termina em interrogação", []string{longa + "?", "continua em minúscula"}},
+		{"termina em exclamação", []string{longa + "!", "continua em minúscula"}},
+		{"próxima maiúscula", []string{longa, "Começa com maiúscula"}},
+		{"próxima com parêntese", []string{longa, "(entre parênteses)"}},
+		{"atual com R$", []string{longa + " R$ 10", "continua em minúscula"}},
+		{"próxima tabela", []string{longa, "valor 100,00 e 200,00"}},
+		{"atual tabela", []string{longa + " 100,00 200,00", "continua em minúscula"}},
+		{"lista alínea", []string{longa, "b) segundo item"}},
+		{"lista romano", []string{longa, "IV - quarto item"}},
+		{"lista número", []string{longa, "2. segundo item"}},
+		{"lista bolinha", []string{longa, "• item"}},
+		{"lista traço", []string{longa, "- item"}},
+		{"marcador", []string{"[assinado: FULANO DE TAL, Juiz de Direito, 01/01/2026]", "continua em minúscula"}},
+		{"antes de marcador", []string{longa, "[certificado de assinatura eletrônica]"}},
+	} {
+		if got := refluir(c.in); !slices.Equal(got, c.in) {
+			t.Errorf("%s: não devia juntar: %q", c.nome, got)
+		}
+	}
+}
+
+func TestRefluir_ExtratoUmaLinhaPorLancamento(t *testing.T) {
+	in := []string{
+		"01/01/2026 PIX ENVIADO 150,00 1.000,00",
+		"01/01/2026 TRANSFERENCIA RECEBIDA FULANO DE TAL 200,00 1.200,00",
+		"01/01/2026 TARIFA BANCARIA PACOTE DE SERVICOS MENSAL 10,00 1.190,00",
+	}
+	if got := refluir(in); !slices.Equal(got, in) {
+		t.Errorf("extrato devia ficar com um lançamento por linha: %q", got)
+	}
+	saida := cleanPage(strings.Join(in, "\n"), NivelMaximo, &ctxDocumento{jaVistas: map[string]bool{}})
+	if saida != strings.Join(in, "\n") {
+		t.Errorf("Máxima juntou o extrato: %q", saida)
+	}
+}
+
+func TestRefluir_ListaNaoJunta(t *testing.T) {
+	for _, in := range [][]string{
+		{"a) primeiro item", "b) segundo item"},
+		{"a) primeiro item da lista de pedidos formulados pelo autor", "b) segundo item"},
+	} {
+		if got := refluir(in); !slices.Equal(got, in) {
+			t.Errorf("lista devia continuar em %d linhas: %q", len(in), got)
+		}
+	}
+}
+
+func TestRefluir_Hifenizacao(t *testing.T) {
+	if got, want := refluir([]string{"pala-", "vra seguinte"}), []string{"palavra seguinte"}; !slices.Equal(got, want) {
+		t.Errorf("got %q, quer %q", got, want)
+	}
+	// Hífen depois de espaço é travessão, e maiúscula não continua a palavra.
+	for _, in := range [][]string{{"texto -", "continua"}, {"pala-", "Vra"}} {
+		if got := refluir(in); !slices.Equal(got, in) {
+			t.Errorf("não devia juntar: %q", got)
+		}
+	}
+}
+
+// certificado devolve uma página sintética de certificado de plataforma.
+func certificado(titulo bool) string {
+	ls := []string{"Envelope 0000-FICTICIO"}
+	if titulo {
+		ls = append(ls, "Termos de Assinatura e Registro Eletrônico")
+	}
+	return strings.Join(append(ls,
+		"FULANO DE TAL",
+		"Nível de segurança: e-mail",
+		"Enviado: 01/01/2026 10:00",
+		"Visualizado: 01/01/2026 10:05",
+		"Assinado: 01/01/2026 10:10",
+	), "\n")
+}
+
+func TestPaginaCertificado(t *testing.T) {
+	if !paginaCertificado(linhasBasicas(certificado(true))) || !paginaCertificado(linhasBasicas(certificado(false))) {
+		t.Error("certificado não reconhecido")
+	}
+	if !paginaCertificado([]string{"cabeçalho", "Termos de Assinatura e Registro Eletrônico"}) {
+		t.Error("título sozinho devia bastar")
+	}
+	for _, ls := range [][]string{
+		{"Enviado: 01/01/2026", "Assinado: 01/01/2026", "texto"},
+		// E-mails encaminhados: três "Enviado:" sem outro campo de certificado.
+		{"De: FULANO DE TAL", "Enviado: 01/01/2026", "texto", "Enviado: 01/01/2026", "texto", "Enviado: 01/01/2026"},
+		{"O réu alegou que o documento foi assinado: não foi.", "texto"},
+	} {
+		if paginaCertificado(ls) {
+			t.Errorf("não é certificado: %q", ls)
+		}
+	}
+}
+
+func TestMaxima_PaginaCertificado(t *testing.T) {
+	const marcador = "[certificado de assinatura eletrônica]"
+	for _, comTitulo := range []bool{true, false} {
+		pag := certificado(comTitulo)
+		if got := cleanPage(pag, NivelMaximo, &ctxDocumento{jaVistas: map[string]bool{}}); got != marcador {
+			t.Errorf("Máxima (título %v): got %q", comTitulo, got)
+		}
+		if got := cleanPage(pag, NivelPadrao, &ctxDocumento{jaVistas: map[string]bool{}}); strings.Contains(got, marcador) || !strings.Contains(got, "Assinado: 01/01/2026") {
+			t.Errorf("Padrão não troca o certificado: %q", got)
+		}
+	}
+
+	// Num documento com timbre repetido, o certificado vira marcador mesmo com o
+	// timbre, não consome o timbre (que fica na primeira página de conteúdo) nem
+	// é apagado como borda.
+	timbre := "TIMBRE FICTÍCIO"
+	// Os dois certificados diferem no envelope, para H7 não trocar o segundo por
+	// referência ao primeiro.
+	cert := func(envelope string) string {
+		return timbre + "\nEnvelope " + envelope + "\n" + certificado(true) + "\n" + strings.Repeat("linha do certificado\n", 6) + "fim"
+	}
+	saida, _ := GenerateConsolidatedOutput(docPadrao(
+		cert("A"), pg(timbre, "um", ""), pg(timbre, "dois", ""), cert("B")), NivelMaximo)
+	for _, n := range []int{1, 4} {
+		if p := strings.TrimSpace(pagina(t, saida, n)); p != marcador {
+			t.Errorf("pág. %d devia ser o marcador: %q", n, p)
+		}
+	}
+	if !strings.Contains(pagina(t, saida, 2), timbre) {
+		t.Errorf("timbre devia ficar na pág. 2:\n%s", saida)
+	}
+	if got := strings.Count(saida, timbre); got != 1 {
+		t.Errorf("timbre devia aparecer 1 vez, apareceu %d:\n%s", got, saida)
+	}
+}
+
+func TestMaxima_RefluiEmVezDeJuntarAPagina(t *testing.T) {
+	pag := strings.Join([]string{
+		"O autor FULANO DE TAL ajuizou a presente ação em face do réu,",
+		"alegando que o contrato não foi cumprido pela parte contrária.",
+		"Pede a procedência.",
+	}, "\n")
+	want := "O autor FULANO DE TAL ajuizou a presente ação em face do réu, alegando que o contrato não foi cumprido pela parte contrária.\nPede a procedência."
+	if got := cleanPage(pag, NivelMaximo, nil); got != want {
+		t.Errorf("got %q, quer %q", got, want)
+	}
+	if got := cleanPage(pag, NivelPadrao, nil); got != pag {
+		t.Errorf("Padrão não reflui: %q", got)
+	}
+}
