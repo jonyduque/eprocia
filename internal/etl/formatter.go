@@ -141,6 +141,15 @@ func cleanPage(text string, level string, ctx *ctxDocumento) string {
 	for pos, line := range lines {
 		if saem[pos] {
 			if m, ok := marcadores[pos]; ok {
+				if ctx != nil {
+					if ctx.assinados[m] {
+						continue
+					}
+					if ctx.assinados == nil {
+						ctx.assinados = map[string]bool{}
+					}
+					ctx.assinados[m] = true
+				}
 				cleanedLines = append(cleanedLines, m)
 			}
 			continue

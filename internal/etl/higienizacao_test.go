@@ -139,6 +139,77 @@ func TestChancela_Cartorio(t *testing.T) {
 	}
 }
 
+func TestChancela_CartorioExigeFormaDeNome(t *testing.T) {
+	for _, fim := range [][]string{
+		{"assinado digitalmente por ele, razão pela qual o contrato é nulo."},
+		{"Assinado digitalmente por ele, razão pela qual o contrato é nulo."},
+		{"Assinado digitalmente por quem não tinha poderes para tanto."},
+		{"Assinado digitalmente por X"},
+	} {
+		if got := resumirChancelas(comMiolo(fim...), false); !slices.Equal(got, comMiolo(fim...)) {
+			t.Errorf("%q devia ficar intacta: %q", fim, got)
+		}
+	}
+	ok := "Assinado digitalmente por FULANO DE TAL - Tabelião"
+	if got := resumirChancelas(comMiolo(ok), false); !slices.Equal(got, comMiolo("[assinado: FULANO DE TAL, Tabelião]")) {
+		t.Errorf("got %q", got)
+	}
+	so := "Assinado digitalmente por FULANO DE TAL"
+	if got := resumirChancelas(comMiolo(so), false); !slices.Equal(got, comMiolo("[assinado: FULANO DE TAL]")) {
+		t.Errorf("só nome: got %q", got)
+	}
+}
+
+func TestChancela_CartorioCargoNaLinhaSeguinte(t *testing.T) {
+	got := resumirChancelas(comMiolo("Assinado digitalmente por FULANO DE TAL -", "Juiz de Direito"), false)
+	if want := comMiolo("[assinado: FULANO DE TAL, Juiz de Direito]"); !slices.Equal(got, want) {
+		t.Errorf("got %q, quer %q", got, want)
+	}
+	// A linha seguinte é outra chancela: não vira cargo.
+	got = resumirChancelas(comMiolo("Assinado digitalmente por FULANO DE TAL -", "Este laudo foi assinado eletronicamente"), false)
+	if want := comMiolo("[assinado: FULANO DE TAL]"); !slices.Equal(got, want) {
+		t.Errorf("got %q, quer %q", got, want)
+	}
+}
+
+func TestChancela_LaudoComCaudaFica(t *testing.T) {
+	for _, l := range []string{
+		"Este laudo foi assinado eletronicamente pelo perito Dr. FULANO DE TAL, CRM 12345.",
+		"Você pode conferir a autenticidade do documento em https://exemplo.jus.br com o código XYZ123 até 01/01/2026, conforme o perito FULANO DE TAL.",
+	} {
+		got := resumirChancelas(comMiolo(l), false)
+		if !slices.Equal(got, comMiolo(l)) && !slices.Contains(got, "[assinado: FULANO DE TAL]") {
+			t.Errorf("%q perdeu o assinante: %q", l, got)
+		}
+	}
+	if got := resumirChancelas(comMiolo("Este laudo foi assinado eletronicamente."), false); !slices.Equal(got, miolo3) {
+		t.Errorf("frase fixa com ponto devia sumir: %q", got)
+	}
+}
+
+func TestChancela_ParaConferirNoMaximoUmaQuebra(t *testing.T) {
+	fim := []string{
+		"Para conferir o original, acesse o site https://esaj.exemplo.jus.br, informe o processo",
+		"5000000-00.2026.8.26.0001",
+		"Conclusão do parecer.",
+		"Assim, opino pela procedência e código 3 do anexo.",
+	}
+	got := resumirChancelas(comMiolo(fim...), false)
+	if !slices.Contains(got, "Conclusão do parecer.") || !slices.Contains(got, fim[3]) {
+		t.Errorf("atravessou mais de uma quebra: %q", got)
+	}
+}
+
+func TestPadrao_MarcadoresDiferentesFicam(t *testing.T) {
+	a := "Assinado digitalmente por FULANO DE TAL - Juiz de Direito"
+	b := "Assinado digitalmente por BELTRANO DE TAL - Escrivão"
+	saida, _ := GenerateConsolidatedOutput(docPadrao(pg("", "um", a), pg("", "dois", b)), NivelPadrao)
+	if !strings.Contains(pagina(t, saida, 1), "[assinado: FULANO DE TAL, Juiz de Direito]") ||
+		!strings.Contains(pagina(t, saida, 2), "[assinado: BELTRANO DE TAL, Escrivão]") {
+		t.Errorf("assinaturas diferentes devem ficar: %s", saida)
+	}
+}
+
 func TestChancela_Signatario(t *testing.T) {
 	sig := []string{
 		"Documento eletrônico 0000001 assinado eletronicamente nos termos do Art.1º §2º inciso III da Lei 11.419/2006",
@@ -234,8 +305,9 @@ func TestPadrao_BordaRepetidaNaoApagaMarcador(t *testing.T) {
 			pg("TIMBRE", "um", ass), pg("TIMBRE", "dois", ass), pg("TIMBRE", "tres", ass)), nivel)
 		for n := 1; n <= 3; n++ {
 			p := pagina(t, saida, n)
-			if !strings.Contains(p, "[assinado: FULANO DE TAL, Juiz de Direito, 01/01/2026]") {
-				t.Errorf("%s pág. %d perdeu o marcador: %q", nivel, n, p)
+			// Marcador idêntico fica só na primeira ocorrência do documento, como o timbre.
+			if want := n == 1; strings.Contains(p, "[assinado: FULANO DE TAL, Juiz de Direito, 01/01/2026]") != want {
+				t.Errorf("%s pág. %d: marcador presente = %v, quer %v: %q", nivel, n, !want, want, p)
 			}
 			if strings.Contains(p, "Assinado digitalmente") {
 				t.Errorf("%s pág. %d manteve a chancela: %q", nivel, n, p)
