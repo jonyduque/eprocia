@@ -66,7 +66,7 @@ func pageCountLabel(n int) string {
 
 // edgeLineCount is how many non-empty lines at the top and at the bottom of a
 // page are candidates for repeated header/footer detection.
-const edgeLineCount = 3
+const edgeLineCount = 5
 
 // normalizeEdgeLine maps lines that differ only by numbers (página, folha, data)
 // to the same key, so "fl. 1" and "fl. 2" count as the same footer.
@@ -94,9 +94,9 @@ func edgeLines(page string) map[string]bool {
 }
 
 // repeatedEdgeLines finds the normalized header/footer lines that appear at the
-// edges of at least 60% of a document's pages (documents with 3+ pages only).
+// edges of at least 60% of a document's pages (documents with 2+ pages only).
 func repeatedEdgeLines(pages []string) map[string]bool {
-	if len(pages) < 3 {
+	if len(pages) < 2 {
 		return nil
 	}
 	counts := make(map[string]int)
@@ -118,34 +118,52 @@ func repeatedEdgeLines(pages []string) map[string]bool {
 }
 
 // cleanPage limpa uma página conforme o nível (none, basic, standard,
-// aggressive). Níveis desconhecidos valem como basic; standard vale como basic
-// até as regras dele existirem. Em aggressive também tira as bordas listadas em
+// aggressive). Níveis desconhecidos valem como basic. Em standard e aggressive
+// tira marcadores de página e linhas só de símbolos e as bordas listadas em
 // ctx.repetidas (ver repeatedEdgeLines): só as posições de borda contam, então a
-// mesma frase no meio da página sobrevive.
+// mesma frase no meio da página sobrevive. O timbre fica na primeira página em
+// que aparece (ctx.jaVistas). Só aggressive tira assinaturas (isBoilerplateLine)
+// e junta a página numa linha.
 func cleanPage(text string, level string, ctx *ctxDocumento) string {
 	if level == NivelNenhum {
 		return text
 	}
 	lines := linhasBasicas(text)
-	if level != NivelMaximo {
+	if level != NivelPadrao && level != NivelMaximo {
 		return strings.Join(lines, "\n")
 	}
 
 	var repeated map[string]bool
 	if ctx != nil {
 		repeated = ctx.repetidas
+		if ctx.jaVistas == nil {
+			ctx.jaVistas = map[string]bool{}
+		}
 	}
-	dropRepeated := len(repeated) > 0
+	var vistasNaPagina []string
 	var cleanedLines []string
 	for pos, line := range lines {
-		if isBoilerplateLine(line) {
+		if pageMarkerRegex.MatchString(line) || linhaSoSimbolos(line) {
 			continue
 		}
-		if dropRepeated && (pos < edgeLineCount || pos >= len(lines)-edgeLineCount) &&
-			repeated[normalizeEdgeLine(line)] {
+		if level == NivelMaximo && isBoilerplateLine(line) {
 			continue
+		}
+		if len(repeated) > 0 && (pos < edgeLineCount || pos >= len(lines)-edgeLineCount) {
+			if chave := normalizeEdgeLine(line); repeated[chave] {
+				vistasNaPagina = append(vistasNaPagina, chave)
+				if ctx.jaVistas[chave] {
+					continue
+				}
+			}
 		}
 		cleanedLines = append(cleanedLines, line)
+	}
+	for _, chave := range vistasNaPagina {
+		ctx.jaVistas[chave] = true
+	}
+	if level == NivelPadrao {
+		return strings.Join(cleanedLines, "\n")
 	}
 	// Junta numa linha só para economizar o máximo de tokens.
 	return strings.Join(cleanedLines, " ")
@@ -276,7 +294,7 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 			})
 
 			ctx := &ctxDocumento{jaVistas: map[string]bool{}}
-			if cleaningLevel == NivelMaximo {
+			if cleaningLevel == NivelPadrao || cleaningLevel == NivelMaximo {
 				contents := make([]string, len(pages))
 				for i, p := range pages {
 					contents[i] = p.content

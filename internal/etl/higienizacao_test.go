@@ -65,8 +65,8 @@ func TestCleanPage_MaximaTiraCabecalhoComEspacoIrregular(t *testing.T) {
 	ctx := &ctxDocumento{repetidas: repeatedEdgeLines(pags)}
 	for i, p := range pags {
 		got := cleanPage(p, NivelMaximo, ctx)
-		if strings.Contains(got, "TRIBUNAL") {
-			t.Errorf("pagina %d manteve o cabecalho: %q", i, got)
+		if want := i == 0; strings.Contains(got, "TRIBUNAL") != want {
+			t.Errorf("pagina %d: cabecalho presente = %v, quer %v (%q)", i, !want, want, got)
 		}
 	}
 }

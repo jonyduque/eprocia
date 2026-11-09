@@ -58,3 +58,16 @@ func linhasBasicas(text string) []string {
 	}
 	return out
 }
+
+// linhaSoSimbolos informa se l não tem letra nem dígito e não contém §, º, ª ou %.
+func linhaSoSimbolos(l string) bool {
+	if strings.ContainsAny(l, "§ºª%") {
+		return false
+	}
+	for _, r := range l {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return false
+		}
+	}
+	return true
+}
