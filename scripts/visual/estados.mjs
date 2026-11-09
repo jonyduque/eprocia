@@ -6,7 +6,7 @@ const BASE_TS = 1767322800000; // 2026-01-02 03:00 UTC, fixed so captures are st
 const CONFIG = {
   monitored_path: 'C:\\Usuarios\\exemplo\\Downloads\\Processos',
   ocr_mode: 'normal',
-  cleaning_level: 'aggressive',
+  cleaning_level: 'standard',
   auto_start: true,
   watchdog_enabled: true,
 };

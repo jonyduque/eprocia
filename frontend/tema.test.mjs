@@ -127,9 +127,9 @@ test('interruptores com rótulo à esquerda e linha de 32px', () => {
 
 test('opções curtas com texto de ajuda abaixo do select', () => {
   const opcoes = [...settings.matchAll(/<option value="[^"]+">([^<]+)<\/option>/g)].map((m) => m[1]);
-  assert.ok(opcoes.length >= 7);
+  assert.ok(opcoes.length >= 8);
   for (const o of opcoes) assert.ok(o.length <= 12, `opção longa: ${o}`);
-  for (const o of ['Nenhuma', 'Básica', 'Agressiva']) assert.ok(opcoes.includes(o), o);
+  for (const o of ['Nenhuma', 'Básica', 'Padrão', 'Máxima']) assert.ok(opcoes.includes(o), o);
   assert.ok((settings.match(/class="help-text"/g) || []).length >= 2);
   // --fs-meta é 11px (DESIGN.md §3).
   assert.match(regra(estilo(settings), '.help-text'), /font-size:\s*var\(--fs-meta\)/);

@@ -19,9 +19,10 @@
   const PADRAO = {
     monitored_path: '',
     ocr_mode: 'normal',
-    cleaning_level: 'basic',
+    cleaning_level: 'standard',
     auto_start: false,
-    watchdog_enabled: true
+    watchdog_enabled: true,
+    omitir_tipos: []
   };
 
   const AJUDA_OCR = {
@@ -32,10 +33,34 @@
   };
 
   const AJUDA_LIMPEZA = {
-    none: 'Preserva o texto bruto extraído.',
-    basic: 'Corrige espaçamento e quebras redundantes.',
-    aggressive: 'Básica + remove cabeçalhos e rodapés repetidos.'
+    none: 'Texto como extraído',
+    basic: 'Remove espaços e linhas vazias',
+    standard: 'Remove cabeçalhos, rodapés e duplicatas; resume assinaturas',
+    aggressive: 'Padrão + ruído de OCR e parágrafos contínuos'
   };
+
+  // Códigos de tipo (EXTR, COMP...) em maiúsculas, sem espaços nem repetição.
+  function normalizarTipos(texto) {
+    const codigos = String(texto ?? '')
+      .split(',')
+      .map((c) => c.replace(/\s+/g, '').toUpperCase())
+      .filter(Boolean);
+    return [...new Set(codigos)];
+  }
+
+  // O campo guarda o texto digitado; só vira lista (e é salvo) ao confirmar.
+  let omitirTexto = '';
+  let omitirCarregado = false;
+  $: if (config && !omitirCarregado) {
+    omitirTexto = (config.omitir_tipos ?? []).join(', ');
+    omitirCarregado = true;
+  }
+
+  async function handleSalvarOmitir() {
+    config.omitir_tipos = normalizarTipos(omitirTexto);
+    omitirTexto = config.omitir_tipos.join(', ');
+    await handleSave();
+  }
 
   let statusMessage = '';
   let statusType = ''; // 'success' or 'error'
@@ -75,6 +100,8 @@
       const parcial = /^configurações salvas/i.test(msg);
       showStatus(parcial ? msg[0].toUpperCase() + msg.slice(1) : 'Erro ao salvar configurações: ' + msg, 'error');
       await aoFalharSalvar();
+      // O campo de tipos relê a config gravada, não o texto que não foi salvo.
+      omitirCarregado = false;
     }
   }
 
@@ -166,9 +193,25 @@
         >
           <option value="none">Nenhuma</option>
           <option value="basic">Básica</option>
-          <option value="aggressive">Agressiva</option>
+          <option value="standard">Padrão</option>
+          <option value="aggressive">Máxima</option>
         </select>
         <p class="help-text">{AJUDA_LIMPEZA[config.cleaning_level] ?? ''}</p>
+      </div>
+
+      <!-- Tipos de documento omitidos -->
+      <div class="form-group">
+        <label for="omitir-tipos">Omitir documentos dos tipos</label>
+        <input
+          id="omitir-tipos"
+          type="text"
+          placeholder="EXTR, COMP"
+          autocomplete="off"
+          spellcheck="false"
+          bind:value={omitirTexto}
+          on:change={handleSalvarOmitir}
+        />
+        <p class="help-text">Ex.: EXTR, COMP. O documento vira um aviso no texto e não é lido.</p>
       </div>
 
       <!-- Auto Start Toggle -->

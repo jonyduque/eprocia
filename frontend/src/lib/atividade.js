@@ -11,7 +11,8 @@ export const OPCOES_OCR = [
 export const OPCOES_LIMPEZA = [
   { valor: 'none', rotulo: 'Nenhuma' },
   { valor: 'basic', rotulo: 'Básica' },
-  { valor: 'aggressive', rotulo: 'Agressiva' }
+  { valor: 'standard', rotulo: 'Padrão' },
+  { valor: 'aggressive', rotulo: 'Máxima' }
 ];
 
 // Posição do valor na lista (0 se desconhecido), para o indicador de nível.

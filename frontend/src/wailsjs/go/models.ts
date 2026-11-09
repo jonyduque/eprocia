@@ -120,6 +120,7 @@ export namespace models {
 	    auto_start: boolean;
 	    watchdog_enabled: boolean;
 	    theme: string;
+	    omitir_tipos: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -133,6 +134,7 @@ export namespace models {
 	        this.auto_start = source["auto_start"];
 	        this.watchdog_enabled = source["watchdog_enabled"];
 	        this.theme = source["theme"];
+	        this.omitir_tipos = source["omitir_tipos"];
 	    }
 	}
 

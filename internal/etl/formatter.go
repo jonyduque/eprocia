@@ -2,6 +2,7 @@ package etl
 
 import (
 	"cmp"
+	"crypto/sha256"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -15,29 +16,6 @@ import (
 // "Página 12 de 35", "Pág. 3/10" or "página 4". Anchoring the whole line keeps
 // legitimate sentences that merely mention the word "página" intact.
 var pageMarkerRegex = regexp.MustCompile(`(?i)^p[áa]g(ina|\.)?\s*\d+(\s*(de|/)\s*\d+)?$`)
-
-// signaturePrefixes are boilerplate openers of digital-signature footers.
-// Only lines that *start* with them are dropped, never prose that mentions them.
-var signaturePrefixes = []string{
-	"documento assinado",
-	"assinatura eletrônica",
-	"assinatura eletronica",
-}
-
-// isBoilerplateLine reports whether a trimmed line is a page marker or a
-// digital-signature footer (aggressive cleaning only).
-func isBoilerplateLine(trimmed string) bool {
-	if pageMarkerRegex.MatchString(trimmed) {
-		return true
-	}
-	lower := strings.ToLower(trimmed)
-	for _, prefix := range signaturePrefixes {
-		if strings.HasPrefix(lower, prefix) {
-			return true
-		}
-	}
-	return false
-}
 
 // escapeAttr escapes a value for safe use inside a double-quoted XML attribute.
 func escapeAttr(s string) string {
@@ -56,6 +34,19 @@ func summaryDocName(nome string) string {
 	return eventPrefixRegex.ReplaceAllString(base, "")
 }
 
+// digitosFinaisRegex pega os dígitos no fim do código do documento (EXTR2).
+var digitosFinaisRegex = regexp.MustCompile(`\d+$`)
+
+// tipoDocumento extrai o código de tipo do nome do arquivo: tira o prefixo
+// "Evento N - ", a extensão e os dígitos finais, em maiúsculas
+// ("Evento 3 - EXTR2.pdf" vira "EXTR").
+func tipoDocumento(docName string) string {
+	base := strings.TrimSuffix(docName, filepath.Ext(docName))
+	base = eventPrefixRegex.ReplaceAllString(base, "")
+	base = digitosFinaisRegex.ReplaceAllString(strings.TrimSpace(base), "")
+	return strings.ToUpper(strings.TrimRight(base, " -_."))
+}
+
 // pageCountLabel renders "1 página" / "N páginas".
 func pageCountLabel(n int) string {
 	if n == 1 {
@@ -66,11 +57,22 @@ func pageCountLabel(n int) string {
 
 // edgeLineCount is how many non-empty lines at the top and at the bottom of a
 // page are candidates for repeated header/footer detection.
-const edgeLineCount = 3
+const edgeLineCount = 5
+
+// valorEdgeRegex acha linhas com valor monetário ou percentual: nelas os
+// dígitos importam, então a chave é a linha exata.
+var valorEdgeRegex = regexp.MustCompile(`R\$|US\$|\d+,\d{2}|%`)
+
+// paginaCurta informa se a página, com n linhas não vazias, é toda borda: com
+// até 2*edgeLineCount linhas não sobra miolo, então fica fora da detecção.
+func paginaCurta(n int) bool { return n <= 2*edgeLineCount }
 
 // normalizeEdgeLine maps lines that differ only by numbers (página, folha, data)
 // to the same key, so "fl. 1" and "fl. 2" count as the same footer.
 func normalizeEdgeLine(trimmed string) string {
+	if valorEdgeRegex.MatchString(trimmed) {
+		return trimmed
+	}
 	return strings.Map(func(r rune) rune {
 		if r >= '0' && r <= '9' {
 			return '#'
@@ -82,13 +84,12 @@ func normalizeEdgeLine(trimmed string) string {
 // edgeLines returns the normalized first and last edgeLineCount non-empty
 // lines of a page, without duplicates.
 func edgeLines(page string) map[string]bool {
-	var nonEmpty []string
-	for line := range strings.SplitSeq(page, "\n") {
-		if trimmed := strings.TrimSpace(line); trimmed != "" {
-			nonEmpty = append(nonEmpty, trimmed)
-		}
-	}
+	// Mesma limpeza e mesmas posições que cleanPage usa ao consultar o conjunto.
+	nonEmpty := linhasBasicas(page)
 	edges := make(map[string]bool)
+	if paginaCurta(len(nonEmpty)) {
+		return edges
+	}
 	for i, line := range nonEmpty {
 		if i < edgeLineCount || i >= len(nonEmpty)-edgeLineCount {
 			edges[normalizeEdgeLine(line)] = true
@@ -98,9 +99,9 @@ func edgeLines(page string) map[string]bool {
 }
 
 // repeatedEdgeLines finds the normalized header/footer lines that appear at the
-// edges of at least 60% of a document's pages (documents with 3+ pages only).
+// edges of at least 60% of a document's pages (documents with 2+ pages only).
 func repeatedEdgeLines(pages []string) map[string]bool {
-	if len(pages) < 3 {
+	if len(pages) < 2 {
 		return nil
 	}
 	counts := make(map[string]int)
@@ -121,53 +122,212 @@ func repeatedEdgeLines(pages []string) map[string]bool {
 	return repeated
 }
 
-// cleanPage cleans one page according to the cleaning level (none, basic,
-// aggressive). In aggressive mode it also drops the edge lines listed in
-// repeated (see repeatedEdgeLines); only edge positions are checked, so the
-// same sentence in the middle of a page survives.
-func cleanPage(text string, level string, repeated map[string]bool) string {
-	if level == "none" {
+// cleanPage limpa uma página conforme o nível (none, basic, standard,
+// aggressive). Níveis desconhecidos valem como basic. Em standard e aggressive
+// tira marcadores de página e linhas só de símbolos e as bordas listadas em
+// ctx.repetidas (ver repeatedEdgeLines): só as posições de borda contam, então a
+// mesma frase no meio da página sobrevive. O timbre fica na primeira página em
+// que aparece (ctx.jaVistas). As chancelas de assinatura nas bordas viram
+// "[assinado: ...]" (resumirChancelas) antes das bordas repetidas, e o marcador
+// nunca passa por elas. Só aggressive troca a página de certificado de
+// plataforma pelo marcador (antes de tudo, sem tocar no estado do documento:
+// o timbre fica para a próxima página de conteúdo), tira as letras soltas
+// (H3b) e reflui os parágrafos (H9).
+func cleanPage(text string, level string, ctx *ctxDocumento) string {
+	if level == NivelNenhum {
 		return text
 	}
+	lines := linhasBasicas(text)
+	if level != NivelPadrao && level != NivelMaximo {
+		return strings.Join(lines, "\n")
+	}
+	if level == NivelMaximo && paginaCertificado(lines) {
+		return marcadorCertificado
+	}
 
-	lines := strings.Split(text, "\n")
+	var repeated map[string]bool
+	html := false
+	if ctx != nil {
+		repeated = ctx.repetidas
+		html = ctx.html
+		if ctx.jaVistas == nil {
+			ctx.jaVistas = map[string]bool{}
+		}
+	}
+	// As posições continuam as de lines, as mesmas que edgeLines usa.
+	saem, marcadores, caudas := planoChancelas(lines, html)
+	var vistasNaPagina []string
 	var cleanedLines []string
+	for pos, line := range lines {
+		if saem[pos] {
+			if m, ok := marcadores[pos]; ok && !(ctx != nil && ctx.assinados[m]) {
+				if ctx != nil {
+					if ctx.assinados == nil {
+						ctx.assinados = map[string]bool{}
+					}
+					ctx.assinados[m] = true
+				}
+				cleanedLines = append(cleanedLines, m)
+			}
+			if c, ok := caudas[pos]; ok {
+				cleanedLines = append(cleanedLines, c)
+			}
+			continue
+		}
+		if pageMarkerRegex.MatchString(line) || linhaSoSimbolos(line) || (level == NivelMaximo && linhaLetraSolta(line)) {
+			continue
+		}
+		if len(repeated) > 0 && !paginaCurta(len(lines)) && (pos < edgeLineCount || pos >= len(lines)-edgeLineCount) {
+			if chave := normalizeEdgeLine(line); repeated[chave] {
+				vistasNaPagina = append(vistasNaPagina, chave)
+				if ctx.jaVistas[chave] {
+					continue
+				}
+			}
+		}
+		cleanedLines = append(cleanedLines, line)
+	}
+	for _, chave := range vistasNaPagina {
+		ctx.jaVistas[chave] = true
+	}
+	if level == NivelPadrao {
+		return strings.Join(cleanedLines, "\n")
+	}
+	return strings.Join(refluir(cleanedLines), "\n")
+}
 
-	dropRepeated := level == "aggressive" && len(repeated) > 0
-	nonEmptyTotal := 0
-	if dropRepeated {
-		for _, line := range lines {
-			if strings.TrimSpace(line) != "" {
-				nonEmptyTotal++
+// duplicadaMinRunas é o tamanho mínimo (em runas, após linhasBasicas) de uma
+// página para entrar na detecção de duplicatas (H7).
+const duplicadaMinRunas = 200
+
+// chaveDoc identifica um documento pelo evento e pelo índice (o nome pode repetir).
+type chaveDoc struct{ evento, doc int }
+
+// origemPagina identifica a primeira ocorrência de um conteúdo; nome é o nome
+// curto do documento (summaryDocName), usado só no texto da referência.
+type origemPagina struct {
+	chaveDoc
+	nome string
+	pag  int
+}
+
+// chavePagina localiza uma página na saída: evento, índice do documento e da página.
+type chavePagina struct{ evento, doc, pag int }
+
+// refPagina e refDocumento são os marcadores que H7 deixa no lugar do texto.
+func (o origemPagina) refPagina() string {
+	return fmt.Sprintf("[conteúdo idêntico a: evento %d, %s, pág. %d]", o.evento, o.nome, o.pag)
+}
+
+func refDocumento(evento int, nome string) string {
+	return fmt.Sprintf("[documento idêntico a: evento %d, %s]", evento, nome)
+}
+
+// paginaOrdenada e docOrdenado guardam a ordem de saída: documentos por index
+// dentro do evento e páginas por index dentro do documento.
+type paginaOrdenada struct {
+	index   int
+	content string
+}
+
+type docOrdenado struct {
+	nome    string
+	index   int
+	paginas []paginaOrdenada
+	// omitido é o tipo do documento que o usuário mandou omitir ("" se não);
+	// totalPaginas é o total de páginas dele, contado na origem.
+	omitido      string
+	totalPaginas int
+}
+
+// documentosOrdenados devolve os documentos de um evento, e as páginas de cada
+// um, na ordem de saída. É a única fonte dessa ordem.
+func documentosOrdenados(evData map[string]any) []docOrdenado {
+	var docs []docOrdenado
+	for _, val := range evData["documentos"].(map[string]any) {
+		dData := val.(map[string]any)
+		d := docOrdenado{nome: dData["nome"].(string), index: dData["index"].(int)}
+		d.omitido, _ = dData["omitido"].(string)
+		d.totalPaginas, _ = dData["total_paginas"].(int)
+		for _, pv := range dData["paginas"].(map[string]any) {
+			pData := pv.(map[string]any)
+			// Campos ausentes são tolerados.
+			c, _ := pData["content"].(string)
+			d.paginas = append(d.paginas, paginaOrdenada{pData["index"].(int), c})
+		}
+		slices.SortFunc(d.paginas, func(a, b paginaOrdenada) int { return cmp.Compare(a.index, b.index) })
+		docs = append(docs, d)
+	}
+	slices.SortFunc(docs, func(a, b docOrdenado) int { return cmp.Compare(a.index, b.index) })
+	return docs
+}
+
+// duplicadasH7 é o resultado da pré-passada: páginas repetidas e documentos
+// idênticos, por inteiro, a um documento anterior.
+type duplicadasH7 struct {
+	paginas    map[chavePagina]origemPagina
+	documentos map[chaveDoc]origemPagina // origemPagina.pag não é usado
+}
+
+// chaveConteudo é o sha256 das linhas básicas unidas por espaço; "" quando a
+// página tem menos de duplicadaMinRunas runas.
+func chaveConteudo(content string) string {
+	juntas := strings.Join(linhasBasicas(content), " ")
+	if utf8.RuneCountInString(juntas) < duplicadaMinRunas {
+		return ""
+	}
+	soma := sha256.Sum256([]byte(juntas))
+	return string(soma[:])
+}
+
+// duplicadasPorConteudo percorre eventos, documentos e páginas na ordem de saída
+// e devolve, para cada página repetida, a origem da primeira ocorrência. Um
+// documento só é idêntico a outro se tem o mesmo número de páginas e a página i
+// de um tem a mesma chave da página i do outro, para todo i (e todas longas).
+func duplicadasPorConteudo(eventos map[string]any, eventNums []int) duplicadasH7 {
+	primeiras := map[string]origemPagina{}
+	chavesDoc := map[chaveDoc][]string{}
+	nomes := map[chaveDoc]string{}
+	res := duplicadasH7{
+		paginas:    map[chavePagina]origemPagina{},
+		documentos: map[chaveDoc]origemPagina{},
+	}
+	for _, num := range eventNums {
+		for _, d := range documentosOrdenados(eventos[fmt.Sprintf("%d", num)].(map[string]any)) {
+			if d.omitido != "" {
+				// Omitido não é lido: fica fora da detecção e ninguém o referencia.
+				continue
+			}
+			cd := chaveDoc{num, d.index}
+			nomeCurto := summaryDocName(d.nome)
+			nomes[cd] = nomeCurto
+			chaves := make([]string, len(d.paginas))
+			todasDup := len(d.paginas) > 0
+			for i, p := range d.paginas {
+				chave := chaveConteudo(p.content)
+				chaves[i] = chave
+				if chave == "" {
+					todasDup = false
+					continue
+				}
+				if o, ok := primeiras[chave]; ok {
+					res.paginas[chavePagina{num, d.index, p.index}] = o
+				} else {
+					primeiras[chave] = origemPagina{cd, nomeCurto, p.index}
+					todasDup = false
+				}
+			}
+			chavesDoc[cd] = chaves
+			if !todasDup {
+				continue
+			}
+			origem := res.paginas[chavePagina{num, d.index, d.paginas[0].index}].chaveDoc
+			if slices.Equal(chavesDoc[origem], chaves) {
+				res.documentos[cd] = origemPagina{chaveDoc: origem, nome: nomes[origem]}
 			}
 		}
 	}
-	pos := -1
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
-			continue
-		}
-		pos++
-
-		// Aggressive cleaning: drop whole-line headers/footers/signatures only.
-		if level == "aggressive" && isBoilerplateLine(trimmed) {
-			continue
-		}
-		if dropRepeated && (pos < edgeLineCount || pos >= nonEmptyTotal-edgeLineCount) &&
-			repeated[normalizeEdgeLine(trimmed)] {
-			continue
-		}
-
-		cleanedLines = append(cleanedLines, trimmed)
-	}
-
-	if level == "aggressive" {
-		// Compress to a single line or space-separated to maximize token savings
-		return strings.Join(cleanedLines, " ")
-	}
-	return strings.Join(cleanedLines, "\n")
+	return res
 }
 
 // EstimateTokens approximates the LLM token count of text as one token per four
@@ -178,7 +338,7 @@ func EstimateTokens(text string) int {
 
 // tokensLine renders the <contexto> line that carries the token estimate.
 func tokensLine(n int) string {
-	return fmt.Sprintf("    Tokens estimados: %d\n", n)
+	return fmt.Sprintf("Tokens estimados: %d\n", n)
 }
 
 // GenerateConsolidatedOutput formats all extracted process data into structured
@@ -205,11 +365,11 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 
 	// Header/Context info block
 	sb.WriteString("<contexto>\n")
-	sb.WriteString("    PROCESSO JUDICIAL - ORDEM CRONOLÓGICA\n")
-	sb.WriteString(fmt.Sprintf("    Total de Documentos: %d\n", totalDocs))
-	sb.WriteString(fmt.Sprintf("    Data de Consolidação: %s\n", time.Now().Format("02/01/2006 15:04:05")))
+	sb.WriteString("PROCESSO JUDICIAL - ORDEM CRONOLÓGICA\n")
+	sb.WriteString(fmt.Sprintf("Total de Documentos: %d\n", totalDocs))
+	sb.WriteString(fmt.Sprintf("Data de Consolidação: %s\n", time.Now().Format("02/01/2006 15:04:05")))
 	tokensAt := sb.Len()
-	sb.WriteString("\n    <summary>\n")
+	sb.WriteString("\n<summary>\n")
 
 	// Sort events and documents to build the summary block
 	for _, num := range eventNums {
@@ -226,10 +386,14 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 		for _, val := range documentosMap {
 			dData := val.(map[string]any)
 			paginasMap := dData["paginas"].(map[string]any)
+			paginas := len(paginasMap)
+			if _, omitido := dData["omitido"].(string); omitido {
+				paginas, _ = dData["total_paginas"].(int)
+			}
 			docs = append(docs, docSummaryEntry{
 				nome:  dData["nome"].(string),
 				index: dData["index"].(int),
-				pages: len(paginasMap),
+				pages: paginas,
 			})
 		}
 		slices.SortFunc(docs, func(a, b docSummaryEntry) int {
@@ -237,79 +401,83 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 		})
 
 		for _, d := range docs {
-			sb.WriteString(fmt.Sprintf("    - Evento %d - %s: %s\n", num, summaryDocName(d.nome), pageCountLabel(d.pages)))
+			sb.WriteString(fmt.Sprintf("- Evento %d - %s: %s\n", num, summaryDocName(d.nome), pageCountLabel(d.pages)))
 		}
 	}
-	sb.WriteString("    </summary>\n")
+	sb.WriteString("</summary>\n")
 	sb.WriteString("</contexto>\n\n")
 	header := sb.String()
 	sb.Reset()
 
+	// H7: na Padrão e na Máxima, páginas de 200+ runas com o mesmo conteúdo
+	// (após linhasBasicas) viram referência à primeira ocorrência, e o documento
+	// idêntico a outro, página a página, vira uma referência só.
+	var h7 duplicadasH7
+	if cleaningLevel == NivelPadrao || cleaningLevel == NivelMaximo {
+		h7 = duplicadasPorConteudo(eventos, eventNums)
+	}
+
 	// Loop over each Event chronologically
 	for _, num := range eventNums {
-		eventKey := fmt.Sprintf("%d", num)
-		evData := eventos[eventKey].(map[string]any)
+		evData := eventos[fmt.Sprintf("%d", num)].(map[string]any)
 		sb.WriteString(fmt.Sprintf("<evento num=\"%d\">\n", num))
 
-		documentosMap := evData["documentos"].(map[string]any)
-		type docEntry struct {
-			nome    string
-			index   int
-			paginas map[string]any
-		}
-		var docs []docEntry
-		for _, val := range documentosMap {
-			dData := val.(map[string]any)
-			docs = append(docs, docEntry{
-				nome:    dData["nome"].(string),
-				index:   dData["index"].(int),
-				paginas: dData["paginas"].(map[string]any),
-			})
-		}
-		slices.SortFunc(docs, func(a, b docEntry) int {
-			return cmp.Compare(a.index, b.index)
-		})
+		for _, d := range documentosOrdenados(evData) {
+			sb.WriteString(fmt.Sprintf("<documento index=\"%d\" nome=\"%s\">\n", d.index, escapeAttr(d.nome)))
 
-		for _, d := range docs {
-			sb.WriteString(fmt.Sprintf("    <documento index=\"%d\" nome=\"%s\">\n", d.index, escapeAttr(d.nome)))
-
-			// Sort pages of this document numerically
-			type pageEntry struct {
-				index   int
-				content string
+			if d.omitido != "" {
+				sb.WriteString(fmt.Sprintf("[documento omitido: %s, %s]\n</documento>\n", d.omitido, pageCountLabel(d.totalPaginas)))
+				continue
 			}
-			var pages []pageEntry
-			for _, val := range d.paginas {
-				pData := val.(map[string]any)
 
-				// Handle potential missing fields gracefully
-				contentVal, _ := pData["content"].(string)
-
-				pages = append(pages, pageEntry{
-					index:   pData["index"].(int),
-					content: contentVal,
-				})
+			if o, ok := h7.documentos[chaveDoc{num, d.index}]; ok {
+				sb.WriteString(refDocumento(o.evento, o.nome))
+				sb.WriteString("\n</documento>\n")
+				continue
 			}
-			slices.SortFunc(pages, func(a, b pageEntry) int {
-				return cmp.Compare(a.index, b.index)
-			})
 
-			var repeated map[string]bool
-			if cleaningLevel == "aggressive" {
-				contents := make([]string, len(pages))
-				for i, p := range pages {
+			ext := strings.ToLower(filepath.Ext(d.nome))
+			ctx := &ctxDocumento{jaVistas: map[string]bool{}, html: ext == ".html" || ext == ".htm"}
+			if cleaningLevel == NivelPadrao || cleaningLevel == NivelMaximo {
+				contents := make([]string, len(d.paginas))
+				for i, p := range d.paginas {
 					contents[i] = p.content
 				}
-				repeated = repeatedEdgeLines(contents)
+				ctx.repetidas = repeatedEdgeLines(contents)
 			}
 
-			for _, p := range pages {
-				cleanedText := cleanPage(p.content, cleaningLevel, repeated)
-				sb.WriteString(fmt.Sprintf("        <pag num=\"%d\">\n", p.index))
-				sb.WriteString(cleanedText)
-				sb.WriteString("\n        </pag>\n")
+			// Limpa todas as páginas na ordem; só as que têm conteúdo saem.
+			var saem []paginaOrdenada
+			for _, p := range d.paginas {
+				// cleanPage roda também nas duplicadas, e o resultado é descartado,
+				// de propósito: o estado do documento (timbre em jaVistas, marcadores
+				// em assinados) tem de avançar como se a página tivesse saído, porque
+				// o texto já apareceu na origem.
+				cleanedText := cleanPage(p.content, cleaningLevel, ctx)
+				if o, ok := h7.paginas[chavePagina{num, d.index, p.index}]; ok {
+					cleanedText = o.refPagina()
+				}
+				if strings.TrimSpace(cleanedText) == "" {
+					continue
+				}
+				saem = append(saem, paginaOrdenada{p.index, cleanedText})
 			}
-			sb.WriteString("    </documento>\n")
+			switch {
+			case len(saem) == 0:
+			case len(d.paginas) == 1:
+				// Documento de uma página na origem: o conteúdo vai direto, sem
+				// <pag>. Com 2+ páginas na origem o n original é mantido, porque
+				// a peça é citada por página.
+				sb.WriteString(saem[0].content)
+				sb.WriteString("\n")
+			default:
+				for _, p := range saem {
+					sb.WriteString(fmt.Sprintf("<pag n=\"%d\">\n", p.index))
+					sb.WriteString(p.content)
+					sb.WriteString("\n</pag>\n")
+				}
+			}
+			sb.WriteString("</documento>\n")
 		}
 		sb.WriteString("</evento>\n")
 	}

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/dslipak/pdf"
 )
@@ -157,7 +159,7 @@ func (p *PDFParser) ParsePages(
 			if content == "" {
 				content = fmt.Sprintf("[ERRO de OCR: %s]", err.Error())
 			}
-			log.Printf("[PDFParser] Falha no OCR para página %d: %v. Usando texto nativo como fallback (%d chars).", task.pageNum, err, len(task.fallback))
+			log.Printf("[PDFParser] Falha no OCR para página %d: %v. Usando o texto de reserva (%d chars).", task.pageNum, err, len(task.fallback))
 			ocrFailures.Add(1)
 			pageData = map[string]any{
 				"index":    task.pageNum,
@@ -392,6 +394,57 @@ func listarPaginas(reader *pdf.Reader, numPages int) (paginas []pdf.Page, errRes
 	return paginas, errResto, nil
 }
 
+// textoIlegivel reports whether the native text is garbage: at least 20
+// non-space runes and either fewer than 40% letters, digits or marks, or more
+// than 10 control runes (other than newline and tab). Runs of 3 or more equal
+// filler runes, optionally split by single spaces (signature lines, dotted
+// leaders, separators), are ignored.
+func textoIlegivel(s string) bool {
+	runas := []rune(s)
+	var visiveis, legiveis, controle int
+	for i := 0; i < len(runas); {
+		r := runas[i]
+		// A run is the same rune repeated, optionally split by single spaces.
+		j, n := i+1, 1
+		for j < len(runas) {
+			if runas[j] == r {
+				j++
+				n++
+			} else if runas[j] == ' ' && j+1 < len(runas) && runas[j+1] == r {
+				j += 2
+				n++
+			} else {
+				break
+			}
+		}
+		if n >= 3 && strings.ContainsRune("_.-=*~•", r) {
+			i = j
+			continue
+		}
+		for ; i < j; i++ {
+			switch c := runas[i]; {
+			case unicode.IsSpace(c):
+				continue
+			case unicode.IsLetter(c) || unicode.IsDigit(c) || unicode.IsMark(c):
+				legiveis++
+			case unicode.IsControl(c):
+				controle++
+			}
+			visiveis++
+		}
+	}
+	if visiveis < 20 {
+		return false
+	}
+	return float64(legiveis)/float64(visiveis) < 0.4 || controle > 10
+}
+
+// marcadorIlegivel replaces a page whose native text is garbage and that OCR
+// could not recover; the count is in runes, not bytes.
+func marcadorIlegivel(texto string) string {
+	return fmt.Sprintf("[texto ilegível na página: %d caracteres omitidos]", utf8.RuneCountInString(texto))
+}
+
 type analisePagina struct {
 	nula       bool
 	texto      string
@@ -421,6 +474,15 @@ func analisarPagina(page pdf.Page, pageNum int, ocrEnabled bool) (an analisePagi
 
 	an.texto = strings.TrimSpace(text)
 	log.Printf("[PDFParser] Texto nativo da página %d extraído. Tamanho bruto: %d, Limpo: %d", pageNum, len(text), len(an.texto))
+
+	if textoIlegivel(an.texto) {
+		// Fonte com codificação quebrada: o texto nativo é lixo. Com OCR a página
+		// vai para ele, e o marcador é o fallback se o OCR falhar.
+		log.Printf("[PDFParser] Texto nativo da página %d é ilegível. OCR habilitado: %t", pageNum, ocrEnabled)
+		an.texto = marcadorIlegivel(an.texto)
+		an.precisaOcr = ocrEnabled
+		return an, nil
+	}
 
 	if ocrEnabled && len(an.texto) < 100 {
 		log.Printf("[PDFParser] Texto nativo da página %d é muito curto (%d chars). Verificando se há imagens...", pageNum, len(an.texto))
@@ -473,24 +535,59 @@ func HasDrawnContent(page pdf.Page) (drawn bool) {
 	return false
 }
 
-// checkContentStream verifies that the page content is a single, fully readable
-// stream. The PDF library only interprets that shape: for a /Contents array
-// (valid PDF, emitted e.g. by "Microsoft: Print To PDF"), a missing /Contents or
-// a corrupt stream, its lexer swallows the read error and spins forever.
-func checkContentStream(page pdf.Page) error {
+// checkContentStream verifies that the page content is a fully readable stream
+// or array of streams, and reports whether it is a single stream. The library's
+// lexer swallows read errors and spins forever, so nothing may interpret a
+// missing /Contents or a corrupt stream; GetTextByRow (which interprets
+// /Contents as a whole) also spins on an array, which extrairTextoPosicional
+// reads stream by stream.
+func checkContentStream(page pdf.Page) (unico bool, err error) {
 	contents := page.V.Key("Contents")
-	if contents.Kind() != pdf.Stream {
-		return fmt.Errorf("conteúdo da página não é um stream único (kind %v)", contents.Kind())
+	streams := []pdf.Value{contents}
+	if contents.Kind() == pdf.Array {
+		streams = streams[:0]
+		for i := 0; i < contents.Len(); i++ {
+			streams = append(streams, contents.Index(i))
+		}
 	}
-	rc := contents.Reader()
-	defer rc.Close()
-	if _, err := io.Copy(io.Discard, rc); err != nil {
-		return fmt.Errorf("stream de conteúdo ilegível: %w", err)
+	if len(streams) == 0 {
+		return false, fmt.Errorf("conteúdo da página é um array vazio")
 	}
-	return nil
+	for _, s := range streams {
+		if s.Kind() != pdf.Stream {
+			return false, fmt.Errorf("conteúdo da página não é stream (kind %v)", s.Kind())
+		}
+		if err := lerStream(s); err != nil {
+			return false, fmt.Errorf("stream de conteúdo ilegível: %w", err)
+		}
+	}
+	return contents.Kind() == pdf.Stream, nil
 }
 
-// ExtractNativeText extracts plain text from a pdf.Page using GetTextByRow as preferred layout option.
+// fontesLegiveis diz se todo /ToUnicode e /Encoding em stream das fontes da
+// página pode ser lido por inteiro.
+func fontesLegiveis(page pdf.Page) bool {
+	for _, nome := range page.Fonts() {
+		if !fonteLegivel(page.Font(nome)) {
+			return false
+		}
+	}
+	return true
+}
+
+// textoPosicionalSeguro roda extrairTextoPosicional com o pânico confinado,
+// para que ExtractNativeText ainda possa voltar ao GetTextByRow.
+func textoPosicionalSeguro(page pdf.Page) (text string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			text, err = "", fmt.Errorf("pânico no extrator posicional: %v", r)
+		}
+	}()
+	return extrairTextoPosicional(page)
+}
+
+// ExtractNativeText extracts plain text from a pdf.Page with extrairTextoPosicional,
+// falling back to GetTextByRow when it panics or finds no text.
 // Pages the PDF library cannot interpret yield an error (never a hang or a panic),
 // so the caller treats them as having no native text and may fall back to OCR.
 func ExtractNativeText(page pdf.Page) (text string, err error) {
@@ -502,9 +599,23 @@ func ExtractNativeText(page pdf.Page) (text string, err error) {
 		}
 	}()
 
-	if err := checkContentStream(page); err != nil {
+	unico, err := checkContentStream(page)
+	if err != nil {
 		log.Printf("[PDFParser] Extração nativa ignorada: %v", err)
 		return "", err
+	}
+
+	text, errPos := textoPosicionalSeguro(page)
+	if errPos == nil && strings.TrimSpace(text) != "" {
+		return text, nil
+	}
+	if errPos != nil {
+		log.Printf("[PDFParser] Extrator posicional falhou: %v", errPos)
+	}
+	if !unico || !fontesLegiveis(page) {
+		// GetTextByRow gira para sempre num /Contents em array e num /ToUnicode
+		// ilegível, que ele interpreta sem validar.
+		return "", errPos
 	}
 
 	log.Printf("[PDFParser] Chamando page.GetTextByRow()...")

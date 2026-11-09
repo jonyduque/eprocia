@@ -6,9 +6,25 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"eprocia/internal/models"
 )
+
+// NormalizarTipos apara cada código de tipo de documento, passa para maiúsculas
+// (como etl.tipoDocumento compara) e descarta os vazios e os repetidos. Nunca
+// devolve nil.
+func NormalizarTipos(tipos []string) []string {
+	out := []string{}
+	for _, t := range tipos {
+		t = strings.ToUpper(strings.TrimSpace(t))
+		if t != "" && !slices.Contains(out, t) {
+			out = append(out, t)
+		}
+	}
+	return out
+}
 
 // DefaultConfig returns a Config struct initialized with default values.
 func DefaultConfig() (*models.Config, error) {
@@ -23,10 +39,11 @@ func DefaultConfig() (*models.Config, error) {
 	return &models.Config{
 		MonitoredPath:   monitoredPath,
 		OcrMode:         "normal",
-		CleaningLevel:   "basic",
+		CleaningLevel:   "standard",
 		AutoStart:       false,
 		WatchdogEnabled: true,
 		Theme:           "system",
+		OmitirTipos:     []string{},
 	}, nil
 }
 
@@ -42,7 +59,7 @@ func ModoOCRValido(m string) bool {
 
 // LimpezaValida diz se l é um dos níveis de higienização do formatter.
 func LimpezaValida(l string) bool {
-	return l == "none" || l == "basic" || l == "aggressive"
+	return l == "none" || l == "basic" || l == "standard" || l == "aggressive"
 }
 
 // GetConfigPath returns the default path to the config.json file.
@@ -70,12 +87,13 @@ func Load() (*models.Config, error) {
 // would otherwise silently zero out any bool field (e.g. WatchdogEnabled)
 // that defaults to true but is missing from an older config.json.
 type configOverlay struct {
-	MonitoredPath   *string `json:"monitored_path"`
-	OcrMode         *string `json:"ocr_mode"`
-	CleaningLevel   *string `json:"cleaning_level"`
-	AutoStart       *bool   `json:"auto_start"`
-	WatchdogEnabled *bool   `json:"watchdog_enabled"`
-	Theme           *string `json:"theme"`
+	MonitoredPath   *string  `json:"monitored_path"`
+	OcrMode         *string  `json:"ocr_mode"`
+	CleaningLevel   *string  `json:"cleaning_level"`
+	AutoStart       *bool    `json:"auto_start"`
+	WatchdogEnabled *bool    `json:"watchdog_enabled"`
+	Theme           *string  `json:"theme"`
+	OmitirTipos     []string `json:"omitir_tipos"`
 }
 
 // LoadFromFile loads the configuration from a specific file path.
@@ -119,6 +137,9 @@ func LoadFromFile(path string) (*models.Config, error) {
 	if overlay.Theme != nil && TemaValido(*overlay.Theme) {
 		cfg.Theme = *overlay.Theme
 	}
+	if overlay.OmitirTipos != nil {
+		cfg.OmitirTipos = NormalizarTipos(overlay.OmitirTipos)
+	}
 
 	return cfg, nil
 }
@@ -138,6 +159,13 @@ func SaveToFile(path string, cfg *models.Config) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
+	}
+
+	// Lista ausente vira [] no arquivo, para o frontend nunca receber null.
+	if cfg.OmitirTipos == nil {
+		copia := *cfg
+		copia.OmitirTipos = []string{}
+		cfg = &copia
 	}
 
 	data, err := json.MarshalIndent(cfg, "", "  ")
