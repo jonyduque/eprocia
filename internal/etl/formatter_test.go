@@ -72,8 +72,8 @@ Line 2 with text
 	if strings.Contains(aggCleaned, "Página 12 de 35") {
 		t.Error("cleanPage('aggressive') should strip page markers")
 	}
-	if strings.Contains(aggCleaned, "Documento assinado") {
-		t.Error("cleanPage('aggressive') should strip digital signatures")
+	if !strings.Contains(aggCleaned, "Documento assinado") {
+		t.Error("cleanPage('aggressive') não tira mais linha solta de assinatura (H6)")
 	}
 	if strings.Contains(aggCleaned, "\n") {
 		t.Error("cleanPage('aggressive') should merge lines into space-separated string")
@@ -96,6 +96,9 @@ A paginação do processo foi suspensa.`
 		"conforme a página inicial dos autos",
 		"a assinatura eletrônica do contrato é nula",
 		"A paginação do processo foi suspensa.",
+		// A regra antiga de prefixos saiu (H6): sem chancela reconhecida, fica.
+		"Assinatura eletrônica realizada por",
+		"Documento assinado eletronicamente",
 	}
 	for _, s := range mustKeep {
 		if !strings.Contains(got, s) {
@@ -107,8 +110,6 @@ A paginação do processo foi suspensa.`
 		"Pág. 3/10",
 		"página 4",
 		"Página 12 de 35",
-		"Assinatura eletrônica realizada por",
-		"Documento assinado eletronicamente",
 	}
 	for _, s := range mustDrop {
 		if strings.Contains(got, s) {
@@ -579,15 +580,14 @@ func TestChaveBorda_ValorMonetarioEPercentualUsamChaveExata(t *testing.T) {
 	}
 }
 
-func TestPadrao_MantemAssinaturaMasMaximaTira(t *testing.T) {
+func TestPadraoEMaxima_MantemAssinaturaSolta(t *testing.T) {
+	// Sem chancela reconhecida (H6), a linha e o nome do assinante ficam nos dois níveis.
 	ass := "Documento assinado eletronicamente por FULANO DE TAL"
 	pag := "inicio\n" + ass + "\nfim"
-	ctx := &ctxDocumento{jaVistas: map[string]bool{}}
-	if got := cleanPage(pag, NivelPadrao, ctx); !strings.Contains(got, ass) {
-		t.Errorf("Padrão devia manter a assinatura: %q", got)
-	}
-	if got := cleanPage(pag, NivelMaximo, &ctxDocumento{jaVistas: map[string]bool{}}); strings.Contains(got, ass) {
-		t.Errorf("Máxima devia tirar a assinatura: %q", got)
+	for _, nivel := range []string{NivelPadrao, NivelMaximo} {
+		if got := cleanPage(pag, nivel, &ctxDocumento{jaVistas: map[string]bool{}}); !strings.Contains(got, ass) {
+			t.Errorf("%s devia manter a assinatura: %q", nivel, got)
+		}
 	}
 }
 

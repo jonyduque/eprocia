@@ -16,29 +16,6 @@ import (
 // legitimate sentences that merely mention the word "página" intact.
 var pageMarkerRegex = regexp.MustCompile(`(?i)^p[áa]g(ina|\.)?\s*\d+(\s*(de|/)\s*\d+)?$`)
 
-// signaturePrefixes are boilerplate openers of digital-signature footers.
-// Only lines that *start* with them are dropped, never prose that mentions them.
-var signaturePrefixes = []string{
-	"documento assinado",
-	"assinatura eletrônica",
-	"assinatura eletronica",
-}
-
-// isBoilerplateLine reports whether a trimmed line is a page marker or a
-// digital-signature footer (aggressive cleaning only).
-func isBoilerplateLine(trimmed string) bool {
-	if pageMarkerRegex.MatchString(trimmed) {
-		return true
-	}
-	lower := strings.ToLower(trimmed)
-	for _, prefix := range signaturePrefixes {
-		if strings.HasPrefix(lower, prefix) {
-			return true
-		}
-	}
-	return false
-}
-
 // escapeAttr escapes a value for safe use inside a double-quoted XML attribute.
 func escapeAttr(s string) string {
 	return attrEscaper.Replace(s)
@@ -136,8 +113,9 @@ func repeatedEdgeLines(pages []string) map[string]bool {
 // tira marcadores de página e linhas só de símbolos e as bordas listadas em
 // ctx.repetidas (ver repeatedEdgeLines): só as posições de borda contam, então a
 // mesma frase no meio da página sobrevive. O timbre fica na primeira página em
-// que aparece (ctx.jaVistas). Só aggressive tira assinaturas (isBoilerplateLine)
-// e junta a página numa linha.
+// que aparece (ctx.jaVistas). As chancelas de assinatura nas bordas viram
+// "[assinado: ...]" (resumirChancelas) antes das bordas repetidas, e o marcador
+// nunca passa por elas. Só aggressive junta a página numa linha.
 func cleanPage(text string, level string, ctx *ctxDocumento) string {
 	if level == NivelNenhum {
 		return text
@@ -148,19 +126,26 @@ func cleanPage(text string, level string, ctx *ctxDocumento) string {
 	}
 
 	var repeated map[string]bool
+	html := false
 	if ctx != nil {
 		repeated = ctx.repetidas
+		html = ctx.html
 		if ctx.jaVistas == nil {
 			ctx.jaVistas = map[string]bool{}
 		}
 	}
+	// As posições continuam as de lines, as mesmas que edgeLines usa.
+	saem, marcadores := planoChancelas(lines, html)
 	var vistasNaPagina []string
 	var cleanedLines []string
 	for pos, line := range lines {
-		if pageMarkerRegex.MatchString(line) || linhaSoSimbolos(line) {
+		if saem[pos] {
+			if m, ok := marcadores[pos]; ok {
+				cleanedLines = append(cleanedLines, m)
+			}
 			continue
 		}
-		if level == NivelMaximo && isBoilerplateLine(line) {
+		if pageMarkerRegex.MatchString(line) || linhaSoSimbolos(line) {
 			continue
 		}
 		if len(repeated) > 0 && !paginaCurta(len(lines)) && (pos < edgeLineCount || pos >= len(lines)-edgeLineCount) {
@@ -307,7 +292,8 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 				return cmp.Compare(a.index, b.index)
 			})
 
-			ctx := &ctxDocumento{jaVistas: map[string]bool{}}
+			ext := strings.ToLower(filepath.Ext(d.nome))
+			ctx := &ctxDocumento{jaVistas: map[string]bool{}, html: ext == ".html" || ext == ".htm"}
 			if cleaningLevel == NivelPadrao || cleaningLevel == NivelMaximo {
 				contents := make([]string, len(pages))
 				for i, p := range pages {
