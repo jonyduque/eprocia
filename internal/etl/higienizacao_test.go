@@ -378,12 +378,13 @@ func TestCleanPage_MaximaTiraCabecalhoComEspacoIrregular(t *testing.T) {
 }
 
 func TestLinhaLetraSolta(t *testing.T) {
-	for _, l := range []string{"o", "Ss", "E", "xy", "é"} {
+	for _, l := range []string{"o", "Ss", "E", "xy", "ç"} {
 		if !linhaLetraSolta(l) {
 			t.Errorf("%q devia ser letra solta", l)
 		}
 	}
-	for _, l := range []string{"II", "a)", "x)", "SP", "RJ", "5", "a1", "IV", "C", "abc", "", "§", "a."} {
+	for _, l := range []string{"II", "a)", "x)", "SP", "RJ", "5", "a1", "IV", "C", "abc", "", "§", "a.",
+		"º", "ª", "nº", "Nª", "D", "M", "à", "é", "À", "É"} {
 		if linhaLetraSolta(l) {
 			t.Errorf("%q não é letra solta", l)
 		}
@@ -430,6 +431,14 @@ func TestRefluir_MantemQuebra(t *testing.T) {
 		{"termina em ponto e vírgula", []string{longa + ";", "continua em minúscula"}},
 		{"termina em interrogação", []string{longa + "?", "continua em minúscula"}},
 		{"termina em exclamação", []string{longa + "!", "continua em minúscula"}},
+		{"termina em ponto e aspas", []string{longa + `."`, "continua em minúscula"}},
+		{"termina em ponto e aspas curvas", []string{longa + ".”", "continua em minúscula"}},
+		{"termina em ponto e parêntese", []string{longa + ".)", "continua em minúscula"}},
+		{"termina em interrogação e aspas", []string{longa + "?'", "continua em minúscula"}},
+		{"próxima com dígito sem vírgula", []string{longa, "2026 foi o ano"}},
+		{"extrato sem valor", []string{"01/01/2026 TRANSFERENCIA RECEBIDA DE FULANO DE TAL LTDA", "02/01/2026 SALDO DO DIA"}},
+		{"saldo antes de lançamento", []string{"SALDO ANTERIOR EM CONTA CORRENTE DE FULANO DE TAL", "01/01/2026 PIX ENVIADO"}},
+		{"competência", []string{longa, "01/2026 competência"}},
 		{"próxima maiúscula", []string{longa, "Começa com maiúscula"}},
 		{"próxima com parêntese", []string{longa, "(entre parênteses)"}},
 		{"atual com R$", []string{longa + " R$ 10", "continua em minúscula"}},
@@ -473,11 +482,48 @@ func TestRefluir_ListaNaoJunta(t *testing.T) {
 			t.Errorf("lista devia continuar em %d linhas: %q", len(in), got)
 		}
 	}
+	longa := "pedidos formulados pelo autor na petição inicial são os seguintes"
+	for _, item := range []string{"1 - x", "1 – x", "1.1 - x", "1) x", "1. x", "i) x", "ii) x", "iv. x", "a. x", "c) x"} {
+		if in := []string{longa, item}; !slices.Equal(refluir(in), in) {
+			t.Errorf("item %q não devia juntar: %q", item, refluir(in))
+		}
+	}
+}
+
+func TestRefluir_JuntaQuandoContinua(t *testing.T) {
+	longa := "pedidos formulados pelo autor na petição inicial com base no"
+	for _, c := range []struct{ a, b string }{
+		// Abreviação comum no começo da linha seguinte não é marcador de lista.
+		{longa, "art. 5º da Constituição Federal"},
+		{longa + " art.", "5º da Constituição Federal"},
+		{longa + " Lei", "8.078/90, que dispõe sobre o consumidor"},
+		{longa + " nº", "123 do processo"},
+		{longa + " valor de mil reais,", "2026 inclusive"},
+		{longa + " inciso", "2 do artigo"},
+		{longa + " §", "2 do artigo"},
+	} {
+		want := []string{c.a + " " + c.b}
+		if got := refluir([]string{c.a, c.b}); !slices.Equal(got, want) {
+			t.Errorf("devia juntar %q + %q: %q", c.a, c.b, got)
+		}
+	}
 }
 
 func TestRefluir_Hifenizacao(t *testing.T) {
-	if got, want := refluir([]string{"pala-", "vra seguinte"}), []string{"palavra seguinte"}; !slices.Equal(got, want) {
-		t.Errorf("got %q, quer %q", got, want)
+	for _, c := range []struct{ a, b, want string }{
+		{"pala-", "vra seguinte", "palavra seguinte"},
+		// Clítico, prefixo e "feira" mantêm o hífen.
+		{"o autor requer-", "se a citação", "o autor requer-se a citação"},
+		{"pede condená-", "lo, nos termos", "pede condená-lo, nos termos"},
+		{"na segunda-", "feira seguinte", "na segunda-feira seguinte"},
+		{"o auxílio-", "doença foi negado", "o auxílio-doença foi negado"},
+		{"o ex-", "cônjuge FULANO DE TAL", "o ex-cônjuge FULANO DE TAL"},
+		{"curso de pós-", "graduação", "curso de pós-graduação"},
+		{"Pós-", "graduação", "Pós-graduação"},
+	} {
+		if got, want := refluir([]string{c.a, c.b}), []string{c.want}; !slices.Equal(got, want) {
+			t.Errorf("got %q, quer %q", got, want)
+		}
 	}
 	// Hífen depois de espaço é travessão, e maiúscula não continua a palavra.
 	for _, in := range [][]string{{"texto -", "continua"}, {"pala-", "Vra"}} {
@@ -507,9 +553,15 @@ func TestPaginaCertificado(t *testing.T) {
 		t.Error("certificado não reconhecido")
 	}
 	if !paginaCertificado([]string{"cabeçalho", "Termos de Assinatura e Registro Eletrônico"}) {
-		t.Error("título sozinho devia bastar")
+		t.Error("título nas 5 primeiras linhas devia bastar")
+	}
+	prosa := []string{"linha 1", "linha 2", "linha 3", "linha 4", "linha 5", "linha 6"}
+	comTituloNoFim := append(slices.Clone(prosa), "Termos de Assinatura e Registro Eletrônico", "Enviado: 01/01/2026")
+	if !paginaCertificado(comTituloNoFim) {
+		t.Error("título fora do topo com 1 campo devia bastar")
 	}
 	for _, ls := range [][]string{
+		append(slices.Clone(prosa), "Termos de Assinatura e Registro Eletrônico"),
 		{"Enviado: 01/01/2026", "Assinado: 01/01/2026", "texto"},
 		// E-mails encaminhados: três "Enviado:" sem outro campo de certificado.
 		{"De: FULANO DE TAL", "Enviado: 01/01/2026", "texto", "Enviado: 01/01/2026", "texto", "Enviado: 01/01/2026"},
@@ -523,6 +575,22 @@ func TestPaginaCertificado(t *testing.T) {
 
 func TestMaxima_PaginaCertificado(t *testing.T) {
 	const marcador = "[certificado de assinatura eletrônica]"
+
+	// Petição que cita o título no meio da prosa continua intacta.
+	peticao := strings.Join([]string{
+		"EXCELENTÍSSIMO SENHOR JUIZ DE DIREITO",
+		"FULANO DE TAL, já qualificado, vem expor o seguinte.",
+		"O réu juntou documento sem validade.",
+		"O contrato foi firmado em 01/01/2026.",
+		"Não houve aceite das partes.",
+		"O documento traz os Termos de Assinatura e Registro Eletrônico da plataforma.",
+		"Mas não indica quem assinou.",
+		"Pede deferimento.",
+	}, "\n")
+	if got := cleanPage(peticao, NivelMaximo, &ctxDocumento{jaVistas: map[string]bool{}}); got != peticao {
+		t.Errorf("petição com o título na prosa devia ficar intacta: %q", got)
+	}
+
 	for _, comTitulo := range []bool{true, false} {
 		pag := certificado(comTitulo)
 		if got := cleanPage(pag, NivelMaximo, &ctxDocumento{jaVistas: map[string]bool{}}); got != marcador {

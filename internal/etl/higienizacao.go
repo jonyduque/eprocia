@@ -284,14 +284,19 @@ var siglasUF = map[string]bool{
 }
 
 var (
-	romanoRegex = regexp.MustCompile(`^[IVXLC]+$`)
+	romanoRegex = regexp.MustCompile(`^[IVXLCDM]+$`)
 	alineaRegex = regexp.MustCompile(`^[a-z]\)$`)
 )
 
 // linhaLetraSolta (H3b) informa se l é ruído de OCR: 1 ou 2 letras, sem dígito
-// nem outro caractere, que não são numeral romano, alínea nem sigla de UF.
+// nem outro caractere, que não são numeral romano (D de débito incluído),
+// alínea, sigla de UF, crase ou "é" soltos, nem contêm º ou ª ("nº").
 func linhaLetraSolta(l string) bool {
-	if romanoRegex.MatchString(l) || alineaRegex.MatchString(l) || siglasUF[l] {
+	if romanoRegex.MatchString(l) || alineaRegex.MatchString(l) || siglasUF[l] || strings.ContainsAny(l, "ºª") {
+		return false
+	}
+	switch l {
+	case "à", "À", "é", "É":
 		return false
 	}
 	n := 0
@@ -313,35 +318,51 @@ var (
 	certificadoCampoRegex  = regexp.MustCompile(`(?i)^(Enviado:|Visualizado:|Assinado:|Aceito:|N[íi]vel\s+de\s+seguran[çc]a)`)
 )
 
+// certificadoTituloTopo é quantas linhas do topo bastam para o título sozinho.
+const certificadoTituloTopo = 5
+
 // paginaCertificado informa se a página (linhas já básicas) é um certificado de
-// assinatura de plataforma: traz o título "Termos de Assinatura e Registro
-// Eletrônico" ou 3 ou mais linhas que começam com Enviado:, Visualizado:,
-// Assinado:, Aceito: ou Nível de segurança. Os campos têm de ser de pelo menos
-// 2 tipos, para que uma sequência de e-mails ("Enviado:" repetido) não conte.
+// assinatura de plataforma. Vale o título "Termos de Assinatura e Registro
+// Eletrônico" nas 5 primeiras linhas, ou em qualquer lugar com pelo menos 1
+// linha que começa com Enviado:, Visualizado:, Assinado:, Aceito: ou Nível de
+// segurança. Sem título, 3 ou mais dessas linhas, de pelo menos 2 tipos, para
+// que uma sequência de e-mails ("Enviado:" repetido) não conte.
 func paginaCertificado(linhas []string) bool {
 	tipos := map[string]bool{}
 	n := 0
-	for _, l := range linhas {
+	titulo := false
+	for i, l := range linhas {
 		if certificadoTituloRegex.MatchString(l) {
-			return true
+			if i < certificadoTituloTopo {
+				return true
+			}
+			titulo = true
 		}
 		if m := certificadoCampoRegex.FindStringSubmatch(l); m != nil {
 			n++
 			tipos[strings.ToLower(strings.Join(strings.Fields(m[1]), " "))] = true
 		}
 	}
-	return n >= 3 && len(tipos) >= 2
+	return (titulo && n >= 1) || (n >= 3 && len(tipos) >= 2)
 }
 
 // Limites de H9.
 const refluirMinRunas = 40
 
-var listaRegex = regexp.MustCompile(`^([a-z]\)|[IVXLC]+ ?[-–.)]|•|-|\d+[.)])`)
+var (
+	// listaRegex: "1 -", "1.1 –", "2.", "3)", "a)", "a.", "ii)", "iv.", "IV -",
+	// "•" e "-". O número ou a letra com ponto pedem espaço ou fim depois, para
+	// que "8.078/90" e "art." não contem como lista.
+	listaRegex = regexp.MustCompile(`^(\d+(\.\d+)*\s*[-–.)](\s|$)|(?:[a-z]|[ivxlc]+)[.)](\s|$)|[a-z]\)|[IVXLC]+ ?[-–.)]|•|-)`)
+	// dataInicioRegex: extrato que começa com data ("01/01/2026", "01/01") ou
+	// competência ("01/2026").
+	dataInicioRegex = regexp.MustCompile(`^(\d{1,2}/\d{1,2}(/\d{2,4})?\b|\d{2}/\d{4})`)
+)
 
-// linhaTabela informa se l parece linha de tabela ou extrato: tem R$ ou 2 ou
-// mais palavras com dígito.
+// linhaTabela informa se l parece linha de tabela ou extrato: tem R$, começa
+// com data ou competência, ou tem 2 ou mais palavras com dígito.
 func linhaTabela(l string) bool {
-	if strings.Contains(l, "R$") {
+	if strings.Contains(l, "R$") || dataInicioRegex.MatchString(l) {
 		return true
 	}
 	n := 0
@@ -359,40 +380,128 @@ func linhaMarcador(l string) bool {
 	return strings.HasPrefix(l, "[") && strings.HasSuffix(l, "]")
 }
 
-// juntaLinhas diz se a linha b continua a linha a (H9) e se a junção é de
-// hifenização (sem espaço e sem o hífen). Na dúvida, não junta.
-func juntaLinhas(a, b string) (junta, hifen bool) {
+// juncao é o que H9 faz com a linha seguinte.
+type juncao int
+
+const (
+	naoJunta      juncao = iota
+	juntaEspaco          // parágrafo: junta com um espaço
+	juntaSemHifen        // palavra hifenizada: tira o hífen e junta sem espaço
+	juntaComHifen        // composto ou clítico: mantém o hífen, sem espaço
+)
+
+// Palavras que decidem se o hífen do fim da linha fica (hifenFica).
+var (
+	cliticos = map[string]bool{
+		"o": true, "a": true, "os": true, "as": true, "lo": true, "la": true, "los": true, "las": true,
+		"no": true, "na": true, "nos": true, "nas": true, "lhe": true, "lhes": true,
+		"me": true, "te": true, "se": true, "vos": true,
+	}
+	// prefixosHifen inclui auxílio e salário, primeiros elementos de compostos
+	// previdenciários comuns (auxílio-doença, salário-maternidade).
+	prefixosHifen = map[string]bool{
+		"ex": true, "pós": true, "pré": true, "pró": true, "vice": true, "recém": true, "sem": true,
+		"além": true, "aquém": true, "grão": true, "grã": true, "bem": true, "mal": true, "sub": true,
+		"super": true, "inter": true, "hiper": true, "anti": true, "auto": true, "contra": true,
+		"semi": true, "extra": true, "infra": true, "supra": true, "ultra": true,
+		"auxílio": true, "salário": true,
+	}
+	// antesDeNumero são as palavras finais depois das quais uma linha que
+	// começa com dígito continua a frase ("art." + "5º").
+	antesDeNumero = map[string]bool{"nº": true, "n.": true, "art.": true, "arts.": true, "lei": true, "inciso": true, "§": true}
+)
+
+func soLetras(s string) string {
+	return strings.ToLower(strings.TrimFunc(s, func(r rune) bool { return !unicode.IsLetter(r) }))
+}
+
+// hifenFica diz se o hífen entre semHifen (a linha sem o hífen final) e b é
+// legítimo: b começa com clítico ou com "feira", ou o fragmento final de a é
+// prefixo.
+func hifenFica(semHifen, b string) bool {
+	frag := semHifen
+	if i := strings.LastIndexAny(frag, " -"); i >= 0 {
+		frag = frag[i+1:]
+	}
+	prim, _, _ := strings.Cut(b, " ")
+	prim = soLetras(prim)
+	return cliticos[prim] || strings.HasPrefix(prim, "feira") || prefixosHifen[soLetras(frag)]
+}
+
+// fimDeFrase informa se l termina em . : ; ? !, ignorando aspas, parênteses e
+// colchetes de fechamento depois da pontuação.
+func fimDeFrase(l string) bool {
+	l = strings.TrimRight(l, `"'”’»)]`)
+	r, _ := utf8.DecodeLastRuneInString(l)
+	return strings.ContainsRune(".:;?!", r)
+}
+
+// ultimaPalavra devolve a última palavra de l.
+func ultimaPalavra(l string) string {
+	if i := strings.LastIndexByte(l, ' '); i >= 0 {
+		return l[i+1:]
+	}
+	return l
+}
+
+// juntaLinhas diz como a linha b continua a linha a (H9). Na dúvida, não junta.
+func juntaLinhas(a, b string) juncao {
 	if a == "" || b == "" || linhaMarcador(a) || linhaMarcador(b) || linhaTabela(a) || linhaTabela(b) || listaRegex.MatchString(b) {
-		return false, false
+		return naoJunta
 	}
 	prim, _ := utf8.DecodeRuneInString(b)
 	if semHifen, ok := strings.CutSuffix(a, "-"); ok {
 		antes, _ := utf8.DecodeLastRuneInString(semHifen)
-		return unicode.IsLetter(antes) && unicode.IsLower(prim), true
+		switch {
+		case !unicode.IsLetter(antes) || !unicode.IsLower(prim):
+			return naoJunta
+		case hifenFica(semHifen, b):
+			return juntaComHifen
+		}
+		return juntaSemHifen
 	}
-	if strings.ContainsAny(a[len(a)-1:], ".:;?!") || utf8.RuneCountInString(a) < refluirMinRunas {
-		return false, false
+	if utf8.RuneCountInString(a) < refluirMinRunas {
+		return naoJunta
 	}
-	return unicode.IsLower(prim) || unicode.IsDigit(prim), false
+	if unicode.IsDigit(prim) {
+		if strings.HasSuffix(a, ",") || antesDeNumero[strings.ToLower(ultimaPalavra(a))] {
+			return juntaEspaco
+		}
+		return naoJunta
+	}
+	if fimDeFrase(a) || !unicode.IsLower(prim) {
+		return naoJunta
+	}
+	return juntaEspaco
 }
 
-// refluir (H9) junta as linhas de um mesmo parágrafo: a linha i+1 entra na i
-// quando a i tem 40 ou mais runas e não termina em . : ; ? !, nenhuma das duas
-// parece tabela (R$ ou 2+ palavras com dígito) nem é marcador, e a i+1 não
-// começa com marcador de lista e começa com minúscula ou dígito. Uma palavra
-// hifenizada no fim da linha junta com a próxima, sem espaço e sem o hífen,
-// quando esta começa com minúscula. As regras olham as linhas originais, não o
-// parágrafo já juntado.
+// refluir (H9) junta as linhas de um mesmo parágrafo. A linha i+1 entra na i
+// quando nenhuma das duas parece tabela (R$, data ou competência no começo, ou
+// 2+ palavras com dígito) nem é marcador, a i+1 não começa com marcador de
+// lista, a i tem 40 ou mais runas e:
+//   - a i+1 começa com minúscula e a i não termina em . : ; ? ! (aspas e
+//     parêntese de fechamento não contam); ou
+//   - a i+1 começa com dígito e a i termina em vírgula ou em nº, n., art.,
+//     arts., Lei, inciso ou §.
+//
+// Uma palavra hifenizada no fim da linha junta com a próxima, que começa com
+// minúscula, sem espaço: o hífen sai, salvo em clítico ("requer-se"), prefixo
+// ("ex-cônjuge") e "-feira", onde fica. As regras olham as linhas originais,
+// não o parágrafo já juntado.
 func refluir(linhas []string) []string {
 	var out []string
 	for i, l := range linhas {
 		if i > 0 {
-			if junta, hifen := juntaLinhas(linhas[i-1], l); junta {
-				if hifen {
-					out[len(out)-1] = strings.TrimSuffix(out[len(out)-1], "-") + l
-				} else {
-					out[len(out)-1] += " " + l
-				}
+			ult := &out[len(out)-1]
+			switch juntaLinhas(linhas[i-1], l) {
+			case juntaEspaco:
+				*ult += " " + l
+				continue
+			case juntaSemHifen:
+				*ult = strings.TrimSuffix(*ult, "-") + l
+				continue
+			case juntaComHifen:
+				*ult += l
 				continue
 			}
 		}

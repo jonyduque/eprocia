@@ -842,10 +842,15 @@ func TestMaxima_MantemQuebrasComTimbreSoNaPagina1(t *testing.T) {
 	if got := strings.Count(saida, "TIMBRE FICTÍCIO"); got != 1 {
 		t.Errorf("timbre devia aparecer 1 vez, apareceu %d", got)
 	}
-	// Linhas curtas não refluem (H9): a página não vira uma linha só.
+	// Linhas curtas não refluem (H9): cada linha de pg fica (timbre + 11 de miolo
+	// na pág. 1, só o miolo nas outras).
 	for n := 1; n <= 3; n++ {
-		if p := strings.TrimSpace(pagina(t, saida, n)); strings.Count(p, "\n") < 10 {
-			t.Errorf("pág. %d devia manter as quebras: %q", n, p)
+		want := 11
+		if n == 1 {
+			want = 12
+		}
+		if p := strings.TrimSpace(pagina(t, saida, n)); len(strings.Split(p, "\n")) != want {
+			t.Errorf("pág. %d devia ter %d linhas: %q", n, want, p)
 		}
 	}
 	if !strings.Contains(pagina(t, saida, 1), "TIMBRE FICTÍCIO") {
