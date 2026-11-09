@@ -125,7 +125,7 @@ func (s *lexSim) token() any {
 	case '[', ']', '{', '}':
 		return lexKw(string(c))
 	case '/':
-		s.palavra()
+		s.nome()
 		return lexNome("")
 	case '>':
 		if s.lerByte() == '>' {
@@ -146,7 +146,23 @@ func (s *lexSim) token() any {
 	return lexKw(p)
 }
 
-// palavra lê um nome ou keyword até um delimitador ou espaço.
+// nome segue readName: lê até um delimitador ou espaço, mas um '#' consome os
+// dois bytes seguintes, sejam eles quais forem ("/A#]]" é um nome só).
+func (s *lexSim) nome() {
+	for {
+		c := s.lerByte()
+		if lexDelim(c) || lexEspaco(c) {
+			s.devolverByte()
+			return
+		}
+		if c == '#' {
+			s.lerByte()
+			s.lerByte()
+		}
+	}
+}
+
+// palavra segue readKeyword: lê até um delimitador ou espaço.
 func (s *lexSim) palavra() string {
 	ini := s.pos
 	for {

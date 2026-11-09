@@ -2,6 +2,7 @@ package etl
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"math"
 	"sort"
@@ -111,15 +112,23 @@ func (f *fonteTexto) largura(cru, texto string) float64 {
 	return soma
 }
 
+// streamMaximo limita o stream descomprimido que lerStream aceita guardar em
+// memória: um conteúdo de página real tem poucos MB, e uma bomba de
+// descompressão vira página sem texto nativo.
+const streamMaximo = 64 << 20
+
 // lerStream lê o stream por inteiro e devolve o erro de leitura, se houver,
 // ou um erro quando o lexer da biblioteca giraria para sempre nele (dicionário,
 // array ou string sem fecho; veja pdf_lexer.go).
 func lerStream(v pdf.Value) error {
 	rc := v.Reader()
 	defer rc.Close()
-	dados, err := io.ReadAll(rc)
+	dados, err := io.ReadAll(io.LimitReader(rc, streamMaximo+1))
 	if err != nil {
 		return err
+	}
+	if len(dados) > streamMaximo {
+		return fmt.Errorf("stream maior que %d MiB", streamMaximo>>20)
 	}
 	if !lexerTermina(dados) {
 		return errors.New("dicionário, array ou string sem fecho")

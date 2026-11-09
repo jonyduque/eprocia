@@ -38,6 +38,10 @@ c) Tj`, true},
 		{"hex sem fecho", "<4142", false},
 		{"hex com dígito ímpar no fim", "<4", false},
 		{"dicionário dentro de array sem fecho", "[<< /A 1 >>", false},
+		{"'#' no nome engole o fecho do array", "[ /A#]] ", false},
+		{"'#' no nome engole o fecho do dicionário", "<< /A#>> ", false},
+		{"'#' no nome engole a abertura", "/A#(( Tj", true},
+		{"'#' válido no nome", "/A#20B Do", true},
 	}
 	for _, c := range casos {
 		t.Run(c.nome, func(t *testing.T) {
