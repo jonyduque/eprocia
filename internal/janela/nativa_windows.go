@@ -40,7 +40,7 @@ var gwlExStyle = -20
 type nativa struct {
 	ocultar func()
 
-	once sync.Once
+	mu   sync.Mutex // guarda hwnd; só um resultado encontrado fica em cache
 	hwnd windows.HWND
 }
 
@@ -53,23 +53,25 @@ func Nativa(ocultar func()) Janela {
 // janelaPrincipal acha a janela do Wails deste processo (pode haver outra
 // cópia do app rodando de outra pasta).
 func (n *nativa) janelaPrincipal() windows.HWND {
-	n.once.Do(func() {
-		classe, _ := windows.UTF16PtrFromString(classeWails)
-		pid := uint32(os.Getpid())
-		var h uintptr
-		for {
-			h, _, _ = procFindWindowExW.Call(0, h, uintptr(unsafe.Pointer(classe)), 0)
-			if h == 0 {
-				return
-			}
-			var dono uint32
-			if _, err := windows.GetWindowThreadProcessId(windows.HWND(h), &dono); err == nil && dono == pid {
-				n.hwnd = windows.HWND(h)
-				return
-			}
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if n.hwnd != 0 {
+		return n.hwnd
+	}
+	classe, _ := windows.UTF16PtrFromString(classeWails)
+	pid := uint32(os.Getpid())
+	var h uintptr
+	for {
+		h, _, _ = procFindWindowExW.Call(0, h, uintptr(unsafe.Pointer(classe)), 0)
+		if h == 0 {
+			return 0 // não achou ainda: tenta de novo na próxima chamada
 		}
-	})
-	return n.hwnd
+		var dono uint32
+		if _, err := windows.GetWindowThreadProcessId(windows.HWND(h), &dono); err == nil && dono == pid {
+			n.hwnd = windows.HWND(h)
+			return n.hwnd
+		}
+	}
 }
 
 func (n *nativa) Visivel() bool {
@@ -144,7 +146,10 @@ func (n *nativa) Repor(e Estado) {
 	}
 	procSetLayeredWindowAttributes.Call(uintptr(h), 0, 255, lwaAlpha)
 	if e.ExStyle&wsExLayered == 0 {
-		procSetWindowLongPtrW.Call(uintptr(h), uintptr(gwlExStyle), e.ExStyle)
+		// Só tira o bit que a animação pôs: outro bit mudado durante a rampa
+		// (TOPMOST, ACCEPTFILES) fica como está.
+		atual, _, _ := procGetWindowLongPtrW.Call(uintptr(h), uintptr(gwlExStyle))
+		procSetWindowLongPtrW.Call(uintptr(h), uintptr(gwlExStyle), atual&^wsExLayered)
 	}
 }
 

@@ -38,7 +38,7 @@ func (j *janelaFalsa) vezes() int {
 func appComJanela() (*App, *janelaFalsa) {
 	j := &janelaFalsa{ocultada: make(chan struct{}, 4)}
 	app := NewApp()
-	app.animador = janela.NovoAnimador(j)
+	app.animador.Store(janela.NovoAnimador(j))
 	return app, j
 }
 

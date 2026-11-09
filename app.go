@@ -37,7 +37,7 @@ type App struct {
 	// falhas guarda os ZIPs com erro para a varredura inicial não repeti-los.
 	falhas *watchdog.Falhas
 	// animador desvanece a janela ao ir para a bandeja; nil antes do startup.
-	animador *janela.Animador
+	animador atomic.Pointer[janela.Animador]
 	// saindo é marcado por Quit: daí em diante OnBeforeClose deixa sair e
 	// nada espera animação.
 	saindo atomic.Bool
@@ -58,7 +58,7 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	a.animador = janela.NovoAnimador(janela.Nativa(func() { runtime.WindowHide(ctx) }))
+	a.animador.Store(janela.NovoAnimador(janela.Nativa(func() { runtime.WindowHide(ctx) })))
 	a.pipeline = etl.NewPipeline()
 	a.queue = etl.NewQueue(a.pipeline)
 	a.queue.SetContext(ctx)
@@ -162,8 +162,8 @@ func (a *App) shutdown(ctx context.Context) {
 // Show mostra a janela no estado em que foi ocultada (maximizada continua
 // maximizada) e a traz para a frente; interrompe uma animação de ocultar.
 func (a *App) Show() {
-	if a.animador != nil {
-		a.animador.Cancelar()
+	if an := a.animador.Load(); an != nil {
+		an.Cancelar()
 	}
 	if a.ctx != nil {
 		runtime.WindowShow(a.ctx)
@@ -176,8 +176,8 @@ func (a *App) Hide() {
 	if a.saindo.Load() {
 		return
 	}
-	if a.animador != nil {
-		a.animador.Ocultar()
+	if an := a.animador.Load(); an != nil {
+		an.Ocultar()
 	} else if a.ctx != nil {
 		runtime.WindowHide(a.ctx)
 	}
@@ -186,8 +186,8 @@ func (a *App) Hide() {
 // Quit encerra o app na hora, sem esperar animação.
 func (a *App) Quit() {
 	a.saindo.Store(true)
-	if a.animador != nil {
-		a.animador.Cancelar()
+	if an := a.animador.Load(); an != nil {
+		an.Cancelar()
 	}
 	if a.ctx != nil {
 		runtime.Quit(a.ctx)

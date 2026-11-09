@@ -25,3 +25,10 @@ Os relatórios dos estudos de 2026-11-09 ficaram no scratchpad da sessão e não
 - Uma cauda depois da chancela que seja um marcador de página ("Página 1 de 3") não passa pelos filtros de marcador.
 - HTML com BOM UTF-8 mantém o U+FEFF no início do texto.
 - O exemplo de saída do `README.md` está no formato antigo.
+
+## Pendências menores da bandeja (revisão de 2026-11-09)
+
+- O `Animador` segura o mutex durante chamadas Win32 síncronas. Se um dia Show ou Quit rodarem na thread de UI, isso vira deadlock.
+- Há uma corrida estreita entre o `go Hide()` do `OnBeforeClose` e o `Quit`. Ela não trava a saída.
+- O deslize pode tirar a janela do Snap ou cruzar a divisa entre monitores com DPI diferente.
+- Falta conferir na tela como o WebView2 pinta dentro da janela em camadas.
