@@ -664,14 +664,19 @@ func TestDuplicadas_MesmoNomeNoMesmoEventoNaoSeConfunde(t *testing.T) {
 }
 
 // A página duplicada não imprime o timbre, mas ele já saiu na origem: a página
-// seguinte, não duplicada, continua sem ele.
+// seguinte, não duplicada, continua sem ele. O documento 2 tem a pág. 1 igual à
+// do documento 1 (vira referência) e as pág. 2 e 3 com o mesmo timbre.
 func TestDuplicadas_PaginaDuplicadaConsomeOTimbre(t *testing.T) {
 	timbre := "ESCRITÓRIO MODELO ADVOGADOS\nOAB/SP 000.000"
 	dupl := pg(timbre, textoLongo("repetida", 250), "")
-	saida, _ := GenerateConsolidatedOutput(docPadrao(
-		pg(timbre, "um", ""), dupl, dupl, pg(timbre, "quatro", "")), NivelPadrao)
-	if p := pagina(t, saida, 4); strings.Contains(p, "ESCRITÓRIO") {
-		t.Errorf("o timbre já apareceu na pág. 1: %q", p)
+	saida, _ := GenerateConsolidatedOutput(eventosDocs(
+		[]string{dupl},
+		[]string{dupl, pg(timbre, "dois", ""), pg(timbre, "tres", "")}), NivelPadrao)
+	if !strings.Contains(saida, "idêntic") {
+		t.Fatalf("a pág. 1 do documento 2 devia virar referência:\n%s", saida)
+	}
+	if p := pagina(t, saida, 2); strings.Contains(p, "ESCRITÓRIO") {
+		t.Errorf("o timbre já foi consumido pela pág. 1 (duplicada): %q", p)
 	}
 }
 
