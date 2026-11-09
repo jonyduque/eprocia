@@ -19,7 +19,7 @@
   const PADRAO = {
     monitored_path: '',
     ocr_mode: 'normal',
-    cleaning_level: 'basic',
+    cleaning_level: 'standard',
     auto_start: false,
     watchdog_enabled: true,
     omitir_tipos: []
@@ -33,9 +33,10 @@
   };
 
   const AJUDA_LIMPEZA = {
-    none: 'Preserva o texto bruto extraído.',
-    basic: 'Corrige espaçamento e quebras redundantes.',
-    aggressive: 'Básica + remove cabeçalhos e rodapés repetidos.'
+    none: 'Texto como extraído',
+    basic: 'Remove espaços e linhas vazias',
+    standard: 'Remove cabeçalhos, rodapés e duplicatas; resume assinaturas',
+    aggressive: 'Padrão + ruído de OCR e parágrafos contínuos'
   };
 
   // Códigos de tipo (EXTR, COMP...) em maiúsculas, sem espaços nem repetição.
@@ -190,7 +191,8 @@
         >
           <option value="none">Nenhuma</option>
           <option value="basic">Básica</option>
-          <option value="aggressive">Agressiva</option>
+          <option value="standard">Padrão</option>
+          <option value="aggressive">Máxima</option>
         </select>
         <p class="help-text">{AJUDA_LIMPEZA[config.cleaning_level] ?? ''}</p>
       </div>

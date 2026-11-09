@@ -9,10 +9,20 @@ describe('opções', () => {
     assert.equal(proximaOpcao(OPCOES_LIMPEZA, 'aggressive').valor, 'none');
     assert.equal(proximaOpcao(OPCOES_LIMPEZA, 'desconhecido').valor, 'none');
   });
+  it('higienização tem quatro níveis: Nenhuma, Básica, Padrão, Máxima', () => {
+    assert.deepEqual(OPCOES_LIMPEZA.map((o) => o.valor), ['none', 'basic', 'standard', 'aggressive']);
+    assert.equal(proximaOpcao(OPCOES_LIMPEZA, 'basic').valor, 'standard');
+    assert.equal(proximaOpcao(OPCOES_LIMPEZA, 'standard').valor, 'aggressive');
+    assert.equal(proximaOpcao(OPCOES_LIMPEZA, 'aggressive').valor, 'none');
+    assert.equal(rotuloOpcao(OPCOES_LIMPEZA, 'standard'), 'Padrão');
+    assert.equal(rotuloOpcao(OPCOES_LIMPEZA, 'aggressive'), 'Máxima');
+    assert.equal(nivelOpcao(OPCOES_LIMPEZA, 'aggressive'), 3);
+  });
   it('nível e rótulo', () => {
     assert.equal(nivelOpcao(OPCOES_OCR, 'best'), 3);
     assert.equal(nivelOpcao(OPCOES_OCR, 'x'), 0);
     assert.equal(rotuloOpcao(OPCOES_LIMPEZA, 'basic'), 'Básica');
+    assert.equal(nivelOpcao(OPCOES_LIMPEZA, 'standard'), 2);
   });
 });
 

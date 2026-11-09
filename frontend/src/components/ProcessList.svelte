@@ -515,7 +515,7 @@
               <ReprocessarItem
                 id="reprocessar-{item.id}"
                 ocrInicial={item.ocr_mode || config?.ocr_mode || 'normal'}
-                limpezaInicial={item.cleaning_level || config?.cleaning_level || 'basic'}
+                limpezaInicial={item.cleaning_level || config?.cleaning_level || 'standard'}
                 aoConfirmar={(ocr, limpeza) => confirmarReprocessar(item, ocr, limpeza)}
                 aoCancelar={() => alternarReprocessar(item.id)}
               />
