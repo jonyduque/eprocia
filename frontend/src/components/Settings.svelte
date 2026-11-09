@@ -21,7 +21,8 @@
     ocr_mode: 'normal',
     cleaning_level: 'basic',
     auto_start: false,
-    watchdog_enabled: true
+    watchdog_enabled: true,
+    omitir_tipos: []
   };
 
   const AJUDA_OCR = {
@@ -36,6 +37,29 @@
     basic: 'Corrige espaçamento e quebras redundantes.',
     aggressive: 'Básica + remove cabeçalhos e rodapés repetidos.'
   };
+
+  // Códigos de tipo (EXTR, COMP...) em maiúsculas, sem espaços nem repetição.
+  function normalizarTipos(texto) {
+    const codigos = String(texto ?? '')
+      .split(',')
+      .map((c) => c.replace(/\s+/g, '').toUpperCase())
+      .filter(Boolean);
+    return [...new Set(codigos)];
+  }
+
+  // O campo guarda o texto digitado; só vira lista (e é salvo) ao confirmar.
+  let omitirTexto = '';
+  let omitirCarregado = false;
+  $: if (config && !omitirCarregado) {
+    omitirTexto = (config.omitir_tipos ?? []).join(', ');
+    omitirCarregado = true;
+  }
+
+  async function handleSalvarOmitir() {
+    config.omitir_tipos = normalizarTipos(omitirTexto);
+    omitirTexto = config.omitir_tipos.join(', ');
+    await handleSave();
+  }
 
   let statusMessage = '';
   let statusType = ''; // 'success' or 'error'
@@ -169,6 +193,21 @@
           <option value="aggressive">Agressiva</option>
         </select>
         <p class="help-text">{AJUDA_LIMPEZA[config.cleaning_level] ?? ''}</p>
+      </div>
+
+      <!-- Tipos de documento omitidos -->
+      <div class="form-group">
+        <label for="omitir-tipos">Omitir documentos dos tipos</label>
+        <input
+          id="omitir-tipos"
+          type="text"
+          placeholder="EXTR, COMP"
+          autocomplete="off"
+          spellcheck="false"
+          bind:value={omitirTexto}
+          on:change={handleSalvarOmitir}
+        />
+        <p class="help-text">Ex.: EXTR, COMP. O documento vira um aviso no texto e não é lido.</p>
       </div>
 
       <!-- Auto Start Toggle -->

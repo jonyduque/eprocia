@@ -857,3 +857,27 @@ func TestMaxima_MantemQuebrasComTimbreSoNaPagina1(t *testing.T) {
 		t.Errorf("timbre devia ficar na pág. 1")
 	}
 }
+
+func TestGenerateConsolidatedOutput_OmitidoForaDasDuplicatas(t *testing.T) {
+	longo := strings.Repeat("texto repetido ficticio ", 20)
+	pag := func(c string) map[string]any { return map[string]any{"1": map[string]any{"index": 1, "content": c}} }
+	eventos := map[string]any{
+		"1": map[string]any{"index": 1, "documentos": map[string]any{
+			"0:a": map[string]any{"index": 1, "nome": "Evento 1 - EXTR1.pdf", "paginas": pag(longo), "omitido": "EXTR", "total_paginas": 4},
+			"1:b": map[string]any{"index": 2, "nome": "Evento 1 - INIC1.pdf", "paginas": pag(longo)},
+		}},
+	}
+	out, _ := GenerateConsolidatedOutput(eventos, NivelPadrao)
+	if !strings.Contains(out, "[documento omitido: EXTR, 4 páginas]") {
+		t.Errorf("aviso ausente:\n%s", out)
+	}
+	if !strings.Contains(out, "- Evento 1 - EXTR1: 4 páginas") {
+		t.Errorf("resumo deveria usar o total de páginas:\n%s", out)
+	}
+	if strings.Contains(out, "idêntico") {
+		t.Errorf("omitido não pode entrar nem ser referenciado:\n%s", out)
+	}
+	if !strings.Contains(out, "texto repetido ficticio") {
+		t.Errorf("o documento comum deve manter o texto:\n%s", out)
+	}
+}

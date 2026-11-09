@@ -12,6 +12,9 @@ type Config struct {
 	// Theme fica no config.json para a janela nativa abrir com o fundo do
 	// tema escolhido: "system", "light" ou "dark".
 	Theme string `json:"theme"`
+	// OmitirTipos lista códigos de tipo de documento (EXTR, COMP...) que não são
+	// lidos: viram um aviso no texto. Nunca nil depois de Load.
+	OmitirTipos []string `json:"omitir_tipos"`
 }
 
 // ProcessFile represents a single judicial process file within a ZIP archive.

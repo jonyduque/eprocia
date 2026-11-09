@@ -34,6 +34,18 @@ func summaryDocName(nome string) string {
 	return eventPrefixRegex.ReplaceAllString(base, "")
 }
 
+// digitosFinaisRegex pega os dígitos no fim do código do documento (EXTR2).
+var digitosFinaisRegex = regexp.MustCompile(`\d+$`)
+
+// tipoDocumento extrai o código de tipo do nome do arquivo: tira o prefixo
+// "Evento N - ", a extensão e os dígitos finais, em maiúsculas
+// ("Evento 3 - EXTR2.pdf" vira "EXTR").
+func tipoDocumento(docName string) string {
+	base := strings.TrimSuffix(docName, filepath.Ext(docName))
+	base = eventPrefixRegex.ReplaceAllString(base, "")
+	return strings.ToUpper(digitosFinaisRegex.ReplaceAllString(strings.TrimSpace(base), ""))
+}
+
 // pageCountLabel renders "1 página" / "N páginas".
 func pageCountLabel(n int) string {
 	if n == 1 {
@@ -221,6 +233,10 @@ type docOrdenado struct {
 	nome    string
 	index   int
 	paginas []paginaOrdenada
+	// omitido é o tipo do documento que o usuário mandou omitir ("" se não);
+	// totalPaginas é o total de páginas dele, contado na origem.
+	omitido      string
+	totalPaginas int
 }
 
 // documentosOrdenados devolve os documentos de um evento, e as páginas de cada
@@ -230,6 +246,8 @@ func documentosOrdenados(evData map[string]any) []docOrdenado {
 	for _, val := range evData["documentos"].(map[string]any) {
 		dData := val.(map[string]any)
 		d := docOrdenado{nome: dData["nome"].(string), index: dData["index"].(int)}
+		d.omitido, _ = dData["omitido"].(string)
+		d.totalPaginas, _ = dData["total_paginas"].(int)
 		for _, pv := range dData["paginas"].(map[string]any) {
 			pData := pv.(map[string]any)
 			// Campos ausentes são tolerados.
@@ -275,6 +293,10 @@ func duplicadasPorConteudo(eventos map[string]any, eventNums []int) duplicadasH7
 	}
 	for _, num := range eventNums {
 		for _, d := range documentosOrdenados(eventos[fmt.Sprintf("%d", num)].(map[string]any)) {
+			if d.omitido != "" {
+				// Omitido não é lido: fica fora da detecção e ninguém o referencia.
+				continue
+			}
 			cd := chaveDoc{num, d.index}
 			nomeCurto := summaryDocName(d.nome)
 			nomes[cd] = nomeCurto
@@ -363,10 +385,14 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 		for _, val := range documentosMap {
 			dData := val.(map[string]any)
 			paginasMap := dData["paginas"].(map[string]any)
+			paginas := len(paginasMap)
+			if _, omitido := dData["omitido"].(string); omitido {
+				paginas, _ = dData["total_paginas"].(int)
+			}
 			docs = append(docs, docSummaryEntry{
 				nome:  dData["nome"].(string),
 				index: dData["index"].(int),
-				pages: len(paginasMap),
+				pages: paginas,
 			})
 		}
 		slices.SortFunc(docs, func(a, b docSummaryEntry) int {
@@ -397,6 +423,11 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 
 		for _, d := range documentosOrdenados(evData) {
 			sb.WriteString(fmt.Sprintf("<documento index=\"%d\" nome=\"%s\">\n", d.index, escapeAttr(d.nome)))
+
+			if d.omitido != "" {
+				sb.WriteString(fmt.Sprintf("[documento omitido: %s, %s]\n</documento>\n", d.omitido, pageCountLabel(d.totalPaginas)))
+				continue
+			}
 
 			if o, ok := h7.documentos[chaveDoc{num, d.index}]; ok {
 				sb.WriteString(refDocumento(o.evento, o.nome))

@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	stdRuntime "runtime"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -358,6 +359,7 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 	// porque o ZIP aceita duas entradas com o mesmo caminho, e elas não podem
 	// dividir o mesmo mapa.
 	paginasDoc := make([]map[string]any, totalFiles)
+	omitidos := make([]bool, totalFiles)
 	for _, eventNum := range eventNums {
 		eventKey := fmt.Sprintf("%d", eventNum)
 		documentosMap := make(map[string]any)
@@ -368,11 +370,18 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 
 		for index, i := range eventsMap[eventNum] {
 			paginasDoc[i] = make(map[string]any)
-			documentosMap[fmt.Sprintf("%d:%s", i, files[i].Name)] = map[string]any{
+			doc := map[string]any{
 				"index":   index + 1,
 				"nome":    files[i].DocName,
 				"paginas": paginasDoc[i],
 			}
+			// As chaves novas entram só aqui, antes das goroutines.
+			if tipo := tipoDocumento(files[i].DocName); slices.Contains(cfg.OmitirTipos, tipo) {
+				doc["omitido"] = tipo
+				doc["total_paginas"] = contagens[i]
+				omitidos[i] = true
+			}
+			documentosMap[fmt.Sprintf("%d:%s", i, files[i].Name)] = doc
 		}
 	}
 
@@ -516,6 +525,14 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 			if err := ctx.Err(); err != nil {
 				return
 			}
+			// Tipo omitido: o arquivo não é aberto nem passa por OCR; encerrar
+			// completa as páginas pré-contadas.
+			if omitidos[i] {
+				log.Printf("[Pipeline] Documento %s omitido por tipo", f.DocName)
+				atv.mudar(i, func(d *AtividadeDoc) { d.Feitas = d.Paginas })
+				encerrar("", fmt.Sprintf("Omitido %d/%d: %s", int(processedDocsVal.Load())+1, totalFiles, f.DocName))
+				return
+			}
 			atv.docLendo(i)
 
 			if f.Extension == ".pdf" {
@@ -630,6 +647,11 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 		for _, dVal := range documentosMap {
 			dData := dVal.(map[string]any)
 			paginasMap := dData["paginas"].(map[string]any)
+			if _, omitido := dData["omitido"].(string); omitido {
+				// Igual ao resumo do <contexto>: conta as páginas da origem.
+				totalPages += dData["total_paginas"].(int)
+				continue
+			}
 			totalPages += len(paginasMap)
 		}
 	}

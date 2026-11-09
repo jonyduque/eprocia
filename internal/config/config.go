@@ -27,6 +27,7 @@ func DefaultConfig() (*models.Config, error) {
 		AutoStart:       false,
 		WatchdogEnabled: true,
 		Theme:           "system",
+		OmitirTipos:     []string{},
 	}, nil
 }
 
@@ -70,12 +71,13 @@ func Load() (*models.Config, error) {
 // would otherwise silently zero out any bool field (e.g. WatchdogEnabled)
 // that defaults to true but is missing from an older config.json.
 type configOverlay struct {
-	MonitoredPath   *string `json:"monitored_path"`
-	OcrMode         *string `json:"ocr_mode"`
-	CleaningLevel   *string `json:"cleaning_level"`
-	AutoStart       *bool   `json:"auto_start"`
-	WatchdogEnabled *bool   `json:"watchdog_enabled"`
-	Theme           *string `json:"theme"`
+	MonitoredPath   *string  `json:"monitored_path"`
+	OcrMode         *string  `json:"ocr_mode"`
+	CleaningLevel   *string  `json:"cleaning_level"`
+	AutoStart       *bool    `json:"auto_start"`
+	WatchdogEnabled *bool    `json:"watchdog_enabled"`
+	Theme           *string  `json:"theme"`
+	OmitirTipos     []string `json:"omitir_tipos"`
 }
 
 // LoadFromFile loads the configuration from a specific file path.
@@ -119,6 +121,9 @@ func LoadFromFile(path string) (*models.Config, error) {
 	if overlay.Theme != nil && TemaValido(*overlay.Theme) {
 		cfg.Theme = *overlay.Theme
 	}
+	if overlay.OmitirTipos != nil {
+		cfg.OmitirTipos = overlay.OmitirTipos
+	}
 
 	return cfg, nil
 }
@@ -138,6 +143,13 @@ func SaveToFile(path string, cfg *models.Config) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
+	}
+
+	// Lista ausente vira [] no arquivo, para o frontend nunca receber null.
+	if cfg.OmitirTipos == nil {
+		copia := *cfg
+		copia.OmitirTipos = []string{}
+		cfg = &copia
 	}
 
 	data, err := json.MarshalIndent(cfg, "", "  ")

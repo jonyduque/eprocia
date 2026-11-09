@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"testing"
 
@@ -46,7 +47,7 @@ func TestCarregarConfig_JSONInvalidoCaiParaPadrao(t *testing.T) {
 		t.Fatal("carregarConfig devolveu nil com JSON inválido")
 	}
 	padrao, _ := config.DefaultConfig()
-	if *cfg != *padrao {
+	if !reflect.DeepEqual(*cfg, *padrao) {
 		t.Fatalf("config = %+v, esperado padrão %+v", *cfg, *padrao)
 	}
 }

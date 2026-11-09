@@ -4,6 +4,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
 
 	"eprocia/internal/models"
@@ -214,7 +216,7 @@ func TestSaveToFile_FalhaNaEscritaPreservaArquivoAnterior(t *testing.T) {
 	dir := t.TempDir()
 	caminho := filepath.Join(dir, "config.json")
 
-	original := &models.Config{MonitoredPath: "/original", OcrMode: "fast", CleaningLevel: "basic", WatchdogEnabled: true, Theme: "system"}
+	original := &models.Config{MonitoredPath: "/original", OcrMode: "fast", CleaningLevel: "basic", WatchdogEnabled: true, Theme: "system", OmitirTipos: []string{}}
 	if err := SaveToFile(caminho, original); err != nil {
 		t.Fatalf("SaveToFile inicial: %v", err)
 	}
@@ -235,7 +237,7 @@ func TestSaveToFile_FalhaNaEscritaPreservaArquivoAnterior(t *testing.T) {
 	if err != nil {
 		t.Fatalf("config.json corrompido após falha na escrita: %v", err)
 	}
-	if *cfg != *original {
+	if !reflect.DeepEqual(*cfg, *original) {
 		t.Fatalf("config = %+v, esperado o original %+v", *cfg, *original)
 	}
 
@@ -306,11 +308,11 @@ func TestLoadESave_UsamCaminhoPadrao(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load sem arquivo: %v", err)
 	}
-	if *cfg != *padrao {
+	if !reflect.DeepEqual(*cfg, *padrao) {
 		t.Fatalf("Load sem arquivo = %+v, esperado padrão %+v", *cfg, *padrao)
 	}
 
-	salvo := &models.Config{MonitoredPath: "/salvo", OcrMode: "best", CleaningLevel: "none", AutoStart: true, Theme: "dark"}
+	salvo := &models.Config{MonitoredPath: "/salvo", OcrMode: "best", CleaningLevel: "none", AutoStart: true, Theme: "dark", OmitirTipos: []string{}}
 	if err := Save(salvo); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
@@ -318,7 +320,7 @@ func TestLoadESave_UsamCaminhoPadrao(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load depois do Save: %v", err)
 	}
-	if *cfg != *salvo {
+	if !reflect.DeepEqual(*cfg, *salvo) {
 		t.Fatalf("Load = %+v, esperado %+v", *cfg, *salvo)
 	}
 
@@ -354,5 +356,41 @@ func TestLoad_TemaPadraoEValidacao(t *testing.T) {
 		if cfg.Theme != quer {
 			t.Errorf("%s: tema %q, esperado %q", conteudo, cfg.Theme, quer)
 		}
+	}
+}
+
+func TestLoad_OmitirTiposAusenteViraVazio(t *testing.T) {
+	caminho := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(caminho, []byte(`{"ocr_mode":"fast"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := LoadFromFile(caminho)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.OmitirTipos == nil || len(cfg.OmitirTipos) != 0 {
+		t.Errorf("OmitirTipos = %#v, esperava lista vazia não nula", cfg.OmitirTipos)
+	}
+	if err := SaveToFile(caminho, cfg); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(caminho)
+	if !strings.Contains(string(b), `"omitir_tipos": []`) {
+		t.Errorf("JSON salvo sem lista vazia:\n%s", b)
+	}
+	if err := os.WriteFile(caminho, []byte(`{"omitir_tipos":["EXTR","COMP"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, _ = LoadFromFile(caminho)
+	if len(cfg.OmitirTipos) != 2 || cfg.OmitirTipos[0] != "EXTR" {
+		t.Errorf("overlay não aceitou a chave: %#v", cfg.OmitirTipos)
+	}
+	nulo := &models.Config{}
+	if err := SaveToFile(caminho, nulo); err != nil {
+		t.Fatal(err)
+	}
+	b, _ = os.ReadFile(caminho)
+	if strings.Contains(string(b), "null") {
+		t.Errorf("lista nula salva como null:\n%s", b)
 	}
 }
