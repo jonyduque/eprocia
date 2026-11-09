@@ -9,6 +9,7 @@ import (
 
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/charset"
+	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/charmap"
 )
 
@@ -21,6 +22,7 @@ func ExtractTextFromHTML(r io.Reader) (string, error) {
 	z := html.NewTokenizer(bytes.NewReader(decodificarHTML(dados)))
 	var sb strings.Builder
 	ignoreContent := false
+	profPre := 0
 
 	for {
 		tt := z.Next()
@@ -34,8 +36,15 @@ func ExtractTextFromHTML(r io.Reader) (string, error) {
 		case html.StartTagToken, html.SelfClosingTagToken:
 			t := z.Token()
 			name := strings.ToLower(t.Data)
-			if name == "script" || name == "style" || name == "head" {
+			// <head> sem </head> é válido em HTML5: o body reabre o texto. Tag
+			// autofechada não tem conteúdo a ignorar.
+			switch {
+			case name == "body":
+				ignoreContent = false
+			case (name == "script" || name == "style" || name == "head") && tt == html.StartTagToken:
 				ignoreContent = true
+			case name == "pre" && tt == html.StartTagToken:
+				profPre++
 			}
 			marcarFronteira(&sb, name, true)
 
@@ -45,10 +54,18 @@ func ExtractTextFromHTML(r io.Reader) (string, error) {
 			if name == "script" || name == "style" || name == "head" {
 				ignoreContent = false
 			}
+			if name == "pre" && profPre > 0 {
+				profPre--
+			}
 			marcarFronteira(&sb, name, false)
 
 		case html.TextToken:
-			if !ignoreContent {
+			switch {
+			case ignoreContent:
+			case profPre > 0:
+				// <pre> guarda as quebras de linha (um lançamento por linha).
+				sb.WriteString(strings.ReplaceAll(z.Token().Data, "\r\n", "\n"))
+			default:
 				sb.WriteString(colapsarEspacos(z.Token().Data))
 			}
 		}
@@ -60,8 +77,13 @@ func ExtractTextFromHTML(r io.Reader) (string, error) {
 // Windows-1252, o que o eproc costuma emitir.
 func decodificarHTML(dados []byte) []byte {
 	enc, _, certo := charset.DetermineEncoding(dados, "")
-	if !certo && !utf8.Valid(dados) {
-		enc = charmap.Windows1252
+	if !certo {
+		// DetermineEncoding só olha o primeiro 1 KB: o documento inteiro decide.
+		if utf8.Valid(dados) {
+			enc = encoding.Nop
+		} else {
+			enc = charmap.Windows1252
+		}
 	}
 	out, err := enc.NewDecoder().Bytes(dados)
 	if err != nil {

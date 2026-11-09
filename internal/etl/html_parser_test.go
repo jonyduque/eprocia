@@ -44,3 +44,28 @@ func TestExtractTextFromHTML_BrELinhaDeTabela(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestExtractTextFromHTML_UTF8SemMetaDepoisDe1KB(t *testing.T) {
+	src := "<html><head><style>" + strings.Repeat("a{color:red}", 120) + "</style></head><body><p>Contestação</p></body></html>"
+	got, err := ExtractTextFromHTML(strings.NewReader(src))
+	if err != nil || !strings.Contains(got, "Contestação") {
+		t.Fatalf("got %q, err %v", got, err)
+	}
+}
+
+func TestExtractTextFromHTML_PreMantemQuebras(t *testing.T) {
+	src := "<html><body><pre>01/01 Saque 10,00\r\n02/01 Depósito 20,00\n  03/01 Tarifa 1,00</pre></body></html>"
+	got, _ := ExtractTextFromHTML(strings.NewReader(src))
+	want := "01/01 Saque 10,00\n02/01 Depósito 20,00\n03/01 Tarifa 1,00\n"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestExtractTextFromHTML_HeadSemFechar(t *testing.T) {
+	src := "<html><head><title>x</title><body><p>Decisão</p></body></html>"
+	got, _ := ExtractTextFromHTML(strings.NewReader(src))
+	if got != "Decisão\n" {
+		t.Errorf("got %q", got)
+	}
+}
