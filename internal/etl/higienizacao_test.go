@@ -644,3 +644,22 @@ func TestMaxima_RefluiEmVezDeJuntarAPagina(t *testing.T) {
 		t.Errorf("Padrão não reflui: %q", got)
 	}
 }
+
+// O carimbo de margem cai na mesma altura de uma linha do corpo: o texto depois
+// da chancela, na mesma linha, não some.
+func TestChancela_CaudaDepoisDoCarimboFicaNoTexto(t *testing.T) {
+	carimbo := "Este documento é cópia do original, assinado digitalmente por FULANO DE TAL, protocolado em 01/02/2026 às 10:00, sob o número 12345"
+	cauda := "Requer a juntada do rol de testemunhas."
+	got := resumirChancelas(comMiolo(carimbo+" "+cauda), false)
+	if want := comMiolo("[assinado: FULANO DE TAL, 01/02/2026]", cauda); !slices.Equal(got, want) {
+		t.Errorf("com número: got %q", got)
+	}
+	got = resumirChancelas(comMiolo("Este documento é cópia do original, assinado digitalmente por FULANO DE TAL, protocolado em 01/02/2026 "+cauda), false)
+	if want := comMiolo("[assinado: FULANO DE TAL, 01/02/2026]", cauda); !slices.Equal(got, want) {
+		t.Errorf("sem número: got %q", got)
+	}
+	got = resumirChancelas(comMiolo("Documento eletrônico assinado por FULANO DE TAL, Juiz de Direito, na forma do artigo 1º, inciso III, da Lei 11.419, código CRC ABC123 "+cauda), false)
+	if want := comMiolo("[assinado: FULANO DE TAL, Juiz de Direito]", cauda); !slices.Equal(got, want) {
+		t.Errorf("eproc: got %q", got)
+	}
+}

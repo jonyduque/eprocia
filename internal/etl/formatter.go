@@ -154,22 +154,22 @@ func cleanPage(text string, level string, ctx *ctxDocumento) string {
 		}
 	}
 	// As posições continuam as de lines, as mesmas que edgeLines usa.
-	saem, marcadores := planoChancelas(lines, html)
+	saem, marcadores, caudas := planoChancelas(lines, html)
 	var vistasNaPagina []string
 	var cleanedLines []string
 	for pos, line := range lines {
 		if saem[pos] {
-			if m, ok := marcadores[pos]; ok {
+			if m, ok := marcadores[pos]; ok && !(ctx != nil && ctx.assinados[m]) {
 				if ctx != nil {
-					if ctx.assinados[m] {
-						continue
-					}
 					if ctx.assinados == nil {
 						ctx.assinados = map[string]bool{}
 					}
 					ctx.assinados[m] = true
 				}
 				cleanedLines = append(cleanedLines, m)
+			}
+			if c, ok := caudas[pos]; ok {
+				cleanedLines = append(cleanedLines, c)
 			}
 			continue
 		}

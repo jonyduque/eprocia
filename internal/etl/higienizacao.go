@@ -130,6 +130,9 @@ type trocaChancela struct {
 	inicio, fim int
 	marcador    string
 	secundaria  bool
+	// cauda é o texto que vinha depois da chancela, na mesma linha fim: fica no
+	// texto, depois do marcador.
+	cauda string
 }
 
 // grupo devolve o grupo nomeado de m, com os espaços e quebras colapsados.
@@ -164,8 +167,24 @@ func marcadorChancela(re *regexp.Regexp, m []string, html bool) string {
 	return "[assinado: " + strings.Join(partes, ", ") + "]"
 }
 
+// caudaDaLinha devolve o que sobra da linha de texto depois de fim, aparado,
+// ou "" se o casamento foi até a quebra, se não sobrou nada ou se a sobra é, por
+// si, outra chancela (o fim do carimbo de margem, por exemplo).
+func caudaDaLinha(texto string, fim int) string {
+	if fim >= len(texto) || (fim > 0 && texto[fim-1] == '\n') {
+		return ""
+	}
+	resto, _, _ := strings.Cut(texto[fim:], "\n")
+	resto = strings.TrimSpace(resto)
+	if resto == "" || ehChancela(resto) {
+		return ""
+	}
+	return resto
+}
+
 // acharChancelas procura as chancelas de H6 nas janelas de borda de linhas.
-// Cada troca cobre linhas inteiras: a linha onde o casamento termina sai toda.
+// Cada troca cobre linhas inteiras: a linha onde o casamento termina sai toda,
+// menos a cauda de texto que vem depois da chancela (trocaChancela.cauda).
 func acharChancelas(linhas []string, html bool) []trocaChancela {
 	n := len(linhas)
 	usada := make([]bool, n)
@@ -214,6 +233,7 @@ func acharChancelas(linhas []string, html bool) []trocaChancela {
 				t := trocaChancela{inicio: i, fim: fim, secundaria: c.secundaria}
 				if c.marcador {
 					t.marcador = marcadorChancela(c.re, m, html)
+					t.cauda = caudaDaLinha(texto, loc[1])
 				}
 				trocas = append(trocas, t)
 				for k := i; k <= fim; k++ {
@@ -247,7 +267,7 @@ func acharChancelas(linhas []string, html bool) []trocaChancela {
 // página (H6) por "[assinado: NOME, CARGO, DATA]" (em HTML, "[assinado: NOME]")
 // ou as apaga, conforme a família.
 func resumirChancelas(linhas []string, html bool) []string {
-	saem, marcadores := planoChancelas(linhas, html)
+	saem, marcadores, caudas := planoChancelas(linhas, html)
 	var out []string
 	for i, l := range linhas {
 		if m, ok := marcadores[i]; ok {
@@ -255,15 +275,19 @@ func resumirChancelas(linhas []string, html bool) []string {
 		} else if !saem[i] {
 			out = append(out, l)
 		}
+		if c, ok := caudas[i]; ok {
+			out = append(out, c)
+		}
 	}
 	return out
 }
 
-// planoChancelas devolve, por índice de linha, se ela sai e o marcador que
-// entra no lugar dela.
-func planoChancelas(linhas []string, html bool) ([]bool, map[int]string) {
+// planoChancelas devolve, por índice de linha, se ela sai, o marcador que entra
+// no lugar dela e a cauda de texto que fica depois da última linha da chancela.
+func planoChancelas(linhas []string, html bool) ([]bool, map[int]string, map[int]string) {
 	saem := make([]bool, len(linhas))
 	marcadores := map[int]string{}
+	caudas := map[int]string{}
 	for _, t := range acharChancelas(linhas, html) {
 		for k := t.inicio; k <= t.fim; k++ {
 			saem[k] = true
@@ -271,8 +295,11 @@ func planoChancelas(linhas []string, html bool) ([]bool, map[int]string) {
 		if t.marcador != "" {
 			marcadores[t.inicio] = t.marcador
 		}
+		if t.cauda != "" {
+			caudas[t.fim] = t.cauda
+		}
 	}
-	return saem, marcadores
+	return saem, marcadores, caudas
 }
 
 // siglasUF são as 27 siglas de unidade federativa, que H3b nunca remove.
