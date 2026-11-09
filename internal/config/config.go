@@ -6,9 +6,25 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"eprocia/internal/models"
 )
+
+// NormalizarTipos apara cada código de tipo de documento, passa para maiúsculas
+// (como etl.tipoDocumento compara) e descarta os vazios e os repetidos. Nunca
+// devolve nil.
+func NormalizarTipos(tipos []string) []string {
+	out := []string{}
+	for _, t := range tipos {
+		t = strings.ToUpper(strings.TrimSpace(t))
+		if t != "" && !slices.Contains(out, t) {
+			out = append(out, t)
+		}
+	}
+	return out
+}
 
 // DefaultConfig returns a Config struct initialized with default values.
 func DefaultConfig() (*models.Config, error) {
@@ -122,7 +138,7 @@ func LoadFromFile(path string) (*models.Config, error) {
 		cfg.Theme = *overlay.Theme
 	}
 	if overlay.OmitirTipos != nil {
-		cfg.OmitirTipos = overlay.OmitirTipos
+		cfg.OmitirTipos = NormalizarTipos(overlay.OmitirTipos)
 	}
 
 	return cfg, nil

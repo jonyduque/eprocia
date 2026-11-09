@@ -376,7 +376,7 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 				"paginas": paginasDoc[i],
 			}
 			// As chaves novas entram só aqui, antes das goroutines.
-			if tipo := tipoDocumento(files[i].DocName); slices.Contains(cfg.OmitirTipos, tipo) {
+			if tipo := tipoDocumento(files[i].DocName); tipo != "" && slices.Contains(cfg.OmitirTipos, tipo) {
 				doc["omitido"] = tipo
 				doc["total_paginas"] = contagens[i]
 				omitidos[i] = true

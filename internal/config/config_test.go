@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -392,5 +393,19 @@ func TestLoad_OmitirTiposAusenteViraVazio(t *testing.T) {
 	b, _ = os.ReadFile(caminho)
 	if strings.Contains(string(b), "null") {
 		t.Errorf("lista nula salva como null:\n%s", b)
+	}
+}
+
+func TestLoad_OmitirTiposNormalizados(t *testing.T) {
+	caminho := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(caminho, []byte(`{"omitir_tipos":["", "  ", " extr ", "EXTR", "Comp", "COMP"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := LoadFromFile(caminho)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"EXTR", "COMP"}; !slices.Equal(cfg.OmitirTipos, want) {
+		t.Errorf("OmitirTipos = %#v, esperava %#v", cfg.OmitirTipos, want)
 	}
 }

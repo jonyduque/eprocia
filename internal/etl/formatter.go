@@ -43,7 +43,8 @@ var digitosFinaisRegex = regexp.MustCompile(`\d+$`)
 func tipoDocumento(docName string) string {
 	base := strings.TrimSuffix(docName, filepath.Ext(docName))
 	base = eventPrefixRegex.ReplaceAllString(base, "")
-	return strings.ToUpper(digitosFinaisRegex.ReplaceAllString(strings.TrimSpace(base), ""))
+	base = digitosFinaisRegex.ReplaceAllString(strings.TrimSpace(base), "")
+	return strings.ToUpper(strings.TrimRight(base, " -_."))
 }
 
 // pageCountLabel renders "1 página" / "N páginas".

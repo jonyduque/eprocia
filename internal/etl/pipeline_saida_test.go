@@ -356,7 +356,11 @@ func TestTipoDocumento(t *testing.T) {
 		"Evento 1 - INIC1.pdf":   "INIC",
 		"Evento 5 - OUT10.pdf":   "OUT",
 		"EXTR.pdf":               "EXTR",
+		"Evento 1 - 123.pdf":     "",
 		"evento 2 - PET2.HTM":    "PET",
+		"Evento 3 - EXTR-2.pdf":  "EXTR",
+		"Evento 3 - EXTR 2.pdf":  "EXTR",
+		"Evento 3 - EXTR_2.pdf":  "EXTR",
 	}
 	for nome, quer := range casos {
 		if got := tipoDocumento(nome); got != quer {
