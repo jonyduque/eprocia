@@ -121,53 +121,38 @@ func repeatedEdgeLines(pages []string) map[string]bool {
 	return repeated
 }
 
-// cleanPage cleans one page according to the cleaning level (none, basic,
-// aggressive). In aggressive mode it also drops the edge lines listed in
-// repeated (see repeatedEdgeLines); only edge positions are checked, so the
-// same sentence in the middle of a page survives.
-func cleanPage(text string, level string, repeated map[string]bool) string {
-	if level == "none" {
+// cleanPage limpa uma página conforme o nível (none, basic, standard,
+// aggressive). Níveis desconhecidos valem como basic; standard vale como basic
+// até as regras dele existirem. Em aggressive também tira as bordas listadas em
+// ctx.repetidas (ver repeatedEdgeLines): só as posições de borda contam, então a
+// mesma frase no meio da página sobrevive.
+func cleanPage(text string, level string, ctx *ctxDocumento) string {
+	if level == NivelNenhum {
 		return text
 	}
+	lines := linhasBasicas(text)
+	if level != NivelMaximo {
+		return strings.Join(lines, "\n")
+	}
 
-	lines := strings.Split(text, "\n")
+	var repeated map[string]bool
+	if ctx != nil {
+		repeated = ctx.repetidas
+	}
+	dropRepeated := len(repeated) > 0
 	var cleanedLines []string
-
-	dropRepeated := level == "aggressive" && len(repeated) > 0
-	nonEmptyTotal := 0
-	if dropRepeated {
-		for _, line := range lines {
-			if strings.TrimSpace(line) != "" {
-				nonEmptyTotal++
-			}
-		}
-	}
-	pos := -1
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
+	for pos, line := range lines {
+		if isBoilerplateLine(line) {
 			continue
 		}
-		pos++
-
-		// Aggressive cleaning: drop whole-line headers/footers/signatures only.
-		if level == "aggressive" && isBoilerplateLine(trimmed) {
+		if dropRepeated && (pos < edgeLineCount || pos >= len(lines)-edgeLineCount) &&
+			repeated[normalizeEdgeLine(line)] {
 			continue
 		}
-		if dropRepeated && (pos < edgeLineCount || pos >= nonEmptyTotal-edgeLineCount) &&
-			repeated[normalizeEdgeLine(trimmed)] {
-			continue
-		}
-
-		cleanedLines = append(cleanedLines, trimmed)
+		cleanedLines = append(cleanedLines, line)
 	}
-
-	if level == "aggressive" {
-		// Compress to a single line or space-separated to maximize token savings
-		return strings.Join(cleanedLines, " ")
-	}
-	return strings.Join(cleanedLines, "\n")
+	// Junta numa linha só para economizar o máximo de tokens.
+	return strings.Join(cleanedLines, " ")
 }
 
 // EstimateTokens approximates the LLM token count of text as one token per four
@@ -294,17 +279,17 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 				return cmp.Compare(a.index, b.index)
 			})
 
-			var repeated map[string]bool
-			if cleaningLevel == "aggressive" {
+			ctx := &ctxDocumento{jaVistas: map[string]bool{}}
+			if cleaningLevel == NivelMaximo {
 				contents := make([]string, len(pages))
 				for i, p := range pages {
 					contents[i] = p.content
 				}
-				repeated = repeatedEdgeLines(contents)
+				ctx.repetidas = repeatedEdgeLines(contents)
 			}
 
 			for _, p := range pages {
-				cleanedText := cleanPage(p.content, cleaningLevel, repeated)
+				cleanedText := cleanPage(p.content, cleaningLevel, ctx)
 				sb.WriteString(fmt.Sprintf("        <pag num=\"%d\">\n", p.index))
 				sb.WriteString(cleanedText)
 				sb.WriteString("\n        </pag>\n")
