@@ -189,7 +189,7 @@ test('DESIGN.md tem a seção Movimento com tokens e reduced-motion', () => {
 // --- F-AN-04 ---------------------------------------------------------------
 
 test('overlay de soltar entra e sai com fade e a caixa cresce de 0.98', () => {
-  assert.match(app, /import \{ fade \} from 'svelte\/transition'/);
+  assert.match(app, /import \{ fade(, fly)? \} from 'svelte\/transition'/);
   assert.match(tag(app, 'class="drag-overlay"'), /transition:fade=\{\{ duration: duracaoMovimento\(DUR_FAST\) \}\}/);
   const s = estilo(app);
   assert.match(regra(s, '.overlay-box'), /animation:\s*zoomIn var\(--dur-fast\) var\(--ease-out\)/);

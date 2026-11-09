@@ -18,27 +18,40 @@ import (
 
 // QueueItem represents an item in the execution queue.
 type QueueItem struct {
-	ID              string             `json:"id"`
-	Name            string             `json:"name"`
-	Path            string             `json:"path"`
-	Status          string             `json:"status"` // "pending", "processing", "paused", "cancelled", "success", "error"
-	Progress        float64            `json:"progress"`
-	Message         string             `json:"message"`
-	OutputPath      string             `json:"output_path"`
-	DocsCount       int                `json:"docs_count"`
-	PagesCount      int                `json:"pages_count"`
-	EstimatedTokens int                `json:"estimated_tokens"`
-	ProcessedDocs   int                `json:"processed_docs"`
-	TotalDocs       int                `json:"total_docs"`
-	ProcessedPages  int                `json:"processed_pages"`
-	TotalPages      int                `json:"total_pages"`
-	Error           string             `json:"error,omitempty"`
-	Timestamp       int64              `json:"timestamp"`
-	cancel          context.CancelFunc `json:"-"`
+	ID              string  `json:"id"`
+	Name            string  `json:"name"`
+	Path            string  `json:"path"`
+	Status          string  `json:"status"` // "pending", "processing", "paused", "cancelled", "success", "error"
+	Progress        float64 `json:"progress"`
+	Message         string  `json:"message"`
+	OutputPath      string  `json:"output_path"`
+	DocsCount       int     `json:"docs_count"`
+	PagesCount      int     `json:"pages_count"`
+	EstimatedTokens int     `json:"estimated_tokens"`
+	ProcessedDocs   int     `json:"processed_docs"`
+	TotalDocs       int     `json:"total_docs"`
+	ProcessedPages  int     `json:"processed_pages"`
+	TotalPages      int     `json:"total_pages"`
+	Error           string  `json:"error,omitempty"`
+	Timestamp       int64   `json:"timestamp"`
+	// OcrMode e CleaningLevel são os da última execução do item (ou os que a
+	// próxima vai usar, num item reprocessado que ainda aguarda).
+	OcrMode       string             `json:"ocr_mode,omitempty"`
+	CleaningLevel string             `json:"cleaning_level,omitempty"`
+	cancel        context.CancelFunc `json:"-"`
+
+	// ajuste troca OCR e higienização da config global só para este item.
+	ajuste *ajusteConfig
+	// atividade guarda o estado por documento da execução atual ou da última.
+	atividade *Atividade
 
 	ultimoEnvio  time.Time   // último queue:item deste item
 	envioPend    *time.Timer // queue:item agendado pelo limitador
 	geracaoEnvio uint64      // identifica o agendamento vigente
+}
+
+type ajusteConfig struct {
+	ocrMode, cleaningLevel string
 }
 
 // Queue handles file processing sequentially in a thread-safe manner.
@@ -231,7 +244,66 @@ func copiarItem(item *QueueItem) *QueueItem {
 		TotalPages:      item.TotalPages,
 		Error:           item.Error,
 		Timestamp:       item.Timestamp,
+		OcrMode:         item.OcrMode,
+		CleaningLevel:   item.CleaningLevel,
 	}
+}
+
+// Reprocessar devolve à fila um item que já terminou, com OCR e higienização
+// próprios. A config global não muda; o .txt anterior é sobrescrito.
+func (q *Queue) Reprocessar(id, ocrMode, cleaningLevel string) error {
+	if !config.ModoOCRValido(ocrMode) {
+		return fmt.Errorf("modo de OCR inválido: %q", ocrMode)
+	}
+	if !config.LimpezaValida(cleaningLevel) {
+		return fmt.Errorf("nível de higienização inválido: %q", cleaningLevel)
+	}
+	q.mu.Lock()
+	idx := slices.IndexFunc(q.items, func(it *QueueItem) bool { return it.ID == id })
+	if idx < 0 {
+		q.mu.Unlock()
+		return fmt.Errorf("item não encontrado na fila")
+	}
+	item := q.items[idx]
+	if item.Status == "pending" || item.Status == "processing" {
+		q.mu.Unlock()
+		return fmt.Errorf("o item ainda está na fila ou em processamento")
+	}
+	pararEnvioPendente(item)
+	item.ajuste = &ajusteConfig{ocrMode: ocrMode, cleaningLevel: cleaningLevel}
+	item.OcrMode, item.CleaningLevel = ocrMode, cleaningLevel
+	item.Status = "pending"
+	item.Message = "Na fila..."
+	item.Progress = 0
+	item.Error = ""
+	item.OutputPath = ""
+	item.DocsCount, item.PagesCount, item.EstimatedTokens = 0, 0, 0
+	item.ProcessedDocs, item.TotalDocs, item.ProcessedPages, item.TotalPages = 0, 0, 0, 0
+	item.Timestamp = time.Now().UnixMilli()
+	// Vai para o topo, como um arquivo novo: a fila processa de baixo para cima.
+	q.items = slices.Delete(q.items, idx, idx+1)
+	q.items = append([]*QueueItem{item}, q.items...)
+	q.mu.Unlock()
+
+	log.Printf("[Queue] Reprocessando %s (OCR: %s, higienização: %s)", item.Name, ocrMode, cleaningLevel)
+	q.broadcast()
+	q.startProcessing()
+	return nil
+}
+
+// GetAtividade devolve o estado por documento da execução atual ou da última
+// do item, ou nil se o item não existe ou ainda não rodou.
+func (q *Queue) GetAtividade(id string) *InstantaneoAtividade {
+	q.mu.RLock()
+	var atv *Atividade
+	for _, it := range q.items {
+		if it.ID == id {
+			atv = it.atividade
+			break
+		}
+	}
+	q.mu.RUnlock()
+	return atv.Instantaneo()
 }
 
 // Pause pauses processing of the queue.
@@ -380,7 +452,12 @@ func (q *Queue) processItem(item *QueueItem) {
 	item.cancel = cancel
 	item.Status = "processing"
 	item.Message = "Iniciando..."
+	item.Progress = 0
+	item.ProcessedDocs, item.TotalDocs, item.ProcessedPages, item.TotalPages = 0, 0, 0, 0
+	atv := NovaAtividade(item.ID)
+	item.atividade = atv
 	cfg := q.cfg
+	ajuste := item.ajuste
 	q.mu.Unlock()
 
 	q.broadcast()
@@ -390,11 +467,14 @@ func (q *Queue) processItem(item *QueueItem) {
 			item.Name, progress*100, message, processedDocs, totalDocs, processedPages, totalPages)
 		q.mu.Lock()
 		if item.Status == "processing" {
-			item.Progress = progress
+			// Os documentos rodam em paralelo e o pipeline lê os contadores sem
+			// trava, então um aviso pode chegar depois de outro mais novo: os
+			// números só avançam.
+			item.Progress = max(item.Progress, progress)
 			item.Message = message
-			item.ProcessedDocs = processedDocs
+			item.ProcessedDocs = max(item.ProcessedDocs, processedDocs)
 			item.TotalDocs = totalDocs
-			item.ProcessedPages = processedPages
+			item.ProcessedPages = max(item.ProcessedPages, processedPages)
 			item.TotalPages = totalPages
 		}
 		q.mu.Unlock()
@@ -424,11 +504,24 @@ func (q *Queue) processItem(item *QueueItem) {
 		}
 	}
 
+	if ajuste != nil {
+		copia := *cfg
+		copia.OcrMode, copia.CleaningLevel = ajuste.ocrMode, ajuste.cleaningLevel
+		cfg = &copia
+	}
+	q.mu.Lock()
+	item.OcrMode, item.CleaningLevel = cfg.OcrMode, cfg.CleaningLevel
+	q.mu.Unlock()
+
 	processar := q.processar
 	if processar == nil {
-		processar = q.pipeline.ProcessZip
+		processar = func(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+			return q.pipeline.ProcessZipComAtividade(ctx, zipPath, cfg, onProgress, atv)
+		}
 	}
+	pararAtividade := q.enviarAtividade(atv)
 	outputPath, docsCount, pagesCount, tokens, err := processar(ctx, item.Path, cfg, onProgress)
+	pararAtividade()
 
 	q.mu.Lock()
 	item.cancel = nil
@@ -553,6 +646,50 @@ func pararEnvioPendente(item *QueueItem) {
 		item.envioPend = nil
 	}
 }
+
+// enviarAtividade emite queue:atividade a cada intervaloAtividade enquanto o
+// item processa, só quando algo mudou. A função devolvida para o envio e
+// manda o estado final.
+func (q *Queue) enviarAtividade(atv *Atividade) func() {
+	parar := make(chan struct{})
+	feito := make(chan struct{})
+	var enviada uint64
+	enviar := func() {
+		v := atv.Versao()
+		if v == enviada {
+			return
+		}
+		q.mu.RLock()
+		ctx := q.wailsCtx
+		q.mu.RUnlock()
+		if ctx == nil {
+			return
+		}
+		enviada = v
+		q.emitir(ctx, "queue:atividade", atv.Instantaneo())
+	}
+	go func() {
+		defer close(feito)
+		t := time.NewTicker(intervaloAtividade)
+		defer t.Stop()
+		for {
+			select {
+			case <-t.C:
+				enviar()
+			case <-parar:
+				enviar()
+				return
+			}
+		}
+	}()
+	return func() {
+		close(parar)
+		<-feito
+	}
+}
+
+// intervaloAtividade limita queue:atividade a 5 por segundo.
+var intervaloAtividade = 200 * time.Millisecond
 
 // intervaloProgresso limita queue:item a 10 por segundo por item.
 var intervaloProgresso = 100 * time.Millisecond

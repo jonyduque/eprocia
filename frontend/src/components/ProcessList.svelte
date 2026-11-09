@@ -2,6 +2,7 @@
   import Icone from './Icone.svelte';
   import Archive from 'lucide-svelte/icons/archive';
   import Check from 'lucide-svelte/icons/check';
+  import ChevronDown from 'lucide-svelte/icons/chevron-down';
   import CircleAlert from 'lucide-svelte/icons/circle-alert';
   import CircleCheck from 'lucide-svelte/icons/circle-check';
   import CirclePause from 'lucide-svelte/icons/circle-pause';
@@ -15,6 +16,7 @@
   import LoaderCircle from 'lucide-svelte/icons/loader-circle';
   import Pause from 'lucide-svelte/icons/pause';
   import Play from 'lucide-svelte/icons/play';
+  import RotateCcw from 'lucide-svelte/icons/rotate-ccw';
   import Trash2 from 'lucide-svelte/icons/trash-2';
   import X from 'lucide-svelte/icons/x';
   import {
@@ -24,8 +26,12 @@
     RemoveQueueItem,
     PauseQueue,
     ResumeQueue,
-    ClearQueue
+    ClearQueue,
+    GetQueueActivity,
+    ReprocessQueueItem
   } from '../wailsjs/go/main/App.js';
+  import AtividadeItem from './AtividadeItem.svelte';
+  import ReprocessarItem from './ReprocessarItem.svelte';
   import { onDestroy, tick } from 'svelte';
   import { fly, fade } from 'svelte/transition';
   import { flip } from 'svelte/animate';
@@ -36,6 +42,10 @@
 
   export let items = [];
   export let isPaused = false;
+  // Instantâneos de queue:atividade por id de item (App.svelte).
+  export let atividades = {};
+  // Config atual: valores iniciais do reprocessamento de itens antigos.
+  export let config = null;
 
   let filterText = '';
 
@@ -60,6 +70,51 @@
   let detalhesAbertos = {};
   function alternarDetalhes(id) {
     detalhesAbertos = { ...detalhesAbertos, [id]: !detalhesAbertos[id] };
+  }
+
+  // Painel de atividade: o item em processamento (ou já terminado, nesta
+  // sessão) mostra o que cada documento está fazendo.
+  let atividadeAberta = {};
+  let atividadesBuscadas = {};
+
+  function temAtividade(estado) {
+    return estado === 'processando' || estado === 'sucesso' || estado === 'erro' || estado === 'cancelado';
+  }
+
+  async function alternarAtividade(item) {
+    const abrir = !atividadeAberta[item.id];
+    atividadeAberta = { ...atividadeAberta, [item.id]: abrir };
+    if (!abrir || atividades[item.id]) return;
+    // O primeiro queue:atividade pode demorar até 200 ms; pede o estado atual.
+    try {
+      const inst = await GetQueueActivity(item.id);
+      atividadesBuscadas = { ...atividadesBuscadas, [item.id]: inst ?? 'nenhuma' };
+    } catch (err) {
+      console.error('Erro ao ler a atividade do item:', err);
+      atividadesBuscadas = { ...atividadesBuscadas, [item.id]: 'nenhuma' };
+    }
+  }
+
+  // 'nenhuma': item cancelado antes de começar, sem atividade registrada.
+  function atividadeDe(id, ativ, buscadas) {
+    return ativ[id] ?? buscadas[id] ?? null;
+  }
+
+  let reprocessarAberto = {};
+  function alternarReprocessar(id) {
+    reprocessarAberto = { ...reprocessarAberto, [id]: !reprocessarAberto[id] };
+  }
+
+  async function confirmarReprocessar(item, ocr, limpeza) {
+    try {
+      await ReprocessQueueItem(item.id, ocr, limpeza);
+      reprocessarAberto = { ...reprocessarAberto, [item.id]: false };
+      const { [item.id]: _, ...resto } = atividadesBuscadas;
+      atividadesBuscadas = resto;
+    } catch (err) {
+      console.error('Erro ao reprocessar:', err);
+      avisoCopia.mostrar('Erro ao reprocessar: ' + (err?.message ?? err), 'error');
+    }
   }
 
   // Cancelar/Remover/Limpar Fila somem com a linha (ou trocam de botão) quando
@@ -251,6 +306,7 @@
       <div class="items-list" bind:this={listaEl}>
         {#each filteredItems as item (item.id)}
           {@const estado = estadoItem(item.status, isPaused)}
+          {@const expansivel = temAtividade(estado)}
           <div
             class="item-row {item.status}"
             class:has-progress={estado === 'processando'}
@@ -277,10 +333,20 @@
               <span class="sr-only">{ROTULO_ESTADO[estado] ?? ''}</span>
             </div>
 
-            <!-- Name and Info -->
-            <div class="info-col">
+            <!-- Name and Info: vira botão quando há atividade para mostrar -->
+            <svelte:element
+              this={expansivel ? 'button' : 'div'}
+              type={expansivel ? 'button' : undefined}
+              role={expansivel ? 'button' : undefined}
+              class="info-col"
+              class:info-btn={expansivel}
+              aria-expanded={expansivel ? !!atividadeAberta[item.id] : undefined}
+              aria-controls={expansivel ? `atividade-${item.id}` : undefined}
+              title={expansivel ? (atividadeAberta[item.id] ? 'Ocultar a atividade dos documentos' : 'Ver a atividade dos documentos') : undefined}
+              on:click={() => { if (expansivel) alternarAtividade(item); }}
+            >
               <span class="file-name" title={item.path}>{item.name}</span>
-              <div class="details-row">
+              <span class="details-row">
                 <span class="timestamp">{formatarHora(item.timestamp)}</span>
                 {#if estado === 'sucesso'}
                   <span class="meta-badge success">
@@ -301,8 +367,13 @@
                 {:else if estado === 'erro'}
                   <span class="error-message truncate">{item.message || 'Erro no processamento'}</span>
                 {/if}
-              </div>
-            </div>
+              </span>
+              {#if expansivel}
+                <span class="chevron" class:aberto={atividadeAberta[item.id]} aria-hidden="true">
+                  <Icone icone={ChevronDown} tamanho={12} />
+                </span>
+              {/if}
+            </svelte:element>
 
             <!-- Inline Progress (only when processing) -->
             {#if estado === 'processando'}
@@ -340,6 +411,17 @@
                 </button>
               {:else if item.status === 'success' && item.output_path}
                 <div class="success-actions">
+                  <button
+                    class="btn-action"
+                    data-acao="reprocessar"
+                    on:click={() => alternarReprocessar(item.id)}
+                    title="Reprocessar com outras configurações"
+                    aria-label="Reprocessar"
+                    aria-expanded={!!reprocessarAberto[item.id]}
+                    aria-controls="reprocessar-{item.id}"
+                  >
+                    <Icone icone={RotateCcw} tamanho={14} />
+                  </button>
                   <button
                     class="btn-action"
                     data-acao="copiar"
@@ -388,6 +470,17 @@
                     </button>
                   {/if}
                   <button
+                    class="btn-action"
+                    data-acao="reprocessar"
+                    on:click={() => alternarReprocessar(item.id)}
+                    title="Reprocessar com outras configurações"
+                    aria-label="Reprocessar"
+                    aria-expanded={!!reprocessarAberto[item.id]}
+                    aria-controls="reprocessar-{item.id}"
+                  >
+                    <Icone icone={RotateCcw} tamanho={14} />
+                  </button>
+                  <button
                     class="btn-action btn-remove"
                     data-acao="remover"
                     on:click={(e) => handleRemove(item.id, e)}
@@ -408,6 +501,24 @@
                 <p class="erro-detalhe-texto">{item.message || 'Erro no processamento'}</p>
                 <p class="erro-detalhe-caminho">Arquivo: {item.path}</p>
               </div>
+            {/if}
+
+            {#if expansivel && atividadeAberta[item.id]}
+              <AtividadeItem
+                id="atividade-{item.id}"
+                atividade={atividadeDe(item.id, atividades, atividadesBuscadas)}
+                emAndamento={estado === 'processando'}
+              />
+            {/if}
+
+            {#if reprocessarAberto[item.id] && item.status !== 'pending' && item.status !== 'processing'}
+              <ReprocessarItem
+                id="reprocessar-{item.id}"
+                ocrInicial={item.ocr_mode || config?.ocr_mode || 'normal'}
+                limpezaInicial={item.cleaning_level || config?.cleaning_level || 'basic'}
+                aoConfirmar={(ocr, limpeza) => confirmarReprocessar(item, ocr, limpeza)}
+                aoCancelar={() => alternarReprocessar(item.id)}
+              />
             {/if}
           </div>
         {/each}
@@ -703,6 +814,40 @@
     min-width: 0;
   }
 
+  /* Nome e contadores viram um botão que abre a atividade dos documentos. */
+  .info-btn {
+    align-self: stretch;
+    margin: -4px 0;
+    padding: 4px 0;
+    border: none;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 3px;
+  }
+
+  .info-btn:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+
+  .chevron {
+    display: inline-flex;
+    flex-shrink: 0;
+    color: var(--text-secondary);
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+
+  .chevron.aberto {
+    transform: rotate(180deg);
+  }
+
+  .info-btn:hover .chevron {
+    color: var(--accent);
+  }
+
   .file-name {
     flex: 1 1 auto;
     min-width: 96px;
@@ -828,9 +973,9 @@
     transition: width var(--dur-base) var(--ease-out);
   }
 
-  /* Três botões de 22px (copiar, abrir, remover) sem invadir os contadores. */
+  /* Quatro botões de 22px (reprocessar, copiar, abrir, remover) sem invadir os contadores. */
   .actions-col {
-    width: 74px;
+    width: 100px;
     display: flex;
     align-items: center;
     justify-content: flex-end;

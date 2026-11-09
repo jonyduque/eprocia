@@ -26,6 +26,10 @@ export function GetQueue() {
   return window['go']['main']['App']['GetQueue']();
 }
 
+export function GetQueueActivity(arg1) {
+  return window['go']['main']['App']['GetQueueActivity'](arg1);
+}
+
 export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }
@@ -56,6 +60,10 @@ export function Quit() {
 
 export function RemoveQueueItem(arg1) {
   return window['go']['main']['App']['RemoveQueueItem'](arg1);
+}
+
+export function ReprocessQueueItem(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ReprocessQueueItem'](arg1, arg2, arg3);
 }
 
 export function ResumeQueue() {

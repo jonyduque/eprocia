@@ -41,6 +41,7 @@ describe('estados visuais', () => {
       assert.equal(store.theme, 'light');
       assert.equal((await window.go.main.App.GetQueue()).length, ESTADOS.fila.fila.length);
       assert.equal(await window.go.main.App.PauseQueue(), undefined);
+      assert.equal(await window.go.main.App.GetQueueActivity('x'), null);
       assert.equal(typeof window.runtime.EventsOnMultiple('x', () => {}, -1), 'function');
       assert.equal(window.runtime.WindowMinimise(), undefined);
     } finally {

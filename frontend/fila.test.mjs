@@ -153,11 +153,14 @@ test('linha expandida mostra a mensagem completa e o caminho, selecionáveis', (
   assert.match(css, /overflow-wrap:\s*anywhere/);
 });
 
-test('indicador da barra recolhida tem role=status e texto .sr-only', () => {
+// O indicador virou botão de ligar/desligar: o estado vai no nome acessível e
+// em aria-pressed, e a mudança é anunciada numa região viva sempre montada.
+test('indicador da barra recolhida é botão com o estado no nome e aria-pressed', () => {
   const ind = tag(app, 'class="collapsed-indicator"');
-  assert.match(ind, /role="status"/);
-  const i = app.indexOf('class="collapsed-indicator"');
-  const bloco = app.slice(i, app.indexOf('</div>', i));
-  assert.match(bloco, /<span class="sr-only">\{textoMonitoramento\}<\/span>/);
+  assert.match(ind, /type="button"/);
+  assert.match(ind, /aria-label="\{textoMonitoramento\}\. \{acaoMonitor\}"/);
+  assert.match(ind, /aria-pressed=\{monitorando\}/);
+  assert.match(ind, /on:click=\{alternarMonitoramento\}/);
+  assert.match(app, /<div class="sr-only" role="status" aria-live="polite">\{anuncio\}<\/div>/);
   assert.match(app, /\.sr-only\s*\{[^}]*clip/);
 });
