@@ -2,6 +2,7 @@ package etl
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"strings"
 	"unicode"
@@ -13,11 +14,19 @@ import (
 	"golang.org/x/text/encoding/charmap"
 )
 
+// htmlMaximo limita o HTML descomprimido que ExtractTextFromHTML guarda em
+// memória para detectar o charset: um documento do eproc tem poucos MB, e uma
+// entrada maior (bomba de ZIP) vira erro do documento.
+const htmlMaximo = 32 << 20
+
 // ExtractTextFromHTML extracts plain text from an HTML document reader, ignoring heads, scripts, and styles.
 func ExtractTextFromHTML(r io.Reader) (string, error) {
-	dados, err := io.ReadAll(r)
+	dados, err := io.ReadAll(io.LimitReader(r, htmlMaximo+1))
 	if err != nil {
 		return "", err
+	}
+	if len(dados) > htmlMaximo {
+		return "", fmt.Errorf("HTML maior que %d MiB", htmlMaximo>>20)
 	}
 	z := html.NewTokenizer(bytes.NewReader(decodificarHTML(dados)))
 	var sb strings.Builder
