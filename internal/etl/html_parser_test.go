@@ -2,6 +2,7 @@ package etl
 
 import (
 	"bytes"
+	"io"
 	"strings"
 	"testing"
 )
@@ -68,4 +69,21 @@ func TestExtractTextFromHTML_HeadSemFechar(t *testing.T) {
 	if got != "Decisão\n" {
 		t.Errorf("got %q", got)
 	}
+}
+
+// Uma entrada HTML enorme (bomba de ZIP) vira erro em vez de ocupar a memória.
+func TestExtractTextFromHTML_MaiorQueOLimiteViraErro(t *testing.T) {
+	r := io.LimitReader(zeroReader{}, htmlMaximo+2)
+	if _, err := ExtractTextFromHTML(r); err == nil || !strings.Contains(err.Error(), "maior que") {
+		t.Fatalf("esperava erro de tamanho, obtive %v", err)
+	}
+}
+
+type zeroReader struct{}
+
+func (zeroReader) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = ' '
+	}
+	return len(p), nil
 }
