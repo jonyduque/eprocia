@@ -19,8 +19,8 @@ func TestDefaultConfig(t *testing.T) {
 		t.Errorf("expected OcrMode to be 'normal', got %s", cfg.OcrMode)
 	}
 
-	if cfg.CleaningLevel != "basic" {
-		t.Errorf("expected CleaningLevel to be 'basic', got %s", cfg.CleaningLevel)
+	if cfg.CleaningLevel != "standard" {
+		t.Errorf("expected CleaningLevel to be 'standard', got %s", cfg.CleaningLevel)
 	}
 
 	if cfg.AutoStart != false {
@@ -137,8 +137,8 @@ func TestLoad_PartialJSON(t *testing.T) {
 	if cfg.OcrMode != "normal" {
 		t.Errorf("expected OcrMode to fall back to normal, got %s", cfg.OcrMode)
 	}
-	if cfg.CleaningLevel != "basic" {
-		t.Errorf("expected CleaningLevel to fall back to 'basic', got %s", cfg.CleaningLevel)
+	if cfg.CleaningLevel != "standard" {
+		t.Errorf("expected CleaningLevel to fall back to 'standard', got %s", cfg.CleaningLevel)
 	}
 	if cfg.AutoStart != false {
 		t.Errorf("expected AutoStart to fall back to false, got %t", cfg.AutoStart)
@@ -172,8 +172,41 @@ func TestLoad_EmptyFieldsFallback(t *testing.T) {
 	if cfg.MonitoredPath != def.MonitoredPath {
 		t.Errorf("expected MonitoredPath to fall back to default, got %s", cfg.MonitoredPath)
 	}
-	if cfg.CleaningLevel != "basic" {
-		t.Errorf("expected CleaningLevel to fall back to 'basic', got %s", cfg.CleaningLevel)
+	if cfg.CleaningLevel != "standard" {
+		t.Errorf("expected CleaningLevel to fall back to 'standard', got %s", cfg.CleaningLevel)
+	}
+}
+
+func TestLimpezaValida_QuatroNiveis(t *testing.T) {
+	for _, nivel := range []string{"none", "basic", "standard", "aggressive"} {
+		if !LimpezaValida(nivel) {
+			t.Errorf("LimpezaValida(%q) = false, esperado true", nivel)
+		}
+	}
+	for _, nivel := range []string{"maxima", ""} {
+		if LimpezaValida(nivel) {
+			t.Errorf("LimpezaValida(%q) = true, esperado false", nivel)
+		}
+	}
+}
+
+func TestLoad_ConfigAntigoMantemNivel(t *testing.T) {
+	casos := map[string]string{
+		`{"cleaning_level":"aggressive"}`: "aggressive",
+		`{"cleaning_level":"basic"}`:      "basic",
+	}
+	for conteudo, quer := range casos {
+		caminho := filepath.Join(t.TempDir(), "config.json")
+		if err := os.WriteFile(caminho, []byte(conteudo), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := LoadFromFile(caminho)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.CleaningLevel != quer {
+			t.Errorf("%s: nível %q, esperado %q", conteudo, cfg.CleaningLevel, quer)
+		}
 	}
 }
 

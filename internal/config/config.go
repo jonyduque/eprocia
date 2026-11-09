@@ -23,7 +23,7 @@ func DefaultConfig() (*models.Config, error) {
 	return &models.Config{
 		MonitoredPath:   monitoredPath,
 		OcrMode:         "normal",
-		CleaningLevel:   "basic",
+		CleaningLevel:   "standard",
 		AutoStart:       false,
 		WatchdogEnabled: true,
 		Theme:           "system",
@@ -42,7 +42,7 @@ func ModoOCRValido(m string) bool {
 
 // LimpezaValida diz se l é um dos níveis de higienização do formatter.
 func LimpezaValida(l string) bool {
-	return l == "none" || l == "basic" || l == "aggressive"
+	return l == "none" || l == "basic" || l == "standard" || l == "aggressive"
 }
 
 // GetConfigPath returns the default path to the config.json file.
