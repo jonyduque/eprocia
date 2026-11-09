@@ -397,31 +397,39 @@ func listarPaginas(reader *pdf.Reader, numPages int) (paginas []pdf.Page, errRes
 // textoIlegivel reports whether the native text is garbage: at least 20
 // non-space runes and either fewer than 40% letters, digits or marks, or more
 // than 10 control runes (other than newline and tab). Runs of 3 or more equal
-// filler runes (signature lines, dotted leaders, separators) are ignored.
+// filler runes (optionally split by single spaces) (signature lines, dotted leaders, separators) are ignored.
 func textoIlegivel(s string) bool {
 	runas := []rune(s)
 	var visiveis, legiveis, controle int
 	for i := 0; i < len(runas); {
 		r := runas[i]
-		j := i
-		for j < len(runas) && runas[j] == r {
-			j++
+		// A run is the same rune repeated, optionally split by single spaces.
+		j, n := i+1, 1
+		for j < len(runas) {
+			if runas[j] == r {
+				j++
+				n++
+			} else if runas[j] == ' ' && j+1 < len(runas) && runas[j+1] == r {
+				j += 2
+				n++
+			} else {
+				break
+			}
 		}
-		if j-i >= 3 && strings.ContainsRune("_.-=*~•", r) {
+		if n >= 3 && strings.ContainsRune("_.-=*~•", r) {
 			i = j
 			continue
 		}
-		for ; i < j; i++ {
-			switch {
-			case unicode.IsSpace(r):
-				continue
-			case unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.IsMark(r):
-				legiveis++
-			case unicode.IsControl(r):
-				controle++
-			}
-			visiveis++
+		i++
+		switch {
+		case unicode.IsSpace(r):
+			continue
+		case unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.IsMark(r):
+			legiveis++
+		case unicode.IsControl(r):
+			controle++
 		}
+		visiveis++
 	}
 	if visiveis < 20 {
 		return false

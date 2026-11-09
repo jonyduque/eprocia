@@ -47,6 +47,10 @@ func TestTextoIlegivel_PreenchimentoLegitimo(t *testing.T) {
 			"Do direito " + strings.Repeat(".", 29) + " 9",
 			"Conclusão " + strings.Repeat(".", 30) + " 12",
 		}, "\n"),
+		"intercalado": strings.Join([]string{
+			"Assinatura: " + strings.Repeat("_ ", 30), "Fulano",
+			"Assinatura: " + strings.Repeat("_ ", 30), "Data: " + strings.Repeat(". ", 10),
+		}, "'+chr(92)+'n"),
 		"separadores": strings.Join([]string{
 			strings.Repeat("-", 40), strings.Repeat("=", 40), "ANEXO I",
 			strings.Repeat("*", 40), strings.Repeat("-", 40),
@@ -119,5 +123,12 @@ func TestParsePages_IlegivelComOCRFalhoViraMarcador(t *testing.T) {
 	pag := pages["1"].(map[string]any)
 	if pag["content"] != marcadorIlegivel(strings.Repeat("x", 150)) {
 		t.Errorf("conteúdo = %q, quero o marcador", pag["content"])
+	}
+}
+
+func TestTextoIlegivel_SimbolosRepetidosEmLinhas(t *testing.T) {
+	linha := strings.Repeat("#$%&*@", 2)
+	if !textoIlegivel(strings.Join([]string{linha, linha, linha}, "'+chr(92)+'n")) {
+		t.Error("símbolos repetidos em várias linhas deveriam ser ilegíveis")
 	}
 }
