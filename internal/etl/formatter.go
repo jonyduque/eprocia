@@ -182,27 +182,67 @@ func cleanPage(text string, level string, ctx *ctxDocumento) string {
 // página para entrar na detecção de duplicatas (H7).
 const duplicadaMinRunas = 200
 
-// origemPagina identifica a primeira ocorrência de um conteúdo.
+// chaveDoc identifica um documento pelo evento e pelo índice (o nome pode repetir).
+type chaveDoc struct{ evento, doc int }
+
+// origemPagina identifica a primeira ocorrência de um conteúdo; nome é o nome
+// curto do documento (summaryDocName), usado só no texto da referência.
 type origemPagina struct {
-	evento int
-	doc    string
-	pag    int
+	chaveDoc
+	nome string
+	pag  int
 }
 
 // chavePagina localiza uma página na saída: evento, índice do documento e da página.
 type chavePagina struct{ evento, doc, pag int }
 
-func (o origemPagina) mesmoDoc(p origemPagina) bool {
-	return o.evento == p.evento && o.doc == p.doc
-}
-
 // refPagina e refDocumento são os marcadores que H7 deixa no lugar do texto.
 func (o origemPagina) refPagina() string {
-	return fmt.Sprintf("[conteúdo idêntico a: evento %d, %s, pág. %d]", o.evento, o.doc, o.pag)
+	return fmt.Sprintf("[conteúdo idêntico a: evento %d, %s, pág. %d]", o.evento, o.nome, o.pag)
 }
 
-func (o origemPagina) refDocumento() string {
-	return fmt.Sprintf("[documento idêntico a: evento %d, %s]", o.evento, o.doc)
+func refDocumento(evento int, nome string) string {
+	return fmt.Sprintf("[documento idêntico a: evento %d, %s]", evento, nome)
+}
+
+// paginaOrdenada e docOrdenado guardam a ordem de saída: documentos por index
+// dentro do evento e páginas por index dentro do documento.
+type paginaOrdenada struct {
+	index   int
+	content string
+}
+
+type docOrdenado struct {
+	nome    string
+	index   int
+	paginas []paginaOrdenada
+}
+
+// documentosOrdenados devolve os documentos de um evento, e as páginas de cada
+// um, na ordem de saída. É a única fonte dessa ordem.
+func documentosOrdenados(evData map[string]any) []docOrdenado {
+	var docs []docOrdenado
+	for _, val := range evData["documentos"].(map[string]any) {
+		dData := val.(map[string]any)
+		d := docOrdenado{nome: dData["nome"].(string), index: dData["index"].(int)}
+		for _, pv := range dData["paginas"].(map[string]any) {
+			pData := pv.(map[string]any)
+			// Campos ausentes são tolerados.
+			c, _ := pData["content"].(string)
+			d.paginas = append(d.paginas, paginaOrdenada{pData["index"].(int), c})
+		}
+		slices.SortFunc(d.paginas, func(a, b paginaOrdenada) int { return cmp.Compare(a.index, b.index) })
+		docs = append(docs, d)
+	}
+	slices.SortFunc(docs, func(a, b docOrdenado) int { return cmp.Compare(a.index, b.index) })
+	return docs
+}
+
+// duplicadasH7 é o resultado da pré-passada: páginas repetidas e documentos
+// idênticos, por inteiro, a um documento anterior.
+type duplicadasH7 struct {
+	paginas    map[chavePagina]origemPagina
+	documentos map[chaveDoc]origemPagina // origemPagina.pag não é usado
 }
 
 // chaveConteudo é o sha256 das linhas básicas unidas por espaço; "" quando a
@@ -217,50 +257,49 @@ func chaveConteudo(content string) string {
 }
 
 // duplicadasPorConteudo percorre eventos, documentos e páginas na ordem de saída
-// e devolve, para cada página repetida, a origem da primeira ocorrência.
-func duplicadasPorConteudo(eventos map[string]any, eventNums []int) map[chavePagina]origemPagina {
+// e devolve, para cada página repetida, a origem da primeira ocorrência. Um
+// documento só é idêntico a outro se tem o mesmo número de páginas e a página i
+// de um tem a mesma chave da página i do outro, para todo i (e todas longas).
+func duplicadasPorConteudo(eventos map[string]any, eventNums []int) duplicadasH7 {
 	primeiras := map[string]origemPagina{}
-	dups := map[chavePagina]origemPagina{}
+	chavesDoc := map[chaveDoc][]string{}
+	nomes := map[chaveDoc]string{}
+	res := duplicadasH7{
+		paginas:    map[chavePagina]origemPagina{},
+		documentos: map[chaveDoc]origemPagina{},
+	}
 	for _, num := range eventNums {
-		evData := eventos[fmt.Sprintf("%d", num)].(map[string]any)
-		type docOrd struct {
-			nome    string
-			index   int
-			paginas map[string]any
-		}
-		var docs []docOrd
-		for _, val := range evData["documentos"].(map[string]any) {
-			dData := val.(map[string]any)
-			docs = append(docs, docOrd{dData["nome"].(string), dData["index"].(int), dData["paginas"].(map[string]any)})
-		}
-		slices.SortFunc(docs, func(a, b docOrd) int { return cmp.Compare(a.index, b.index) })
-		for _, d := range docs {
+		for _, d := range documentosOrdenados(eventos[fmt.Sprintf("%d", num)].(map[string]any)) {
+			cd := chaveDoc{num, d.index}
 			nomeCurto := summaryDocName(d.nome)
-			type pagOrd struct {
-				index   int
-				content string
-			}
-			var pags []pagOrd
-			for _, val := range d.paginas {
-				pData := val.(map[string]any)
-				c, _ := pData["content"].(string)
-				pags = append(pags, pagOrd{pData["index"].(int), c})
-			}
-			slices.SortFunc(pags, func(a, b pagOrd) int { return cmp.Compare(a.index, b.index) })
-			for _, p := range pags {
+			nomes[cd] = nomeCurto
+			chaves := make([]string, len(d.paginas))
+			todasDup := len(d.paginas) > 0
+			for i, p := range d.paginas {
 				chave := chaveConteudo(p.content)
+				chaves[i] = chave
 				if chave == "" {
+					todasDup = false
 					continue
 				}
 				if o, ok := primeiras[chave]; ok {
-					dups[chavePagina{num, d.index, p.index}] = o
+					res.paginas[chavePagina{num, d.index, p.index}] = o
 				} else {
-					primeiras[chave] = origemPagina{num, nomeCurto, p.index}
+					primeiras[chave] = origemPagina{cd, nomeCurto, p.index}
+					todasDup = false
 				}
+			}
+			chavesDoc[cd] = chaves
+			if !todasDup {
+				continue
+			}
+			origem := res.paginas[chavePagina{num, d.index, d.paginas[0].index}].chaveDoc
+			if slices.Equal(chavesDoc[origem], chaves) {
+				res.documentos[cd] = origemPagina{chaveDoc: origem, nome: nomes[origem]}
 			}
 		}
 	}
-	return dups
+	return res
 }
 
 // EstimateTokens approximates the LLM token count of text as one token per four
@@ -339,95 +378,45 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 	sb.Reset()
 
 	// H7: na Padrão e na Máxima, páginas de 200+ runas com o mesmo conteúdo
-	// (após linhasBasicas) viram referência à primeira ocorrência, na ordem de saída.
-	var duplicadas map[chavePagina]origemPagina
+	// (após linhasBasicas) viram referência à primeira ocorrência, e o documento
+	// idêntico a outro, página a página, vira uma referência só.
+	var h7 duplicadasH7
 	if cleaningLevel == NivelPadrao || cleaningLevel == NivelMaximo {
-		duplicadas = duplicadasPorConteudo(eventos, eventNums)
+		h7 = duplicadasPorConteudo(eventos, eventNums)
 	}
 
 	// Loop over each Event chronologically
 	for _, num := range eventNums {
-		eventKey := fmt.Sprintf("%d", num)
-		evData := eventos[eventKey].(map[string]any)
+		evData := eventos[fmt.Sprintf("%d", num)].(map[string]any)
 		sb.WriteString(fmt.Sprintf("<evento num=\"%d\">\n", num))
 
-		documentosMap := evData["documentos"].(map[string]any)
-		type docEntry struct {
-			nome    string
-			index   int
-			paginas map[string]any
-		}
-		var docs []docEntry
-		for _, val := range documentosMap {
-			dData := val.(map[string]any)
-			docs = append(docs, docEntry{
-				nome:    dData["nome"].(string),
-				index:   dData["index"].(int),
-				paginas: dData["paginas"].(map[string]any),
-			})
-		}
-		slices.SortFunc(docs, func(a, b docEntry) int {
-			return cmp.Compare(a.index, b.index)
-		})
-
-		for _, d := range docs {
+		for _, d := range documentosOrdenados(evData) {
 			sb.WriteString(fmt.Sprintf("    <documento index=\"%d\" nome=\"%s\">\n", d.index, escapeAttr(d.nome)))
 
-			// Sort pages of this document numerically
-			type pageEntry struct {
-				index   int
-				content string
+			if o, ok := h7.documentos[chaveDoc{num, d.index}]; ok {
+				sb.WriteString("        ")
+				sb.WriteString(refDocumento(o.evento, o.nome))
+				sb.WriteString("\n    </documento>\n")
+				continue
 			}
-			var pages []pageEntry
-			for _, val := range d.paginas {
-				pData := val.(map[string]any)
-
-				// Handle potential missing fields gracefully
-				contentVal, _ := pData["content"].(string)
-
-				pages = append(pages, pageEntry{
-					index:   pData["index"].(int),
-					content: contentVal,
-				})
-			}
-			slices.SortFunc(pages, func(a, b pageEntry) int {
-				return cmp.Compare(a.index, b.index)
-			})
 
 			ext := strings.ToLower(filepath.Ext(d.nome))
 			ctx := &ctxDocumento{jaVistas: map[string]bool{}, html: ext == ".html" || ext == ".htm"}
 			if cleaningLevel == NivelPadrao || cleaningLevel == NivelMaximo {
-				contents := make([]string, len(pages))
-				for i, p := range pages {
+				contents := make([]string, len(d.paginas))
+				for i, p := range d.paginas {
 					contents[i] = p.content
 				}
 				ctx.repetidas = repeatedEdgeLines(contents)
 			}
 
-			// Documento cujas páginas são todas duplicatas de um mesmo documento
-			// de origem: o corpo inteiro vira uma referência só.
-			if len(duplicadas) > 0 && len(pages) > 0 {
-				var origem origemPagina
-				todas := true
-				for i, p := range pages {
-					o, ok := duplicadas[chavePagina{num, d.index, p.index}]
-					if !ok || (i > 0 && !o.mesmoDoc(origem)) {
-						todas = false
-						break
-					}
-					origem = o
-				}
-				if todas {
-					sb.WriteString("        ")
-					sb.WriteString(origem.refDocumento())
-					sb.WriteString("\n    </documento>\n")
-					continue
-				}
-			}
-
-			for _, p := range pages {
+			for _, p := range d.paginas {
+				// cleanPage roda também nas duplicadas, e o resultado é descartado,
+				// de propósito: o estado do documento (timbre em jaVistas, marcadores
+				// em assinados) tem de avançar como se a página tivesse saído, porque
+				// o texto já apareceu na origem.
 				cleanedText := cleanPage(p.content, cleaningLevel, ctx)
-				if o, ok := duplicadas[chavePagina{num, d.index, p.index}]; ok {
+				if o, ok := h7.paginas[chavePagina{num, d.index, p.index}]; ok {
 					cleanedText = o.refPagina()
 				}
 				sb.WriteString(fmt.Sprintf("        <pag num=\"%d\">\n", p.index))

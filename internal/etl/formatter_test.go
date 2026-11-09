@@ -535,6 +535,56 @@ func TestDuplicadas_DocumentoDeOrigensDiferentesNaoColapsa(t *testing.T) {
 	}
 }
 
+// Documento só colapsa se for idêntico página a página: mesma quantidade e mesma ordem.
+func TestDuplicadas_DocumentoNaoIdenticoNaoColapsa(t *testing.T) {
+	a, b := textoLongo("a", 250), textoLongo("b", 250)
+	casos := map[string][]string{
+		"fora de ordem":   {b, a},
+		"pagina repetida": {a, a},
+		"pagina a menos":  {a},
+	}
+	for nome, segundo := range casos {
+		saida, _ := GenerateConsolidatedOutput(eventosDocs([]string{a, b}, segundo), NivelPadrao)
+		if strings.Contains(saida, "documento idêntico") {
+			t.Errorf("%s: documento não idêntico colapsou:\n%s", nome, saida)
+		}
+		if !strings.Contains(saida, "[conteúdo idêntico a: evento 1, DOC1, pág. ") {
+			t.Errorf("%s: as páginas deviam virar referência por página:\n%s", nome, saida)
+		}
+	}
+}
+
+// Dois documentos de mesmo nome no mesmo evento são origens distintas.
+func TestDuplicadas_MesmoNomeNoMesmoEventoNaoSeConfunde(t *testing.T) {
+	a, b := textoLongo("a", 250), textoLongo("b", 250)
+	doc := func(idx int, paginas ...string) map[string]any {
+		pags := map[string]any{}
+		for j, c := range paginas {
+			pags[strconv.Itoa(j+1)] = map[string]any{"index": j + 1, "ocr": false, "content": c}
+		}
+		return map[string]any{"index": idx, "nome": "Evento 1 - ANEXO.pdf", "paginas": pags}
+	}
+	eventos := map[string]any{"1": map[string]any{"index": 1, "documentos": map[string]any{
+		"x": doc(1, a), "y": doc(2, b), "z": doc(3, a, b),
+	}}}
+	saida, _ := GenerateConsolidatedOutput(eventos, NivelPadrao)
+	if strings.Contains(saida, "documento idêntico") {
+		t.Errorf("origens em documentos diferentes (mesmo nome) não colapsam:\n%s", saida)
+	}
+}
+
+// A página duplicada não imprime o timbre, mas ele já saiu na origem: a página
+// seguinte, não duplicada, continua sem ele.
+func TestDuplicadas_PaginaDuplicadaConsomeOTimbre(t *testing.T) {
+	timbre := "ESCRITÓRIO MODELO ADVOGADOS\nOAB/SP 000.000"
+	dupl := pg(timbre, textoLongo("repetida", 250), "")
+	saida, _ := GenerateConsolidatedOutput(docPadrao(
+		pg(timbre, "um", ""), dupl, dupl, pg(timbre, "quatro", "")), NivelPadrao)
+	if p := pagina(t, saida, 4); strings.Contains(p, "ESCRITÓRIO") {
+		t.Errorf("o timbre já apareceu na pág. 1: %q", p)
+	}
+}
+
 func TestDuplicadas_UmDigitoDiferenteNaoColapsa(t *testing.T) {
 	base := textoLongo("valor", 250)
 	saida, _ := GenerateConsolidatedOutput(eventosDocs(
