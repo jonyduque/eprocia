@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"golang.org/x/net/html"
@@ -26,8 +27,7 @@ func ExtractTextFromHTML(r io.Reader) (string, error) {
 		switch tt {
 		case html.ErrorToken:
 			if z.Err() == io.EOF {
-				// Normalize multiple newlines and spaces to save tokens
-				return sb.String(), nil
+				return normalizarLinhas(sb.String()), nil
 			}
 			return "", z.Err()
 
@@ -37,6 +37,7 @@ func ExtractTextFromHTML(r io.Reader) (string, error) {
 			if name == "script" || name == "style" || name == "head" {
 				ignoreContent = true
 			}
+			marcarFronteira(&sb, name, true)
 
 		case html.EndTagToken:
 			t := z.Token()
@@ -44,14 +45,11 @@ func ExtractTextFromHTML(r io.Reader) (string, error) {
 			if name == "script" || name == "style" || name == "head" {
 				ignoreContent = false
 			}
+			marcarFronteira(&sb, name, false)
 
 		case html.TextToken:
 			if !ignoreContent {
-				text := strings.TrimSpace(z.Token().Data)
-				if text != "" {
-					sb.WriteString(text)
-					sb.WriteString("\n")
-				}
+				sb.WriteString(colapsarEspacos(z.Token().Data))
 			}
 		}
 	}
@@ -70,4 +68,55 @@ func decodificarHTML(dados []byte) []byte {
 		return dados
 	}
 	return out
+}
+
+// elementosDeBloco quebram a linha ao abrir e ao fechar.
+var elementosDeBloco = map[string]bool{
+	"p": true, "div": true, "br": true, "tr": true, "li": true, "table": true,
+	"h1": true, "h2": true, "h3": true, "h4": true, "h5": true, "h6": true,
+	"section": true, "article": true, "blockquote": true, "pre": true, "hr": true,
+}
+
+// colapsarEspacos troca cada sequência de espaços e quebras do fonte por um
+// espaço só, mantendo o espaço das bordas: texto inline segue na mesma linha.
+func colapsarEspacos(d string) string {
+	f := strings.Fields(d)
+	if len(f) == 0 {
+		if d == "" {
+			return ""
+		}
+		return " "
+	}
+	out := strings.Join(f, " ")
+	if r, _ := utf8.DecodeRuneInString(d); unicode.IsSpace(r) {
+		out = " " + out
+	}
+	if r, _ := utf8.DecodeLastRuneInString(d); unicode.IsSpace(r) {
+		out += " "
+	}
+	return out
+}
+
+// marcarFronteira escreve a quebra de linha (elemento de bloco) ou o espaço
+// (célula de tabela) que a tag representa.
+func marcarFronteira(sb *strings.Builder, nome string, abertura bool) {
+	switch {
+	case elementosDeBloco[nome]:
+		sb.WriteByte('\n')
+	case abertura && (nome == "td" || nome == "th"):
+		sb.WriteByte(' ')
+	}
+}
+
+// normalizarLinhas aplica trim a cada linha e descarta as vazias, de modo que
+// sequências de quebras viram uma só. Texto não vazio termina em "\n".
+func normalizarLinhas(s string) string {
+	var out strings.Builder
+	for l := range strings.SplitSeq(s, "\n") {
+		if l = strings.TrimSpace(l); l != "" {
+			out.WriteString(l)
+			out.WriteByte('\n')
+		}
+	}
+	return out.String()
 }

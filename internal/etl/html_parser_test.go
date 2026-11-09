@@ -28,3 +28,19 @@ func TestExtractTextFromHTML_UTF8Intacto(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestExtractTextFromHTML_InlineNaMesmaLinha(t *testing.T) {
+	got, _ := ExtractTextFromHTML(strings.NewReader(
+		"<div><b>AUTOR</b><span>:</span> <span>FULANO DE TAL</span></div><p>Segunda linha</p>"))
+	if strings.TrimSpace(got) != "AUTOR: FULANO DE TAL\nSegunda linha" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestExtractTextFromHTML_BrELinhaDeTabela(t *testing.T) {
+	got, _ := ExtractTextFromHTML(strings.NewReader(
+		"<p>um<br>dois</p><table><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></table>"))
+	if strings.TrimSpace(got) != "um\ndois\na b\nc d" {
+		t.Fatalf("got %q", got)
+	}
+}
