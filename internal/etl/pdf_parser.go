@@ -473,24 +473,51 @@ func HasDrawnContent(page pdf.Page) (drawn bool) {
 	return false
 }
 
-// checkContentStream verifies that the page content is a single, fully readable
-// stream. The PDF library only interprets that shape: for a /Contents array
-// (valid PDF, emitted e.g. by "Microsoft: Print To PDF"), a missing /Contents or
-// a corrupt stream, its lexer swallows the read error and spins forever.
-func checkContentStream(page pdf.Page) error {
+// checkContentStream verifies that the page content is a fully readable stream
+// or array of streams, and reports whether it is a single stream. The library's
+// lexer swallows read errors and spins forever, so nothing may interpret a
+// missing /Contents or a corrupt stream; GetTextByRow (which interprets
+// /Contents as a whole) also spins on an array, which extrairTextoPosicional
+// reads stream by stream.
+func checkContentStream(page pdf.Page) (unico bool, err error) {
 	contents := page.V.Key("Contents")
-	if contents.Kind() != pdf.Stream {
-		return fmt.Errorf("conteúdo da página não é um stream único (kind %v)", contents.Kind())
+	streams := []pdf.Value{contents}
+	if contents.Kind() == pdf.Array {
+		streams = streams[:0]
+		for i := 0; i < contents.Len(); i++ {
+			streams = append(streams, contents.Index(i))
+		}
 	}
-	rc := contents.Reader()
-	defer rc.Close()
-	if _, err := io.Copy(io.Discard, rc); err != nil {
-		return fmt.Errorf("stream de conteúdo ilegível: %w", err)
+	if len(streams) == 0 {
+		return false, fmt.Errorf("conteúdo da página é um array vazio")
 	}
-	return nil
+	for _, s := range streams {
+		if s.Kind() != pdf.Stream {
+			return false, fmt.Errorf("conteúdo da página não é stream (kind %v)", s.Kind())
+		}
+		rc := s.Reader()
+		_, err := io.Copy(io.Discard, rc)
+		rc.Close()
+		if err != nil {
+			return false, fmt.Errorf("stream de conteúdo ilegível: %w", err)
+		}
+	}
+	return contents.Kind() == pdf.Stream, nil
 }
 
-// ExtractNativeText extracts plain text from a pdf.Page using GetTextByRow as preferred layout option.
+// textoPosicionalSeguro roda extrairTextoPosicional com o pânico confinado,
+// para que ExtractNativeText ainda possa voltar ao GetTextByRow.
+func textoPosicionalSeguro(page pdf.Page) (text string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			text, err = "", fmt.Errorf("pânico no extrator posicional: %v", r)
+		}
+	}()
+	return extrairTextoPosicional(page)
+}
+
+// ExtractNativeText extracts plain text from a pdf.Page with extrairTextoPosicional,
+// falling back to GetTextByRow when it panics or finds no text.
 // Pages the PDF library cannot interpret yield an error (never a hang or a panic),
 // so the caller treats them as having no native text and may fall back to OCR.
 func ExtractNativeText(page pdf.Page) (text string, err error) {
@@ -502,9 +529,22 @@ func ExtractNativeText(page pdf.Page) (text string, err error) {
 		}
 	}()
 
-	if err := checkContentStream(page); err != nil {
+	unico, err := checkContentStream(page)
+	if err != nil {
 		log.Printf("[PDFParser] Extração nativa ignorada: %v", err)
 		return "", err
+	}
+
+	text, errPos := textoPosicionalSeguro(page)
+	if errPos == nil && strings.TrimSpace(text) != "" {
+		return text, nil
+	}
+	if errPos != nil {
+		log.Printf("[PDFParser] Extrator posicional falhou: %v", errPos)
+	}
+	if !unico {
+		// GetTextByRow gira para sempre num /Contents em array.
+		return "", errPos
 	}
 
 	log.Printf("[PDFParser] Chamando page.GetTextByRow()...")
