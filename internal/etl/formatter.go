@@ -310,7 +310,7 @@ func EstimateTokens(text string) int {
 
 // tokensLine renders the <contexto> line that carries the token estimate.
 func tokensLine(n int) string {
-	return fmt.Sprintf("    Tokens estimados: %d\n", n)
+	return fmt.Sprintf("Tokens estimados: %d\n", n)
 }
 
 // GenerateConsolidatedOutput formats all extracted process data into structured
@@ -337,11 +337,11 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 
 	// Header/Context info block
 	sb.WriteString("<contexto>\n")
-	sb.WriteString("    PROCESSO JUDICIAL - ORDEM CRONOLÓGICA\n")
-	sb.WriteString(fmt.Sprintf("    Total de Documentos: %d\n", totalDocs))
-	sb.WriteString(fmt.Sprintf("    Data de Consolidação: %s\n", time.Now().Format("02/01/2006 15:04:05")))
+	sb.WriteString("PROCESSO JUDICIAL - ORDEM CRONOLÓGICA\n")
+	sb.WriteString(fmt.Sprintf("Total de Documentos: %d\n", totalDocs))
+	sb.WriteString(fmt.Sprintf("Data de Consolidação: %s\n", time.Now().Format("02/01/2006 15:04:05")))
 	tokensAt := sb.Len()
-	sb.WriteString("\n    <summary>\n")
+	sb.WriteString("\n<summary>\n")
 
 	// Sort events and documents to build the summary block
 	for _, num := range eventNums {
@@ -369,10 +369,10 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 		})
 
 		for _, d := range docs {
-			sb.WriteString(fmt.Sprintf("    - Evento %d - %s: %s\n", num, summaryDocName(d.nome), pageCountLabel(d.pages)))
+			sb.WriteString(fmt.Sprintf("- Evento %d - %s: %s\n", num, summaryDocName(d.nome), pageCountLabel(d.pages)))
 		}
 	}
-	sb.WriteString("    </summary>\n")
+	sb.WriteString("</summary>\n")
 	sb.WriteString("</contexto>\n\n")
 	header := sb.String()
 	sb.Reset()
@@ -391,12 +391,11 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 		sb.WriteString(fmt.Sprintf("<evento num=\"%d\">\n", num))
 
 		for _, d := range documentosOrdenados(evData) {
-			sb.WriteString(fmt.Sprintf("    <documento index=\"%d\" nome=\"%s\">\n", d.index, escapeAttr(d.nome)))
+			sb.WriteString(fmt.Sprintf("<documento index=\"%d\" nome=\"%s\">\n", d.index, escapeAttr(d.nome)))
 
 			if o, ok := h7.documentos[chaveDoc{num, d.index}]; ok {
-				sb.WriteString("        ")
 				sb.WriteString(refDocumento(o.evento, o.nome))
-				sb.WriteString("\n    </documento>\n")
+				sb.WriteString("\n</documento>\n")
 				continue
 			}
 
@@ -410,6 +409,8 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 				ctx.repetidas = repeatedEdgeLines(contents)
 			}
 
+			// Limpa todas as páginas na ordem; só as que têm conteúdo saem.
+			var saem []paginaOrdenada
 			for _, p := range d.paginas {
 				// cleanPage roda também nas duplicadas, e o resultado é descartado,
 				// de propósito: o estado do documento (timbre em jaVistas, marcadores
@@ -419,11 +420,25 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 				if o, ok := h7.paginas[chavePagina{num, d.index, p.index}]; ok {
 					cleanedText = o.refPagina()
 				}
-				sb.WriteString(fmt.Sprintf("        <pag num=\"%d\">\n", p.index))
-				sb.WriteString(cleanedText)
-				sb.WriteString("\n        </pag>\n")
+				if strings.TrimSpace(cleanedText) == "" {
+					continue
+				}
+				saem = append(saem, paginaOrdenada{p.index, cleanedText})
 			}
-			sb.WriteString("    </documento>\n")
+			switch len(saem) {
+			case 0:
+			case 1:
+				// Documento de uma página: o conteúdo vai direto, sem <pag>.
+				sb.WriteString(saem[0].content)
+				sb.WriteString("\n")
+			default:
+				for _, p := range saem {
+					sb.WriteString(fmt.Sprintf("<pag n=\"%d\">\n", p.index))
+					sb.WriteString(p.content)
+					sb.WriteString("\n</pag>\n")
+				}
+			}
+			sb.WriteString("</documento>\n")
 		}
 		sb.WriteString("</evento>\n")
 	}

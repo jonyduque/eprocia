@@ -195,8 +195,12 @@ func TestGenerateConsolidatedOutput(t *testing.T) {
 	if !strings.Contains(output, "<documento index=\"1\" nome=\"Evento 1 - INIC1.pdf\">") || !strings.Contains(output, "</documento>") {
 		t.Error("missing <documento> tag for Evento 1")
 	}
-	if !strings.Contains(output, "<pag num=\"2\">") || !strings.Contains(output, "</pag>") {
-		t.Error("missing <pag num=\"2\"> tag")
+	if !strings.Contains(output, "<pag n=\"2\">") || !strings.Contains(output, "</pag>") {
+		t.Error("missing <pag n=\"2\"> tag")
+	}
+	// o evento 2 tem uma página só: sem <pag>
+	if n := strings.Count(output, "<pag "); n != 2 {
+		t.Errorf("esperava 2 tags <pag> (só o documento de 2 páginas), obteve %d:\n%s", n, output)
 	}
 	if !strings.Contains(output, "Initial petition text page 2") {
 		t.Error("missing page content")
@@ -227,7 +231,7 @@ func TestGenerateConsolidatedOutput_SummaryLineFormat(t *testing.T) {
 
 	output, _ := GenerateConsolidatedOutput(eventos, "basic")
 
-	for _, want := range []string{"    - Evento 1 - INIC1: 3 páginas\n", "    - Evento 1 - PROC2: 1 página\n"} {
+	for _, want := range []string{"\n- Evento 1 - INIC1: 3 páginas\n", "\n- Evento 1 - PROC2: 1 página\n"} {
 		if !strings.Contains(output, want) {
 			t.Errorf("expected summary line %q in output:\n%s", want, output)
 		}
@@ -406,7 +410,7 @@ func TestGenerateConsolidatedOutput_TokensEstimadosNoContexto(t *testing.T) {
 	if tokens != EstimateTokens(output) {
 		t.Errorf("tokens devolvidos = %d, estimativa da saída inteira = %d", tokens, EstimateTokens(output))
 	}
-	want := "    Tokens estimados: " + strconv.Itoa(tokens) + "\n"
+	want := "\nTokens estimados: " + strconv.Itoa(tokens) + "\n"
 	if !strings.Contains(contexto, want) {
 		t.Errorf("<contexto> deveria ter %q (o mesmo número devolvido):\n%s", want, contexto)
 	}
@@ -427,9 +431,79 @@ func TestGenerateConsolidatedOutput_TokensBatemEmTodoTamanho(t *testing.T) {
 			},
 		}
 		output, tokens := GenerateConsolidatedOutput(eventos, "none")
-		if tokens != EstimateTokens(output) || !strings.Contains(output, "Tokens estimados: "+strconv.Itoa(tokens)+"\n") {
+		if tokens != EstimateTokens(output) || !strings.Contains(output, "\nTokens estimados: "+strconv.Itoa(tokens)+"\n") {
 			t.Fatalf("n=%d: tokens = %d, estimativa = %d", n, tokens, EstimateTokens(output))
 		}
+	}
+}
+
+func TestFormato_DocUmaPaginaSemPag(t *testing.T) {
+	niveis := []string{NivelNenhum, NivelBasico, NivelPadrao, NivelMaximo}
+	for _, nivel := range niveis {
+		// Duas páginas: <pag n="2"> aparece.
+		saida, _ := GenerateConsolidatedOutput(docPadrao("Primeira página sintética.", "Segunda página sintética."), nivel)
+		for i, linha := range strings.Split(saida, "\n") {
+			if strings.HasPrefix(linha, " ") {
+				t.Errorf("%s: linha %d começa com espaço: %q", nivel, i+1, linha)
+			}
+		}
+		if !strings.Contains(saida, "<pag n=\"2\">\nSegunda página sintética.\n</pag>\n") {
+			t.Errorf("%s: faltou <pag n=\"2\">:\n%s", nivel, saida)
+		}
+		if strings.Contains(saida, "<pag num") {
+			t.Errorf("%s: <pag num> antigo:\n%s", nivel, saida)
+		}
+
+		// Uma página: conteúdo direto no documento.
+		saida, _ = GenerateConsolidatedOutput(docPadrao("Única página sintética."), nivel)
+		if strings.Contains(saida, "<pag") {
+			t.Errorf("%s: documento de uma página sem <pag>:\n%s", nivel, saida)
+		}
+		if !strings.Contains(saida, "nome=\"Evento 1 - INIC1.pdf\">\nÚnica página sintética.\n</documento>\n") {
+			t.Errorf("%s: conteúdo devia ficar direto no documento:\n%s", nivel, saida)
+		}
+		if !strings.Contains(saida, "\nTokens estimados: ") || !strings.HasPrefix(saida, "<contexto>\nPROCESSO") {
+			t.Errorf("%s: <contexto> devia vir sem recuo:\n%s", nivel, saida)
+		}
+	}
+}
+
+func TestFormato_PaginaVaziaNaoEmitePag(t *testing.T) {
+	for _, nivel := range []string{NivelNenhum, NivelBasico, NivelPadrao, NivelMaximo} {
+		// Uma página com conteúdo e outra só de espaço: vira documento de uma página.
+		saida, _ := GenerateConsolidatedOutput(docPadrao("Texto sintético.", "  \n \n"), nivel)
+		if strings.Contains(saida, "<pag") {
+			t.Errorf("%s: página vazia não emite <pag> e o resto vira doc de uma página:\n%s", nivel, saida)
+		}
+		if !strings.Contains(saida, ">\nTexto sintético.\n</documento>") {
+			t.Errorf("%s: faltou o conteúdo direto:\n%s", nivel, saida)
+		}
+		// Todas vazias: sem corpo.
+		saida, _ = GenerateConsolidatedOutput(docPadrao("", "\n"), nivel)
+		if strings.Contains(saida, "<pag") || !strings.Contains(saida, "INIC1.pdf\">\n</documento>\n") {
+			t.Errorf("%s: documento sem conteúdo sai sem corpo:\n%s", nivel, saida)
+		}
+	}
+	// A vazia no meio mantém o n original das outras.
+	saida, _ := GenerateConsolidatedOutput(docPadrao("A sintética.", "", "C sintética."), NivelBasico)
+	if !strings.Contains(saida, "<pag n=\"1\">") || strings.Contains(saida, "<pag n=\"2\">") || !strings.Contains(saida, "<pag n=\"3\">") {
+		t.Errorf("páginas 1 e 3 devem manter o n:\n%s", saida)
+	}
+}
+
+func TestFormato_MarcadoresDeDuplicataSobrevivem(t *testing.T) {
+	igual := textoLongo("igual", 250)
+	saida, _ := GenerateConsolidatedOutput(eventosDocs(
+		[]string{igual, textoLongo("outra", 250)}, []string{textoLongo("terceira", 250), igual}), NivelPadrao)
+	if !strings.Contains(saida, "<pag n=\"2\">\n[conteúdo idêntico a: evento 1, DOC1, pág. 1]\n</pag>") {
+		t.Errorf("página duplicada mantém <pag> com a referência:\n%s", saida)
+	}
+	saida, _ = GenerateConsolidatedOutput(eventosDocs([]string{igual}, []string{igual}), NivelPadrao)
+	if !strings.Contains(saida, ">\n[documento idêntico a: evento 1, DOC1]\n</documento>") {
+		t.Errorf("documento duplicado: referência direto no documento:\n%s", saida)
+	}
+	if strings.Contains(saida, "<pag") {
+		t.Errorf("documento duplicado sem <pag>:\n%s", saida)
 	}
 }
 
@@ -449,10 +523,10 @@ func docPadrao(paginas ...string) map[string]any {
 	}
 }
 
-// pagina devolve o trecho de saída da página n (entre <pag num="n"> e </pag>).
+// pagina devolve o trecho de saída da página n (entre <pag n="n"> e </pag>).
 func pagina(t *testing.T, saida string, n int) string {
 	t.Helper()
-	_, resto, ok := strings.Cut(saida, "<pag num=\""+strconv.Itoa(n)+"\">")
+	_, resto, ok := strings.Cut(saida, "<pag n=\""+strconv.Itoa(n)+"\">")
 	if !ok {
 		t.Fatalf("página %d ausente:\n%s", n, saida)
 	}

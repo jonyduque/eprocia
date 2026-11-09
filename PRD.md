@@ -76,46 +76,42 @@ Para garantir que o Gemini entenda a separação dos documentos, o arquivo final
 
 ```xml
 <contexto>
-    PROCESSO JUDICIAL - ORDEM CRONOLÓGICA
-    Total de Documentos: [N]
-    Data de Consolidação: [DD/MM/AAAA HH:MM:SS]
-    Tokens estimados: [T]
+PROCESSO JUDICIAL - ORDEM CRONOLÓGICA
+Total de Documentos: [N]
+Data de Consolidação: [DD/MM/AAAA HH:MM:SS]
+Tokens estimados: [T]
 
-    <summary>
-    - Evento 1 - INIC1: 3 páginas
-    - Evento 1 - PROC2: 1 página
-    - ...
-    - Evento 5 - DESPACHO: 1 página
-    - ...
-    </summary>
+<summary>
+- Evento 1 - INIC1: 3 páginas
+- Evento 1 - PROC2: 1 página
+- ...
+- Evento 5 - DESPACHO: 1 página
+- ...
+</summary>
 </contexto>
 
 <evento num="1">
-    <documento index="1" nome="Evento 1 - INIC1.pdf">
-        <pag num="1">
-            [CONTEÚDO TEXTUAL DA PETIÇÃO INICIAL...]
-        </pag>
-        <pag num="2">
-            [CONTEÚDO TEXTUAL DA PETIÇÃO INICIAL...]
-        </pag>
-        <pag num="3">
-            [CONTEÚDO TEXTUAL DA PETIÇÃO INICIAL...]
-        </pag>
-        ...
-    </documento>
-    <documento index="2" nome="Evento 1 - PROC2.pdf">
-        <pag num="1">
-            [CONTEÚDO TEXTUAL DA PROCURAÇÃO...]
-        </pag>
-    </documento>
-    ...
+<documento index="1" nome="Evento 1 - INIC1.pdf">
+<pag n="1">
+[CONTEÚDO TEXTUAL DA PETIÇÃO INICIAL...]
+</pag>
+<pag n="2">
+[CONTEÚDO TEXTUAL DA PETIÇÃO INICIAL...]
+</pag>
+<pag n="3">
+[CONTEÚDO TEXTUAL DA PETIÇÃO INICIAL...]
+</pag>
+...
+</documento>
+<documento index="2" nome="Evento 1 - PROC2.pdf">
+[CONTEÚDO TEXTUAL DA PROCURAÇÃO...]
+</documento>
+...
 </evento>
 <evento num="5">
-    <documento index="1" nome="Evento 5 - DESPACHO.html">
-        <pag num="1">
-            [CONTEÚDO TEXTUAL DO DESPACHO...]
-        </pag>
-    </documento>
+<documento index="1" nome="Evento 5 - DESPACHO.html">
+[CONTEÚDO TEXTUAL DO DESPACHO...]
+</documento>
 </evento>
 ...
 ```
@@ -124,4 +120,5 @@ Para garantir que o Gemini entenda a separação dos documentos, o arquivo final
 - **Tokens estimados:** estimativa de tokens do arquivo inteiro, inclusive desta linha, a um token a cada quatro caracteres. É o mesmo número que a fila mostra no item concluído.
 - **`<summary>`:** uma linha por documento, na ordem do arquivo, com o nome sem o prefixo "Evento N - " e sem a extensão.
 - **`nome`:** nome do arquivo dentro do ZIP, com a extensão; `&`, aspas e sinais de menor e maior viram entidades XML.
-- **`<pag>`:** um por página do PDF; um HTML vira um único `<pag num="1">`. Página que falhou na leitura ou no OCR traz um marcador `[ERRO ...]` no lugar do texto.
+- **Recuo:** nenhuma linha da saída começa com espaço.
+- **`<pag n="N">`:** um por página do PDF com conteúdo, com o número original. Documento com uma só página de conteúdo (um HTML, por exemplo) escreve o texto direto dentro de `<documento>`, sem `<pag>`; página vazia depois da limpeza não emite `<pag>`, e documento sem nenhum conteúdo sai sem corpo. Página que falhou na leitura ou no OCR traz um marcador `[ERRO ...]` no lugar do texto.

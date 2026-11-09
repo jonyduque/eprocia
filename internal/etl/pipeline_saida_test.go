@@ -134,7 +134,7 @@ func TestProcessZip_SaidaOrdenadaEContagens(t *testing.T) {
 	if want := EstimateTokens(saida); tokens != want || tokens == 0 {
 		t.Errorf("tokens estimados = %d, esperava %d (estimativa do .txt gravado)", tokens, want)
 	}
-	if want := "Tokens estimados: " + strconv.Itoa(tokens) + "\n"; !strings.Contains(saida, want) {
+	if want := "\nTokens estimados: " + strconv.Itoa(tokens) + "\n"; !strings.Contains(saida, want) {
 		t.Errorf("o .txt gravado deveria trazer %q, o mesmo número devolvido:\n%s", want, saida)
 	}
 
@@ -145,17 +145,16 @@ func TestProcessZip_SaidaOrdenadaEContagens(t *testing.T) {
 		t.Errorf("entrada .txt não deveria entrar na saída:\n%s", saida)
 	}
 
-	tags := regexp.MustCompile(`<evento num="\d+">|<documento index="\d+" nome="[^"]*">|<pag num="\d+">`).FindAllString(saida, -1)
+	// Documentos de uma página só não levam <pag>.
+	tags := regexp.MustCompile(`<evento num="\d+">|<documento index="\d+" nome="[^"]*">|<pag n="\d+">`).FindAllString(saida, -1)
 	esperado := []string{
 		`<evento num="2">`,
 		`<documento index="1" nome="Evento 2 - INIC1.pdf">`,
-		`<pag num="1">`,
-		`<pag num="2">`,
+		`<pag n="1">`,
+		`<pag n="2">`,
 		`<documento index="2" nome="Evento 2 - PET2.html">`,
-		`<pag num="1">`,
 		`<evento num="10">`,
 		`<documento index="1" nome="Evento 10 - DESPADEC1.pdf">`,
-		`<pag num="1">`,
 	}
 	if strings.Join(tags, "\n") != strings.Join(esperado, "\n") {
 		t.Errorf("tags fora da ordem esperada:\nobtido:\n%s\nesperado:\n%s", strings.Join(tags, "\n"), strings.Join(esperado, "\n"))
@@ -205,8 +204,14 @@ func TestProcessZip_FixtureMistoContagensBatemComSaida(t *testing.T) {
 	if n := strings.Count(saida, "<documento "); n != docs {
 		t.Errorf("%d tags <documento> na saída, ProcessZip devolveu %d", n, docs)
 	}
-	if n := strings.Count(saida, "<pag "); n != pages {
-		t.Errorf("%d tags <pag> na saída, ProcessZip devolveu %d", n, pages)
+	// Um documento de uma página não leva <pag>: conta uma página por documento sem tag.
+	emitidas := 0
+	for _, doc := range strings.Split(saida, "<documento ")[1:] {
+		doc, _, _ = strings.Cut(doc, "</documento>")
+		emitidas += max(strings.Count(doc, "<pag n="), 1)
+	}
+	if emitidas != pages {
+		t.Errorf("%d páginas na saída, ProcessZip devolveu %d", emitidas, pages)
 	}
 	if n := strings.Count(saida, "<evento "); n != 25 {
 		t.Errorf("%d tags <evento> na saída, esperava 25", n)
