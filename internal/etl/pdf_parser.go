@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"unicode"
 
 	"github.com/dslipak/pdf"
 )
@@ -392,6 +393,34 @@ func listarPaginas(reader *pdf.Reader, numPages int) (paginas []pdf.Page, errRes
 	return paginas, errResto, nil
 }
 
+// textoIlegivel reports whether the native text is garbage: at least 20
+// non-space runes and either fewer than 40% letters or digits, or more than 10
+// control runes (other than newline and tab).
+func textoIlegivel(s string) bool {
+	var visiveis, legiveis, controle int
+	for _, r := range s {
+		if unicode.IsSpace(r) {
+			continue
+		}
+		visiveis++
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			legiveis++
+		} else if unicode.IsControl(r) {
+			controle++
+		}
+	}
+	if visiveis < 20 {
+		return false
+	}
+	return float64(legiveis)/float64(visiveis) < 0.4 || controle > 10
+}
+
+// marcadorIlegivel replaces a page whose native text is garbage and that OCR
+// could not recover; n counts the omitted runes.
+func marcadorIlegivel(n int) string {
+	return fmt.Sprintf("[texto ilegível na página: %d caracteres omitidos]", n)
+}
+
 type analisePagina struct {
 	nula       bool
 	texto      string
@@ -421,6 +450,15 @@ func analisarPagina(page pdf.Page, pageNum int, ocrEnabled bool) (an analisePagi
 
 	an.texto = strings.TrimSpace(text)
 	log.Printf("[PDFParser] Texto nativo da página %d extraído. Tamanho bruto: %d, Limpo: %d", pageNum, len(text), len(an.texto))
+
+	if textoIlegivel(an.texto) {
+		// Fonte com codificação quebrada: o texto nativo é lixo. Com OCR a página
+		// vai para ele, e o marcador é o fallback se o OCR falhar.
+		log.Printf("[PDFParser] Texto nativo da página %d é ilegível. OCR habilitado: %t", pageNum, ocrEnabled)
+		an.texto = marcadorIlegivel(len([]rune(an.texto)))
+		an.precisaOcr = ocrEnabled
+		return an, nil
+	}
 
 	if ocrEnabled && len(an.texto) < 100 {
 		log.Printf("[PDFParser] Texto nativo da página %d é muito curto (%d chars). Verificando se há imagens...", pageNum, len(an.texto))
