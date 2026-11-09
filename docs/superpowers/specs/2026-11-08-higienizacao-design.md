@@ -123,6 +123,8 @@ Padrão, mais:
 
   Também junta a hifenização do fim da linha. Um extrato continua com um lançamento por linha.
 
+  Nota da implementação: o hífen do fim da linha é sempre mantido na junção ("trata-" + "se" vira "trata-se", "par-" + "te" vira "par-te"). Distinguir hífen de translineação de hífen da palavra errou em todas as tentativas, e um hífen a mais custa menos ao leitor do que uma palavra colada errada.
+
 ## Parte 3: omitir tipos de documento (H10)
 
 - Opção no config, independente do nível, com backfill vazio.
