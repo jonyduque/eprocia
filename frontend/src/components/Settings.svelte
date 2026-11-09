@@ -100,6 +100,8 @@
       const parcial = /^configurações salvas/i.test(msg);
       showStatus(parcial ? msg[0].toUpperCase() + msg.slice(1) : 'Erro ao salvar configurações: ' + msg, 'error');
       await aoFalharSalvar();
+      // O campo de tipos relê a config gravada, não o texto que não foi salvo.
+      omitirCarregado = false;
     }
   }
 

@@ -32,3 +32,9 @@ describe('padrão fora das Configurações', () => {
     assert.match(app, /OPCOES_LIMPEZA\.slice\(1\)/);
   });
 });
+
+describe('campo de tipos omitidos', () => {
+  it('relê a config gravada quando o salvamento falha', () => {
+    assert.match(settings, /await aoFalharSalvar\(\);[\s\S]{0,160}omitirCarregado = false;/);
+  });
+});
