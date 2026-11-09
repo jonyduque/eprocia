@@ -8,11 +8,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"eprocia/internal/autostart"
 	"eprocia/internal/config"
 	"eprocia/internal/etl"
+	"eprocia/internal/janela"
 	"eprocia/internal/models"
 	"eprocia/internal/watchdog"
 
@@ -34,6 +36,11 @@ type App struct {
 	notificar func(titulo, corpo string) error
 	// falhas guarda os ZIPs com erro para a varredura inicial não repeti-los.
 	falhas *watchdog.Falhas
+	// animador desvanece a janela ao ir para a bandeja; nil antes do startup.
+	animador *janela.Animador
+	// saindo é marcado por Quit: daí em diante OnBeforeClose deixa sair e
+	// nada espera animação.
+	saindo atomic.Bool
 }
 
 // NewApp creates a new App application struct
@@ -51,6 +58,7 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.animador = janela.NovoAnimador(janela.Nativa(func() { runtime.WindowHide(ctx) }))
 	a.pipeline = etl.NewPipeline()
 	a.queue = etl.NewQueue(a.pipeline)
 	a.queue.SetContext(ctx)
@@ -151,25 +159,50 @@ func (a *App) shutdown(ctx context.Context) {
 	}
 }
 
-// Show shows the main window
+// Show mostra a janela no estado em que foi ocultada (maximizada continua
+// maximizada) e a traz para a frente; interrompe uma animação de ocultar.
 func (a *App) Show() {
+	if a.animador != nil {
+		a.animador.Cancelar()
+	}
 	if a.ctx != nil {
 		runtime.WindowShow(a.ctx)
 	}
 }
 
-// Hide hides the main window
+// Hide manda a janela para a bandeja com a animação de saída (botão X,
+// Alt+F4 e "Ocultar" da bandeja passam por aqui).
 func (a *App) Hide() {
-	if a.ctx != nil {
+	if a.saindo.Load() {
+		return
+	}
+	if a.animador != nil {
+		a.animador.Ocultar()
+	} else if a.ctx != nil {
 		runtime.WindowHide(a.ctx)
 	}
 }
 
-// Quit terminates the application
+// Quit encerra o app na hora, sem esperar animação.
 func (a *App) Quit() {
+	a.saindo.Store(true)
+	if a.animador != nil {
+		a.animador.Cancelar()
+	}
 	if a.ctx != nil {
 		runtime.Quit(a.ctx)
 	}
+}
+
+// antesDeFechar é o OnBeforeClose do Wails. Fechar a janela (Alt+F4, barra
+// de tarefas) chega aqui e vira ocultar para a bandeja; só a saída marcada
+// por Quit passa. Roda na thread da janela: a animação vai numa goroutine.
+func (a *App) antesDeFechar(_ context.Context) (impedir bool) {
+	if a.saindo.Load() {
+		return false
+	}
+	go a.Hide()
+	return true
 }
 
 // GetConfig returns the current configuration settings.

@@ -61,8 +61,10 @@ func main() {
 			app.shutdown(ctx)
 			systray.Quit()
 		},
-		HideWindowOnClose: true,
-		StartHidden:       autostart.IniciarOculto(os.Args),
+		// Fechar a janela (X, Alt+F4, barra de tarefas) vai para a bandeja
+		// com animação; HideWindowOnClose ocultaria sem passar por aqui.
+		OnBeforeClose: app.antesDeFechar,
+		StartHidden:   autostart.IniciarOculto(os.Args),
 		DragAndDrop: &options.DragAndDrop{
 			EnableFileDrop: true,
 		},

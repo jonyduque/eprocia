@@ -58,7 +58,7 @@ There is no repo-level lint config beyond `go vet`. Frontend tests are `frontend
 
 ## Architecture
 
-**Entry point**: `main.go` embeds `frontend/dist` via `go:embed`, boots `wails.Run`, and runs `github.com/getlantern/systray` in a goroutine for the tray icon (Abrir/Ocultar/Sair). Closing the window hides it to tray (`HideWindowOnClose`); the app only fully exits via tray "Sair".
+**Entry point**: `main.go` embeds `frontend/dist` via `go:embed`, boots `wails.Run`, and runs `github.com/getlantern/systray` in a goroutine for the tray icon (Abrir/Ocultar/Sair). Closing the window (X, Alt+F4, taskbar) hides it to tray through `OnBeforeClose` (`App.antesDeFechar`, not `HideWindowOnClose`, which bypasses it) with the fade/slide of `internal/janela` (skipped when Windows "animation effects" is off); the app only fully exits via tray "Sair", whose `App.Quit` sets `saindo` first so `OnBeforeClose` lets `runtime.Quit` through.
 
 **`app.go`** — the `App` struct is bound to the frontend (all exported methods become callable JS via Wails' generated bindings in `frontend/src/wailsjs/go/main/App.js`). It's a thin layer: delegates file-drop/manual-select/config to `internal/config`, `internal/watchdog`, and the `internal/etl` queue/pipeline. Don't put business logic here — it belongs in `internal/etl`.
 
