@@ -1,6 +1,7 @@
 package etl
 
 import (
+	"errors"
 	"io"
 	"math"
 	"sort"
@@ -110,12 +111,20 @@ func (f *fonteTexto) largura(cru, texto string) float64 {
 	return soma
 }
 
-// lerStream lê o stream por inteiro e devolve o erro de leitura, se houver.
+// lerStream lê o stream por inteiro e devolve o erro de leitura, se houver,
+// ou um erro quando o lexer da biblioteca giraria para sempre nele (dicionário,
+// array ou string sem fecho; veja pdf_lexer.go).
 func lerStream(v pdf.Value) error {
 	rc := v.Reader()
 	defer rc.Close()
-	_, err := io.Copy(io.Discard, rc)
-	return err
+	dados, err := io.ReadAll(rc)
+	if err != nil {
+		return err
+	}
+	if !lexerTermina(dados) {
+		return errors.New("dicionário, array ou string sem fecho")
+	}
+	return nil
 }
 
 // trecho é um pedaço de texto mostrado por um Tj ou por uma string de TJ, em
