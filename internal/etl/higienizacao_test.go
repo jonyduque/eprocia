@@ -172,14 +172,59 @@ func TestChancela_CartorioCargoNaLinhaSeguinte(t *testing.T) {
 	}
 }
 
+func TestChancela_CargoLinhaRecusadaFicaIntacta(t *testing.T) {
+	for _, l2 := range []string{
+		"Intimem-se.",
+		"5000000-00.2026.8.26.0001",
+		"Protocolo nº 123",
+		"Cumpra-se com urgência a determinação anterior deste juízo",
+	} {
+		got := resumirChancelas(comMiolo("Assinado digitalmente por FULANO DE TAL -", l2), false)
+		if want := comMiolo("[assinado: FULANO DE TAL]", l2); !slices.Equal(got, want) {
+			t.Errorf("%q: got %q, quer %q", l2, got, want)
+		}
+	}
+	// Linha 2 é a chancela secundária do cartório: não vira cargo nem empresta a
+	// data; some porque a linha 1 já deixou o marcador.
+	got := resumirChancelas(comMiolo("Assinado digitalmente por FULANO DE TAL -", "Documento registrado eletronicamente em 01/01/2026"), false)
+	if want := comMiolo("[assinado: FULANO DE TAL]"); !slices.Equal(got, want) {
+		t.Errorf("protocolo: got %q, quer %q", got, want)
+	}
+	got = resumirChancelas(comMiolo("Assinado digitalmente por FULANO DE TAL -", "Juiz de Direito"), false)
+	if want := comMiolo("[assinado: FULANO DE TAL, Juiz de Direito]"); !slices.Equal(got, want) {
+		t.Errorf("cargo: got %q", got)
+	}
+}
+
+func TestChancela_CartorioNomeComMaiuscula(t *testing.T) {
+	for _, l := range []string{
+		"Assinado digitalmente por meio do certificado ICP-Brasil o contrato",
+		"Assinado digitalmente por quem não tinha poderes para tanto",
+		"Assinado digitalmente por ambas as partes em 01/01/2026",
+	} {
+		if got := resumirChancelas(comMiolo(l), false); !slices.Equal(got, comMiolo(l)) {
+			t.Errorf("%q devia ficar intacta: %q", l, got)
+		}
+	}
+	for l, want := range map[string]string{
+		"Assinado digitalmente por Dr. FULANO DE TAL - Tabelião": "[assinado: Dr. FULANO DE TAL, Tabelião]",
+		"ASSINADO DIGITALMENTE POR FULANO DE TAL - TABELIÃO":     "[assinado: FULANO DE TAL, TABELIÃO]",
+		"Assinado digitalmente por FULANO DE TAL em 01/01/2026":  "[assinado: FULANO DE TAL, 01/01/2026]",
+	} {
+		if got := resumirChancelas(comMiolo(l), false); !slices.Equal(got, comMiolo(want)) {
+			t.Errorf("%q: got %q, quer %q", l, got, want)
+		}
+	}
+}
+
 func TestChancela_LaudoComCaudaFica(t *testing.T) {
 	for _, l := range []string{
 		"Este laudo foi assinado eletronicamente pelo perito Dr. FULANO DE TAL, CRM 12345.",
 		"Você pode conferir a autenticidade do documento em https://exemplo.jus.br com o código XYZ123 até 01/01/2026, conforme o perito FULANO DE TAL.",
 	} {
 		got := resumirChancelas(comMiolo(l), false)
-		if !slices.Equal(got, comMiolo(l)) && !slices.Contains(got, "[assinado: FULANO DE TAL]") {
-			t.Errorf("%q perdeu o assinante: %q", l, got)
+		if !slices.Equal(got, comMiolo(l)) {
+			t.Errorf("%q devia ficar intacta: %q", l, got)
 		}
 	}
 	if got := resumirChancelas(comMiolo("Este laudo foi assinado eletronicamente."), false); !slices.Equal(got, miolo3) {

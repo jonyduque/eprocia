@@ -96,11 +96,13 @@ var chancelas = []chancela{
 	{re: regexp.MustCompile(`(?i)\APara\s+conferir\s+o\s+original,\s+acesse\s+o\s+site(?:[^\n]*?\s+informe\s+o\s+processo[\s\S]*?\s+e\s+c[óo]digo\s+\S+)?`), topo: true, maxLinhas: 2},
 	// 3. cartório: "Assinado digitalmente por NOME - CARGO" e "Protocolo nº ...
 	// Documento registrado eletronicamente ...", que só vira marcador sozinho.
-	// "Assinado" com A maiúsculo no começo da linha; o NOME tem de 3 a 80
-	// caracteres, sem vírgula, e não termina em ponto nem hífen; sem " - CARGO"
-	// nem data, a linha tem de terminar no nome. Com "NOME -" no fim da linha, a
-	// linha seguinte, se tiver até 40 caracteres, é o cargo (cargoLinha).
-	{re: regexp.MustCompile(`(?m)\AAssinado[ \t]+(?i:digitalmente)[ \t]+por[ \t]+(?P<nome>[^\n,]{2,79}?[^\n,.\s-])(?:[ \t]+-[ \t]+(?P<cargo>[^\n]+?)|[ \t]+-[ \t]*\n(?P<cargoLinha>[^\n]{1,40}?)|[ \t]+-)?(?:[ \t]+(?:-|em)[ \t]+` + reData + `[^\n]*)?[ \t]*$`), marcador: true},
+	// "Assinado digitalmente por" ou tudo em caixa alta, no começo da linha; o
+	// NOME começa com maiúscula, tem de 3 a 80 caracteres, sem vírgula, e não
+	// termina em ponto nem hífen; sem " - CARGO" nem data, a linha tem de
+	// terminar no nome. Com "NOME -" no fim da linha, a linha seguinte é o cargo
+	// (cargoLinha) se tiver até 40 caracteres, começar com maiúscula, não ter
+	// dígito e não terminar em . ! ? ; ou :. Senão ela fica no texto.
+	{re: regexp.MustCompile(`(?m)\A(?:Assinado[ \t]+digitalmente[ \t]+por|ASSINADO[ \t]+DIGITALMENTE[ \t]+POR)[ \t]+(?P<nome>\p{Lu}[^\n,]{1,78}?[^\n,.\s-])(?:[ \t]+-[ \t]+(?P<cargo>[^\n]+?)|[ \t]+-[ \t]*\n(?P<cargoLinha>\p{Lu}(?:[^\n\d]{0,38}[^\n\d.!?;:\s])?)|[ \t]+-)?(?:[ \t]+(?:-|em)[ \t]+` + reData + `[^\n]*)?[ \t]*$`), marcador: true},
 	{re: regexp.MustCompile(`(?i)\A(?:Protocolo\s+n[^\n]{0,60}?)?Documento\s+registrado\s+eletronicamente(?:[^\n]*?` + reData + `)?[^\n]*`), marcador: true, secundaria: true},
 	// 4. "Documento eletrônico ID assinado eletronicamente nos termos do Art.1º
 	// §2º inciso III da Lei 11.419/2006 Signatário(a): NOME".
@@ -189,6 +191,15 @@ func acharChancelas(linhas []string, html bool) []trocaChancela {
 				if loc == nil {
 					continue
 				}
+				// Cargo na linha seguinte: vale só se ela não for outra chancela;
+				// se for, casa de novo só a linha i, e a seguinte fica para a
+				// família dela.
+				if k := c.re.SubexpIndex("cargoLinha"); k > 0 && loc[2*k] >= 0 && ehChancela(texto[loc[2*k]:loc[2*k+1]]) {
+					texto = linhas[i]
+					if loc = c.re.FindStringSubmatchIndex(texto); loc == nil {
+						continue
+					}
+				}
 				fim := i + strings.Count(texto[:loc[1]], "\n")
 				if loc[1] > 0 && texto[loc[1]-1] == '\n' {
 					fim-- // casou até a quebra: a linha seguinte não entra.
@@ -198,11 +209,6 @@ func acharChancelas(linhas []string, html bool) []trocaChancela {
 					if loc[2*g] >= 0 {
 						m[g] = texto[loc[2*g]:loc[2*g+1]]
 					}
-				}
-				// Cargo na linha seguinte: vale só se ela não for outra chancela.
-				if k := c.re.SubexpIndex("cargoLinha"); k > 0 && m[k] != "" && ehChancela(m[k]) {
-					m[k] = ""
-					fim = i
 				}
 				t := trocaChancela{inicio: i, fim: fim, secundaria: c.secundaria}
 				if c.marcador {
