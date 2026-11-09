@@ -318,24 +318,18 @@ var (
 	certificadoCampoRegex  = regexp.MustCompile(`(?i)^(Enviado:|Visualizado:|Assinado:|Aceito:|N[íi]vel\s+de\s+seguran[çc]a)`)
 )
 
-// certificadoTituloTopo é quantas linhas do topo bastam para o título sozinho.
-const certificadoTituloTopo = 5
-
 // paginaCertificado informa se a página (linhas já básicas) é um certificado de
-// assinatura de plataforma. Vale o título "Termos de Assinatura e Registro
-// Eletrônico" nas 5 primeiras linhas, ou em qualquer lugar com pelo menos 1
-// linha que começa com Enviado:, Visualizado:, Assinado:, Aceito: ou Nível de
-// segurança. Sem título, 3 ou mais dessas linhas, de pelo menos 2 tipos, para
-// que uma sequência de e-mails ("Enviado:" repetido) não conte.
+// assinatura de plataforma: traz o título "Termos de Assinatura e Registro
+// Eletrônico" e pelo menos 1 linha que começa com Enviado:, Visualizado:,
+// Assinado:, Aceito: ou Nível de segurança. Sem título, pede 3 ou mais dessas
+// linhas, de pelo menos 2 tipos, para que uma sequência de e-mails ("Enviado:"
+// repetido) não conte.
 func paginaCertificado(linhas []string) bool {
 	tipos := map[string]bool{}
 	n := 0
 	titulo := false
-	for i, l := range linhas {
+	for _, l := range linhas {
 		if certificadoTituloRegex.MatchString(l) {
-			if i < certificadoTituloTopo {
-				return true
-			}
 			titulo = true
 		}
 		if m := certificadoCampoRegex.FindStringSubmatch(l); m != nil {
@@ -353,7 +347,7 @@ var (
 	// listaRegex: "1 -", "1.1 –", "2.", "3)", "a)", "a.", "ii)", "iv.", "IV -",
 	// "•" e "-". O número ou a letra com ponto pedem espaço ou fim depois, para
 	// que "8.078/90" e "art." não contem como lista.
-	listaRegex = regexp.MustCompile(`^(\d+(\.\d+)*\s*[-–.)](\s|$)|(?:[a-z]|[ivxlc]+)[.)](\s|$)|[a-z]\)|[IVXLC]+ ?[-–.)]|•|-)`)
+	listaRegex = regexp.MustCompile(`^(\d+(\.\d+)*\s*[-–.)](\s|$)|(?:[a-z]|[ivxlc]+) ?[.)\-–](\s|$)|[a-z]\)|[IVXLC]+ ?[-–.)]|•|-)`)
 	// dataInicioRegex: extrato que começa com data ("01/01/2026", "01/01") ou
 	// competência ("01/2026").
 	dataInicioRegex = regexp.MustCompile(`^(\d{1,2}/\d{1,2}(/\d{2,4})?\b|\d{2}/\d{4})`)
@@ -392,40 +386,86 @@ const (
 
 // Palavras que decidem se o hífen do fim da linha fica (hifenFica).
 var (
+	// cliticos colidem com sílabas finais comuns ("da-nos", "capítu-lo",
+	// "clas-se", "gen-te"): o hífen só fica depois de forma verbal (verboClitico).
 	cliticos = map[string]bool{
 		"o": true, "a": true, "os": true, "as": true, "lo": true, "la": true, "los": true, "las": true,
 		"no": true, "na": true, "nos": true, "nas": true, "lhe": true, "lhes": true,
 		"me": true, "te": true, "se": true, "vos": true,
 	}
-	// prefixosHifen inclui auxílio e salário, primeiros elementos de compostos
-	// previdenciários comuns (auxílio-doença, salário-maternidade).
-	prefixosHifen = map[string]bool{
-		"ex": true, "pós": true, "pré": true, "pró": true, "vice": true, "recém": true, "sem": true,
-		"além": true, "aquém": true, "grão": true, "grã": true, "bem": true, "mal": true, "sub": true,
-		"super": true, "inter": true, "hiper": true, "anti": true, "auto": true, "contra": true,
-		"semi": true, "extra": true, "infra": true, "supra": true, "ultra": true,
-		"auxílio": true, "salário": true,
+	// cliticosComS aceitam também fragmento terminado em s ("fizemos-o").
+	cliticosComS = map[string]bool{
+		"o": true, "a": true, "os": true, "as": true, "no": true, "na": true, "nos": true, "nas": true,
+		"lo": true, "la": true, "los": true, "las": true,
+	}
+	// prefixosHifen diz, pela primeira letra da palavra seguinte, se o hífen do
+	// prefixo fica (Acordo Ortográfico). Sem hífen antes de consoante, "auto-res"
+	// e "contra-to" são quebra silábica. ex e sem ficam fora: "ex-tinção" e
+	// "sem-pre" são muito mais comuns que "ex-cônjuge" partido na linha. auxílio e
+	// salário entram como primeiros elementos de compostos previdenciários.
+	prefixosHifen = map[string]func(r rune) bool{
+		"auto": mesmaVogalOuH('o'), "contra": mesmaVogalOuH('a'), "extra": mesmaVogalOuH('a'),
+		"infra": mesmaVogalOuH('a'), "supra": mesmaVogalOuH('a'), "ultra": mesmaVogalOuH('a'),
+		"anti": mesmaVogalOuH('i'), "semi": mesmaVogalOuH('i'),
+		"super": antesDe("hr"), "inter": antesDe("hr"), "hiper": antesDe("hr"),
+		"sub":  antesDe("bhr"),
+		"mal":  antesDe("h" + vogais),
+		"vice": sempre, "pós": sempre, "pré": sempre, "pró": sempre, "recém": sempre,
+		"além": sempre, "aquém": sempre, "grão": sempre, "grã": sempre, "bem": sempre,
+		"auxílio": sempre, "salário": sempre,
 	}
 	// antesDeNumero são as palavras finais depois das quais uma linha que
 	// começa com dígito continua a frase ("art." + "5º").
 	antesDeNumero = map[string]bool{"nº": true, "n.": true, "art.": true, "arts.": true, "lei": true, "inciso": true, "§": true}
 )
 
+const (
+	vogais          = "aeiouáéíóúâêôãõà"
+	vogaisAcentuada = "áéíóúâêôãõ"
+)
+
+func sempre(rune) bool { return true }
+
+func antesDe(letras string) func(rune) bool {
+	return func(r rune) bool { return strings.ContainsRune(letras, r) }
+}
+
+func mesmaVogalOuH(v rune) func(rune) bool {
+	return func(r rune) bool { return r == 'h' || r == v }
+}
+
 func soLetras(s string) string {
 	return strings.ToLower(strings.TrimFunc(s, func(r rune) bool { return !unicode.IsLetter(r) }))
 }
 
+// verboClitico informa se frag (minúsculo) parece a forma verbal antes de um
+// clítico: termina em r, z, m ou vogal acentuada ("requer-se", "faz-se",
+// "fazem-lhe", "condená-lo"), ou em s para os clíticos de cliticosComS.
+func verboClitico(frag, clitico string) bool {
+	r, _ := utf8.DecodeLastRuneInString(frag)
+	return strings.ContainsRune("rzm"+vogaisAcentuada, r) || (r == 's' && cliticosComS[clitico])
+}
+
 // hifenFica diz se o hífen entre semHifen (a linha sem o hífen final) e b é
-// legítimo: b começa com clítico ou com "feira", ou o fragmento final de a é
-// prefixo.
+// legítimo: b começa com "feira", com clítico depois de forma verbal, ou o
+// fragmento final de a é prefixo que pede hífen antes da letra inicial de b.
 func hifenFica(semHifen, b string) bool {
 	frag := semHifen
 	if i := strings.LastIndexAny(frag, " -"); i >= 0 {
 		frag = frag[i+1:]
 	}
+	frag = soLetras(frag)
 	prim, _, _ := strings.Cut(b, " ")
 	prim = soLetras(prim)
-	return cliticos[prim] || strings.HasPrefix(prim, "feira") || prefixosHifen[soLetras(frag)]
+	if prim == "" || frag == "" {
+		return false
+	}
+	if strings.HasPrefix(prim, "feira") || (cliticos[prim] && verboClitico(frag, prim)) {
+		return true
+	}
+	regra, ok := prefixosHifen[frag]
+	inicial, _ := utf8.DecodeRuneInString(prim)
+	return ok && regra(inicial)
 }
 
 // fimDeFrase informa se l termina em . : ; ? !, ignorando aspas, parênteses e
@@ -485,8 +525,8 @@ func juntaLinhas(a, b string) juncao {
 //     arts., Lei, inciso ou §.
 //
 // Uma palavra hifenizada no fim da linha junta com a próxima, que começa com
-// minúscula, sem espaço: o hífen sai, salvo em clítico ("requer-se"), prefixo
-// ("ex-cônjuge") e "-feira", onde fica. As regras olham as linhas originais,
+// minúscula, sem espaço: o hífen sai, salvo em clítico depois de forma verbal
+// ("requer-se"), prefixo que o pede ("sub-reitor") e "-feira" (hifenFica). As regras olham as linhas originais,
 // não o parágrafo já juntado.
 func refluir(linhas []string) []string {
 	var out []string

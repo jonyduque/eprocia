@@ -483,7 +483,7 @@ func TestRefluir_ListaNaoJunta(t *testing.T) {
 		}
 	}
 	longa := "pedidos formulados pelo autor na petição inicial são os seguintes"
-	for _, item := range []string{"1 - x", "1 – x", "1.1 - x", "1) x", "1. x", "i) x", "ii) x", "iv. x", "a. x", "c) x"} {
+	for _, item := range []string{"1 - x", "1 – x", "1.1 - x", "1) x", "1. x", "i) x", "ii) x", "iv. x", "a. x", "c) x", "a - x", "b – x", "ii - x"} {
 		if in := []string{longa, item}; !slices.Equal(refluir(in), in) {
 			t.Errorf("item %q não devia juntar: %q", item, refluir(in))
 		}
@@ -517,9 +517,37 @@ func TestRefluir_Hifenizacao(t *testing.T) {
 		{"pede condená-", "lo, nos termos", "pede condená-lo, nos termos"},
 		{"na segunda-", "feira seguinte", "na segunda-feira seguinte"},
 		{"o auxílio-", "doença foi negado", "o auxílio-doença foi negado"},
-		{"o ex-", "cônjuge FULANO DE TAL", "o ex-cônjuge FULANO DE TAL"},
 		{"curso de pós-", "graduação", "curso de pós-graduação"},
 		{"Pós-", "graduação", "Pós-graduação"},
+		{"o vice-", "presidente", "o vice-presidente"},
+		{"o sub-", "reitor", "o sub-reitor"},
+		{"a auto-", "observação", "a auto-observação"},
+		{"o anti-", "inflamatório", "o anti-inflamatório"},
+		{"o super-", "homem", "o super-homem"},
+		{"o inter-", "regional", "o inter-regional"},
+		{"o mal-", "estar", "o mal-estar"},
+		{"o mal-", "humorado", "o mal-humorado"},
+		{"fazem-", "lhe o pedido", "fazem-lhe o pedido"},
+		// Quebra silábica comum: o hífen sai (Acordo Ortográfico).
+		{"os auto-", "res", "os autores"},
+		{"o contra-", "to", "o contrato"},
+		{"a inter-", "pretação", "a interpretação"},
+		{"a sub-", "sidiária", "a subsidiária"},
+		{"a ex-", "tinção", "a extinção"},
+		{"o ex-", "cônjuge FULANO DE TAL", "o excônjuge FULANO DE TAL"},
+		{"os da-", "nos", "os danos"},
+		{"o capítu-", "lo", "o capítulo"},
+		{"a clas-", "se", "a classe"},
+		{"sem-", "pre", "sempre"},
+		{"ape-", "nas", "apenas"},
+		{"auto-", "ridade", "autoridade"},
+		{"anti-", "go", "antigo"},
+		{"ex-", "pressa", "expressa"},
+		{"me-", "nos", "menos"},
+		{"mode-", "lo", "modelo"},
+		{"esco-", "la", "escola"},
+		{"o mal-", "dito", "o maldito"},
+		{"a gen-", "te", "a gente"},
 	} {
 		if got, want := refluir([]string{c.a, c.b}), []string{c.want}; !slices.Equal(got, want) {
 			t.Errorf("got %q, quer %q", got, want)
@@ -552,8 +580,8 @@ func TestPaginaCertificado(t *testing.T) {
 	if !paginaCertificado(linhasBasicas(certificado(true))) || !paginaCertificado(linhasBasicas(certificado(false))) {
 		t.Error("certificado não reconhecido")
 	}
-	if !paginaCertificado([]string{"cabeçalho", "Termos de Assinatura e Registro Eletrônico"}) {
-		t.Error("título nas 5 primeiras linhas devia bastar")
+	if !paginaCertificado([]string{"cabeçalho", "Termos de Assinatura e Registro Eletrônico", "Aceito: 01/01/2026"}) {
+		t.Error("título com 1 campo devia bastar")
 	}
 	prosa := []string{"linha 1", "linha 2", "linha 3", "linha 4", "linha 5", "linha 6"}
 	comTituloNoFim := append(slices.Clone(prosa), "Termos de Assinatura e Registro Eletrônico", "Enviado: 01/01/2026")
@@ -562,6 +590,9 @@ func TestPaginaCertificado(t *testing.T) {
 	}
 	for _, ls := range [][]string{
 		append(slices.Clone(prosa), "Termos de Assinatura e Registro Eletrônico"),
+		// Título sem campo, mesmo no topo, não basta.
+		{"cabeçalho", "Termos de Assinatura e Registro Eletrônico"},
+		{"PETIÇÃO", "Sobre os Termos de Assinatura e Registro Eletrônico juntados pelo réu.", "texto"},
 		{"Enviado: 01/01/2026", "Assinado: 01/01/2026", "texto"},
 		// E-mails encaminhados: três "Enviado:" sem outro campo de certificado.
 		{"De: FULANO DE TAL", "Enviado: 01/01/2026", "texto", "Enviado: 01/01/2026", "texto", "Enviado: 01/01/2026"},
@@ -589,6 +620,10 @@ func TestMaxima_PaginaCertificado(t *testing.T) {
 	}, "\n")
 	if got := cleanPage(peticao, NivelMaximo, &ctxDocumento{jaVistas: map[string]bool{}}); got != peticao {
 		t.Errorf("petição com o título na prosa devia ficar intacta: %q", got)
+	}
+	topo := "PETIÇÃO\nSobre os Termos de Assinatura e Registro Eletrônico juntados pelo réu.\nPede deferimento."
+	if got := cleanPage(topo, NivelMaximo, &ctxDocumento{jaVistas: map[string]bool{}}); got != topo {
+		t.Errorf("título na linha 2 sem campo devia ficar intacto: %q", got)
 	}
 
 	for _, comTitulo := range []bool{true, false} {
