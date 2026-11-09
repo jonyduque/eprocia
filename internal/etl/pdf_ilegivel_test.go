@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestTextoIlegivel(t *testing.T) {
@@ -50,7 +51,7 @@ func TestTextoIlegivel_PreenchimentoLegitimo(t *testing.T) {
 		"intercalado": strings.Join([]string{
 			"Assinatura: " + strings.Repeat("_ ", 30), "Fulano",
 			"Assinatura: " + strings.Repeat("_ ", 30), "Data: " + strings.Repeat(". ", 10),
-		}, "'+chr(92)+'n"),
+		}, "\n"),
 		"separadores": strings.Join([]string{
 			strings.Repeat("-", 40), strings.Repeat("=", 40), "ANEXO I",
 			strings.Repeat("*", 40), strings.Repeat("-", 40),
@@ -128,7 +129,28 @@ func TestParsePages_IlegivelComOCRFalhoViraMarcador(t *testing.T) {
 
 func TestTextoIlegivel_SimbolosRepetidosEmLinhas(t *testing.T) {
 	linha := strings.Repeat("#$%&*@", 2)
-	if !textoIlegivel(strings.Join([]string{linha, linha, linha}, "'+chr(92)+'n")) {
+	if !textoIlegivel(strings.Join([]string{linha, linha, linha}, "\n")) {
 		t.Error("símbolos repetidos em várias linhas deveriam ser ilegíveis")
+	}
+}
+
+// Uma sequência longa do mesmo caractere não pode custar tempo quadrático.
+func TestTextoIlegivel_SequenciaLongaNaoEQuadratica(t *testing.T) {
+	entradas := map[string]string{
+		"a repetido":          strings.Repeat("a", 2_000_000),
+		"a com espaço":        strings.Repeat("a ", 1_000_000),
+		"preenchimento longo": strings.Repeat("_ ", 1_000_000),
+	}
+	for nome, s := range entradas {
+		feito := make(chan bool, 1)
+		go func() { feito <- textoIlegivel(s) }()
+		select {
+		case ilegivel := <-feito:
+			if ilegivel {
+				t.Errorf("%s: texto legível marcado como ilegível", nome)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("%s: textoIlegivel passou de 2 s", nome)
+		}
 	}
 }
