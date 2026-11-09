@@ -1,6 +1,7 @@
 package etl
 
 import (
+	"io"
 	"math"
 	"sort"
 	"strings"
@@ -9,11 +10,17 @@ import (
 	"github.com/dslipak/pdf"
 )
 
-// Limiares do extrator posicional (valores do plano; nenhum teste pediu calibração).
+// Limiares do extrator posicional.
 const (
-	// larguraGlifoEm estima a largura de um glifo em frações do tamanho da fonte.
-	// A estimativa é larga de propósito: um glifo estreito nunca cria espaço falso.
-	larguraGlifoEm = 0.5
+	// larguraGlifoEm estima a largura de um glifo, em frações do tamanho da
+	// fonte, quando a fonte não traz /Widths (as 14 padrão sem /Widths e as
+	// compostas). O plano dava 0,5; calibrado para 0,4, que fica dentro da
+	// faixa [0,334; 0,447] em que passam "R$1.234 OK" (glifos a 7 pt, Helvetica
+	// 12) e palavras em minúscula posicionadas uma a uma ("estimativa" + espaço
+	// = 57,3 pt). Abaixo da média das maiúsculas (~0,67), então maiúsculas
+	// posicionadas letra a letra por Td numa fonte sem /Widths podem ganhar
+	// espaço falso.
+	larguraGlifoEm = 0.4
 	// espacoTJMilesimos: deslocamento acumulado num TJ, em milésimos de em, a
 	// partir do qual (≤) dois trechos são palavras distintas.
 	espacoTJMilesimos = -200
@@ -51,6 +58,66 @@ func matrizDosArgs(args []pdf.Value) matriz {
 	return m
 }
 
+// fonteTexto é o que o extrator usa de uma fonte: o decodificador e, se a
+// fonte trouxer /Widths, as larguras dos códigos em milésimos de em.
+type fonteTexto struct {
+	enc      pdf.TextEncoding
+	larguras []float64
+	primeiro int
+}
+
+// carregarFonte valida os streams que Encoder() interpreta antes de chamá-lo:
+// a biblioteca lê o /ToUnicode com o mesmo lexer que gira para sempre num
+// stream ilegível. Com /ToUnicode ou /Encoding ilegível, a fonte é decodificada
+// como sem ToUnicode (pdfDocEncoding, o Encoder de uma fonte vazia).
+func carregarFonte(f pdf.Font) *fonteTexto {
+	ft := &fonteTexto{larguras: f.Widths(), primeiro: f.FirstChar()}
+	if fonteLegivel(f) {
+		ft.enc = f.Encoder()
+	} else {
+		ft.enc = pdf.Font{}.Encoder()
+	}
+	return ft
+}
+
+// fonteLegivel diz se o /ToUnicode e o /Encoding da fonte, quando são
+// streams, podem ser lidos por inteiro.
+func fonteLegivel(f pdf.Font) bool {
+	for _, chave := range []string{"ToUnicode", "Encoding"} {
+		if v := f.V.Key(chave); v.Kind() == pdf.Stream && lerStream(v) != nil {
+			return false
+		}
+	}
+	return true
+}
+
+// largura devolve a largura de um trecho em frações do tamanho da fonte: a
+// soma de /Widths dos códigos crus, se a fonte as tiver; senão, a estimativa
+// por runa decodificada. Um código fora de /Widths (ou com largura 0) usa a
+// estimativa.
+func (f *fonteTexto) largura(cru, texto string) float64 {
+	if len(f.larguras) == 0 {
+		return float64(utf8.RuneCountInString(texto)) * larguraGlifoEm
+	}
+	var soma float64
+	for i := 0; i < len(cru); i++ {
+		if j := int(cru[i]) - f.primeiro; j >= 0 && j < len(f.larguras) && f.larguras[j] > 0 {
+			soma += f.larguras[j] / 1000
+		} else {
+			soma += larguraGlifoEm
+		}
+	}
+	return soma
+}
+
+// lerStream lê o stream por inteiro e devolve o erro de leitura, se houver.
+func lerStream(v pdf.Value) error {
+	rc := v.Reader()
+	defer rc.Close()
+	_, err := io.Copy(io.Discard, rc)
+	return err
+}
+
 // trecho é um pedaço de texto mostrado por um Tj ou por uma string de TJ, em
 // coordenadas do usuário.
 type trecho struct {
@@ -77,18 +144,14 @@ func extrairTextoPosicional(page pdf.Page) (string, error) {
 		}
 	}
 
-	fontes := page.Resources().Key("Font")
-	encoders := map[string]pdf.TextEncoding{}
-	encoderDe := func(nome string) pdf.TextEncoding {
-		if enc, ok := encoders[nome]; ok {
-			return enc
+	cache := map[string]*fonteTexto{}
+	fonteDe := func(nome string) *fonteTexto {
+		if f, ok := cache[nome]; ok {
+			return f
 		}
-		var enc pdf.TextEncoding
-		if !fontes.Key(nome).IsNull() {
-			enc = page.Font(nome).Encoder()
-		}
-		encoders[nome] = enc
-		return enc
+		f := carregarFonte(page.Font(nome))
+		cache[nome] = f
+		return f
 	}
 
 	var (
@@ -96,7 +159,7 @@ func extrairTextoPosicional(page pdf.Page) (string, error) {
 		ctm      = identidade
 		pilhaCTM []matriz
 		tm, tlm  = identidade, identidade
-		enc      pdf.TextEncoding
+		fonte    = carregarFonte(pdf.Font{})
 		tfs      float64
 		leading  float64
 	)
@@ -106,16 +169,13 @@ func extrairTextoPosicional(page pdf.Page) (string, error) {
 		tm = tlm
 	}
 	// mostrar decodifica s, registra o trecho na posição atual e avança a matriz
-	// de texto pela largura estimada.
+	// de texto pela largura do trecho (real ou estimada).
 	mostrar := func(s string, espacoTJ bool) {
-		texto := s
-		if enc != nil {
-			texto = enc.Decode(s)
-		}
+		texto := fonte.enc.Decode(s)
 		m := tm.vezes(ctm)
 		tamanho := tfs * math.Hypot(m[2], m[3])
 		x, y := m[4], m[5]
-		tm = translacao(float64(utf8.RuneCountInString(texto))*larguraGlifoEm*tfs, 0).vezes(tm)
+		tm = translacao(fonte.largura(s, texto)*tfs, 0).vezes(tm)
 		if texto == "" {
 			return
 		}
@@ -146,7 +206,7 @@ func extrairTextoPosicional(page pdf.Page) (string, error) {
 				tm, tlm = identidade, identidade
 			case "Tf":
 				if n == 2 {
-					enc = encoderDe(args[0].Name())
+					fonte = fonteDe(args[0].Name())
 					tfs = args[1].Float64()
 				}
 			case "TL":

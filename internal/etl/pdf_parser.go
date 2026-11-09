@@ -495,14 +495,22 @@ func checkContentStream(page pdf.Page) (unico bool, err error) {
 		if s.Kind() != pdf.Stream {
 			return false, fmt.Errorf("conteúdo da página não é stream (kind %v)", s.Kind())
 		}
-		rc := s.Reader()
-		_, err := io.Copy(io.Discard, rc)
-		rc.Close()
-		if err != nil {
+		if err := lerStream(s); err != nil {
 			return false, fmt.Errorf("stream de conteúdo ilegível: %w", err)
 		}
 	}
 	return contents.Kind() == pdf.Stream, nil
+}
+
+// fontesLegiveis diz se todo /ToUnicode e /Encoding em stream das fontes da
+// página pode ser lido por inteiro.
+func fontesLegiveis(page pdf.Page) bool {
+	for _, nome := range page.Fonts() {
+		if !fonteLegivel(page.Font(nome)) {
+			return false
+		}
+	}
+	return true
 }
 
 // textoPosicionalSeguro roda extrairTextoPosicional com o pânico confinado,
@@ -542,8 +550,9 @@ func ExtractNativeText(page pdf.Page) (text string, err error) {
 	if errPos != nil {
 		log.Printf("[PDFParser] Extrator posicional falhou: %v", errPos)
 	}
-	if !unico {
-		// GetTextByRow gira para sempre num /Contents em array.
+	if !unico || !fontesLegiveis(page) {
+		// GetTextByRow gira para sempre num /Contents em array e num /ToUnicode
+		// ilegível, que ele interpreta sem validar.
 		return "", errPos
 	}
 

@@ -107,7 +107,7 @@ Hooks (`.claude/settings.json`, logic in `.claude/hooks/*.mjs`):
 
 Known traps (fixed on 2026-10-14; keep them fixed):
 
-- `github.com/dslipak/pdf` loops forever when a page's `/Contents` is an array, missing or corrupt, and panics on unsupported filters. `checkContentStream` and the `recover` in `internal/etl/pdf_parser.go` guard against it.
+- `github.com/dslipak/pdf`'s lexer loops forever on a stream it cannot read (missing or corrupt `/Contents`, corrupt font `/ToUnicode`), its `GetTextByRow` also loops on a `/Contents` array, and it panics on unsupported filters. `ExtractNativeText` reads text with `extrairTextoPosicional` (`internal/etl/pdf_texto.go`), which interprets an array stream by stream; `checkContentStream` and `fonteLegivel` read every stream fully before the lexer sees it, `GetTextByRow` is only the fallback for a single stream with readable fonts, and `recover` guards the panics.
 - `getlantern/systray` on Windows needs ICO data; a PNG fails with `Unable to set icon` and leaves no way to reopen or quit a hidden window.
 - `tesseract.exe` and `pdftoppm.exe` started from the GUI app need `CREATE_NO_WINDOW` (`internal/ocr/proc_windows.go`), or every OCR'd page flashes a console window.
 - Pages whose text is drawn as vector outlines (iLovePDF) have no native text and no large images; `HasDrawnContent` sends them to OCR.
