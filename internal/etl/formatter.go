@@ -82,12 +82,8 @@ func normalizeEdgeLine(trimmed string) string {
 // edgeLines returns the normalized first and last edgeLineCount non-empty
 // lines of a page, without duplicates.
 func edgeLines(page string) map[string]bool {
-	var nonEmpty []string
-	for line := range strings.SplitSeq(page, "\n") {
-		if trimmed := strings.TrimSpace(line); trimmed != "" {
-			nonEmpty = append(nonEmpty, trimmed)
-		}
-	}
+	// Mesma limpeza e mesmas posições que cleanPage usa ao consultar o conjunto.
+	nonEmpty := linhasBasicas(page)
 	edges := make(map[string]bool)
 	for i, line := range nonEmpty {
 		if i < edgeLineCount || i >= len(nonEmpty)-edgeLineCount {

@@ -43,7 +43,7 @@ func linhasBasicas(text string) []string {
 	for linha := range strings.SplitSeq(text, "\n") {
 		linha = strings.Map(func(r rune) rune {
 			switch {
-			case r == '\t' || r == ' ':
+			case r == '\t' || r == ' ' || r == '\v' || r == '\f' || r == '\u0085':
 				return ' '
 			case r == '\r' || unicode.IsControl(r):
 				return -1

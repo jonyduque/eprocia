@@ -2,6 +2,7 @@ package etl
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -44,5 +45,28 @@ func TestCleanPage_NivelDesconhecidoViraBasica(t *testing.T) {
 	got := cleanPage("a  b\nc", "xyz", nil)
 	if want := "a b\nc"; got != want {
 		t.Errorf("got %q, quer %q", got, want)
+	}
+}
+
+func TestLinhasBasicas_VFeNEL(t *testing.T) {
+	got := linhasBasicas("a\vb\fc\u0085d")
+	if !slices.Equal(got, []string{"a b c d"}) {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestCleanPage_MaximaTiraCabecalhoComEspacoIrregular(t *testing.T) {
+	cab := "TRIBUNAL  DE JUSTICA\x01 FICTICIO"
+	pags := []string{
+		cab + "\n-----\ncorpo um",
+		"TRIBUNAL DE JUSTICA FICTICIO\n_____\ncorpo dois",
+		"TRIBUNAL\tDE JUSTICA FICTICIO\n=====\ncorpo tres",
+	}
+	ctx := &ctxDocumento{repetidas: repeatedEdgeLines(pags)}
+	for i, p := range pags {
+		got := cleanPage(p, NivelMaximo, ctx)
+		if strings.Contains(got, "TRIBUNAL") {
+			t.Errorf("pagina %d manteve o cabecalho: %q", i, got)
+		}
 	}
 }
