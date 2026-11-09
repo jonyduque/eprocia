@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/dslipak/pdf"
 )
@@ -158,7 +159,7 @@ func (p *PDFParser) ParsePages(
 			if content == "" {
 				content = fmt.Sprintf("[ERRO de OCR: %s]", err.Error())
 			}
-			log.Printf("[PDFParser] Falha no OCR para página %d: %v. Usando texto nativo como fallback (%d chars).", task.pageNum, err, len(task.fallback))
+			log.Printf("[PDFParser] Falha no OCR para página %d: %v. Usando o texto de reserva (%d chars).", task.pageNum, err, len(task.fallback))
 			ocrFailures.Add(1)
 			pageData = map[string]any{
 				"index":    task.pageNum,
@@ -394,19 +395,32 @@ func listarPaginas(reader *pdf.Reader, numPages int) (paginas []pdf.Page, errRes
 }
 
 // textoIlegivel reports whether the native text is garbage: at least 20
-// non-space runes and either fewer than 40% letters or digits, or more than 10
-// control runes (other than newline and tab).
+// non-space runes and either fewer than 40% letters, digits or marks, or more
+// than 10 control runes (other than newline and tab). Runs of 3 or more equal
+// filler runes (signature lines, dotted leaders, separators) are ignored.
 func textoIlegivel(s string) bool {
+	runas := []rune(s)
 	var visiveis, legiveis, controle int
-	for _, r := range s {
-		if unicode.IsSpace(r) {
+	for i := 0; i < len(runas); {
+		r := runas[i]
+		j := i
+		for j < len(runas) && runas[j] == r {
+			j++
+		}
+		if j-i >= 3 && strings.ContainsRune("_.-=*~•", r) {
+			i = j
 			continue
 		}
-		visiveis++
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			legiveis++
-		} else if unicode.IsControl(r) {
-			controle++
+		for ; i < j; i++ {
+			switch {
+			case unicode.IsSpace(r):
+				continue
+			case unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.IsMark(r):
+				legiveis++
+			case unicode.IsControl(r):
+				controle++
+			}
+			visiveis++
 		}
 	}
 	if visiveis < 20 {
@@ -416,9 +430,9 @@ func textoIlegivel(s string) bool {
 }
 
 // marcadorIlegivel replaces a page whose native text is garbage and that OCR
-// could not recover; n counts the omitted runes.
-func marcadorIlegivel(n int) string {
-	return fmt.Sprintf("[texto ilegível na página: %d caracteres omitidos]", n)
+// could not recover; the count is in runes, not bytes.
+func marcadorIlegivel(texto string) string {
+	return fmt.Sprintf("[texto ilegível na página: %d caracteres omitidos]", utf8.RuneCountInString(texto))
 }
 
 type analisePagina struct {
@@ -455,7 +469,7 @@ func analisarPagina(page pdf.Page, pageNum int, ocrEnabled bool) (an analisePagi
 		// Fonte com codificação quebrada: o texto nativo é lixo. Com OCR a página
 		// vai para ele, e o marcador é o fallback se o OCR falhar.
 		log.Printf("[PDFParser] Texto nativo da página %d é ilegível. OCR habilitado: %t", pageNum, ocrEnabled)
-		an.texto = marcadorIlegivel(len([]rune(an.texto)))
+		an.texto = marcadorIlegivel(an.texto)
 		an.precisaOcr = ocrEnabled
 		return an, nil
 	}

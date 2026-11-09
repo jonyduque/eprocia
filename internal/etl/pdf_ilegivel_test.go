@@ -24,9 +24,38 @@ func TestTextoIlegivel(t *testing.T) {
 	}
 }
 
-func TestMarcadorIlegivel_ContaRunas(t *testing.T) {
-	if got, want := marcadorIlegivel(150), "[texto ilegível na página: 150 caracteres omitidos]"; got != want {
+func TestMarcadorIlegivel_ContaRunasNaoBytes(t *testing.T) {
+	texto := "ação é ônus" // 11 runas, 14 bytes
+	if got, want := marcadorIlegivel(texto), "[texto ilegível na página: 11 caracteres omitidos]"; got != want {
 		t.Errorf("marcador = %q, quero %q", got, want)
+	}
+}
+
+// Páginas legítimas dominadas por caracteres de preenchimento não são lixo.
+func TestTextoIlegivel_PreenchimentoLegitimo(t *testing.T) {
+	sublinha := strings.Repeat("_", 22)
+	paginas := map[string]string{
+		"assinatura": strings.Join([]string{
+			sublinha + " FULANO DE TAL " + sublinha,
+			sublinha + " Beltrano da Silva " + sublinha,
+			sublinha,
+			sublinha + " Advogado " + sublinha,
+		}, "\n"),
+		"indice": strings.Join([]string{
+			"Introdução " + strings.Repeat(".", 28) + " 3",
+			"Dos fatos " + strings.Repeat(".", 30) + " 5",
+			"Do direito " + strings.Repeat(".", 29) + " 9",
+			"Conclusão " + strings.Repeat(".", 30) + " 12",
+		}, "\n"),
+		"separadores": strings.Join([]string{
+			strings.Repeat("-", 40), strings.Repeat("=", 40), "ANEXO I",
+			strings.Repeat("*", 40), strings.Repeat("-", 40),
+		}, "\n"),
+	}
+	for nome, s := range paginas {
+		if textoIlegivel(s) {
+			t.Errorf("%s: página legítima marcada como ilegível", nome)
+		}
 	}
 }
 
@@ -52,8 +81,8 @@ func TestParsePages_IlegivelSemOCRViraMarcador(t *testing.T) {
 		t.Fatalf("ParsePages: %v", err)
 	}
 	pag := pages["1"].(map[string]any)
-	if pag["content"] != marcadorIlegivel(150) {
-		t.Errorf("conteúdo = %q, quero %q", pag["content"], marcadorIlegivel(150))
+	if pag["content"] != marcadorIlegivel(strings.Repeat("x", 150)) {
+		t.Errorf("conteúdo = %q, quero %q", pag["content"], marcadorIlegivel(strings.Repeat("x", 150)))
 	}
 }
 
@@ -88,7 +117,7 @@ func TestParsePages_IlegivelComOCRFalhoViraMarcador(t *testing.T) {
 		t.Fatalf("ParsePages: %v", err)
 	}
 	pag := pages["1"].(map[string]any)
-	if pag["content"] != marcadorIlegivel(150) {
+	if pag["content"] != marcadorIlegivel(strings.Repeat("x", 150)) {
 		t.Errorf("conteúdo = %q, quero o marcador", pag["content"])
 	}
 }
