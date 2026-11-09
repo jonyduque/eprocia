@@ -2,6 +2,7 @@ package etl
 
 import (
 	"cmp"
+	"crypto/sha256"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -177,6 +178,91 @@ func cleanPage(text string, level string, ctx *ctxDocumento) string {
 	return strings.Join(cleanedLines, " ")
 }
 
+// duplicadaMinRunas é o tamanho mínimo (em runas, após linhasBasicas) de uma
+// página para entrar na detecção de duplicatas (H7).
+const duplicadaMinRunas = 200
+
+// origemPagina identifica a primeira ocorrência de um conteúdo.
+type origemPagina struct {
+	evento int
+	doc    string
+	pag    int
+}
+
+// chavePagina localiza uma página na saída: evento, índice do documento e da página.
+type chavePagina struct{ evento, doc, pag int }
+
+func (o origemPagina) mesmoDoc(p origemPagina) bool {
+	return o.evento == p.evento && o.doc == p.doc
+}
+
+// refPagina e refDocumento são os marcadores que H7 deixa no lugar do texto.
+func (o origemPagina) refPagina() string {
+	return fmt.Sprintf("[conteúdo idêntico a: evento %d, %s, pág. %d]", o.evento, o.doc, o.pag)
+}
+
+func (o origemPagina) refDocumento() string {
+	return fmt.Sprintf("[documento idêntico a: evento %d, %s]", o.evento, o.doc)
+}
+
+// chaveConteudo é o sha256 das linhas básicas unidas por espaço; "" quando a
+// página tem menos de duplicadaMinRunas runas.
+func chaveConteudo(content string) string {
+	juntas := strings.Join(linhasBasicas(content), " ")
+	if utf8.RuneCountInString(juntas) < duplicadaMinRunas {
+		return ""
+	}
+	soma := sha256.Sum256([]byte(juntas))
+	return string(soma[:])
+}
+
+// duplicadasPorConteudo percorre eventos, documentos e páginas na ordem de saída
+// e devolve, para cada página repetida, a origem da primeira ocorrência.
+func duplicadasPorConteudo(eventos map[string]any, eventNums []int) map[chavePagina]origemPagina {
+	primeiras := map[string]origemPagina{}
+	dups := map[chavePagina]origemPagina{}
+	for _, num := range eventNums {
+		evData := eventos[fmt.Sprintf("%d", num)].(map[string]any)
+		type docOrd struct {
+			nome    string
+			index   int
+			paginas map[string]any
+		}
+		var docs []docOrd
+		for _, val := range evData["documentos"].(map[string]any) {
+			dData := val.(map[string]any)
+			docs = append(docs, docOrd{dData["nome"].(string), dData["index"].(int), dData["paginas"].(map[string]any)})
+		}
+		slices.SortFunc(docs, func(a, b docOrd) int { return cmp.Compare(a.index, b.index) })
+		for _, d := range docs {
+			nomeCurto := summaryDocName(d.nome)
+			type pagOrd struct {
+				index   int
+				content string
+			}
+			var pags []pagOrd
+			for _, val := range d.paginas {
+				pData := val.(map[string]any)
+				c, _ := pData["content"].(string)
+				pags = append(pags, pagOrd{pData["index"].(int), c})
+			}
+			slices.SortFunc(pags, func(a, b pagOrd) int { return cmp.Compare(a.index, b.index) })
+			for _, p := range pags {
+				chave := chaveConteudo(p.content)
+				if chave == "" {
+					continue
+				}
+				if o, ok := primeiras[chave]; ok {
+					dups[chavePagina{num, d.index, p.index}] = o
+				} else {
+					primeiras[chave] = origemPagina{num, nomeCurto, p.index}
+				}
+			}
+		}
+	}
+	return dups
+}
+
 // EstimateTokens approximates the LLM token count of text as one token per four
 // characters, a local heuristic with no tokenizer or network access.
 func EstimateTokens(text string) int {
@@ -252,6 +338,13 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 	header := sb.String()
 	sb.Reset()
 
+	// H7: na Padrão e na Máxima, páginas de 200+ runas com o mesmo conteúdo
+	// (após linhasBasicas) viram referência à primeira ocorrência, na ordem de saída.
+	var duplicadas map[chavePagina]origemPagina
+	if cleaningLevel == NivelPadrao || cleaningLevel == NivelMaximo {
+		duplicadas = duplicadasPorConteudo(eventos, eventNums)
+	}
+
 	// Loop over each Event chronologically
 	for _, num := range eventNums {
 		eventKey := fmt.Sprintf("%d", num)
@@ -311,8 +404,32 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 				ctx.repetidas = repeatedEdgeLines(contents)
 			}
 
+			// Documento cujas páginas são todas duplicatas de um mesmo documento
+			// de origem: o corpo inteiro vira uma referência só.
+			if len(duplicadas) > 0 && len(pages) > 0 {
+				var origem origemPagina
+				todas := true
+				for i, p := range pages {
+					o, ok := duplicadas[chavePagina{num, d.index, p.index}]
+					if !ok || (i > 0 && !o.mesmoDoc(origem)) {
+						todas = false
+						break
+					}
+					origem = o
+				}
+				if todas {
+					sb.WriteString("        ")
+					sb.WriteString(origem.refDocumento())
+					sb.WriteString("\n    </documento>\n")
+					continue
+				}
+			}
+
 			for _, p := range pages {
 				cleanedText := cleanPage(p.content, cleaningLevel, ctx)
+				if o, ok := duplicadas[chavePagina{num, d.index, p.index}]; ok {
+					cleanedText = o.refPagina()
+				}
 				sb.WriteString(fmt.Sprintf("        <pag num=\"%d\">\n", p.index))
 				sb.WriteString(cleanedText)
 				sb.WriteString("\n        </pag>\n")

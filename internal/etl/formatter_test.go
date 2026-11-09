@@ -460,6 +460,111 @@ func pagina(t *testing.T, saida string, n int) string {
 	return corpo
 }
 
+// textoLongo devolve texto sintético de pelo menos n runas, diferente por semente.
+func textoLongo(semente string, n int) string {
+	var sb strings.Builder
+	for sb.Len() < n {
+		sb.WriteString("Texto sintético " + semente + " do caso FULANO DE TAL. ")
+	}
+	return sb.String()
+}
+
+// eventosDocs monta eventos com um documento por evento, cada um com as páginas dadas.
+func eventosDocs(docs ...[]string) map[string]any {
+	eventos := map[string]any{}
+	for i, paginas := range docs {
+		pags := map[string]any{}
+		for j, c := range paginas {
+			pags[strconv.Itoa(j+1)] = map[string]any{"index": j + 1, "ocr": false, "content": c}
+		}
+		eventos[strconv.Itoa(i+1)] = map[string]any{
+			"index": i + 1,
+			"documentos": map[string]any{
+				"d": map[string]any{"index": 1, "nome": "Evento " + strconv.Itoa(i+1) + " - DOC" + strconv.Itoa(i+1) + ".pdf", "paginas": pags},
+			},
+		}
+	}
+	return eventos
+}
+
+func TestDuplicadas_PaginaViraReferencia(t *testing.T) {
+	igual := textoLongo("igual", 250)
+	for _, nivel := range []string{NivelPadrao, NivelMaximo} {
+		saida, _ := GenerateConsolidatedOutput(eventosDocs(
+			[]string{igual, textoLongo("outra", 250)},
+			[]string{textoLongo("terceira", 250), igual},
+		), nivel)
+		if !strings.Contains(saida, "[conteúdo idêntico a: evento 1, DOC1, pág. 1]") {
+			t.Errorf("%s: faltou a referência de página:\n%s", nivel, saida)
+		}
+		if got, want := strings.Count(saida, "Texto sintético igual"), strings.Count(igual, "Texto sintético igual"); got != want {
+			t.Errorf("%s: o texto repetido devia aparecer uma vez (%d, esperado %d):\n%s", nivel, got, want, saida)
+		}
+		if strings.Contains(saida, "documento idêntico") {
+			t.Errorf("%s: documento só em parte duplicado não vira referência:\n%s", nivel, saida)
+		}
+	}
+}
+
+func TestDuplicadas_DocumentoInteiro(t *testing.T) {
+	a, b := textoLongo("a", 250), textoLongo("b", 250)
+	for _, nivel := range []string{NivelPadrao, NivelMaximo} {
+		saida, _ := GenerateConsolidatedOutput(eventosDocs([]string{a, b}, []string{a, b}), nivel)
+		if !strings.Contains(saida, "[documento idêntico a: evento 1, DOC1]") {
+			t.Errorf("%s: faltou a referência de documento:\n%s", nivel, saida)
+		}
+		if strings.Contains(saida, "conteúdo idêntico") {
+			t.Errorf("%s: documento inteiro não deixa referência por página:\n%s", nivel, saida)
+		}
+		if strings.Count(saida, "Texto sintético a ") != strings.Count(a, "Texto sintético a ") ||
+			strings.Count(saida, "Texto sintético b ") != strings.Count(b, "Texto sintético b ") {
+			t.Errorf("%s: o texto devia aparecer uma vez:\n%s", nivel, saida)
+		}
+	}
+}
+
+func TestDuplicadas_DocumentoDeOrigensDiferentesNaoColapsa(t *testing.T) {
+	a, b := textoLongo("a", 250), textoLongo("b", 250)
+	saida, _ := GenerateConsolidatedOutput(eventosDocs([]string{a}, []string{b}, []string{a, b}), NivelPadrao)
+	if strings.Contains(saida, "documento idêntico") {
+		t.Errorf("páginas de origens diferentes não colapsam o documento:\n%s", saida)
+	}
+	if !strings.Contains(saida, "[conteúdo idêntico a: evento 1, DOC1, pág. 1]") ||
+		!strings.Contains(saida, "[conteúdo idêntico a: evento 2, DOC2, pág. 1]") {
+		t.Errorf("cada página devia referenciar a sua origem:\n%s", saida)
+	}
+}
+
+func TestDuplicadas_UmDigitoDiferenteNaoColapsa(t *testing.T) {
+	base := textoLongo("valor", 250)
+	saida, _ := GenerateConsolidatedOutput(eventosDocs(
+		[]string{base + "Valor R$ 1.234,56"}, []string{base + "Valor R$ 1.234,57"}), NivelPadrao)
+	if strings.Contains(saida, "idêntico") {
+		t.Errorf("um dígito diferente não é duplicata:\n%s", saida)
+	}
+	if !strings.Contains(saida, "1.234,56") || !strings.Contains(saida, "1.234,57") {
+		t.Errorf("os dois valores deviam ficar:\n%s", saida)
+	}
+}
+
+func TestDuplicadas_PaginaCurtaNaoColapsa(t *testing.T) {
+	curta := textoLongo("curta", 150)[:150]
+	saida, _ := GenerateConsolidatedOutput(eventosDocs([]string{curta}, []string{curta}), NivelPadrao)
+	if strings.Contains(saida, "idêntico") {
+		t.Errorf("página de 150 runas não colapsa:\n%s", saida)
+	}
+}
+
+func TestDuplicadas_BasicaNaoColapsa(t *testing.T) {
+	igual := textoLongo("igual", 250)
+	for _, nivel := range []string{NivelNenhum, NivelBasico} {
+		saida, _ := GenerateConsolidatedOutput(eventosDocs([]string{igual}, []string{igual}), nivel)
+		if strings.Contains(saida, "idêntico") || strings.Count(saida, "Texto sintético igual") < 2*strings.Count(igual, "Texto sintético igual") {
+			t.Errorf("%s: não devia colapsar:\n%s", nivel, saida)
+		}
+	}
+}
+
 func TestPadrao_TimbreFicaSoNaPrimeiraPagina(t *testing.T) {
 	timbre := "ESCRITÓRIO MODELO ADVOGADOS\nOAB/SP 000.000"
 	saida, _ := GenerateConsolidatedOutput(docPadrao(
