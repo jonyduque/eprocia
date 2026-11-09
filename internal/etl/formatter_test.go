@@ -470,13 +470,15 @@ func TestFormato_DocUmaPaginaSemPag(t *testing.T) {
 
 func TestFormato_PaginaVaziaNaoEmitePag(t *testing.T) {
 	for _, nivel := range []string{NivelNenhum, NivelBasico, NivelPadrao, NivelMaximo} {
-		// Uma página com conteúdo e outra só de espaço: vira documento de uma página.
+		// Duas páginas na origem, uma vazia: a que sobra mantém o <pag n>.
 		saida, _ := GenerateConsolidatedOutput(docPadrao("Texto sintético.", "  \n \n"), nivel)
-		if strings.Contains(saida, "<pag") {
-			t.Errorf("%s: página vazia não emite <pag> e o resto vira doc de uma página:\n%s", nivel, saida)
+		if strings.Contains(saida, "<pag n=\"2\">") || !strings.Contains(saida, "<pag n=\"1\">\nTexto sintético.\n</pag>") {
+			t.Errorf("%s: só a pág. 1 emite <pag>:\n%s", nivel, saida)
 		}
-		if !strings.Contains(saida, ">\nTexto sintético.\n</documento>") {
-			t.Errorf("%s: faltou o conteúdo direto:\n%s", nivel, saida)
+		// 3 páginas na origem, só a 2 com conteúdo: o 2 não se perde.
+		saida, _ = GenerateConsolidatedOutput(docPadrao("", "Texto sintético.", ""), nivel)
+		if !strings.Contains(saida, "<pag n=\"2\">\nTexto sintético.\n</pag>") || strings.Contains(saida, "<pag n=\"1\">") {
+			t.Errorf("%s: pág. 2 devia sair com n=2:\n%s", nivel, saida)
 		}
 		// Todas vazias: sem corpo.
 		saida, _ = GenerateConsolidatedOutput(docPadrao("", "\n"), nivel)

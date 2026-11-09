@@ -120,5 +120,7 @@ Tokens estimados: [T]
 - **Tokens estimados:** estimativa de tokens do arquivo inteiro, inclusive desta linha, a um token a cada quatro caracteres. É o mesmo número que a fila mostra no item concluído.
 - **`<summary>`:** uma linha por documento, na ordem do arquivo, com o nome sem o prefixo "Evento N - " e sem a extensão.
 - **`nome`:** nome do arquivo dentro do ZIP, com a extensão; `&`, aspas e sinais de menor e maior viram entidades XML.
-- **Recuo:** nenhuma linha da saída começa com espaço.
-- **`<pag n="N">`:** um por página do PDF com conteúdo, com o número original. Documento com uma só página de conteúdo (um HTML, por exemplo) escreve o texto direto dentro de `<documento>`, sem `<pag>`; página vazia depois da limpeza não emite `<pag>`, e documento sem nenhum conteúdo sai sem corpo. Página que falhou na leitura ou no OCR traz um marcador `[ERRO ...]` no lugar do texto.
+- **Recuo:** nenhuma linha de marcação começa com espaço. No nível Nenhuma, o texto das páginas fica como extraído.
+- **`<pag n="N">`:** um por página com conteúdo, com o número original (a peça é citada por página). Documento com exatamente 1 página na origem (um HTML, por exemplo, ou um PDF de uma página) escreve o texto direto dentro de `<documento>`, sem `<pag>`. Com 2 ou mais páginas na origem, a página que sobra também sai com `<pag n="N">`. Página vazia depois da limpeza não emite `<pag>`, e documento sem nenhum conteúdo sai sem corpo.
+- **Páginas no `<summary>`:** é o total original do documento, inclusive as páginas que saíram vazias.
+- **Erros:** página que falhou na leitura ou no OCR traz um marcador `[ERRO ...]` no lugar do texto.

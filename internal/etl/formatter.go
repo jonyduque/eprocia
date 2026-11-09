@@ -425,10 +425,12 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 				}
 				saem = append(saem, paginaOrdenada{p.index, cleanedText})
 			}
-			switch len(saem) {
-			case 0:
-			case 1:
-				// Documento de uma página: o conteúdo vai direto, sem <pag>.
+			switch {
+			case len(saem) == 0:
+			case len(d.paginas) == 1:
+				// Documento de uma página na origem: o conteúdo vai direto, sem
+				// <pag>. Com 2+ páginas na origem o n original é mantido, porque
+				// a peça é citada por página.
 				sb.WriteString(saem[0].content)
 				sb.WriteString("\n")
 			default:
