@@ -46,6 +46,9 @@ func TestQuadroOcultar_VaiDoOpacoAoTransparente(t *testing.T) {
 	if q := QuadroOcultar(2*dur, dur, 16, 12); q != (Quadro{Alfa: 0, DX: 16, DY: 12}) {
 		t.Fatalf("depois do fim: %+v", q)
 	}
+	if q := QuadroOcultar(dur/2, dur, 16, 12); q.Alfa < 120 || q.Alfa > 135 {
+		t.Fatalf("o alfa cai em linha reta; na metade deu %d", q.Alfa)
+	}
 	if q := QuadroOcultar(-time.Millisecond, dur, 16, 12); q != (Quadro{Alfa: 255}) {
 		t.Fatalf("antes do início: %+v", q)
 	}
@@ -64,7 +67,7 @@ func TestQuadroOcultar_VaiDoOpacoAoTransparente(t *testing.T) {
 
 	meio := QuadroOcultar(dur/2, dur, 16, 12)
 	want := Quadro{
-		Alfa: uint8(math.Round(255 * (1 - suavizar(0.5)))),
+		Alfa: 128, // alfa linear no tempo
 		DX:   int(math.Round(16 * suavizar(0.5))),
 		DY:   int(math.Round(12 * suavizar(0.5))),
 	}

@@ -23,15 +23,18 @@ type Quadro struct {
 	DX, DY int
 }
 
-// QuadroOcultar devolve o quadro em decorrido: o alfa vai de 255 a 0 e o
-// deslocamento de (0,0) a (dx,dy), na curva --ease-out do app.
+// QuadroOcultar devolve o quadro em decorrido: o deslocamento vai de (0,0) a
+// (dx,dy) na curva --ease-out do app, e o alfa cai de 255 a 0 em linha reta
+// (na ease-out ele passava de 90% transparente no primeiro terço e o fade
+// parecia um corte).
 func QuadroOcultar(decorrido, duracao time.Duration, dx, dy int) Quadro {
-	p := 1.0
+	t := 1.0
 	if duracao > 0 {
-		p = suavizar(float64(decorrido) / float64(duracao))
+		t = min(max(float64(decorrido)/float64(duracao), 0), 1)
 	}
+	p := suavizar(t)
 	return Quadro{
-		Alfa: uint8(math.Round(255 * (1 - p))),
+		Alfa: uint8(math.Round(255 * (1 - t))),
 		DX:   int(math.Round(float64(dx) * p)),
 		DY:   int(math.Round(float64(dy) * p)),
 	}
