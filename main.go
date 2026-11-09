@@ -20,6 +20,22 @@ import (
 var assets embed.FS
 
 func main() {
+	// Uma instância por executável: outra cópia do mesmo exe avisa e sai (na
+	// partida automática, sai calada). Se a trava falhar, o app abre assim
+	// mesmo. O handle fica aberto até o processo terminar.
+	liberar, ok, err := travarInstancia(nomeTravaInstancia(caminhoExecutavel()))
+	switch {
+	case err != nil:
+		log.Printf("[Instância] trava indisponível: %v", err)
+	case !ok:
+		if !autostart.IniciarOculto(os.Args) {
+			avisarInstanciaAberta()
+		}
+		os.Exit(0)
+	default:
+		defer liberar()
+	}
+
 	// Create an instance of the app structure
 	app := NewApp()
 	app.cfg = carregarConfig(config.Load)
@@ -29,7 +45,7 @@ func main() {
 	})
 
 	// Run the application
-	err := wails.Run(&options.App{
+	err = wails.Run(&options.App{
 		Title:     "eprocIA",
 		Width:     1024,
 		Height:    768,
