@@ -378,95 +378,14 @@ func linhaMarcador(l string) bool {
 type juncao int
 
 const (
-	naoJunta      juncao = iota
-	juntaEspaco          // parágrafo: junta com um espaço
-	juntaSemHifen        // palavra hifenizada: tira o hífen e junta sem espaço
-	juntaComHifen        // composto ou clítico: mantém o hífen, sem espaço
+	naoJunta    juncao = iota
+	juntaEspaco        // parágrafo: junta com um espaço
+	juntaHifen         // fim em hífen: junta sem espaço e mantém o hífen
 )
 
-// Palavras que decidem se o hífen do fim da linha fica (hifenFica).
-var (
-	// cliticos colidem com sílabas finais comuns ("da-nos", "capítu-lo",
-	// "clas-se", "gen-te"): o hífen só fica depois de forma verbal (verboClitico).
-	cliticos = map[string]bool{
-		"o": true, "a": true, "os": true, "as": true, "lo": true, "la": true, "los": true, "las": true,
-		"no": true, "na": true, "nos": true, "nas": true, "lhe": true, "lhes": true,
-		"me": true, "te": true, "se": true, "vos": true,
-	}
-	// cliticosComS aceitam também fragmento terminado em s ("fizemos-o").
-	cliticosComS = map[string]bool{
-		"o": true, "a": true, "os": true, "as": true, "no": true, "na": true, "nos": true, "nas": true,
-		"lo": true, "la": true, "los": true, "las": true,
-	}
-	// prefixosHifen diz, pela primeira letra da palavra seguinte, se o hífen do
-	// prefixo fica (Acordo Ortográfico). Sem hífen antes de consoante, "auto-res"
-	// e "contra-to" são quebra silábica. ex e sem ficam fora: "ex-tinção" e
-	// "sem-pre" são muito mais comuns que "ex-cônjuge" partido na linha. auxílio e
-	// salário entram como primeiros elementos de compostos previdenciários.
-	prefixosHifen = map[string]func(r rune) bool{
-		"auto": mesmaVogalOuH('o'), "contra": mesmaVogalOuH('a'), "extra": mesmaVogalOuH('a'),
-		"infra": mesmaVogalOuH('a'), "supra": mesmaVogalOuH('a'), "ultra": mesmaVogalOuH('a'),
-		"anti": mesmaVogalOuH('i'), "semi": mesmaVogalOuH('i'),
-		"super": antesDe("hr"), "inter": antesDe("hr"), "hiper": antesDe("hr"),
-		"sub":  antesDe("bhr"),
-		"mal":  antesDe("h" + vogais),
-		"vice": sempre, "pós": sempre, "pré": sempre, "pró": sempre, "recém": sempre,
-		"além": sempre, "aquém": sempre, "grão": sempre, "grã": sempre, "bem": sempre,
-		"auxílio": sempre, "salário": sempre,
-	}
-	// antesDeNumero são as palavras finais depois das quais uma linha que
-	// começa com dígito continua a frase ("art." + "5º").
-	antesDeNumero = map[string]bool{"nº": true, "n.": true, "art.": true, "arts.": true, "lei": true, "inciso": true, "§": true}
-)
-
-const (
-	vogais          = "aeiouáéíóúâêôãõà"
-	vogaisAcentuada = "áéíóúâêôãõ"
-)
-
-func sempre(rune) bool { return true }
-
-func antesDe(letras string) func(rune) bool {
-	return func(r rune) bool { return strings.ContainsRune(letras, r) }
-}
-
-func mesmaVogalOuH(v rune) func(rune) bool {
-	return func(r rune) bool { return r == 'h' || r == v }
-}
-
-func soLetras(s string) string {
-	return strings.ToLower(strings.TrimFunc(s, func(r rune) bool { return !unicode.IsLetter(r) }))
-}
-
-// verboClitico informa se frag (minúsculo) parece a forma verbal antes de um
-// clítico: termina em r, z, m ou vogal acentuada ("requer-se", "faz-se",
-// "fazem-lhe", "condená-lo"), ou em s para os clíticos de cliticosComS.
-func verboClitico(frag, clitico string) bool {
-	r, _ := utf8.DecodeLastRuneInString(frag)
-	return strings.ContainsRune("rzm"+vogaisAcentuada, r) || (r == 's' && cliticosComS[clitico])
-}
-
-// hifenFica diz se o hífen entre semHifen (a linha sem o hífen final) e b é
-// legítimo: b começa com "feira", com clítico depois de forma verbal, ou o
-// fragmento final de a é prefixo que pede hífen antes da letra inicial de b.
-func hifenFica(semHifen, b string) bool {
-	frag := semHifen
-	if i := strings.LastIndexAny(frag, " -"); i >= 0 {
-		frag = frag[i+1:]
-	}
-	frag = soLetras(frag)
-	prim, _, _ := strings.Cut(b, " ")
-	prim = soLetras(prim)
-	if prim == "" || frag == "" {
-		return false
-	}
-	if strings.HasPrefix(prim, "feira") || (cliticos[prim] && verboClitico(frag, prim)) {
-		return true
-	}
-	regra, ok := prefixosHifen[frag]
-	inicial, _ := utf8.DecodeRuneInString(prim)
-	return ok && regra(inicial)
-}
+// antesDeNumero são as palavras finais depois das quais uma linha que começa
+// com dígito continua a frase ("art." + "5º").
+var antesDeNumero = map[string]bool{"nº": true, "n.": true, "art.": true, "arts.": true, "lei": true, "inciso": true, "§": true}
 
 // fimDeFrase informa se l termina em . : ; ? !, ignorando aspas, parênteses e
 // colchetes de fechamento depois da pontuação.
@@ -492,13 +411,10 @@ func juntaLinhas(a, b string) juncao {
 	prim, _ := utf8.DecodeRuneInString(b)
 	if semHifen, ok := strings.CutSuffix(a, "-"); ok {
 		antes, _ := utf8.DecodeLastRuneInString(semHifen)
-		switch {
-		case !unicode.IsLetter(antes) || !unicode.IsLower(prim):
-			return naoJunta
-		case hifenFica(semHifen, b):
-			return juntaComHifen
+		if unicode.IsLetter(antes) && unicode.IsLower(prim) {
+			return juntaHifen
 		}
-		return juntaSemHifen
+		return naoJunta
 	}
 	if utf8.RuneCountInString(a) < refluirMinRunas {
 		return naoJunta
@@ -524,10 +440,11 @@ func juntaLinhas(a, b string) juncao {
 //   - a i+1 começa com dígito e a i termina em vírgula ou em nº, n., art.,
 //     arts., Lei, inciso ou §.
 //
-// Uma palavra hifenizada no fim da linha junta com a próxima, que começa com
-// minúscula, sem espaço: o hífen sai, salvo em clítico depois de forma verbal
-// ("requer-se"), prefixo que o pede ("sub-reitor") e "-feira" (hifenFica). As regras olham as linhas originais,
-// não o parágrafo já juntado.
+// Uma linha que termina em letra seguida de hífen junta com a próxima, que
+// começa com minúscula, sem espaço e mantendo o hífen ("pala-vra",
+// "trata-se"): separar a quebra silábica do hífen legítimo pede dicionário, e
+// o hífen a mais não atrapalha a leitura. As regras olham as linhas
+// originais, não o parágrafo já juntado.
 func refluir(linhas []string) []string {
 	var out []string
 	for i, l := range linhas {
@@ -537,10 +454,7 @@ func refluir(linhas []string) []string {
 			case juntaEspaco:
 				*ult += " " + l
 				continue
-			case juntaSemHifen:
-				*ult = strings.TrimSuffix(*ult, "-") + l
-				continue
-			case juntaComHifen:
+			case juntaHifen:
 				*ult += l
 				continue
 			}
