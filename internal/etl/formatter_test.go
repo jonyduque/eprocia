@@ -233,6 +233,22 @@ func TestGenerateConsolidatedOutput_SummaryLineFormat(t *testing.T) {
 	}
 }
 
+// pg monta uma página longa (mais de 2×edgeLineCount linhas): topo, 11 linhas
+// de miolo únicas (tag) e rodapé; topo e rodapé vazios são omitidos.
+func pg(topo, tag, rodape string) string {
+	var ls []string
+	if topo != "" {
+		ls = append(ls, topo)
+	}
+	for i := 1; i <= 11; i++ {
+		ls = append(ls, tag+" miolo "+strconv.Itoa(i))
+	}
+	if rodape != "" {
+		ls = append(ls, rodape)
+	}
+	return strings.Join(ls, "\n")
+}
+
 func TestRepeatedEdgeLines(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -241,20 +257,25 @@ func TestRepeatedEdgeLines(t *testing.T) {
 	}{
 		{
 			name:  "uma página não marca nada",
-			pages: []string{"CABEÇALHO\ncorpo a"},
+			pages: []string{pg("CABEÇALHO", "a", "")},
 			want:  nil,
 		},
 		{
 			name:  "duas páginas marcam o que se repete nas duas",
-			pages: []string{"CABEÇALHO\ncorpo a", "CABEÇALHO\ncorpo b"},
+			pages: []string{pg("CABEÇALHO", "a", ""), pg("CABEÇALHO", "b", "")},
 			want:  []string{"CABEÇALHO"},
+		},
+		{
+			name:  "páginas curtas ficam fora da contagem",
+			pages: []string{"CABEÇALHO\ncorpo a\nNestes termos", "CABEÇALHO\ncorpo b\nNestes termos"},
+			want:  nil,
 		},
 		{
 			name: "cabeçalho e rodapé com número variável",
 			pages: []string{
-				"PODER JUDICIÁRIO\ncorpo um\nmais texto\nmeio um\nfim do corpo\nProcesso 5001234-10.2024 - fl. 1",
-				"PODER JUDICIÁRIO\ncorpo dois\noutro\nmeio dois\nfim\nProcesso 5001234-10.2024 - fl. 2",
-				"  PODER JUDICIÁRIO  \ncorpo três\nlinha\nmeio três\nfinal\nProcesso 5001234-10.2024 - fl. 3",
+				pg("PODER JUDICIÁRIO", "um", "Processo 5001234-10.2024 - fl. 1"),
+				pg("PODER JUDICIÁRIO", "dois", "Processo 5001234-10.2024 - fl. 2"),
+				pg("  PODER JUDICIÁRIO  ", "três", "Processo 5001234-10.2024 - fl. 3"),
 			},
 			want: []string{"PODER JUDICIÁRIO", "Processo #######-##.#### - fl. #"},
 		},
@@ -270,21 +291,21 @@ func TestRepeatedEdgeLines(t *testing.T) {
 		{
 			name: "abaixo de 60% das páginas não é marcada",
 			pages: []string{
-				"TOPO\nx", "TOPO\ny", "outro\nz", "mais\nw", "fim\nv",
+				pg("TOPO", "x", ""), pg("TOPO", "y", ""), pg("outro", "z", ""), pg("mais", "w", ""), pg("fim", "v", ""),
 			},
 			want: nil,
 		},
 		{
 			name: "exatamente 60% das páginas é marcada",
 			pages: []string{
-				"TOPO\nx", "TOPO\ny", "TOPO\nz", "mais\nw", "fim\nv",
+				pg("TOPO", "x", ""), pg("TOPO", "y", ""), pg("TOPO", "z", ""), pg("mais", "w", ""), pg("fim", "v", ""),
 			},
 			want: []string{"TOPO"},
 		},
 		{
 			name: "linha repetida na mesma página conta uma vez",
 			pages: []string{
-				"TOPO\nTOPO\nx", "TOPO\nTOPO\ny", "a\nb", "c\nd",
+				pg("TOPO\nTOPO", "x", ""), pg("TOPO\nTOPO", "y", ""), pg("a", "z", ""), pg("c", "w", ""),
 			},
 			want: nil,
 		},
@@ -312,7 +333,7 @@ func TestGenerateConsolidatedOutput_AggressiveDropsRepeatedHeadersFooters(t *tes
 		n := i + 1
 		paginas[strconv.Itoa(n)] = map[string]any{
 			"index": n, "ocr": false,
-			"content": "TRIBUNAL REGIONAL FEDERAL\n" + body + "\nProcesso 5001234-10.2024 - fl. " + strconv.Itoa(n),
+			"content": pg("TRIBUNAL REGIONAL FEDERAL", "p"+strconv.Itoa(n), "Processo 5001234-10.2024 - fl. "+strconv.Itoa(n)) + "\n" + body,
 		}
 	}
 	eventos := map[string]any{
@@ -439,9 +460,9 @@ func pagina(t *testing.T, saida string, n int) string {
 }
 
 func TestPadrao_TimbreFicaSoNaPrimeiraPagina(t *testing.T) {
-	timbre := "ESCRITÓRIO MODELO ADVOGADOS\nOAB/SP 000.000\n"
+	timbre := "ESCRITÓRIO MODELO ADVOGADOS\nOAB/SP 000.000"
 	saida, _ := GenerateConsolidatedOutput(docPadrao(
-		timbre+"corpo um", timbre+"corpo dois", timbre+"corpo tres"), NivelPadrao)
+		pg(timbre, "um", ""), pg(timbre, "dois", ""), pg(timbre, "tres", "")), NivelPadrao)
 	p1 := pagina(t, saida, 1)
 	if !strings.Contains(p1, "ESCRITÓRIO MODELO ADVOGADOS") || !strings.Contains(p1, "OAB/SP 000.000") {
 		t.Errorf("pág. 1 devia manter o timbre: %q", p1)
@@ -457,7 +478,7 @@ func TestPadrao_TimbreFicaSoNaPrimeiraPagina(t *testing.T) {
 func TestPadrao_BordaDe5Linhas(t *testing.T) {
 	rodape := "r1 rodape\nr2 rodape\nr3 rodape\nr4 rodape\nr5 rodape"
 	saida, _ := GenerateConsolidatedOutput(docPadrao(
-		"corpo um\n"+rodape, "corpo dois\n"+rodape, "corpo tres\n"+rodape), NivelPadrao)
+		pg("", "um", rodape), pg("", "dois", rodape), pg("", "tres", rodape)), NivelPadrao)
 	if got := strings.Count(saida, "r5 rodape"); got != 1 {
 		t.Errorf("rodapé de 5 linhas devia ficar só na pág. 1, apareceu %d vezes:\n%s", got, saida)
 	}
@@ -468,7 +489,7 @@ func TestPadrao_BordaDe5Linhas(t *testing.T) {
 
 func TestPadrao_DocumentoDe2Paginas(t *testing.T) {
 	saida, _ := GenerateConsolidatedOutput(docPadrao(
-		"CABEÇALHO FICTÍCIO\ncorpo um", "CABEÇALHO FICTÍCIO\ncorpo dois"), NivelPadrao)
+		pg("CABEÇALHO FICTÍCIO", "um", ""), pg("CABEÇALHO FICTÍCIO", "dois", "")), NivelPadrao)
 	if !strings.Contains(pagina(t, saida, 1), "CABEÇALHO FICTÍCIO") {
 		t.Errorf("pág. 1 devia manter o cabeçalho")
 	}
@@ -512,5 +533,76 @@ func TestLinhaSoSimbolos(t *testing.T) {
 		if linhaSoSimbolos(l) {
 			t.Errorf("%q não devia ser só símbolos", l)
 		}
+	}
+}
+
+func TestPadrao_PaginaCurtaNaoPerdeLinhas(t *testing.T) {
+	fim := "Nestes termos, pede deferimento.\nFULANO DE TAL OAB/SP 000.000"
+	curta := func(tag string) string {
+		return "a " + tag + "\nb " + tag + "\nc " + tag + "\nd " + tag + "\n" + fim
+	}
+	saida, _ := GenerateConsolidatedOutput(docPadrao(curta("um"), curta("dois")), NivelPadrao)
+	for n := 1; n <= 2; n++ {
+		p := pagina(t, saida, n)
+		if !strings.Contains(p, "Nestes termos, pede deferimento.") || !strings.Contains(p, "FULANO DE TAL OAB/SP 000.000") {
+			t.Errorf("pág. %d curta perdeu o fecho: %q", n, p)
+		}
+	}
+}
+
+func TestPadrao_ValoresNaBordaNaoSaoNormalizados(t *testing.T) {
+	saida, _ := GenerateConsolidatedOutput(docPadrao(
+		pg("", "um", "Total: R$ 100,00\nfl. 1"),
+		pg("", "dois", "Total: R$ 200,00\nfl. 2"),
+		pg("", "tres", "Total: R$ 300,00\nfl. 3")), NivelPadrao)
+	for _, v := range []string{"R$ 100,00", "R$ 200,00", "R$ 300,00"} {
+		if got := strings.Count(saida, v); got != 1 {
+			t.Errorf("%s devia aparecer 1 vez, apareceu %d", v, got)
+		}
+	}
+	if got := strings.Count(saida, "fl. "); got != 1 {
+		t.Errorf("fl. N devia ficar só na pág. 1, apareceu %d vezes", got)
+	}
+	if !strings.Contains(pagina(t, saida, 1), "fl. 1") {
+		t.Errorf("fl. 1 devia ficar na pág. 1")
+	}
+}
+
+func TestChaveBorda_ValorMonetarioEPercentualUsamChaveExata(t *testing.T) {
+	for _, l := range []string{"Total: R$ 100,00", "US$ 5", "saldo 12,50", "taxa 10%"} {
+		if normalizeEdgeLine(l) != l {
+			t.Errorf("%q devia usar a chave exata, deu %q", l, normalizeEdgeLine(l))
+		}
+	}
+	if got := normalizeEdgeLine("fl. 12"); got != "fl. ##" {
+		t.Errorf("fl. 12 devia trocar dígitos, deu %q", got)
+	}
+}
+
+func TestPadrao_MantemAssinaturaMasMaximaTira(t *testing.T) {
+	ass := "Documento assinado eletronicamente por FULANO DE TAL"
+	pag := "inicio\n" + ass + "\nfim"
+	ctx := &ctxDocumento{jaVistas: map[string]bool{}}
+	if got := cleanPage(pag, NivelPadrao, ctx); !strings.Contains(got, ass) {
+		t.Errorf("Padrão devia manter a assinatura: %q", got)
+	}
+	if got := cleanPage(pag, NivelMaximo, &ctxDocumento{jaVistas: map[string]bool{}}); strings.Contains(got, ass) {
+		t.Errorf("Máxima devia tirar a assinatura: %q", got)
+	}
+}
+
+func TestMaxima_JuntaNumaLinhaComTimbreSoNaPagina1(t *testing.T) {
+	saida, _ := GenerateConsolidatedOutput(docPadrao(
+		pg("TIMBRE FICTÍCIO", "um", ""), pg("TIMBRE FICTÍCIO", "dois", ""), pg("TIMBRE FICTÍCIO", "tres", "")), NivelMaximo)
+	if got := strings.Count(saida, "TIMBRE FICTÍCIO"); got != 1 {
+		t.Errorf("timbre devia aparecer 1 vez, apareceu %d", got)
+	}
+	for n := 1; n <= 3; n++ {
+		if p := strings.TrimSpace(pagina(t, saida, n)); strings.Contains(p, "\n") {
+			t.Errorf("pág. %d devia ficar numa linha só: %q", n, p)
+		}
+	}
+	if !strings.Contains(pagina(t, saida, 1), "TIMBRE FICTÍCIO") {
+		t.Errorf("timbre devia ficar na pág. 1")
 	}
 }

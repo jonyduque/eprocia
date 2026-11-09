@@ -68,9 +68,20 @@ func pageCountLabel(n int) string {
 // page are candidates for repeated header/footer detection.
 const edgeLineCount = 5
 
+// valorEdgeRegex acha linhas com valor monetário ou percentual: nelas os
+// dígitos importam, então a chave é a linha exata.
+var valorEdgeRegex = regexp.MustCompile(`R\$|US\$|\d+,\d{2}|%`)
+
+// paginaCurta informa se a página, com n linhas não vazias, é toda borda: com
+// até 2*edgeLineCount linhas não sobra miolo, então fica fora da detecção.
+func paginaCurta(n int) bool { return n <= 2*edgeLineCount }
+
 // normalizeEdgeLine maps lines that differ only by numbers (página, folha, data)
 // to the same key, so "fl. 1" and "fl. 2" count as the same footer.
 func normalizeEdgeLine(trimmed string) string {
+	if valorEdgeRegex.MatchString(trimmed) {
+		return trimmed
+	}
 	return strings.Map(func(r rune) rune {
 		if r >= '0' && r <= '9' {
 			return '#'
@@ -85,6 +96,9 @@ func edgeLines(page string) map[string]bool {
 	// Mesma limpeza e mesmas posições que cleanPage usa ao consultar o conjunto.
 	nonEmpty := linhasBasicas(page)
 	edges := make(map[string]bool)
+	if paginaCurta(len(nonEmpty)) {
+		return edges
+	}
 	for i, line := range nonEmpty {
 		if i < edgeLineCount || i >= len(nonEmpty)-edgeLineCount {
 			edges[normalizeEdgeLine(line)] = true
@@ -149,7 +163,7 @@ func cleanPage(text string, level string, ctx *ctxDocumento) string {
 		if level == NivelMaximo && isBoilerplateLine(line) {
 			continue
 		}
-		if len(repeated) > 0 && (pos < edgeLineCount || pos >= len(lines)-edgeLineCount) {
+		if len(repeated) > 0 && !paginaCurta(len(lines)) && (pos < edgeLineCount || pos >= len(lines)-edgeLineCount) {
 			if chave := normalizeEdgeLine(line); repeated[chave] {
 				vistasNaPagina = append(vistasNaPagina, chave)
 				if ctx.jaVistas[chave] {

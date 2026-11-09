@@ -58,9 +58,9 @@ func TestLinhasBasicas_VFeNEL(t *testing.T) {
 func TestCleanPage_MaximaTiraCabecalhoComEspacoIrregular(t *testing.T) {
 	cab := "TRIBUNAL  DE JUSTICA\x01 FICTICIO"
 	pags := []string{
-		cab + "\n-----\ncorpo um",
-		"TRIBUNAL DE JUSTICA FICTICIO\n_____\ncorpo dois",
-		"TRIBUNAL\tDE JUSTICA FICTICIO\n=====\ncorpo tres",
+		cab + "\n-----\n" + pg("", "um", ""),
+		"TRIBUNAL DE JUSTICA FICTICIO\n_____\n" + pg("", "dois", ""),
+		"TRIBUNAL\tDE JUSTICA FICTICIO\n=====\n" + pg("", "tres", ""),
 	}
 	ctx := &ctxDocumento{repetidas: repeatedEdgeLines(pags)}
 	for i, p := range pags {
