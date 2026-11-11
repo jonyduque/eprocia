@@ -10,7 +10,7 @@ import (
 	"eprocia/internal/autostart"
 	"eprocia/internal/config"
 
-	"github.com/getlantern/systray"
+	"github.com/energye/systray"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
@@ -41,6 +41,7 @@ func main() {
 	app.cfg = carregarConfig(config.Load)
 
 	go executarTray(func() {
+		prepararBandeja(bandejaSystray{}, acoesDoApp(app))
 		systray.Run(onReady(app), onExit)
 	})
 
@@ -61,8 +62,10 @@ func main() {
 			app.shutdown(ctx)
 			systray.Quit()
 		},
-		HideWindowOnClose: true,
-		StartHidden:       autostart.IniciarOculto(os.Args),
+		// Fechar a janela (X, Alt+F4, barra de tarefas) vai para a bandeja
+		// com animação; HideWindowOnClose ocultaria sem passar por aqui.
+		OnBeforeClose: app.antesDeFechar,
+		StartHidden:   autostart.IniciarOculto(os.Args),
 		DragAndDrop: &options.DragAndDrop{
 			EnableFileDrop: true,
 		},
@@ -86,39 +89,7 @@ func executarTray(run func()) {
 }
 
 func onReady(app *App) func() {
-	return func() {
-		systray.SetIcon(DefaultIcon)
-		systray.SetTitle("eprocIA")
-		systray.SetTooltip("eprocIA - ETL Judicial")
-
-		mShow := systray.AddMenuItem("Abrir", "Abrir o eprocIA")
-		mHide := systray.AddMenuItem("Ocultar", "Ocultar a janela")
-		mQuit := systray.AddMenuItem("Sair", "Sair do aplicativo")
-
-		go func() {
-			for {
-				select {
-				case _, ok := <-mShow.ClickedCh:
-					if !ok {
-						return
-					}
-					app.Show()
-				case _, ok := <-mHide.ClickedCh:
-					if !ok {
-						return
-					}
-					app.Hide()
-				case _, ok := <-mQuit.ClickedCh:
-					if !ok {
-						return
-					}
-					systray.Quit()
-					app.Quit()
-					return
-				}
-			}
-		}()
-	}
+	return func() { montarMenu(bandejaSystray{}, acoesDoApp(app)) }
 }
 
 // corDeFundo espelha o --bg-main de style.css para a janela nativa não
