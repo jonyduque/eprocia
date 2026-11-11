@@ -8,11 +8,16 @@
         "main.go",
         "app.go",
         "icon.go",
+        "bandeja.go",
+        "instancia*.go",
+        "tema_*.go",
         "internal/etl/*.go",
         "internal/ocr/*.go",
         "internal/config/*.go",
         "internal/watchdog/*.go",
         "internal/models/*.go",
+        "internal/janela/*.go",
+        "internal/autostart/*.go",
         "go.mod"
       ],
       "lentes": [
@@ -54,6 +59,7 @@
       "arquivos": [
         "frontend/src/App.svelte",
         "frontend/src/components/*.svelte",
+        "frontend/src/lib/*.js",
         "frontend/src/assets/css/style.css",
         "frontend/src/main.js",
         "frontend/index.html",
