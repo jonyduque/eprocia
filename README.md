@@ -49,20 +49,27 @@ O eprocIA faz tudo isso sozinho. Ele fica na bandeja do Windows, vigia a pasta d
 | 👀 | **Vigia a pasta** | Detecta ZIPs novos na pasta escolhida e espera o download terminar antes de começar. ZIPs que chegaram com o app fechado são processados ao abrir (janela de 24 h). |
 | 📚 | **Lê sem descompactar** | PDFs e HTMLs são lidos direto de dentro do ZIP, sem espalhar arquivos pelo disco. |
 | 🔢 | **Ordena por evento** | "Evento 2" vem antes de "Evento 10" (ordenação natural); arquivos sem número de evento vão para o fim. |
-| 🔍 | **OCR embutido** | Páginas escaneadas ou desenhadas como vetor passam pelo Tesseract em português, já incluso no executável. O OCR roda em lote, por bloco de páginas. |
-| 🧹 | **Higieniza o texto** | Corrige espaços e quebras e, no nível agressivo, remove cabeçalhos e rodapés que se repetem entre as páginas. |
+| 🔍 | **OCR embutido** | Páginas escaneadas, desenhadas como vetor ou com texto nativo ilegível passam pelo Tesseract em português, já incluso no executável. O OCR roda em lote, por bloco de páginas. |
+| 🧹 | **Higieniza o texto** | Quatro níveis. O Padrão remove cabeçalhos, rodapés e timbres que se repetem, resume as chancelas de assinatura numa linha e troca páginas e documentos repetidos por uma referência ao original. O Máxima também tira ruído de OCR e junta parágrafos quebrados. |
+| 🚫 | **Omite tipos de documento** | Informe os códigos (por exemplo `EXTR, COMP`) e esses documentos não são lidos nem passam por OCR: viram um aviso de uma linha no texto. |
+| 📊 | **Mostra o andamento por documento** | Abra o item em processamento para ver cada documento (aguardando, lendo, em OCR, concluído ou com erro) e quantos processos de OCR estão rodando. |
+| 🔁 | **Reprocessa com outras opções** | Um item terminado pode ser refeito com outro modo de OCR ou outro nível de higienização, só para aquele arquivo. |
 | 🔤 | **Estima tokens** | Cada processo concluído mostra quantos tokens o texto deve ocupar no modelo. |
 | 📋 | **Copia com um clique** | O botão de copiar põe o `.txt` inteiro na área de transferência. |
 | 🔔 | **Avisa quando termina** | Notificação do Windows quando o processamento acaba com a janela oculta. |
+| 🪟 | **Fica na bandeja** | Fechar a janela só a oculta. Duplo clique no ícone da bandeja reabre, e "Sair" no menu encerra. Só uma instância roda por executável: abrir de novo mostra um aviso apontando para o ícone na bandeja. |
 | 🚀 | **Inicia com o Windows** | Sobe oculto na bandeja no logon, já vigiando a pasta. |
 | 🌗 | **Tema claro e escuro** | Segue o sistema por padrão; a escolha manual fica gravada. |
 | ♿ | **Acessível** | Navegação por teclado, foco visível, anúncios para leitor de tela e respeito à preferência por menos movimento. |
+
+> [!NOTE]
+> Este README descreve o código da branch `main`. A versão publicada (v0.3.0) ainda não tem os níveis Padrão e Máxima de higienização, a omissão por tipo, o andamento por documento, o reprocessamento, o duplo clique na bandeja nem a instância única. Eles chegam na próxima release.
 
 ## 🖼️ Telas
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/imagens/configuracoes.png" alt="Painel de configurações: monitoramento, pasta, modo de OCR, higienização e início com o Windows"></td>
+    <td width="50%"><img src="docs/imagens/configuracoes.png" alt="Painel de configurações: monitoramento, pasta, modo de OCR, higienização, tipos de documento a omitir e início com o Windows"></td>
     <td width="50%"><img src="docs/imagens/fila-pausada.png" alt="Fila pausada no tema claro, com um item que falhou, um concluído e um em processamento"></td>
   </tr>
   <tr>
@@ -70,10 +77,18 @@ O eprocIA faz tudo isso sozinho. Ele fica na bandeja do Windows, vigia a pasta d
     <td align="center"><sub>⏸️ Fila pausada: o item atual termina, os próximos esperam</sub></td>
   </tr>
   <tr>
-    <td colspan="2"><img src="docs/imagens/painel-recolhido.png" alt="Painel lateral recolhido, com a fila ocupando a janela inteira"></td>
+    <td width="50%"><img src="docs/imagens/atividade.png" alt="Item em processamento aberto, com a lista de documentos, o estado de cada um e a contagem de processos de OCR em andamento"></td>
+    <td width="50%"><img src="docs/imagens/reprocessar.png" alt="Formulário de reprocessamento de um item concluído, com seletores de OCR e de higienização"></td>
   </tr>
   <tr>
-    <td colspan="2" align="center"><sub>↔️ Painel recolhido; o divisor também se ajusta pelo teclado e a largura fica lembrada</sub></td>
+    <td align="center"><sub>📊 Andamento por documento e processos de OCR em paralelo</sub></td>
+    <td align="center"><sub>🔁 Reprocessar um item com outras opções, só para aquele arquivo</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/imagens/painel-recolhido.png" alt="Painel lateral recolhido numa barra estreita com o círculo de monitoramento e os atalhos de envio, OCR e higienização; a fila ocupa o resto da janela"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><sub>↔️ Painel recolhido: o círculo liga e desliga o monitoramento, e os atalhos trocam o OCR e a higienização; o divisor também se ajusta pelo teclado e a largura fica lembrada</sub></td>
   </tr>
 </table>
 
@@ -83,9 +98,9 @@ O eprocIA faz tudo isso sozinho. Ele fica na bandeja do Windows, vigia a pasta d
 flowchart LR
     A["📥 ZIP do Eproc<br>na pasta vigiada"] --> B["📚 Lista PDFs e HTMLs<br>dentro do ZIP"]
     B --> C["🔢 Ordena por<br>número do evento"]
-    C --> D{"Página tem<br>texto?"}
+    C --> D{"Página tem<br>texto legível?"}
     D -- sim --> E["📝 Texto nativo"]
-    D -- "não, só imagem" --> F["🔍 OCR em lote<br>(Tesseract)"]
+    D -- "não: imagem, vetor<br>ou texto ilegível" --> F["🔍 OCR em lote<br>(Tesseract)"]
     E --> G["🧹 Higienização"]
     F --> G
     G --> H["📄 processo.txt<br>ao lado do ZIP"]
@@ -93,7 +108,8 @@ flowchart LR
 
 - A fila processa **um ZIP por vez**, do mais antigo para o mais novo, e pode ser pausada, retomada ou cancelada.
 - Dentro de um ZIP, os documentos são processados **em paralelo**, limitados ao número de núcleos da máquina.
-- O OCR só entra quando a página não tem texto nativo suficiente e tem imagens grandes ou texto desenhado como vetor.
+- O OCR só entra quando a página não tem texto nativo suficiente e tem imagens grandes ou texto desenhado como vetor, ou quando o texto nativo sai ilegível.
+- Documentos dos tipos que você mandou omitir não são abertos: o tempo de leitura e de OCR deles é poupado.
 
 ## 📄 Formato da saída
 
@@ -101,29 +117,57 @@ O `.txt` sai com o mesmo nome do ZIP e segue o formato do [PRD §6](PRD.md):
 
 ```xml
 <contexto>
-    PROCESSO JUDICIAL - ORDEM CRONOLÓGICA
-    Total de Documentos: 57
-    Data de Consolidação: 24/10/2026 17:44:02
-    Tokens estimados: 98450
+PROCESSO JUDICIAL - ORDEM CRONOLÓGICA
+Total de Documentos: 57
+Data de Consolidação: 10/11/2026 17:44:02
+Tokens estimados: 98450
 
-    <summary>
-    - Evento 1 - INIC1: 3 páginas
-    - Evento 1 - PROC2: 1 página
-    - Evento 5 - DESPACHO: 1 página
-    </summary>
+<summary>
+- Evento 1 - INIC1: 3 páginas
+- Evento 1 - PROC2: 1 página
+- Evento 3 - EXTR1: 12 páginas
+</summary>
 </contexto>
 
 <evento num="1">
-    <documento index="1" nome="Evento 1 - INIC1.pdf">
-        <pag num="1">
-            [texto da petição inicial...]
-        </pag>
-    </documento>
+<documento index="1" nome="Evento 1 - INIC1.pdf">
+<pag n="1">
+[texto da petição inicial...]
+</pag>
+<pag n="2">
+[...]
+[assinado: FULANO DE TAL, ADVOGADO, 02/03/2026]
+</pag>
+</documento>
+<documento index="2" nome="Evento 1 - PROC2.pdf">
+[texto da procuração, que tem uma página só]
+</documento>
+</evento>
+<evento num="3">
+<documento index="3" nome="Evento 3 - EXTR1.pdf">
+[documento omitido: EXTR, 12 páginas]
+</documento>
 </evento>
 ```
 
+- O texto sai sem recuo, para não gastar tokens.
+- Documento com uma página só não leva `<pag>`, e página vazia não é escrita.
+- A higienização deixa marcadores no lugar do que tirou: `[assinado: NOME, CARGO, DATA]` para a chancela de assinatura, `[conteúdo idêntico a: evento N, DOCUMENTO, pág. P]` e `[documento idêntico a: evento N, DOCUMENTO]` para repetições, e `[documento omitido: TIPO, N páginas]` para os tipos omitidos.
+- Uma falha fica escrita no lugar do texto, começando por `[ERRO` (por exemplo `[ERRO ao analisar PDF: ...]`).
+
 > [!TIP]
 > As tags `<evento>`, `<documento>` e `<pag>` deixam a IA citar a peça e a página exatas ("Evento 5, despacho, página 1").
+
+## ⚠️ Limitações conhecidas
+
+Alguns PDFs do Eproc não são lidos pela biblioteca de PDF que o eprocIA usa. Em três processos medidos, isso atingiu cerca de 1 em cada 10 PDFs. São quatro casos:
+
+- PDF na versão 2.0 (comum em avisos de recebimento dos Correios);
+- PDF dentro de um envelope de assinatura digital (PKCS#7);
+- PDF com criptografia AES, mesmo sem senha;
+- PDF com a tabela de referências inconsistente.
+
+O documento não lido fica no `.txt` como `[ERRO ao analisar PDF: ...]`, sem o conteúdo, e **o item ainda aparece como concluído na fila**. Antes de confiar numa análise, procure por `[ERRO` no `.txt` ou abra o item e veja se há documentos "com erro". O conserto (um aviso claro de documentos não lidos e um segundo leitor para esses PDFs) está previsto para a próxima release.
 
 ## 📥 Instalação
 
@@ -135,6 +179,9 @@ O `.txt` sai com o mesmo nome do ZIP e segue o formato do [PRD §6](PRD.md):
 
 > [!NOTE]
 > O executável não tem assinatura digital, então o SmartScreen pode avisar na primeira execução. Clique em **Mais informações** e depois em **Executar assim mesmo**. Confira o arquivo com o `SHA256SUMS.txt` da release, se quiser.
+
+> [!NOTE]
+> As releases posteriores à v0.3.0 são compiladas pelo GitHub Actions a partir da tag e levam uma atestação de procedência, que liga cada arquivo ao commit e ao workflow que o gerou. Veja como conferir no [`SECURITY.md`](SECURITY.md).
 
 Requisitos: Windows 10 ou 11 (64 bits) com o WebView2, que já vem no Windows 11.
 
@@ -170,7 +217,8 @@ Com opções:
 | Opção | Valores | O que muda |
 |---|---|---|
 | 🔍 **Processamento de imagens (OCR)** | Desativado · Rápido · **Normal** · Preciso | Modelo do Tesseract usado nas páginas escaneadas. "Desativado" deixa essas páginas sem texto. |
-| 🧹 **Higienização de texto** | Nenhuma · **Básica** · Agressiva | Nenhuma preserva o texto bruto; Básica corrige espaçamento e quebras; Agressiva também remove cabeçalhos e rodapés repetidos. |
+| 🧹 **Higienização de texto** | Nenhuma · Básica · **Padrão** · Máxima | Nenhuma preserva o texto como extraído; Básica remove espaços e linhas vazias; Padrão também remove cabeçalhos, rodapés e duplicatas e resume assinaturas; Máxima acrescenta a limpeza de ruído de OCR e junta parágrafos. |
+| 🚫 **Omitir documentos dos tipos** | códigos separados por vírgula (ex.: `EXTR, COMP`) | O documento desses tipos vira um aviso no texto e não é lido. |
 | 👀 **Monitoramento ativo** | liga/desliga | Vigia ou não a pasta escolhida. Arrastar ZIPs para a janela funciona sempre. |
 | 🚀 **Iniciar com o Windows** | liga/desliga | Abre oculto na bandeja no logon. |
 
@@ -192,6 +240,7 @@ wails dev
 go vet ./...
 go test ./... -race
 cd frontend && npm run check && npm run build
+node --test frontend/*.test.mjs
 
 # Gate completo: vet, test -race, wails build e smoke de 5 s
 pwsh scripts/build/gate.ps1
@@ -201,23 +250,33 @@ wails build -clean -nsis
 ```
 
 > [!IMPORTANT]
-> O Wails CLI v2.12.0 publicado não funciona com Go 1.27 (`package "bytes" without types was imported`). Recompile-o uma vez com `pwsh scripts/build/recompilar-wails.ps1`.
+> O Wails CLI publicado (v2.12.0 e v2.13.0) não funciona com Go 1.27 (`package "bytes" without types was imported`). Recompile-o uma vez com `pwsh scripts/build/recompilar-wails.ps1`.
 
-O CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) roda num runner Windows a cada push ou pull request para `main`: `svelte-check`, build do frontend, testes em Node, `gofmt`, `go vet`, `go test -race` com OCR real e `wails build`.
+Três workflows rodam no GitHub Actions:
+
+- [`ci.yml`](.github/workflows/ci.yml), num runner Windows a cada push ou pull request para `main`: `svelte-check`, build do frontend, testes em Node, `gofmt`, `go vet`, `go test -race` com OCR real e `wails build`.
+- [`security.yml`](.github/workflows/security.yml), a cada push e toda semana: osv-scanner nos lockfiles e govulncheck. As exceções ficam em [`osv-scanner.toml`](osv-scanner.toml), cada uma com motivo e validade.
+- [`release.yml`](.github/workflows/release.yml), a partir de uma tag `v*`: compila o exe e o instalador, gera o `SHA256SUMS.txt` e a atestação de procedência e deixa a release como rascunho para revisão. As tags `v*` são imutáveis.
+
+Para relatar uma vulnerabilidade, siga o [`SECURITY.md`](SECURITY.md).
 
 <details>
 <summary>🗂️ <b>Estrutura do código</b></summary>
 
 | Caminho | Papel |
 |---|---|
-| `main.go`, `app.go` | Janela Wails, bandeja do Windows e métodos expostos ao frontend |
-| `internal/etl/` | Fila, pipeline, leitura do ZIP, PDF e HTML, ordenação e formatação da saída |
+| `main.go`, `app.go` | Janela Wails e métodos expostos ao frontend |
+| `bandeja.go`, `instancia*.go` | Ícone e menu da bandeja; trava de instância única por executável |
+| `internal/etl/` | Fila, pipeline, leitura do ZIP, PDF e HTML, ordenação, higienização e formatação da saída |
+| `internal/models/` | Tipos compartilhados entre os pacotes |
+| `internal/janela/` | Animação de ocultar e mostrar a janela |
 | `internal/ocr/` | Extração dos binários embutidos e execução do pdftoppm e do Tesseract |
 | `internal/watchdog/` | Vigia da pasta (fsnotify) e varredura de ZIPs pendentes ao abrir |
 | `internal/config/` | `config.json` com valores padrão e gravação atômica |
 | `internal/autostart/` | Chave `Run` do registro para iniciar com o Windows |
 | `frontend/src/` | Interface em Svelte 5 |
 | `scripts/` | Gate de build, benchmarks, capturas visuais e gerador de ícone |
+| `.github/workflows/` | CI, varredura de segurança e release |
 | `PRD.md`, `DESIGN.md` | Especificação do produto e do visual |
 
 </details>
@@ -245,6 +304,7 @@ O executável inclui:
 - [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) 5.5.0 e os modelos `tessdata` (Apache 2.0)
 - [Poppler](https://poppler.freedesktop.org/) 25.07.0 `pdftoppm` e suas DLLs (GPL; código-fonte em [poppler-25.07.0.tar.xz](https://poppler.freedesktop.org/poppler-25.07.0.tar.xz))
 - [Wails](https://wails.io) (MIT), [Svelte](https://svelte.dev) (MIT), [Lucide](https://lucide.dev) (ISC)
+- [energye/systray](https://github.com/energye/systray) (Apache 2.0), [dslipak/pdf](https://github.com/dslipak/pdf) e [fsnotify](https://github.com/fsnotify/fsnotify) (BSD de 3 cláusulas)
 
 <div align="center">
 <br>
