@@ -32,3 +32,15 @@ Os relatórios dos estudos de 2026-11-09 ficaram no scratchpad da sessão e não
 - Há uma corrida estreita entre o `go Hide()` do `OnBeforeClose` e o `Quit`. Ela não trava a saída.
 - O deslize pode tirar a janela do Snap ou cruzar a divisa entre monitores com DPI diferente.
 - Falta conferir na tela como o WebView2 pinta dentro da janela em camadas.
+
+## Revisão de 2026-11-10 (aguardando aprovação)
+
+Revisão de desempenho e de UI/UX, com propostas de ícones e efeitos visuais.
+
+- Relatório: `docs/revisao/2026-11-10-relatorio.md`. São 46 achados, todos com `Status: pendente`. As capturas de antes estão em `docs/revisao/capturas/2026-11-10/antes/`.
+- Nenhum id foi aprovado ainda. Primeiro lote sugerido, os 12 de gravidade alta e média: F-VI-01, F-AC-01, B-EF-01, F-AC-02, F-AC-03, B-EF-02, F-AC-04, F-AC-05, F-AC-06, F-VI-02, F-AN-01 e F-AC-13.
+- Os pedidos da barra lateral viraram achados: F-VI-07 (padding), F-VI-02 (comboboxes) e F-AC-13 (omissão de tipos).
+- O início do relatório lista as dependências entre achados. Leia antes de montar os grupos do `/corrigir`.
+- `docs/revisao/estado.json` não é versionado. Sem ele, o `/corrigir` usa o relatório mais recente.
+- As medições citam scripts do scratchpad da sessão que revisou, e eles não foram guardados. Cada achado descreve o método, e os benchmarks versionados ficam em `scripts/bench`.
+- Fora do Windows, o gate `scripts/build/gate.ps1` (`wails build` e teste do exe) e o OCR embutido não foram testados e não devem rodar: os binários são `.exe`. Lá valem `go vet`, os testes Go que não dependem de Windows, os testes do frontend, o `svelte-check`, o `npm run build` e as capturas. O CI do PR roda em Windows e cobre o resto.
