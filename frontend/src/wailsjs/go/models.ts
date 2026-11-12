@@ -81,6 +81,7 @@ export namespace etl {
 	    total_docs: number;
 	    processed_pages: number;
 	    total_pages: number;
+	    unread_docs: number;
 	    error?: string;
 	    timestamp: number;
 	    ocr_mode?: string;
@@ -106,6 +107,7 @@ export namespace etl {
 	        this.total_docs = source["total_docs"];
 	        this.processed_pages = source["processed_pages"];
 	        this.total_pages = source["total_pages"];
+	        this.unread_docs = source["unread_docs"];
 	        this.error = source["error"];
 	        this.timestamp = source["timestamp"];
 	        this.ocr_mode = source["ocr_mode"];

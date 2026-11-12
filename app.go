@@ -128,7 +128,15 @@ func (a *App) aoTerminar(item *etl.QueueItem) {
 
 func mensagemFim(item *etl.QueueItem) (titulo, corpo string) {
 	if item.Status == "success" {
-		return "eprocIA", fmt.Sprintf("%s pronto (%d docs, %d págs)", filepath.Base(item.OutputPath), item.DocsCount, item.PagesCount)
+		nome := filepath.Base(item.OutputPath)
+		switch item.UnreadDocs {
+		case 0:
+			return "eprocIA", fmt.Sprintf("%s pronto (%d docs, %d págs)", nome, item.DocsCount, item.PagesCount)
+		case 1:
+			return "eprocIA", fmt.Sprintf("%s pronto, com 1 documento não lido (%d docs, %d págs)", nome, item.DocsCount, item.PagesCount)
+		default:
+			return "eprocIA", fmt.Sprintf("%s pronto, com %d documentos não lidos (%d docs, %d págs)", nome, item.UnreadDocs, item.DocsCount, item.PagesCount)
+		}
 	}
 	motivo := item.Error
 	if motivo == "" {
