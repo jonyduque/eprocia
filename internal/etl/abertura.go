@@ -25,6 +25,9 @@ const (
 	resumoSegundoLeitorPrazo = "tempo esgotado"
 	resumoSegundoLeitorSenha = "protegido por senha"
 	resumoSegundoLeitorFalha = "não conseguiu ler o arquivo"
+	// Falha ao gravar o temporário que o Poppler lê (o erro do CreateTemp traz
+	// o caminho de %TEMP%).
+	resumoSegundoLeitorTemporario = "não foi possível gravar o arquivo temporário"
 )
 
 // infoPDF e textoPDF são o segundo leitor; os testes os trocam para não
@@ -79,9 +82,8 @@ func abrirPDF(ctx context.Context, f *fontePDF) (aberturaPDF, error) {
 	}
 	caminho, err := f.materializar()
 	if err != nil {
-		// O erro do CreateTemp traz o caminho de %TEMP%.
 		return aberturaPDF{}, fmt.Errorf("falha ao abrir o PDF: %v; %w", errLib,
-			resumirSegundoLeitor("", "não foi possível gravar o arquivo temporário", err))
+			resumirSegundoLeitor("", resumoSegundoLeitorTemporario, err))
 	}
 	n, err = infoPDF(ctx, caminho)
 	if err == nil && n <= 0 {

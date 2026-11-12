@@ -361,11 +361,9 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 			if n, err = fonte.contarPaginas(); err == nil {
 				contagens[i], contados[i] = n, true
 			}
-			if err == nil && fonte.arq != nil {
-				fontes[i] = fonte
-			} else {
-				fonte.liberar()
-			}
+			// O worker do omitido não lê a fonte: nem o temporário em disco
+			// (PDF acima do teto) fica aberto até o fim do ZIP.
+			fonte.liberar()
 		} else if err == nil {
 			var ab aberturaPDF
 			if ab, err = abrirPDF(ctx, fonte); err == nil {

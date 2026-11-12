@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -524,4 +525,77 @@ func TestPipeline_OmitidoNaoPassaPeloPoppler(t *testing.T) {
 		t.Errorf("omitido fora do esperado:\n%s", b)
 	}
 	semTemporarios(t, tmp)
+}
+
+// pdfAcimaDoTeto é um PDF de texto de uma página com um objeto solto que o leva
+// além de maxPDFEmMemoria, para que extrairPDF o grave num temporário em disco.
+func pdfAcimaDoTeto(texto string) []byte {
+	stream := fmt.Sprintf("BT\n/F1 12 Tf\n72 712 Td\n(%s) Tj\nET", texto)
+	enchimento := strings.Repeat(" ", maxPDFEmMemoria+1)
+	return buildPDF([]string{
+		"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
+		"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj",
+		"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> /Contents 4 0 R >>\nendobj",
+		fmt.Sprintf("4 0 obj\n<< /Length %d >>\nstream\n%s\nendstream\nendobj", len(stream), stream),
+		fmt.Sprintf("5 0 obj\n<< /Length %d >>\nstream\n%s\nendstream\nendobj", len(enchimento), enchimento),
+	})
+}
+
+// O omitido acima do teto de memória vai a um temporário em disco só para a
+// contagem; nada o lê depois, então o temporário sai já na pré-contagem.
+func TestPipeline_OmitidoEmDiscoLiberaNaPreContagem(t *testing.T) {
+	tmp := isolarTemp(t)
+	trocarPoppler(t, func(context.Context, string) (int, error) {
+		t.Error("infoPDF chamado para o omitido")
+		return 1, nil
+	}, nil)
+	zipPath := gravarZip(t, []entradaZip{
+		{"Evento 1 - INIC1.pdf", pdfComTexto("Texto da inicial ficticia")},
+		{"Evento 2 - EXTR1.pdf", pdfAcimaDoTeto("TEXTO-DO-EXTRATO-FICTICIO")},
+	})
+	var restantes []string
+	t.Cleanup(func() { aoFimDaPreContagem = nil })
+	aoFimDaPreContagem = func(*memoriaPDF) {
+		restantes, _ = filepath.Glob(filepath.Join(tmp, "eprocia_pdf_*"))
+	}
+	cfg := cfgPoppler("none")
+	cfg.OmitirTipos = []string{"EXTR"}
+	out, _, _, _, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfg, nil)
+	if err != nil {
+		t.Fatalf("ProcessZip: %v", err)
+	}
+	if len(restantes) != 0 {
+		t.Errorf("temporário do omitido aberto depois da pré-contagem: %v", restantes)
+	}
+	b, _ := os.ReadFile(out)
+	if !strings.Contains(string(b), "[documento omitido: EXTR, 1 página]") || strings.Contains(string(b), "TEXTO-DO-EXTRATO") {
+		t.Errorf("omitido fora do esperado:\n%s", b)
+	}
+	semTemporarios(t, tmp)
+}
+
+// A falha ao gravar o temporário (CreateTemp num TEMP inexistente) não leva o
+// caminho de %TEMP% ao erro que vai para o .txt e o painel.
+func TestAbrirPDF_FalhaAoGravarTemporarioSemCaminho(t *testing.T) {
+	inexistente := filepath.Join(t.TempDir(), "fulano-nao-existe")
+	t.Setenv("TMP", inexistente)
+	t.Setenv("TEMP", inexistente)
+	t.Setenv("TMPDIR", inexistente)
+	trocarPoppler(t, func(context.Context, string) (int, error) {
+		t.Error("infoPDF chamado sem temporário")
+		return 1, nil
+	}, nil)
+	f := fonteDeBytes(comoPDF20(pdfComTexto("Texto ficticio")))
+	defer f.liberar()
+	_, err := abrirPDF(context.Background(), f)
+	if err == nil {
+		t.Fatal("abrirPDF deveria falhar sem temporário")
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "fulano") || strings.Contains(msg, inexistente) {
+		t.Errorf("erro traz o caminho do temporário: %q", msg)
+	}
+	if !strings.Contains(msg, "segundo leitor: "+resumoSegundoLeitorTemporario) {
+		t.Errorf("erro sem o resumo do temporário: %q", msg)
+	}
 }
