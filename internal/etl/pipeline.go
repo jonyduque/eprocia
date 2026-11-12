@@ -359,6 +359,7 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 	// porque o ZIP aceita duas entradas com o mesmo caminho, e elas não podem
 	// dividir o mesmo mapa.
 	paginasDoc := make([]map[string]any, totalFiles)
+	docsMap := make([]map[string]any, totalFiles)
 	omitidos := make([]bool, totalFiles)
 	for _, eventNum := range eventNums {
 		eventKey := fmt.Sprintf("%d", eventNum)
@@ -381,6 +382,7 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 				doc["total_paginas"] = contagens[i]
 				omitidos[i] = true
 			}
+			docsMap[i] = doc
 			documentosMap[fmt.Sprintf("%d:%s", i, files[i].Name)] = doc
 		}
 	}
@@ -460,7 +462,7 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 
 	for i, f := range files {
 		wg.Go(func() {
-			paginasMap := paginasDoc[i]
+			paginasMap, docMap := paginasDoc[i], docsMap[i]
 			// Páginas deste documento já contadas no progresso. O OCR em lote
 			// avisa páginas de outras goroutines, por isso o contador é atômico.
 			var feitas atomic.Int32
@@ -496,6 +498,17 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 					"content": conteudo,
 				}
 			}
+			// naoLido encerra um documento sem texto: o marcador (se houver)
+			// continua no .txt, o painel recebe a frase e o texto técnico fica
+			// no detalhe. Sem marcador, as páginas já lidas ficam como estão.
+			naoLido := func(l Leitura, marcador, detalhe, msgProgresso string) {
+				if marcador != "" {
+					marcarErro(marcador)
+				}
+				docMap["nao_lido"] = l.Frase()
+				atv.docLeitura(i, l, detalhe)
+				encerrar(l.Frase(), msgProgresso)
+			}
 
 			// Um panic não recuperado neste goroutine derruba o app inteiro; o
 			// documento é marcado com erro e os demais seguem.
@@ -509,8 +522,8 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 				if fonteDoc != nil {
 					fonteDoc.liberarBuffer(false)
 				}
-				marcarErro(fmt.Sprintf("[ERRO ao processar documento: %v]", r))
-				encerrar(fmt.Sprintf("%v", r), fmt.Sprintf("Erro ao processar %s", f.DocName))
+				naoLido(LeituraIlegivel, fmt.Sprintf("[ERRO ao processar documento: %v]", r),
+					fmt.Sprintf("%v", r), fmt.Sprintf("Erro ao processar %s", f.DocName))
 			}()
 
 			// Acquire slot for document processing
@@ -541,8 +554,8 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 					var err error
 					fonte, err = extrairPDF(f, mem)
 					if err != nil {
-						marcarErro(fmt.Sprintf("[ERRO ao extrair PDF do ZIP: %s]", err.Error()))
-						encerrar(err.Error(), fmt.Sprintf("Erro ao abrir %s", f.DocName))
+						naoLido(classificarErro(err), fmt.Sprintf("[ERRO ao extrair PDF do ZIP: %s]", err.Error()),
+							err.Error(), fmt.Sprintf("Erro ao abrir %s", f.DocName))
 						return
 					}
 					fontes[i] = fonte
@@ -574,8 +587,8 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 						errMu.Unlock()
 						return
 					}
-					marcarErro(fmt.Sprintf("[ERRO ao analisar PDF: %s]", errParse.Error()))
-					encerrar(errParse.Error(), fmt.Sprintf("Erro ao analisar %s", f.DocName))
+					naoLido(classificarErro(errParse), fmt.Sprintf("[ERRO ao analisar PDF: %s]", errParse.Error()),
+						errParse.Error(), fmt.Sprintf("Erro ao analisar %s", f.DocName))
 					return
 				}
 
@@ -584,16 +597,16 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 			} else if f.Extension == ".html" || f.Extension == ".htm" {
 				zipReader, err := f.ZipFileRef.Open()
 				if err != nil {
-					marcarErro(fmt.Sprintf("[ERRO ao abrir arquivo no ZIP: %s]", err.Error()))
-					encerrar(err.Error(), fmt.Sprintf("Erro ao abrir %s", f.DocName))
+					naoLido(classificarErro(err), fmt.Sprintf("[ERRO ao abrir arquivo no ZIP: %s]", err.Error()),
+						err.Error(), fmt.Sprintf("Erro ao abrir %s", f.DocName))
 					return
 				}
 
 				htmlText, errParse := ExtractTextFromHTML(zipReader)
 				zipReader.Close()
 				if errParse != nil {
-					marcarErro(fmt.Sprintf("[ERRO ao analisar HTML: %s]", errParse.Error()))
-					encerrar(errParse.Error(), fmt.Sprintf("Erro ao analisar HTML %s", f.DocName))
+					naoLido(classificarErro(errParse), fmt.Sprintf("[ERRO ao analisar HTML: %s]", errParse.Error()),
+						errParse.Error(), fmt.Sprintf("Erro ao analisar HTML %s", f.DocName))
 					return
 				}
 				paginasMap["1"] = map[string]any{
@@ -605,6 +618,12 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 			}
 
 			log.Printf("[Pipeline] Documento %s finalizado com %d páginas", f.DocName, len(paginasMap))
+			l := classificarPaginas(paginasMap, false)
+			if l.NaoLido() {
+				naoLido(l, "", "", fmt.Sprintf("Concluído %d/%d: %s", int(processedDocsVal.Load())+1, totalFiles, f.DocName))
+				return
+			}
+			atv.docLeitura(i, l, "")
 			encerrar("", fmt.Sprintf("Concluído %d/%d: %s", int(processedDocsVal.Load())+1, totalFiles, f.DocName))
 		})
 	}

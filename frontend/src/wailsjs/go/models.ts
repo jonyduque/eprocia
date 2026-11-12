@@ -8,6 +8,8 @@ export namespace etl {
 	    feitas: number;
 	    ocr: number;
 	    erro?: string;
+	    leitura?: string;
+	    detalhe?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new AtividadeDoc(source);
@@ -22,6 +24,8 @@ export namespace etl {
 	        this.feitas = source["feitas"];
 	        this.ocr = source["ocr"];
 	        this.erro = source["erro"];
+	        this.leitura = source["leitura"];
+	        this.detalhe = source["detalhe"];
 	    }
 	}
 	export class InstantaneoAtividade {

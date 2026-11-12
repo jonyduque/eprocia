@@ -105,3 +105,22 @@ func TestAtividade_OCRMudaEstadoEConta(t *testing.T) {
 		t.Error("atividade nil deveria devolver instantâneo nil")
 	}
 }
+
+func TestAtividade_NaoLidos(t *testing.T) {
+	a := NovaAtividade("x")
+	a.iniciar(make([]AtividadeDoc, 3), 1, 1)
+	a.docLeitura(0, LeituraIlegivel, "detalhe")
+	a.docLeitura(1, LeituraOCR, "")
+	a.docLeitura(2, LeituraLido, "")
+	if n := a.NaoLidos(); n != 1 {
+		t.Errorf("NaoLidos() = %d, esperava 1", n)
+	}
+	if d := a.Instantaneo().Docs[0]; d.Leitura != "ilegivel" || d.Detalhe != "detalhe" {
+		t.Errorf("doc 0: %+v", d)
+	}
+	var nula *Atividade
+	nula.docLeitura(0, LeituraIlegivel, "")
+	if nula.NaoLidos() != 0 {
+		t.Error("atividade nil deveria ter 0 não lidos")
+	}
+}
