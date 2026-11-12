@@ -80,10 +80,13 @@ function atividadeNaoLidos(n) {
     doc(1, 'Evento 1 - INIC1.pdf'),
     doc(2, 'Evento 2 - PET1.pdf'),
     doc(3, 'Evento 3 - LAUDO1.pdf', { ocr: 4, leitura: 'ocr' }),
+    // erro: Leitura.Frase() de internal/etl/leitura.go. sem_ocr não tem
+    // detalhe; o de senha é o texto que o pipeline manda para um PDF com senha
+    // que a biblioteca recusa (pdf.ErrInvalidPassword embrulhado por abrirPDF).
     doc(4, 'Evento 4 - ANEXO1.pdf', { estado: 'erro', feitas: 3, paginas: 3, leitura: 'sem_ocr',
-      erro: 'Documento digitalizado: o OCR está desativado.', detalhe: '3 páginas sem texto nativo; ocr_mode=none' }),
+      erro: 'digitalizado; o OCR está desativado' }),
     doc(5, 'Evento 5 - ANEXO2.pdf', { estado: 'erro', feitas: 0, paginas: 0, leitura: 'senha',
-      erro: 'Arquivo protegido por senha.', detalhe: 'pdf: encrypted (senha do usuário exigida)' }),
+      erro: 'protegido por senha', detalhe: 'falha ao abrir o PDF: encrypted PDF: invalid password' }),
     doc(6, 'Evento 6 - SENT1.pdf', { leitura: 'segundo_leitor' }),
   ];
   return { item_id: item(n, 'success').id, docs, limite_docs: 7, limite_ocr: 7, ocr_ativos: 0 };
