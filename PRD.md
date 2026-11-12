@@ -87,6 +87,7 @@ Tokens estimados: [T]
 - Evento 1 - PROC2: 1 página
 - ...
 - Evento 5 - DESPACHO: 1 página
+- Evento 6 - LAUDO: NÃO LIDO
 - ...
 </summary>
 </contexto>
@@ -117,7 +118,9 @@ Tokens estimados: [T]
 ...
 ```
 
-- **Documentos não lidos:** quantos documentos o app não conseguiu ler (arquivo ilegível, PDF digitalizado com o OCR desligado etc.). Sai sempre, também com 0. No `<summary>` o documento aparece como `- Evento N - NOME: NÃO LIDO`, e no corpo vira uma única linha `[documento não lido: <motivo>; consulte o PDF original]` (em HTML, `consulte o arquivo original`), seguida do `[ERRO ...]` técnico quando houver. Documento não lido não entra na detecção de duplicatas.
+- **Documentos não lidos:** quantos documentos o app não conseguiu ler (arquivo ilegível, PDF digitalizado com o OCR desligado etc.). Sai sempre, também com 0.
+- **`NÃO LIDO` no `<summary>`:** o documento não lido aparece como `- Evento N - NOME: NÃO LIDO`, no lugar do total de páginas.
+- **Corpo de um documento não lido:** uma única linha `[documento não lido: <motivo>; consulte o PDF original]` (em HTML, `consulte o arquivo original`), seguida do `[ERRO ...]` técnico quando houver. Documento não lido não entra na detecção de duplicatas.
 - **Data de Consolidação:** momento em que o arquivo foi gerado, no horário local.
 - **Tokens estimados:** estimativa de tokens do arquivo inteiro, inclusive desta linha, a um token a cada quatro caracteres. É o mesmo número que a fila mostra no item concluído.
 - **`<summary>`:** uma linha por documento, na ordem do arquivo, com o nome sem o prefixo "Evento N - " e sem a extensão.

@@ -223,6 +223,12 @@ func refDocumento(evento int, nome string) string {
 	return fmt.Sprintf("[documento idêntico a: evento %d, %s]", evento, nome)
 }
 
+// ehHTML informa se o nome do arquivo tem extensão de HTML.
+func ehHTML(nome string) bool {
+	ext := strings.ToLower(filepath.Ext(nome))
+	return ext == ".html" || ext == ".htm"
+}
+
 // paginaOrdenada e docOrdenado guardam a ordem de saída: documentos por index
 // dentro do evento e páginas por index dentro do documento.
 type paginaOrdenada struct {
@@ -457,7 +463,7 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 
 			if d.naoLido != "" {
 				original := "PDF"
-				if e := strings.ToLower(filepath.Ext(d.nome)); e == ".html" || e == ".htm" {
+				if ehHTML(d.nome) {
 					original = "arquivo"
 				}
 				sb.WriteString(fmt.Sprintf("[documento não lido: %s; consulte o %s original]\n", d.naoLido, original))
@@ -475,8 +481,7 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 				continue
 			}
 
-			ext := strings.ToLower(filepath.Ext(d.nome))
-			ctx := &ctxDocumento{jaVistas: map[string]bool{}, html: ext == ".html" || ext == ".htm"}
+			ctx := &ctxDocumento{jaVistas: map[string]bool{}, html: ehHTML(d.nome)}
 			if cleaningLevel == NivelPadrao || cleaningLevel == NivelMaximo {
 				contents := make([]string, len(d.paginas))
 				for i, p := range d.paginas {
@@ -492,14 +497,18 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 			// Limpa todas as páginas na ordem; só as que têm conteúdo saem.
 			var saem []paginaOrdenada
 			for _, p := range d.paginas {
+				if p.semOCR {
+					// Marcador de página sem OCR: sai como está, sem limpeza, e só
+					// se não for vazio.
+					if strings.TrimSpace(p.content) != "" {
+						saem = append(saem, paginaOrdenada{index: p.index, content: p.content})
+					}
+					continue
+				}
 				// cleanPage roda também nas duplicadas, e o resultado é descartado,
 				// de propósito: o estado do documento (timbre em jaVistas, marcadores
 				// em assinados) tem de avançar como se a página tivesse saído, porque
 				// o texto já apareceu na origem.
-				if p.semOCR {
-					saem = append(saem, paginaOrdenada{index: p.index, content: p.content})
-					continue
-				}
 				cleanedText := cleanPage(p.content, cleaningLevel, ctx)
 				if o, ok := h7.paginas[chavePagina{num, d.index, p.index}]; ok {
 					cleanedText = o.refPagina()

@@ -130,3 +130,70 @@ func TestSaida_PaginaSemOCRNaoSomeNaPadrao(t *testing.T) {
 		}
 	}
 }
+
+// paginaLonga monta uma página de 12 linhas: cabeçalho, 10 de miolo e rodapé.
+func paginaLonga(cab, rod, semente string) string {
+	linhas := []string{cab}
+	for i := range 10 {
+		linhas = append(linhas, "linha "+semente+" "+strconv.Itoa(i)+" do caso FULANO DE TAL")
+	}
+	return strings.Join(append(linhas, rod), "\n")
+}
+
+func marcaSemOCR(d map[string]any, indices ...string) {
+	for _, i := range indices {
+		d["paginas"].(map[string]any)[i].(map[string]any)["sem_ocr"] = true
+	}
+}
+
+// Página sem_ocr sai inteira, sem limpeza, e não participa das bordas repetidas
+// nem das duplicatas, mesmo com mais de 10 linhas e 200+ runas.
+func TestSaida_PaginaSemOCRForaDasRegras(t *testing.T) {
+	const cab, rod = "TRIBUNAL DE JUSTICA CABECALHO", "RODAPE DO SISTEMA"
+	for _, nivel := range []string{NivelPadrao, NivelMaximo} {
+		// (a) 7 nativas repetem a borda (70%): cleanPage tiraria a borda das sem_ocr.
+		var pags []string
+		for i := range 10 {
+			pags = append(pags, paginaLonga(cab, rod, "a"+strconv.Itoa(i)))
+		}
+		d := docNL(1, "Evento 1 - A.pdf", "", false, pags...)
+		marcaSemOCR(d, "8", "9", "10")
+		saida, _ := GenerateConsolidatedOutput(eventoNL(d), nivel)
+		for _, i := range []int{7, 8, 9} {
+			if !strings.Contains(saida, pags[i]) {
+				t.Errorf("%s: página sem_ocr %d não saiu inteira:\n%s", nivel, i+1, saida)
+			}
+		}
+
+		// (b) as bordas só se repetem somando as sem_ocr (6 de 6); as 2 nativas
+		// não podem perder o cabeçalho.
+		var pb []string
+		for i := range 6 {
+			pb = append(pb, paginaLonga(cab, rod, "b"+strconv.Itoa(i)))
+		}
+		d = docNL(1, "Evento 1 - B.pdf", "", false, pb...)
+		marcaSemOCR(d, "3", "4", "5", "6")
+		saida, _ = GenerateConsolidatedOutput(eventoNL(d), nivel)
+		if !strings.Contains(saida, pb[0]) || !strings.Contains(saida, pb[1]) {
+			t.Errorf("%s: página nativa perdeu a borda por causa das sem_ocr:\n%s", nivel, saida)
+		}
+
+		// (c) uma página nativa igual (200+ runas) a uma sem_ocr não vira referência.
+		igual := textoLongo("igual", 250)
+		d = docNL(1, "Evento 1 - C.pdf", "", false, igual, igual)
+		marcaSemOCR(d, "1")
+		saida, _ = GenerateConsolidatedOutput(eventoNL(d), nivel)
+		if strings.Contains(saida, "idêntic") || strings.Count(saida, "Texto sintético igual") != 2*strings.Count(igual, "Texto sintético igual") {
+			t.Errorf("%s: a página nativa devia sair inteira, sem referência:\n%s", nivel, saida)
+		}
+	}
+}
+
+func TestSaida_PaginaSemOCRVaziaNaoEmitePag(t *testing.T) {
+	d := docNL(1, "Evento 1 - V.pdf", "", false, "texto da primeira página", "  \n ", "texto da terceira")
+	marcaSemOCR(d, "2")
+	saida, _ := GenerateConsolidatedOutput(eventoNL(d), NivelPadrao)
+	if strings.Contains(saida, `<pag n="2">`) {
+		t.Errorf("página sem_ocr vazia emitiu <pag>:\n%s", saida)
+	}
+}
