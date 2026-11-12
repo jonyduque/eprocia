@@ -65,7 +65,7 @@ func (l Leitura) Acao() string {
 // classificarErro traduz o erro de abertura/leitura de um documento.
 func classificarErro(err error) Leitura {
 	switch {
-	case errors.Is(err, pdf.ErrInvalidPassword):
+	case errors.Is(err, pdf.ErrInvalidPassword), errors.Is(err, ocr.ErrSenha):
 		return LeituraSenha
 	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, ocr.ErrPrazo):
 		return LeituraPrazo

@@ -7,6 +7,8 @@ import (
 	"maps"
 	"testing"
 
+	"eprocia/internal/ocr"
+
 	"github.com/dslipak/pdf"
 )
 
@@ -58,6 +60,7 @@ func TestClassificarErro(t *testing.T) {
 		l    Leitura
 	}{
 		{"senha", fmt.Errorf("falha ao abrir o PDF: %w", pdf.ErrInvalidPassword), LeituraSenha},
+		{"senha do Poppler", fmt.Errorf("falha no pdfinfo.exe: %w", ocr.ErrSenha), LeituraSenha},
 		{"prazo", fmt.Errorf("leitura: %w", context.DeadlineExceeded), LeituraPrazo},
 		{"ilegivel", errors.New("not a PDF file: invalid header"), LeituraIlegivel},
 	}

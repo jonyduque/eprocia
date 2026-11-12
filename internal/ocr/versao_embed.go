@@ -4,4 +4,4 @@ package ocr
 
 // versaoEmbutidos identifica o conteúdo de embed/. Muda sempre que um binário
 // ou modelo muda, e força a reextração na próxima execução.
-const versaoEmbutidos = "1fc49478a3d97e3839976d8d8414bdac"
+const versaoEmbutidos = "eb119a532889a51abcce0a0009d72ffd"

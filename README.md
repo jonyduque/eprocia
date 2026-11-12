@@ -302,7 +302,7 @@ O eprocIA é software livre sob a [GNU General Public License v3.0](LICENSE): vo
 O executável inclui:
 
 - [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) 5.5.0 e os modelos `tessdata` (Apache 2.0)
-- [Poppler](https://poppler.freedesktop.org/) 25.07.0 `pdftoppm` e suas DLLs (GPL; código-fonte em [poppler-25.07.0.tar.xz](https://poppler.freedesktop.org/poppler-25.07.0.tar.xz))
+- [Poppler](https://poppler.freedesktop.org/) 25.07.0 `pdftoppm`, `pdfinfo`, `pdftotext` e suas DLLs (GPL; código-fonte em [poppler-25.07.0.tar.xz](https://poppler.freedesktop.org/poppler-25.07.0.tar.xz))
 - [Wails](https://wails.io) (MIT), [Svelte](https://svelte.dev) (MIT), [Lucide](https://lucide.dev) (ISC)
 - [energye/systray](https://github.com/energye/systray) (Apache 2.0), [dslipak/pdf](https://github.com/dslipak/pdf) e [fsnotify](https://github.com/fsnotify/fsnotify) (BSD de 3 cláusulas)
 

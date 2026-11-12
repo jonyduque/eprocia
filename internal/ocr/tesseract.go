@@ -32,6 +32,7 @@ const arquivoVersao = ".versao"
 
 var (
 	binDir       string
+	popplerDir   string
 	tessdataDirs = map[string]string{}
 	initMu       sync.Mutex
 )
@@ -47,11 +48,9 @@ func InitBinaries() (string, error) {
 		return binDir, nil
 	}
 
-	tempDir := filepath.Join(os.TempDir(), "eprocIA_bin")
-	log.Printf("[OCR] Iniciando verificação e extração do embed.FS para %s...", tempDir)
-	if err := os.MkdirAll(tempDir, 0755); err != nil {
-		log.Printf("[OCR] Falha ao criar diretório de binários: %v", err)
-		return "", fmt.Errorf("falha ao criar a pasta temporária dos binários: %w", err)
+	tempDir, err := pastaBinarios()
+	if err != nil {
+		return "", err
 	}
 	if err := extrairBase(tempDir); err != nil {
 		log.Printf("[OCR] Falha ao extrair arquivos embutidos: %v", err)
@@ -60,7 +59,40 @@ func InitBinaries() (string, error) {
 
 	log.Printf("[OCR] Verificação/extração de binários concluída com sucesso no diretório: %s", tempDir)
 	binDir = tempDir
+	popplerDir = filepath.Join(tempDir, "poppler")
 	return binDir, nil
+}
+
+// pastaBinarios cria a pasta de extração em %TEMP%.
+func pastaBinarios() (string, error) {
+	tempDir := filepath.Join(os.TempDir(), "eprocIA_bin")
+	log.Printf("[OCR] Iniciando verificação e extração do embed.FS para %s...", tempDir)
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		log.Printf("[OCR] Falha ao criar diretório de binários: %v", err)
+		return "", fmt.Errorf("falha ao criar a pasta temporária dos binários: %w", err)
+	}
+	return tempDir, nil
+}
+
+// initPoppler extrai só o Poppler (sem tesseract nem tessdata) e devolve a
+// pasta dele. É a base de InfoPDF e TextoPDF, que valem com o OCR desligado.
+// Sucesso fica em cache; falha não.
+func initPoppler() (string, error) {
+	initMu.Lock()
+	defer initMu.Unlock()
+	if popplerDir != "" {
+		return popplerDir, nil
+	}
+	tempDir, err := pastaBinarios()
+	if err != nil {
+		return "", err
+	}
+	if err := extrairSub(tempDir, "poppler"); err != nil {
+		log.Printf("[OCR] Falha ao extrair o Poppler embutido: %v", err)
+		return "", fmt.Errorf("falha ao extrair o Poppler embutido: %w", err)
+	}
+	popplerDir = filepath.Join(tempDir, "poppler")
+	return popplerDir, nil
 }
 
 // tessdataDoModo extrai, uma vez por processo, o tessdata do modo pedido.
@@ -86,15 +118,20 @@ func CalcularVersaoEmbutidos() (string, error) {
 
 func extrairBase(dest string) error {
 	for _, sub := range []string{"poppler", "tesseract"} {
-		fontes, err := arquivosDe("embed/" + sub)
-		if err != nil {
-			return err
-		}
-		if err := sincronizar(filepath.Join(dest, sub), fontes); err != nil {
+		if err := extrairSub(dest, sub); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// extrairSub sincroniza embed/<sub> com dest/<sub>.
+func extrairSub(dest, sub string) error {
+	fontes, err := arquivosDe("embed/" + sub)
+	if err != nil {
+		return err
+	}
+	return sincronizar(filepath.Join(dest, sub), fontes)
 }
 
 // extrairTessdata grava em dest/tessdata/<modo> o por.traineddata do modo e o
