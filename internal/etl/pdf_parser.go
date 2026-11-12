@@ -40,6 +40,9 @@ type PDFParser struct {
 
 	lote      ocrLote
 	blocosOCR int
+
+	// poppler: o PDF foi aberto pelo segundo leitor (ver comPoppler).
+	poppler bool
 }
 
 // maxPaginasBlocoOCR é o teto de páginas de um bloco entregue ao ocrLote: o
@@ -115,6 +118,9 @@ func (p *PDFParser) ParsePages(
 	ocrRunner func(context.Context, string, int) (string, error),
 	onPageComplete func(pageNum int),
 ) (map[string]any, error) {
+	if p.poppler {
+		return p.parsePoppler(ctx, ocrEnabled, ocrRunner, onPageComplete)
+	}
 	reader, numPages, fechar, err := p.abrir()
 	if err != nil {
 		log.Printf("[PDFParser] Falha ao abrir PDF %s: %v", p.filePath, err)

@@ -182,6 +182,24 @@ func (f *fontePDF) liberarBuffer(reusar bool) {
 	f.leitor = nil
 }
 
+// manterSoDisco devolve a memória de um PDF já gravado em disco e fica só com o
+// temporário, que liberar remove depois. Serve ao PDF aberto pelo Poppler, que
+// só o lê do disco: guardá-lo assim entre a pré-contagem e o worker não pesa
+// no teto de memória nem grava o temporário duas vezes.
+func (f *fontePDF) manterSoDisco() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.reservado > 0 {
+		f.mem.disponivel.Add(f.reservado)
+		f.reservado = 0
+	}
+	if f.dados != nil {
+		f.mem.devolver(f.dados)
+	}
+	f.dados = nil
+	f.leitor = nil
+}
+
 // extrairPDF lê a entrada do ZIP para memória, se couber no orçamento, ou para
 // um temporário em disco mantido aberto.
 func extrairPDF(f models.ProcessFile, mem *memoriaPDF) (*fontePDF, error) {
@@ -295,6 +313,9 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 	fontes := make([]*fontePDF, totalFiles)
 	contagens := make([]int, totalFiles)
 	contados := make([]bool, totalFiles)
+	// Preenchidas só aqui, em thread única; os workers só as leem.
+	viaPoppler := make([]bool, totalFiles)
+	errosAbertura := make([]error, totalFiles)
 	// Listas livres pequenas: reaproveitam buffers e descompressores entre as
 	// duas extrações de cada PDF sem segurar memória de todos os workers.
 	mem := &memoriaPDF{bufs: make(chan []byte, 2)}
@@ -319,15 +340,24 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 		}
 		fonte, err := extrairPDF(f, mem)
 		if err == nil {
-			var n int
-			if n, err = fonte.contarPaginas(); err == nil {
-				contagens[i], contados[i] = n, true
+			var ab aberturaPDF
+			if ab, err = abrirPDF(ctx, fonte); err == nil {
+				contagens[i], contados[i], viaPoppler[i] = ab.paginas, true, ab.poppler
+			} else if ctx.Err() == nil {
+				// Os dois leitores falharam (ou senha): decidido aqui, o worker
+				// não tenta de novo.
+				errosAbertura[i] = err
 			}
-			// O temporário em disco (PDF acima do teto) fica aberto para não
-			// ser gravado duas vezes.
-			if err == nil && fonte.arq != nil {
+			switch {
+			case err == nil && fonte.arq != nil:
+				// O temporário em disco (PDF acima do teto) fica aberto para não
+				// ser gravado duas vezes.
 				fontes[i] = fonte
-			} else {
+			case err == nil && ab.poppler:
+				// O Poppler só lê do disco: fica o temporário, sai a memória.
+				fonte.manterSoDisco()
+				fontes[i] = fonte
+			default:
 				fonte.liberar()
 			}
 		}
@@ -556,6 +586,11 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 			atv.docLendo(i)
 
 			if f.Extension == ".pdf" {
+				if e := errosAbertura[i]; e != nil {
+					naoLido(classificarErro(e), fmt.Sprintf("[ERRO ao analisar PDF: %s]", e.Error()),
+						e.Error(), fmt.Sprintf("Erro ao analisar %s", f.DocName))
+					return
+				}
 				fonte := fontes[i]
 				if fonte == nil {
 					var err error
@@ -572,7 +607,9 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 				ocrRunner, ocrEmLote := ocrDoDoc(i)
 				parser := NewPDFParserDeLeitor(fonte.readerAt(), fonte.tamanho, f.DocName, fonte.materializar).
 					comOCREmLote(ocrEmLote, numWorkers)
-				if fonte.leitor != nil {
+				if viaPoppler[i] {
+					parser.comPoppler(contagens[i])
+				} else if fonte.leitor != nil {
 					parser.comLeitor(fonte.leitor, fonte.paginas)
 				} else if contados[i] {
 					parser.comPaginas(contagens[i])
@@ -625,7 +662,7 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 			}
 
 			log.Printf("[Pipeline] Documento %s finalizado com %d páginas", f.DocName, len(paginasMap))
-			l := classificarPaginas(paginasMap, false)
+			l := classificarPaginas(paginasMap, viaPoppler[i])
 			if l.NaoLido() {
 				naoLido(l, "", "", fmt.Sprintf("Concluído %d/%d: %s", int(processedDocsVal.Load())+1, totalFiles, f.DocName))
 				return
