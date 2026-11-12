@@ -113,10 +113,10 @@
                 <span class="pulsa"><Icone icone={ScanText} tamanho={12} cor="var(--processing)" /></span>
               {:else if d.estado === 'lendo'}
                 <Icone icone={FileText} tamanho={12} cor="var(--accent)" />
-              {:else if d.estado === 'concluido'}
-                <Icone icone={CircleCheck} tamanho={12} cor="var(--success)" />
               {:else if naoLido(d)}
                 <Icone icone={CircleAlert} tamanho={12} cor="var(--warning)" />
+              {:else if d.estado === 'concluido'}
+                <Icone icone={CircleCheck} tamanho={12} cor="var(--success)" />
               {:else if d.estado === 'erro'}
                 <Icone icone={CircleAlert} tamanho={12} cor="var(--error)" />
               {:else}
@@ -262,7 +262,8 @@
   }
 
   .btn-ocr {
-    padding: 1px 8px;
+    min-height: 24px;
+    padding: 3px 10px;
     border-radius: 4px;
     border: 1px solid var(--warning-line);
     background-color: var(--warning-soft);
