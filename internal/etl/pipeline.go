@@ -620,7 +620,9 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 				if e := errosAbertura[i]; e != nil {
 					// abrirPDF já monta o erro com o resumo da biblioteca e a
 					// frase fixa do segundo leitor; vetarCaminho é a rede de
-					// segurança.
+					// segurança. O log leva o erro inteiro, para o "detalhe no
+					// log" valer quando ela dispara.
+					log.Printf("[Pipeline] Falha ao abrir %s: %v", f.DocName, e)
 					texto := vetarCaminho(e.Error())
 					naoLido(classificarErro(e), fmt.Sprintf("[ERRO ao analisar PDF: %s]", texto),
 						texto, fmt.Sprintf("Erro ao analisar %s", f.DocName))
