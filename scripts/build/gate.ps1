@@ -54,15 +54,26 @@ if ($rodando) {
 
 Etapa 'wails build' { wails build }
 
+# O smoke roda uma cópia com outro nome: o WebView2 guarda os dados em
+# %APPDATA%\<nome do exe>, e um segundo eprocia.exe, mesmo de outra pasta
+# (o app instalado ou o build de outra worktree aberto), sai com código 1 e
+# "error creating controller with 8007139f".
+$copia = Join-Path (Split-Path $exe) 'eprocia-gate-teste.exe'
+Copy-Item -LiteralPath $exe -Destination $copia -Force
 Write-Host '[gate] smoke test: iniciando o exe por 5 s'
-$proc = Start-Process -FilePath $exe -PassThru
-Start-Sleep -Seconds 5
-$vivo = -not $proc.HasExited
-if ($vivo) {
-  # Only the process this script started is stopped.
-  Stop-Process -Id $proc.Id -Force
-  Write-Host "[gate] ok: smoke (PID $($proc.Id) respondeu por 5 s e foi encerrado)"
-} else {
-  Write-Host "[gate] FALHOU: smoke (exe saiu com código $($proc.ExitCode))"
-  exit 1
+try {
+  $proc = Start-Process -FilePath $copia -PassThru
+  Start-Sleep -Seconds 5
+  $vivo = -not $proc.HasExited
+  if ($vivo) {
+    # Only the process this script started is stopped.
+    Stop-Process -Id $proc.Id -Force
+    $proc.WaitForExit(5000) | Out-Null
+    Write-Host "[gate] ok: smoke (PID $($proc.Id) respondeu por 5 s e foi encerrado)"
+  } else {
+    Write-Host "[gate] FALHOU: smoke (exe saiu com código $($proc.ExitCode))"
+    exit 1
+  }
+} finally {
+  Remove-Item -LiteralPath $copia -Force -ErrorAction SilentlyContinue
 }
