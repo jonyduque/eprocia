@@ -4,7 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log"
+	"os"
+	"os/exec"
+	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -126,4 +130,73 @@ func resumirErroBiblioteca(err error) string {
 		s = string([]rune(s)[:tetoErroBiblioteca]) + "…"
 	}
 	return s
+}
+
+// Textos fixos de erro que chegam ao .txt, ao painel e à notificação.
+const (
+	// Erro de E/S ou de início de processo: o texto original traz o caminho.
+	textoErroDisco = "falha de leitura ou gravação em disco"
+	// Rede de segurança: o texto resumido ainda parecia trazer um caminho.
+	textoErroInterno = "erro interno; detalhe no log"
+)
+
+// Marcadores da página cujo OCR falhou sem texto nativo de reserva. ocr_erro
+// guarda a mesma frase, sem os colchetes.
+const (
+	frasePaginaOCRPrazo = "tempo esgotado"
+	frasePaginaOCRFalha = "o OCR não conseguiu ler a página"
+	marcadorOCRPrazo    = "[ERRO de OCR: " + frasePaginaOCRPrazo + "]"
+	marcadorOCRFalha    = "[ERRO de OCR: " + frasePaginaOCRFalha + "]"
+)
+
+// pareceCaminho reconhece um caminho do Windows no texto: letra de unidade
+// seguida de barra (C:\ ou C:/, sem outra letra antes, para não pegar "http://")
+// ou o prefixo UNC \\.
+var pareceCaminho = regexp.MustCompile(`(^|[^A-Za-z])[A-Za-z]:[\\/]|\\\\`)
+
+// vetarCaminho devolve s, ou o texto fixo de erro interno quando s parece trazer
+// um caminho.
+func vetarCaminho(s string) string {
+	if pareceCaminho.MatchString(s) {
+		return textoErroInterno
+	}
+	return s
+}
+
+// textoErroSaida é a porta de todo texto de erro que sai do pipeline para o
+// .txt, o Detalhe do painel ou a notificação: nunca um caminho (o temporário
+// traz o nome de usuário do Windows), stderr ou objetos do PDF. Quem chama
+// registra o erro inteiro no log.
+func textoErroSaida(err error) string {
+	if segundo, ok := errors.AsType[*erroSegundoLeitor](err); ok {
+		return segundo.Error()
+	}
+	if ehErroDeDisco(err) {
+		return textoErroDisco
+	}
+	return vetarCaminho(resumirErroBiblioteca(err))
+}
+
+// ehErroDeDisco reconhece um erro de E/S ou de início de processo, cujo texto
+// traz o caminho do arquivo ou do executável.
+func ehErroDeDisco(err error) bool {
+	if _, ok := errors.AsType[*fs.PathError](err); ok {
+		return true
+	}
+	if _, ok := errors.AsType[*os.LinkError](err); ok {
+		return true
+	}
+	if _, ok := errors.AsType[*os.SyscallError](err); ok {
+		return true
+	}
+	_, ok := errors.AsType[*exec.Error](err)
+	return ok
+}
+
+// fraseOCR é o texto fixo de uma página cujo OCR falhou.
+func fraseOCR(err error) string {
+	if errors.Is(err, ocr.ErrPrazo) {
+		return frasePaginaOCRPrazo
+	}
+	return frasePaginaOCRFalha
 }

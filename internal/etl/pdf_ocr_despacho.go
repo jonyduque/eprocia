@@ -125,9 +125,13 @@ func (d *despachoOCR) registrarOCR(task ocrTask, ocrText string, err error) {
 			"content": ocrText,
 		}
 	} else {
+		// O erro do OCR pode trazer o caminho de %TEMP% (com o nome de usuário)
+		// e o stderr: a página e ocr_erro recebem só a frase fixa da classe, e
+		// o erro inteiro fica no log.
+		frase := fraseOCR(err)
 		content := task.fallback
 		if content == "" {
-			content = fmt.Sprintf("[ERRO de OCR: %s]", err.Error())
+			content = "[ERRO de OCR: " + frase + "]"
 		}
 		log.Printf("[PDFParser] Falha no OCR para página %d: %v. Usando o texto de reserva (%d chars).", task.pageNum, err, len(task.fallback))
 		d.falhas.Add(1)
@@ -135,7 +139,7 @@ func (d *despachoOCR) registrarOCR(task ocrTask, ocrText string, err error) {
 			"index":    task.pageNum,
 			"ocr":      false,
 			"content":  content,
-			"ocr_erro": err.Error(),
+			"ocr_erro": frase,
 		}
 		if errors.Is(err, ocr.ErrPrazo) {
 			pageData["ocr_prazo"] = true

@@ -151,8 +151,9 @@ func TestPDFParser_DeLeitor_FalhaAoMaterializarMarcaPagina(t *testing.T) {
 	}
 	for _, k := range []string{"1", "2"} {
 		c := pages[k].(map[string]any)["content"].(string)
-		if !strings.Contains(c, "disco cheio") {
-			t.Errorf("página %s deveria trazer o erro de materialização, veio %q", k, c)
+		// O erro de materialização fica no log; a página leva a frase fixa.
+		if c != marcadorOCRFalha {
+			t.Errorf("página %s deveria trazer o marcador fixo de erro do OCR, veio %q", k, c)
 		}
 	}
 }

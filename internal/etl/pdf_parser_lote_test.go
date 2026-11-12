@@ -179,8 +179,8 @@ func TestParsePages_OCREmLoteFalhaRefazPorPagina(t *testing.T) {
 	if c := pages["1"].(map[string]any)["content"]; c != "página 1 sozinha" {
 		t.Errorf("página 1 = %q", c)
 	}
-	if c := pages["2"].(map[string]any)["content"].(string); !strings.Contains(c, "página 2 ilegível") {
-		t.Errorf("página 2 deveria trazer o erro do OCR, veio %q", c)
+	if c := pages["2"].(map[string]any)["content"].(string); c != marcadorOCRFalha {
+		t.Errorf("página 2 deveria trazer o marcador fixo de erro do OCR, veio %q", c)
 	}
 }
 

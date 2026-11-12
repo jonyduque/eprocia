@@ -581,11 +581,17 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 					return
 				}
 				log.Printf("[Pipeline] Panic ao processar %s: %v", f.DocName, r)
+				// Um panic depois de encerrar (no onProgress, por exemplo) não
+				// reescreve um documento que já terminou.
+				if encerrado {
+					return
+				}
 				if fonteDoc != nil {
 					fonteDoc.liberarBuffer(false)
 				}
-				naoLido(LeituraIlegivel, fmt.Sprintf("[ERRO ao processar documento: %v]", r),
-					fmt.Sprintf("%v", r), fmt.Sprintf("Erro ao processar %s", f.DocName))
+				texto := textoErroSaida(fmt.Errorf("%v", r))
+				naoLido(LeituraIlegivel, fmt.Sprintf("[ERRO ao processar documento: %s]", texto),
+					texto, fmt.Sprintf("Erro ao processar %s", f.DocName))
 			}()
 
 			// Acquire slot for document processing
@@ -612,8 +618,12 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 
 			if f.Extension == ".pdf" {
 				if e := errosAbertura[i]; e != nil {
-					naoLido(classificarErro(e), fmt.Sprintf("[ERRO ao analisar PDF: %s]", e.Error()),
-						e.Error(), fmt.Sprintf("Erro ao analisar %s", f.DocName))
+					// abrirPDF já monta o erro com o resumo da biblioteca e a
+					// frase fixa do segundo leitor; vetarCaminho é a rede de
+					// segurança.
+					texto := vetarCaminho(e.Error())
+					naoLido(classificarErro(e), fmt.Sprintf("[ERRO ao analisar PDF: %s]", texto),
+						texto, fmt.Sprintf("Erro ao analisar %s", f.DocName))
 					return
 				}
 				fonte := fontes[i]
@@ -621,8 +631,10 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 					var err error
 					fonte, err = extrairPDF(f, mem)
 					if err != nil {
-						naoLido(classificarErro(err), fmt.Sprintf("[ERRO ao extrair PDF do ZIP: %s]", err.Error()),
-							err.Error(), fmt.Sprintf("Erro ao abrir %s", f.DocName))
+						log.Printf("[Pipeline] Falha ao extrair %s do ZIP: %v", f.DocName, err)
+						texto := textoErroSaida(err)
+						naoLido(classificarErro(err), fmt.Sprintf("[ERRO ao extrair PDF do ZIP: %s]", texto),
+							texto, fmt.Sprintf("Erro ao abrir %s", f.DocName))
 						return
 					}
 					fontes[i] = fonte
@@ -656,8 +668,10 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 						errMu.Unlock()
 						return
 					}
-					naoLido(classificarErro(errParse), fmt.Sprintf("[ERRO ao analisar PDF: %s]", errParse.Error()),
-						errParse.Error(), fmt.Sprintf("Erro ao analisar %s", f.DocName))
+					log.Printf("[Pipeline] Falha ao analisar %s: %v", f.DocName, errParse)
+					texto := textoErroSaida(errParse)
+					naoLido(classificarErro(errParse), fmt.Sprintf("[ERRO ao analisar PDF: %s]", texto),
+						texto, fmt.Sprintf("Erro ao analisar %s", f.DocName))
 					return
 				}
 
@@ -666,16 +680,20 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 			} else if f.Extension == ".html" || f.Extension == ".htm" {
 				zipReader, err := f.ZipFileRef.Open()
 				if err != nil {
-					naoLido(classificarErro(err), fmt.Sprintf("[ERRO ao abrir arquivo no ZIP: %s]", err.Error()),
-						err.Error(), fmt.Sprintf("Erro ao abrir %s", f.DocName))
+					log.Printf("[Pipeline] Falha ao abrir %s no ZIP: %v", f.DocName, err)
+					texto := textoErroSaida(err)
+					naoLido(classificarErro(err), fmt.Sprintf("[ERRO ao abrir arquivo no ZIP: %s]", texto),
+						texto, fmt.Sprintf("Erro ao abrir %s", f.DocName))
 					return
 				}
 
 				htmlText, errParse := ExtractTextFromHTML(zipReader)
 				zipReader.Close()
 				if errParse != nil {
-					naoLido(classificarErro(errParse), fmt.Sprintf("[ERRO ao analisar HTML: %s]", errParse.Error()),
-						errParse.Error(), fmt.Sprintf("Erro ao analisar HTML %s", f.DocName))
+					log.Printf("[Pipeline] Falha ao analisar o HTML %s: %v", f.DocName, errParse)
+					texto := textoErroSaida(errParse)
+					naoLido(classificarErro(errParse), fmt.Sprintf("[ERRO ao analisar HTML: %s]", texto),
+						texto, fmt.Sprintf("Erro ao analisar HTML %s", f.DocName))
 					return
 				}
 				paginasMap["1"] = map[string]any{

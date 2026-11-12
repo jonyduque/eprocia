@@ -187,11 +187,12 @@ func TestPDFParser_ParsePages_OcrFailureMarksPage(t *testing.T) {
 		t.Errorf("a página não deveria ter o campo image: %v", page["image"])
 	}
 	content := page["content"].(string)
-	if !strings.HasPrefix(content, "[ERRO de OCR:") || !strings.Contains(content, "tesseract ausente") {
-		t.Errorf("expected OCR error marker in content, got %q", content)
+	// O erro cru fica só no log: a página leva a frase fixa (ver erro_saida_test.go).
+	if content != marcadorOCRFalha {
+		t.Errorf("expected the fixed OCR error marker in content, got %q", content)
 	}
-	if page["ocr_erro"] != "tesseract ausente" {
-		t.Errorf("expected ocr_erro to carry the failure, got %v", page["ocr_erro"])
+	if page["ocr_erro"] != frasePaginaOCRFalha {
+		t.Errorf("expected ocr_erro to carry the fixed phrase, got %v", page["ocr_erro"])
 	}
 	if completed != 1 {
 		t.Errorf("expected onPageComplete once, got %d", completed)

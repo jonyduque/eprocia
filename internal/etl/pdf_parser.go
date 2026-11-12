@@ -160,7 +160,7 @@ func (p *PDFParser) ParsePages(
 			content := ""
 			if errPag != nil {
 				log.Printf("[PDFParser] Falha ao ler a página %d de %s: %v", pageNum, p.filePath, errPag)
-				content = fmt.Sprintf("[ERRO ao ler página: %s]", errPag.Error())
+				content = fmt.Sprintf("[ERRO ao ler página: %s]", textoErroSaida(errPag))
 			} else {
 				log.Printf("[PDFParser] Página %d está nula/vazia", pageNum)
 			}
