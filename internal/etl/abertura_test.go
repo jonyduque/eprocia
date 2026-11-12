@@ -295,8 +295,9 @@ func cfgPoppler(ocrMode string) *models.Config {
 
 func TestPipeline_Poppler_ProgressoCerto(t *testing.T) {
 	tmp := isolarTemp(t)
+	var infoChamadas atomic.Int32
 	trocarPoppler(t,
-		func(context.Context, string) (int, error) { return 7, nil },
+		func(context.Context, string) (int, error) { infoChamadas.Add(1); return 7, nil },
 		func(_ context.Context, _ string, n int) ([]string, error) {
 			textos := make([]string, n)
 			for i := range textos {
@@ -330,6 +331,9 @@ func TestPipeline_Poppler_ProgressoCerto(t *testing.T) {
 	}
 	if d := atv.Instantaneo().Docs[0]; d.Leitura != string(LeituraSegundoLeitor) {
 		t.Errorf("leitura = %q", d.Leitura)
+	}
+	if n := infoChamadas.Load(); n != 1 {
+		t.Errorf("infoPDF chamado %d vezes, esperava 1", n)
 	}
 	semTemporarios(t, tmp)
 }
@@ -400,8 +404,124 @@ func TestPipeline_BinariosIndisponiveis(t *testing.T) {
 	if docs[0].Leitura != string(LeituraLido) {
 		t.Errorf("sadio: %+v", docs[0])
 	}
-	if d := docs[1]; d.Leitura != string(LeituraIlegivel) || !strings.Contains(d.Detalhe, "falha ao extrair binários") {
+	if d := docs[1]; d.Leitura != string(LeituraIlegivel) || !strings.Contains(d.Detalhe, "invalid header") || !strings.Contains(d.Detalhe, resumoSegundoLeitorFalha) || strings.Contains(d.Detalhe, "falha ao extrair binários") {
 		t.Errorf("recusado: %+v", d)
+	}
+	semTemporarios(t, tmp)
+}
+
+// erroComCaminho imita o erro do Poppler real: caminho do temporário com o
+// nome de usuário e uma linha de stderr.
+var erroComCaminho = errors.New(`falha no pdfinfo.exe em C:\Users\fulano\AppData\Local\Temp\eprocia_pdf_1.pdf: Syntax Error: Couldn't find trailer dictionary`)
+
+func semDadosDoPoppler(t *testing.T, onde, texto string) {
+	t.Helper()
+	for _, proibido := range []string{"fulano", "AppData", "trailer dictionary"} {
+		if strings.Contains(texto, proibido) {
+			t.Errorf("%s contém %q:\n%s", onde, proibido, texto)
+		}
+	}
+}
+
+func TestPipeline_Poppler_ErroDoInfoSemCaminho(t *testing.T) {
+	isolarTemp(t)
+	trocarPoppler(t, func(context.Context, string) (int, error) { return 0, erroComCaminho }, nil)
+	zipPath := gravarZip(t, []entradaZip{{"Evento 1 - DOC1.pdf", []byte("não é PDF")}})
+	atv := NovaAtividade("x")
+	out, _, _, _, err := NewPipeline().ProcessZipComAtividade(context.Background(), zipPath, cfgPoppler("fast"),
+		func(float64, string, int, int, int, int) {}, atv)
+	if err != nil {
+		t.Fatalf("ProcessZip: %v", err)
+	}
+	b, _ := os.ReadFile(out)
+	d := atv.Instantaneo().Docs[0]
+	for onde, texto := range map[string]string{".txt": string(b), "Detalhe": d.Detalhe} {
+		semDadosDoPoppler(t, onde, texto)
+		if !strings.Contains(texto, "invalid header") || !strings.Contains(texto, resumoSegundoLeitorFalha) {
+			t.Errorf("%s sem o texto da biblioteca ou o resumo:\n%s", onde, texto)
+		}
+	}
+	if d.Leitura != string(LeituraIlegivel) {
+		t.Errorf("leitura = %q", d.Leitura)
+	}
+}
+
+func TestPipeline_Poppler_ErroDoTextoSemCaminho(t *testing.T) {
+	isolarTemp(t)
+	trocarPoppler(t,
+		func(context.Context, string) (int, error) { return 2, nil },
+		func(context.Context, string, int) ([]string, error) { return nil, erroComCaminho })
+	zipPath := gravarZip(t, []entradaZip{{"Evento 1 - DOC1.pdf", comoPDF20(pdfComTexto("Texto ficticio"))}})
+	atv := NovaAtividade("x")
+	out, _, _, _, err := NewPipeline().ProcessZipComAtividade(context.Background(), zipPath, cfgPoppler("none"),
+		func(float64, string, int, int, int, int) {}, atv)
+	if err != nil {
+		t.Fatalf("ProcessZip: %v", err)
+	}
+	b, _ := os.ReadFile(out)
+	d := atv.Instantaneo().Docs[0]
+	for onde, texto := range map[string]string{".txt": string(b), "Detalhe": d.Detalhe} {
+		semDadosDoPoppler(t, onde, texto)
+		if !strings.Contains(texto, resumoSegundoLeitorFalha) {
+			t.Errorf("%s sem o resumo:\n%s", onde, texto)
+		}
+	}
+	if d.Leitura != string(LeituraIlegivel) {
+		t.Errorf("leitura = %q", d.Leitura)
+	}
+}
+
+func TestAbrirPDF_ResumoMantemPrazoESenha(t *testing.T) {
+	isolarTemp(t)
+	for _, c := range []struct {
+		causa error
+		quer  Leitura
+	}{
+		{fmt.Errorf("%w: em C:\\Users\\fulano\\x.pdf", ocr.ErrPrazo), LeituraPrazo},
+		{fmt.Errorf("%w: em C:\\Users\\fulano\\x.pdf", ocr.ErrSenha), LeituraSenha},
+	} {
+		trocarPoppler(t, func(context.Context, string) (int, error) { return 0, c.causa }, nil)
+		f := fonteDeBytes([]byte("não é PDF"))
+		_, err := abrirPDF(context.Background(), f)
+		f.liberar()
+		if classificarErro(err) != c.quer {
+			t.Errorf("classificarErro(%v) != %q", err, c.quer)
+		}
+		semDadosDoPoppler(t, "erro", err.Error())
+	}
+}
+
+func TestAbrirPDF_ZeroPaginasEFalha(t *testing.T) {
+	isolarTemp(t)
+	trocarPoppler(t, func(context.Context, string) (int, error) { return 0, nil }, nil)
+	f := fonteDeBytes(comoPDF20(pdfComTexto("Texto ficticio")))
+	defer f.liberar()
+	if _, err := abrirPDF(context.Background(), f); err == nil {
+		t.Fatal("pdfinfo com 0 páginas deveria ser falha do segundo leitor")
+	}
+}
+
+func TestPipeline_OmitidoNaoPassaPeloPoppler(t *testing.T) {
+	tmp := isolarTemp(t)
+	var chamadas atomic.Int32
+	trocarPoppler(t, func(context.Context, string) (int, error) { chamadas.Add(1); return 3, nil }, nil)
+	zipPath := gravarZip(t, []entradaZip{
+		{"Evento 1 - INIC1.pdf", pdfComTexto("Texto da inicial ficticia")},
+		{"Evento 2 - EXTR1.pdf", comoPDF20(pdfComTexto("TEXTO-DO-EXTRATO-FICTICIO"))},
+	})
+	cfg := cfgPoppler("fast")
+	cfg.OmitirTipos = []string{"EXTR"}
+	out, _, _, _, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfg,
+		func(float64, string, int, int, int, int) {})
+	if err != nil {
+		t.Fatalf("ProcessZip: %v", err)
+	}
+	if n := chamadas.Load(); n != 0 {
+		t.Errorf("infoPDF chamado %d vezes para o omitido", n)
+	}
+	b, _ := os.ReadFile(out)
+	if !strings.Contains(string(b), "[documento omitido: EXTR, 1 página]") || strings.Contains(string(b), "TEXTO-DO-EXTRATO") {
+		t.Errorf("omitido fora do esperado:\n%s", b)
 	}
 	semTemporarios(t, tmp)
 }

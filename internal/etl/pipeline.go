@@ -246,6 +246,15 @@ func extrairPDF(f models.ProcessFile, mem *memoriaPDF) (*fontePDF, error) {
 	return &fontePDF{arq: tmp, caminho: tmp.Name(), tamanho: n, mem: mem}, nil
 }
 
+// tipoOmitido devolve o tipo do documento quando ele está em cfg.OmitirTipos,
+// ou "" quando o documento é lido.
+func tipoOmitido(cfg *models.Config, docName string) string {
+	if tipo := tipoDocumento(docName); tipo != "" && slices.Contains(cfg.OmitirTipos, tipo) {
+		return tipo
+	}
+	return ""
+}
+
 // contarPaginas abre o leitor do PDF uma vez; ele é reaproveitado por
 // ParsePages. A biblioteca pode entrar em panic com arquivo malformado.
 func (f *fontePDF) contarPaginas() (n int, err error) {
@@ -330,6 +339,14 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 		}
 	}()
 
+	// O tipo omitido (H10) é decidido antes da pré-contagem: o documento
+	// omitido só tem as páginas contadas pela biblioteca, como antes do segundo
+	// leitor, e nunca vai ao Poppler.
+	tiposOmitidos := make([]string, totalFiles)
+	for i, f := range files {
+		tiposOmitidos[i] = tipoOmitido(cfg, f.DocName)
+	}
+
 	for i, f := range files {
 		contagens[i] = 1
 		if f.Extension != ".pdf" {
@@ -339,7 +356,17 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 			break
 		}
 		fonte, err := extrairPDF(f, mem)
-		if err == nil {
+		if err == nil && tiposOmitidos[i] != "" {
+			var n int
+			if n, err = fonte.contarPaginas(); err == nil {
+				contagens[i], contados[i] = n, true
+			}
+			if err == nil && fonte.arq != nil {
+				fontes[i] = fonte
+			} else {
+				fonte.liberar()
+			}
+		} else if err == nil {
 			var ab aberturaPDF
 			if ab, err = abrirPDF(ctx, fonte); err == nil {
 				contagens[i], contados[i], viaPoppler[i] = ab.paginas, true, ab.poppler
@@ -414,7 +441,7 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 				"paginas": paginasDoc[i],
 			}
 			// As chaves novas entram só aqui, antes das goroutines.
-			if tipo := tipoDocumento(files[i].DocName); tipo != "" && slices.Contains(cfg.OmitirTipos, tipo) {
+			if tipo := tiposOmitidos[i]; tipo != "" {
 				doc["omitido"] = tipo
 				doc["total_paginas"] = contagens[i]
 				omitidos[i] = true

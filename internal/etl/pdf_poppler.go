@@ -41,8 +41,7 @@ func (p *PDFParser) parsePoppler(
 			return nil, errCtx
 		}
 		if !comOCR {
-			log.Printf("[PDFParser] Segundo leitor não extraiu o texto de %s: %v", p.filePath, err)
-			return nil, fmt.Errorf("segundo leitor: %w", err)
+			return nil, resumirSegundoLeitor(p.filePath, "", err)
 		}
 		log.Printf("[PDFParser] Segundo leitor não extraiu o texto de %s: %v. Todas as páginas vão ao OCR.", p.filePath, err)
 		textos = make([]string, numPages)
