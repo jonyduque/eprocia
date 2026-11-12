@@ -33,9 +33,10 @@ const fraseClasses = "Peticao inicial ficticia de FULANO DE TAL no processo 5000
 var tempOriginal = os.TempDir()
 
 // tempClasses aponta o %TEMP% para uma pasta fixa, só destes testes, e a
-// devolve. Não serve isolarTemp: o pacote ocr guarda em cache, por processo, a
-// pasta onde extraiu os binários, e o t.TempDir de um teste some no fim dele
-// (o seguinte acharia o cache apontando para uma pasta apagada). Também não
+// devolve. A pasta é fixa porque o cache binDir/popplerDir do pacote ocr
+// guarda, por processo, o diretório da primeira extração: com isolarTemp, o
+// t.TempDir apagado no fim do primeiro teste deixaria um caminho morto para
+// os testes seguintes deste arquivo e de pipeline_memoria_test.go. Também não
 // serve o %TEMP% real: o eprocIA_bin de lá é o do eprocia.exe do dono.
 func tempClasses(t *testing.T) string {
 	t.Helper()
@@ -325,8 +326,10 @@ func TestClasses_GeradoresRecusadosPelaBiblioteca(t *testing.T) {
 		"AESV2SemSenha": pdfAESV2(objetosTexto(), ""),
 		"AESV2ComSenha": pdfAESV2(objetosTexto(), "segredo"),
 		"Truncado":      pdfTruncado(),
+		"Digitalizado":  pdfVersao20(objetosDigitalizado(t)),
 	}
-	if _, err := pdf.NewReader(bytes.NewReader(buildPDF(objetosTexto())), int64(len(buildPDF(objetosTexto())))); err != nil {
+	base := buildPDF(objetosTexto())
+	if _, err := pdf.NewReader(bytes.NewReader(base), int64(len(base))); err != nil {
 		t.Fatalf("o PDF de base não abre na biblioteca: %v", err)
 	}
 	for nome, b := range casos {
@@ -422,6 +425,10 @@ func TestClasses_Truncado(t *testing.T) {
 	conferirLeitura(t, saida, d, LeituraIlegivel, 1)
 }
 
+// palavraDaImagem é uma palavra longa do texto da imagem de escaneado.pdf
+// que o OCR fast devolve.
+const palavraDaImagem = "contestacao"
+
 func TestClasses_Versao20Digitalizado(t *testing.T) {
 	if testing.Short() {
 		t.Skip("usa o Poppler real")
@@ -437,8 +444,10 @@ func TestClasses_Versao20Digitalizado(t *testing.T) {
 	t.Run("com OCR", func(t *testing.T) {
 		saida, d := rodarClasse(t, b, cfgPoppler("fast"))
 		conferirLeitura(t, saida, d, LeituraOCR, 0)
-		if baixo := strings.ToLower(saida); !strings.Contains(baixo, "processo") && !strings.Contains(baixo, "parte") {
-			t.Errorf("o OCR não leu a imagem:\n%s", saida)
+		// Só o corpo do documento: o cabeçalho do .txt já diz "PROCESSO".
+		corpo := strings.ToLower(documentoDe(t, saida, "Evento 1 - DOC1.pdf"))
+		if palavra := palavraDaImagem; !strings.Contains(corpo, palavra) {
+			t.Errorf("o OCR não leu a imagem (sem %q no documento):\n%s", palavra, corpo)
 		}
 	})
 }
