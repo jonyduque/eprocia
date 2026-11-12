@@ -11,7 +11,6 @@ import (
 	"eprocia/internal/models"
 )
 
-
 func parsearSemOCR(t *testing.T, dados []byte, ocr bool) map[string]any {
 	t.Helper()
 	parser := NewPDFParserDeLeitor(bytes.NewReader(dados), int64(len(dados)), "doc.pdf",
@@ -149,5 +148,61 @@ func TestPipeline_SemOCR_DocumentoMisto(t *testing.T) {
 	b, _ := os.ReadFile(outPath)
 	if n := strings.Count(string(b), marcadorPaginaSemOCR); n != 3 {
 		t.Errorf("marcador apareceu %d vezes, esperava 3:\n%s", n, b)
+	}
+}
+
+// pdfTextoCurtoEImagem: uma página com texto nativo curto e imagem grande.
+func pdfTextoCurtoEImagem() []byte {
+	stream := "BT\n/F1 12 Tf\n72 712 Td\n(Texto nativo curto ficticio) Tj\nET\n/Im1 Do"
+	return buildPDF([]string{
+		"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
+		"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj",
+		"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /XObject << /Im1 5 0 R >> >> /Contents 4 0 R >>\nendobj",
+		fmt.Sprintf("4 0 obj\n<< /Length %d >>\nstream\n%s\nendstream\nendobj", len(stream), stream),
+		"5 0 obj\n<< /Type /XObject /Subtype /Image /Width 200 /Height 200 /ColorSpace /DeviceGray /BitsPerComponent 8 /Length 0 >>\nstream\nendstream\nendobj",
+	})
+}
+
+func TestPipeline_SemOCR_TextoNativoCurtoComImagemContaComoLido(t *testing.T) {
+	isolarTemp(t)
+	zipPath := gravarZip(t, []entradaZip{{"Evento 1 - DOC1.pdf", pdfTextoCurtoEImagem()}})
+	atv := NovaAtividade("x")
+	outPath, _, _, _, err := NewPipeline().ProcessZipComAtividade(context.Background(), zipPath, cfgSemOCR(),
+		func(float64, string, int, int, int, int) {}, atv)
+	if err != nil {
+		t.Fatalf("ProcessZip falhou: %v", err)
+	}
+	if n := atv.NaoLidos(); n != 0 {
+		t.Errorf("NaoLidos() = %d, esperava 0", n)
+	}
+	if l := atv.Instantaneo().Docs[0].Leitura; l != "lido" {
+		t.Errorf("Leitura = %q, esperava lido", l)
+	}
+	b, _ := os.ReadFile(outPath)
+	if !strings.Contains(string(b), "Texto nativo curto ficticio") {
+		t.Errorf(".txt perdeu o texto nativo:\n%s", b)
+	}
+	if strings.Contains(string(b), "[documento não lido") {
+		t.Errorf(".txt trata como não lido:\n%s", b)
+	}
+}
+
+func TestClassificarPaginas_SemOCR(t *testing.T) {
+	pg := func(content string) map[string]any {
+		return map[string]any{"content": content, "ocr": false, "sem_ocr": true}
+	}
+	casos := []struct {
+		nome    string
+		paginas map[string]any
+		want    Leitura
+	}{
+		{"só marcador", map[string]any{"1": pg(marcadorPaginaSemOCR), "2": pg(marcadorPaginaSemOCR)}, LeituraSemOCR},
+		{"texto nativo", map[string]any{"1": pg("Texto nativo curto")}, LeituraLido},
+		{"ilegível", map[string]any{"1": pg("[texto ilegível na página: 150 caracteres omitidos]")}, LeituraSemOCR},
+	}
+	for _, c := range casos {
+		if got := classificarPaginas(c.paginas, false); got != c.want {
+			t.Errorf("%s: %q, esperava %q", c.nome, got, c.want)
+		}
 	}
 }

@@ -92,7 +92,7 @@ func classificarPaginas(paginas map[string]any, segundoLeitor bool) Leitura {
 		if marcadorErro {
 			ilegivel = true
 		}
-		if strings.TrimSpace(content) == "" || marcadorErro || temErroOCR || temSemOCR {
+		if strings.TrimSpace(content) == "" || marcadorErro || temErroOCR || (temSemOCR && content == marcadorPaginaSemOCR) {
 			continue
 		}
 		comTexto++

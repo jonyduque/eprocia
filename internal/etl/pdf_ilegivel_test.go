@@ -89,6 +89,9 @@ func TestParsePages_IlegivelSemOCRViraMarcador(t *testing.T) {
 	if pag["content"] != marcadorIlegivel(strings.Repeat("x", 150)) {
 		t.Errorf("conteúdo = %q, quero %q", pag["content"], marcadorIlegivel(strings.Repeat("x", 150)))
 	}
+	if pag["sem_ocr"] != true {
+		t.Errorf("página ilegível sem OCR deveria ter sem_ocr, veio %v", pag)
+	}
 }
 
 func TestParsePages_IlegivelVaiAoOCR(t *testing.T) {
