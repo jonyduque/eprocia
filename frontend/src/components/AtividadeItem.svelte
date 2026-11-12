@@ -5,7 +5,7 @@
   import Clock from 'lucide-svelte/icons/clock';
   import FileText from 'lucide-svelte/icons/file-text';
   import ScanText from 'lucide-svelte/icons/scan-text';
-  import { ordenarDocs, resumoAtividade, segmentos } from '../lib/atividade.js';
+  import { ordenarDocs, resumoAtividade, segmentos, naoLido } from '../lib/atividade.js';
 
   // Instantâneo de etl.InstantaneoAtividade; null enquanto carrega e
   // 'nenhuma' quando o item foi cancelado antes de começar.
@@ -13,8 +13,12 @@
   export let id = '';
   // false quando o item já terminou: o painel mostra o resultado final.
   export let emAndamento = true;
+  // Abre o reprocessamento da linha com OCR ligado (botão "Reprocessar com OCR").
+  export let aoReprocessarComOCR = () => {};
 
   let mostrarConcluidos = false;
+
+  const ROTULO_LEITURA = { ocr: 'via OCR', segundo_leitor: 'segundo leitor' };
 
   const ROTULO = {
     ocr: 'Em OCR',
@@ -75,6 +79,9 @@
         <span class="chip">{resumo.aguardando} aguardando</span>
       {/if}
       <span class="chip ok">{resumo.concluidos} concluído{resumo.concluidos === 1 ? '' : 's'}</span>
+      {#if resumo.naoLidos > 0}
+        <span class="chip aviso">{resumo.naoLidos} não lido{resumo.naoLidos === 1 ? '' : 's'}</span>
+      {/if}
       {#if resumo.erros > 0}
         <span class="chip erro">{resumo.erros} com erro</span>
       {/if}
@@ -90,10 +97,17 @@
       {/if}
     </div>
 
+    {#if resumo.semOCR > 0 && !emAndamento}
+      <div class="acao-ocr">
+        <span>{resumo.semOCR === 1 ? 'Um documento digitalizado ficou sem OCR.' : `${resumo.semOCR} documentos digitalizados ficaram sem OCR.`}</span>
+        <button type="button" class="btn-ocr" on:click={aoReprocessarComOCR}>Reprocessar com OCR</button>
+      </div>
+    {/if}
+
     {#if visiveis.length > 0}
       <ul class="docs">
         {#each visiveis as d (d.i)}
-          <li class="doc {d.estado}" title={d.erro ? `${d.nome}\n${d.erro}` : d.nome}>
+          <li class="doc {d.estado}" class:nao-lido={naoLido(d)} title={naoLido(d) && d.detalhe ? `${d.nome}\n${d.detalhe}` : d.erro ? `${d.nome}\n${d.erro}` : d.nome}>
             <span class="doc-icone">
               {#if d.estado === 'ocr'}
                 <span class="pulsa"><Icone icone={ScanText} tamanho={12} cor="var(--processing)" /></span>
@@ -101,6 +115,8 @@
                 <Icone icone={FileText} tamanho={12} cor="var(--accent)" />
               {:else if d.estado === 'concluido'}
                 <Icone icone={CircleCheck} tamanho={12} cor="var(--success)" />
+              {:else if naoLido(d)}
+                <Icone icone={CircleAlert} tamanho={12} cor="var(--warning)" />
               {:else if d.estado === 'erro'}
                 <Icone icone={CircleAlert} tamanho={12} cor="var(--error)" />
               {:else}
@@ -112,8 +128,11 @@
             {#if d.ocr > 0}
               <span class="doc-ocr font-tabular">OCR · {d.ocr} pág.</span>
             {/if}
+            {#if ROTULO_LEITURA[d.leitura]}
+              <span class="doc-leitura">{ROTULO_LEITURA[d.leitura]}</span>
+            {/if}
             {#if d.estado === 'erro'}
-              <span class="doc-erro">{d.erro}</span>
+              <span class="doc-erro" class:aviso={naoLido(d)}>{d.erro}</span>
             {:else}
               <span class="doc-barra" aria-hidden="true"><span style="width: {pct(d)}%"></span></span>
               <span class="doc-paginas font-tabular">{d.feitas}/{d.paginas}</span>
@@ -228,6 +247,40 @@
     background-color: var(--error-soft);
   }
 
+  .chip.aviso {
+    color: var(--warning);
+    border-color: var(--warning-line);
+    background-color: var(--warning-soft);
+  }
+
+  .acao-ocr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    color: var(--text-secondary);
+  }
+
+  .btn-ocr {
+    padding: 1px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--warning-line);
+    background-color: var(--warning-soft);
+    color: var(--warning);
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .btn-ocr:hover {
+    border-color: var(--warning);
+  }
+
+  .btn-ocr:focus-visible {
+    outline: 2px solid var(--warning);
+    outline-offset: 1px;
+  }
+
   .alternar {
     margin-left: auto;
     background: transparent;
@@ -291,6 +344,16 @@
     flex-shrink: 0;
     color: var(--processing);
     font-weight: 600;
+  }
+
+  .doc-leitura {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+    font-style: italic;
+  }
+
+  .doc-erro.aviso {
+    color: var(--warning);
   }
 
   .doc-erro {

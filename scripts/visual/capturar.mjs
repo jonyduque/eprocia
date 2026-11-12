@@ -146,6 +146,20 @@ async function main() {
               await linha.click();
             }
           }
+          if (nome === 'nao-lidos') {
+            const copiar = await page.$('.item-row.success button[data-acao="copiar"]');
+            if (copiar) {
+              await copiar.click();
+              await page.waitForTimeout(300);
+              await salvar('-copiado');
+            }
+            const linha = await page.$('.item-row.success .info-btn');
+            if (linha) {
+              await linha.click();
+              await page.waitForTimeout(300);
+              await salvar('-atividade');
+            }
+          }
           if (nome === 'fila') {
             const botao = await page.$('.item-row.success button[data-acao="reprocessar"]');
             if (botao) {

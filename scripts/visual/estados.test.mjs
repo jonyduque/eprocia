@@ -4,12 +4,12 @@ import { ESTADOS, instalarStubs } from './estados.mjs';
 
 // Fields of etl.QueueItem (internal/etl/queue.go) the UI reads.
 const CAMPOS = ['id', 'name', 'path', 'status', 'progress', 'message', 'output_path', 'docs_count', 'pages_count', 'estimated_tokens',
-  'processed_docs', 'total_docs', 'processed_pages', 'total_pages', 'timestamp'];
+  'processed_docs', 'total_docs', 'processed_pages', 'total_pages', 'timestamp', 'unread_docs'];
 const STATUS = new Set(['pending', 'processing', 'paused', 'cancelled', 'success', 'error']);
 
 describe('estados visuais', () => {
   it('cobre os estados da review.json', () => {
-    assert.deepEqual(Object.keys(ESTADOS).sort(), ['configuracoes', 'erro', 'fila', 'processando', 'vazio']);
+    assert.deepEqual(Object.keys(ESTADOS).sort(), ['configuracoes', 'erro', 'fila', 'nao-lidos', 'processando', 'vazio']);
   });
 
   for (const [nome, e] of Object.entries(ESTADOS)) {

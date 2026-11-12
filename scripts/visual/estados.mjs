@@ -33,6 +33,7 @@ function item(n, status, extra = {}) {
     processed_pages: 0,
     total_pages: 0,
     timestamp: BASE_TS + n * 60000,
+    unread_docs: 0,
     ...extra,
   };
 }
@@ -71,6 +72,23 @@ function atividade(n) {
   return { item_id: item(n, 'processing').id, docs, limite_docs: 7, limite_ocr: 7, ocr_ativos: 3 };
 }
 
+// Item concluído com documentos não lidos: o ZIP tem 3 documentos que o app
+// não leu (sem OCR, com senha) ou leu por outro caminho (OCR).
+function atividadeNaoLidos(n) {
+  const doc = (i, nome, extra) => ({ nome, evento: i, estado: 'concluido', paginas: 4, feitas: 4, ocr: 0, leitura: 'lido', ...extra });
+  const docs = [
+    doc(1, 'Evento 1 - INIC1.pdf'),
+    doc(2, 'Evento 2 - PET1.pdf'),
+    doc(3, 'Evento 3 - LAUDO1.pdf', { ocr: 4, leitura: 'ocr' }),
+    doc(4, 'Evento 4 - ANEXO1.pdf', { estado: 'erro', feitas: 3, paginas: 3, leitura: 'sem_ocr',
+      erro: 'Documento digitalizado: o OCR está desativado.', detalhe: '3 páginas sem texto nativo; ocr_mode=none' }),
+    doc(5, 'Evento 5 - ANEXO2.pdf', { estado: 'erro', feitas: 0, paginas: 0, leitura: 'senha',
+      erro: 'Arquivo protegido por senha.', detalhe: 'pdf: encrypted (senha do usuário exigida)' }),
+    doc(6, 'Evento 6 - SENT1.pdf', { leitura: 'segundo_leitor' }),
+  ];
+  return { item_id: item(n, 'success').id, docs, limite_docs: 7, limite_ocr: 7, ocr_ativos: 0 };
+}
+
 export const ESTADOS = {
   vazio: { config: { ...CONFIG, monitored_path: '', watchdog_enabled: false }, fila: [], pausado: false },
   fila: {
@@ -92,6 +110,12 @@ export const ESTADOS = {
       processando(3, 75),
     ],
     pausado: true,
+  },
+  'nao-lidos': {
+    config: CONFIG,
+    fila: [{ ...sucesso(1), unread_docs: 2 }, sucesso(2)],
+    pausado: false,
+    atividades: { [item(1, 'success').id]: atividadeNaoLidos(1) },
   },
   configuracoes: {
     config: { ...CONFIG, monitored_path: 'C:\\Usuarios\\exemplo\\OneDrive - Empresa Exemplo\\Área de Trabalho\\Pasta com um nome bem longo\\Processos baixados', ocr_mode: 'best', cleaning_level: 'basic' },
