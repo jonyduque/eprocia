@@ -12,6 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"unicode/utf8"
 
 	"eprocia/internal/models"
 	"eprocia/internal/ocr"
@@ -598,4 +599,91 @@ func TestAbrirPDF_FalhaAoGravarTemporarioSemCaminho(t *testing.T) {
 	if !strings.Contains(msg, "segundo leitor: "+resumoSegundoLeitorTemporario) {
 		t.Errorf("erro sem o resumo do temporário: %q", msg)
 	}
+}
+
+// trocarBiblioteca faz a biblioteca recusar todo PDF com o erro dado.
+func trocarBiblioteca(t *testing.T, err error) {
+	t.Helper()
+	original := contarPaginasPDF
+	t.Cleanup(func() { contarPaginasPDF = original })
+	contarPaginasPDF = func(io.ReaderAt, int64) (*pdf.Reader, int, error) { return nil, 0, err }
+}
+
+const erroCifraLongo = "unsupported PDF: encryption version V=4; <</CF <</StdCF <</CFM /AESV2>>>> /O (abc\x01def) /U (ghi)>>"
+
+func TestAbrirPDF_ErroDeCifraSaiCurto(t *testing.T) {
+	isolarTemp(t)
+	trocarBiblioteca(t, errors.New(erroCifraLongo))
+	f := fonteDeBytes(pdfComTexto("Texto ficticio"))
+	defer f.liberar()
+	_, err := abrirPDF(context.Background(), f)
+	const esperado = "falha ao abrir o PDF: unsupported PDF: encryption version V=4; segundo leitor: " + resumoSegundoLeitorFalha
+	if err == nil || err.Error() != esperado {
+		t.Fatalf("erro = %v; esperava %q", err, esperado)
+	}
+}
+
+func TestAbrirPDF_ErroLongoDaBibliotecaTemTeto(t *testing.T) {
+	isolarTemp(t)
+	trocarBiblioteca(t, errors.New("malformed PDF: cross-reference table not found: "+strings.Repeat("x", 500)))
+	f := fonteDeBytes(pdfComTexto("Texto ficticio"))
+	defer f.liberar()
+	_, err := abrirPDF(context.Background(), f)
+	if err == nil {
+		t.Fatal("abrirPDF deveria falhar")
+	}
+	msg := strings.TrimPrefix(err.Error(), "falha ao abrir o PDF: ")
+	lib, _, ok := strings.Cut(msg, "; segundo leitor: ")
+	if !ok {
+		t.Fatalf("erro sem o resumo do segundo leitor: %q", err)
+	}
+	if n := utf8.RuneCountInString(lib); n > 121 || !strings.HasSuffix(lib, "…") {
+		t.Errorf("trecho da biblioteca com %d runas: %q", n, lib)
+	}
+	if !errors.Is(err, errPopplerTeste) {
+		t.Errorf("errors.Is não chega à causa do segundo leitor: %v", err)
+	}
+}
+
+func TestAbrirPDF_ErroCurtoFicaIgual(t *testing.T) {
+	for _, texto := range []string{"not a PDF file: invalid header", "loading {8 0}: found {7 0}", "not a PDF file: missing %%EOF"} {
+		if got := resumirErroBiblioteca(errors.New(texto)); got != texto {
+			t.Errorf("resumirErroBiblioteca(%q) = %q", texto, got)
+		}
+	}
+	isolarTemp(t)
+	trocarBiblioteca(t, errors.New("not a PDF file: invalid header"))
+	f := fonteDeBytes(pdfComTexto("Texto ficticio"))
+	defer f.liberar()
+	_, err := abrirPDF(context.Background(), f)
+	const esperado = "falha ao abrir o PDF: not a PDF file: invalid header; segundo leitor: " + resumoSegundoLeitorFalha
+	if err == nil || err.Error() != esperado {
+		t.Fatalf("erro = %v; esperava %q", err, esperado)
+	}
+}
+
+func TestResumirErroBiblioteca_ControleViraEspaco(t *testing.T) {
+	if got := resumirErroBiblioteca(errors.New("linha um\nlinha\x01dois\r")); got != "linha um linha dois " {
+		t.Errorf("resumo = %q", got)
+	}
+}
+
+func TestPipeline_ErroDeCifraSemDicionario(t *testing.T) {
+	tmp := isolarTemp(t)
+	trocarBiblioteca(t, errors.New(erroCifraLongo))
+	zipPath := gravarZip(t, []entradaZip{{"Evento 1 - INIC1.pdf", pdfComTexto("Texto ficticio")}})
+	atv := NovaAtividade("x")
+	out, _, _, _, err := NewPipeline().ProcessZipComAtividade(context.Background(), zipPath, cfgPoppler("none"),
+		func(float64, string, int, int, int, int) {}, atv)
+	if err != nil {
+		t.Fatalf("ProcessZip: %v", err)
+	}
+	b, _ := os.ReadFile(out)
+	if strings.Contains(string(b), "/O (") || !strings.Contains(string(b), "encryption version V=4") {
+		t.Errorf(".txt com o dicionário /Encrypt ou sem o resumo:\n%s", b)
+	}
+	if d := atv.Instantaneo().Docs[0].Detalhe; strings.Contains(d, "/O (") {
+		t.Errorf("Detalhe com o dicionário /Encrypt: %q", d)
+	}
+	semTemporarios(t, tmp)
 }

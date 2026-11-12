@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"eprocia/internal/ocr"
 
@@ -80,9 +83,13 @@ func abrirPDF(ctx context.Context, f *fontePDF) (aberturaPDF, error) {
 	if errors.Is(errLib, pdf.ErrInvalidPassword) {
 		return aberturaPDF{}, fmt.Errorf("falha ao abrir o PDF: %w", errLib)
 	}
+	lib := resumirErroBiblioteca(errLib)
+	if lib != errLib.Error() {
+		log.Printf("[PDFParser] Biblioteca recusou o PDF: %v", errLib)
+	}
 	caminho, err := f.materializar()
 	if err != nil {
-		return aberturaPDF{}, fmt.Errorf("falha ao abrir o PDF: %v; %w", errLib,
+		return aberturaPDF{}, fmt.Errorf("falha ao abrir o PDF: %s; %w", lib,
 			resumirSegundoLeitor("", resumoSegundoLeitorTemporario, err))
 	}
 	n, err = infoPDF(ctx, caminho)
@@ -90,7 +97,33 @@ func abrirPDF(ctx context.Context, f *fontePDF) (aberturaPDF, error) {
 		err = fmt.Errorf("o pdfinfo informou %d páginas", n)
 	}
 	if err != nil {
-		return aberturaPDF{}, fmt.Errorf("falha ao abrir o PDF: %v; %w", errLib, resumirSegundoLeitor("", "", err))
+		return aberturaPDF{}, fmt.Errorf("falha ao abrir o PDF: %s; %w", lib, resumirSegundoLeitor("", "", err))
 	}
 	return aberturaPDF{paginas: n, poppler: true}, nil
+}
+
+// tetoErroBiblioteca é o maior trecho do erro da biblioteca, em runas, que vai
+// ao .txt e ao painel.
+const tetoErroBiblioteca = 120
+
+// resumirErroBiblioteca encurta o erro da dslipak/pdf para o .txt e o painel:
+// alguns embutem objetos do arquivo (o dicionário /Encrypt com os bytes de /O e
+// /U, a tabela xref). O erro de cifra fica até o primeiro ';', controles e
+// bytes inválidos viram espaço e o resto tem teto de 120 runas. Os erros curtos
+// de hoje saem iguais.
+func resumirErroBiblioteca(err error) string {
+	s := err.Error()
+	if strings.HasPrefix(s, "unsupported PDF: encryption version") {
+		s, _, _ = strings.Cut(s, ";")
+	}
+	s = strings.Map(func(r rune) rune {
+		if r == utf8.RuneError || unicode.IsControl(r) {
+			return ' '
+		}
+		return r
+	}, s)
+	if utf8.RuneCountInString(s) > tetoErroBiblioteca {
+		s = string([]rune(s)[:tetoErroBiblioteca]) + "…"
+	}
+	return s
 }
