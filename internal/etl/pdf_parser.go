@@ -292,6 +292,12 @@ func (p *PDFParser) ParsePages(
 				"ocr":     false,
 				"content": cleanText,
 			}
+			if an.semOcr {
+				pageData["sem_ocr"] = true
+				if cleanText == "" {
+					pageData["content"] = marcadorPaginaSemOCR
+				}
+			}
 			mapMu.Lock()
 			paginasMap[fmt.Sprintf("%d", pageNum)] = pageData
 			mapMu.Unlock()
@@ -449,7 +455,13 @@ type analisePagina struct {
 	nula       bool
 	texto      string
 	precisaOcr bool
+	// semOcr: a página iria ao OCR, mas ele está desligado.
+	semOcr bool
 }
+
+// marcadorPaginaSemOCR é o conteúdo da página digitalizada sem texto nativo
+// quando o OCR está desligado.
+const marcadorPaginaSemOCR = "[página digitalizada: o OCR está desativado]"
 
 // analisarPagina extracts the native text of one page and decides on OCR. The
 // library resolves objects lazily and panics on a malformed xref; the panic is
@@ -481,15 +493,18 @@ func analisarPagina(page pdf.Page, pageNum int, ocrEnabled bool) (an analisePagi
 		log.Printf("[PDFParser] Texto nativo da página %d é ilegível. OCR habilitado: %t", pageNum, ocrEnabled)
 		an.texto = marcadorIlegivel(an.texto)
 		an.precisaOcr = ocrEnabled
+		an.semOcr = !ocrEnabled
 		return an, nil
 	}
 
-	if ocrEnabled && len(an.texto) < 100 {
+	if len(an.texto) < 100 {
 		log.Printf("[PDFParser] Texto nativo da página %d é muito curto (%d chars). Verificando se há imagens...", pageNum, len(an.texto))
 		hasImages := HasImages(page)
 		hasDrawn := !hasImages && HasDrawnContent(page)
 		log.Printf("[PDFParser] Página %d possui imagens: %t, conteúdo vetorial: %t", pageNum, hasImages, hasDrawn)
-		an.precisaOcr = hasImages || hasDrawn
+		candidata := hasImages || hasDrawn
+		an.precisaOcr = ocrEnabled && candidata
+		an.semOcr = !ocrEnabled && candidata
 	}
 	return an, nil
 }
