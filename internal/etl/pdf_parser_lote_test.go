@@ -99,6 +99,55 @@ func TestParsePages_OCREmLoteAgrupaPaginas(t *testing.T) {
 	}
 }
 
+// registroLote devolve um lote que anota o tamanho de cada chamada.
+func registroLote(mu *sync.Mutex, tamanhos *[]int) ocrLote {
+	return func(ctx context.Context, path string, paginas []int, _ func(int)) ([]string, error) {
+		mu.Lock()
+		*tamanhos = append(*tamanhos, len(paginas))
+		mu.Unlock()
+		return make([]string, len(paginas)), nil
+	}
+}
+
+// Nenhum bloco entregue ao OCR passa de maxPaginasBlocoOCR páginas, para o
+// prazo por bloco e a refação página a página custarem pouco.
+func TestOCREmLote_TetoDePaginasPorBloco(t *testing.T) {
+	caminho := pdfComPaginas(t, 100, nil)
+	var mu sync.Mutex
+	var tamanhos []int
+	porPagina := func(context.Context, string, int) (string, error) { return "", nil }
+	if _, err := parserDeArquivo(t, caminho).comOCREmLote(registroLote(&mu, &tamanhos), 2).
+		ParsePages(context.Background(), true, porPagina, func(int) {}); err != nil {
+		t.Fatalf("ParsePages: %v", err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	soma, maior := 0, 0
+	for _, n := range tamanhos {
+		soma += n
+		maior = max(maior, n)
+	}
+	if soma != 100 || maior > maxPaginasBlocoOCR {
+		t.Fatalf("blocos = %v, quero soma 100 e nenhum acima de %d", tamanhos, maxPaginasBlocoOCR)
+	}
+}
+
+func TestOCREmLote_DocumentoPequenoNaoMuda(t *testing.T) {
+	caminho := pdfComPaginas(t, 8, nil)
+	var mu sync.Mutex
+	var tamanhos []int
+	porPagina := func(context.Context, string, int) (string, error) { return "", nil }
+	if _, err := parserDeArquivo(t, caminho).comOCREmLote(registroLote(&mu, &tamanhos), 4).
+		ParsePages(context.Background(), true, porPagina, func(int) {}); err != nil {
+		t.Fatalf("ParsePages: %v", err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if !reflect.DeepEqual(tamanhos, []int{2, 2, 2, 2}) {
+		t.Fatalf("blocos = %v, quero 4 de 2 páginas", tamanhos)
+	}
+}
+
 // Se o bloco falhar (uma página corrompida derruba o tesseract do bloco todo),
 // cada página do bloco tenta de novo sozinha, para que uma não leve as outras.
 func TestParsePages_OCREmLoteFalhaRefazPorPagina(t *testing.T) {

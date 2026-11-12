@@ -47,6 +47,10 @@ type PDFParser struct {
 	blocosOCR int
 }
 
+// maxPaginasBlocoOCR é o teto de páginas de um bloco entregue ao ocrLote: o
+// prazo vale por bloco, e um bloco que falha é refeito página a página.
+const maxPaginasBlocoOCR = 20
+
 // ocrLote faz o OCR de várias páginas do mesmo PDF e devolve os textos na
 // ordem de paginas, chamando aoConcluir com cada página assim que o texto dela
 // fica pronto.
@@ -251,7 +255,7 @@ func (p *PDFParser) ParsePages(
 	// as páginas fossem ao OCR, então um documento todo escaneado ainda dá um
 	// bloco por worker; o que sobrar no fim se divide pelos blocos restantes.
 	var pendentes []ocrTask
-	tamBloco := (numPages + p.blocosOCR - 1) / max(p.blocosOCR, 1)
+	tamBloco := min((numPages+p.blocosOCR-1)/max(p.blocosOCR, 1), maxPaginasBlocoOCR)
 	despachados := 0
 	despachar := func(bloco []ocrTask) {
 		despachados++
@@ -329,7 +333,7 @@ func (p *PDFParser) ParsePages(
 
 	if len(pendentes) > 0 {
 		restantes := max(p.blocosOCR-despachados, 1)
-		k := (len(pendentes) + restantes - 1) / restantes
+		k := min((len(pendentes)+restantes-1)/restantes, maxPaginasBlocoOCR)
 		for bloco := range slices.Chunk(pendentes, k) {
 			despachar(bloco)
 		}
