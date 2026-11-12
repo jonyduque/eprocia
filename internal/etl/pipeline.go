@@ -244,6 +244,13 @@ func (f *fontePDF) contarPaginas() (n int, err error) {
 	return n, nil
 }
 
+// executarOCR e executarOCRPaginas são o OCR real; os testes os trocam para
+// simular falhas sem rodar o tesseract.
+var (
+	executarOCR        = ocr.RunOCR
+	executarOCRPaginas = ocr.RunOCRPaginas
+)
+
 // Pipeline orchestrates the entire extraction process. It emits no Wails
 // events: progress reaches the frontend through the Queue.
 type Pipeline struct{}
@@ -407,7 +414,7 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 			defer func() { <-sem }()
 			atv.ocrInicio(i, 1)
 			defer atv.ocrFim(i, 1)
-			return ocr.RunOCR(ctx, pdfPath, pageNum, cfg.OcrMode)
+			return executarOCR(ctx, pdfPath, pageNum, cfg.OcrMode)
 		}
 		lote := func(ctx context.Context, pdfPath string, paginas []int, aoConcluir func(int)) ([]string, error) {
 			select {
@@ -419,7 +426,7 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 			atv.ocrInicio(i, len(paginas))
 			var prontas atomic.Int32
 			defer func() { atv.ocrFim(i, len(paginas)-int(prontas.Load())) }()
-			return ocr.RunOCRPaginas(ctx, pdfPath, paginas, cfg.OcrMode, func(pagina int) {
+			return executarOCRPaginas(ctx, pdfPath, paginas, cfg.OcrMode, func(pagina int) {
 				// A página sai da contagem de OCR do documento assim que fica pronta;
 				// o processo segue contado em OCRAtivos até o lote terminar.
 				if int(prontas.Add(1)) <= len(paginas) {

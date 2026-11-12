@@ -11,6 +11,9 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"eprocia/internal/models"
+	"eprocia/internal/ocr"
 )
 
 // pdfComPaginas grava um PDF em que cada página é escaneada (imagem grande, sem
@@ -233,5 +236,112 @@ func porPaginaProibido(t *testing.T) func(context.Context, string, int) (string,
 	return func(_ context.Context, _ string, pageNum int) (string, error) {
 		t.Errorf("OCR por página chamado para a página %d com o lote disponível", pageNum)
 		return "", nil
+	}
+}
+
+// Um bloco que estoura o prazo é refeito página a página, mas depois de duas
+// páginas seguidas com o prazo esgotado as outras do bloco não rodam: cada
+// uma custaria o prazo inteiro de novo.
+func TestParsePages_PrazoNoBloco_ParaDepoisDeDuas(t *testing.T) {
+	caminho := pdfComPaginas(t, 6, nil)
+
+	lote := func(ctx context.Context, path string, paginas []int, _ func(int)) ([]string, error) {
+		return nil, fmt.Errorf("falha no tesseract embutido: %w", ocr.ErrPrazo)
+	}
+	var mu sync.Mutex
+	var chamadas []int
+	porPagina := func(ctx context.Context, path string, pageNum int) (string, error) {
+		mu.Lock()
+		chamadas = append(chamadas, pageNum)
+		mu.Unlock()
+		return "", fmt.Errorf("falha no pdftoppm embutido: %w", ocr.ErrPrazo)
+	}
+
+	var concluidas int
+	pages, err := parserDeArquivo(t, caminho).comOCREmLote(lote, 1).
+		ParsePages(context.Background(), true, porPagina, func(int) { mu.Lock(); concluidas++; mu.Unlock() })
+	if err != nil {
+		t.Fatalf("ParsePages: %v", err)
+	}
+	if len(chamadas) != 2 {
+		t.Errorf("OCR por página chamado para %v, quero só 2 páginas", chamadas)
+	}
+	for n := 1; n <= 6; n++ {
+		pag := pages[fmt.Sprint(n)].(map[string]any)
+		if pag["ocr_prazo"] != true {
+			t.Errorf("página %d sem ocr_prazo: %v", n, pag)
+		}
+	}
+	if concluidas != 6 {
+		t.Errorf("onPageComplete chamado %d vezes, quero 6", concluidas)
+	}
+}
+
+// Uma página que sai entre duas de prazo zera a contagem: só páginas
+// seguidas com o prazo esgotado param o bloco.
+func TestParsePages_PrazoNoBloco_ContagemZeraComSucesso(t *testing.T) {
+	caminho := pdfComPaginas(t, 5, nil)
+
+	lote := func(ctx context.Context, path string, paginas []int, _ func(int)) ([]string, error) {
+		return nil, fmt.Errorf("falha no tesseract embutido: %w", ocr.ErrPrazo)
+	}
+	var mu sync.Mutex
+	var chamadas []int
+	porPagina := func(ctx context.Context, path string, pageNum int) (string, error) {
+		mu.Lock()
+		chamadas = append(chamadas, pageNum)
+		mu.Unlock()
+		if pageNum == 2 {
+			return "página 2 sozinha", nil
+		}
+		return "", ocr.ErrPrazo
+	}
+
+	pages, err := parserDeArquivo(t, caminho).comOCREmLote(lote, 1).
+		ParsePages(context.Background(), true, porPagina, nil)
+	if err != nil {
+		t.Fatalf("ParsePages: %v", err)
+	}
+	if fmt.Sprint(chamadas) != fmt.Sprint([]int{1, 2, 3, 4}) {
+		t.Errorf("OCR por página chamado para %v, quero [1 2 3 4]", chamadas)
+	}
+	if pag := pages["2"].(map[string]any); pag["content"] != "página 2 sozinha" || pag["ocr_prazo"] != nil {
+		t.Errorf("página 2 = %v", pag)
+	}
+	if pag := pages["5"].(map[string]any); pag["ocr_prazo"] != true {
+		t.Errorf("página 5 sem ocr_prazo: %v", pag)
+	}
+}
+
+// Um OCR que estoura o prazo não trava a fila: o ZIP termina, o documento
+// digitalizado fica como "prazo" e o de texto sai lido.
+func TestPipeline_PrazoNaoTravaAFila(t *testing.T) {
+	isolarTemp(t)
+	antigoPagina, antigoPaginas := executarOCR, executarOCRPaginas
+	t.Cleanup(func() { executarOCR, executarOCRPaginas = antigoPagina, antigoPaginas })
+	executarOCR = func(context.Context, string, int, string) (string, error) {
+		return "", fmt.Errorf("falha no tesseract embutido: %w", ocr.ErrPrazo)
+	}
+	executarOCRPaginas = func(context.Context, string, []int, string, func(int)) ([]string, error) {
+		return nil, fmt.Errorf("falha no tesseract embutido: %w", ocr.ErrPrazo)
+	}
+
+	zipPath := gravarZip(t, []entradaZip{
+		{"Evento 1 - DOC1.pdf", pdfDuasPaginasEscaneadas()},
+		{"Evento 2 - DOC2.pdf", pdfComTexto("Texto sadio ficticio de FULANO DE TAL")},
+	})
+	atv := NovaAtividade("x")
+	cfg := &models.Config{CleaningLevel: "none", OcrMode: "fast"}
+	_, _, _, _, err := NewPipeline().ProcessZipComAtividade(context.Background(), zipPath, cfg,
+		func(float64, string, int, int, int, int) {}, atv)
+	if err != nil {
+		t.Fatalf("ProcessZipComAtividade = %v, quero nil", err)
+	}
+	docs := atv.Instantaneo().Docs
+	if docs[0].Leitura != "prazo" {
+		t.Errorf("documento digitalizado: Leitura = %q, quero \"prazo\" (%+v)", docs[0].Leitura, docs[0])
+	}
+	if docs[1].Leitura != "lido" {
+		t.Errorf("documento de texto: Leitura = %q, quero \"lido\" (%+v)", docs[1].Leitura, docs[1])
 	}
 }

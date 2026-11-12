@@ -2,6 +2,7 @@ package etl
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -12,8 +13,14 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"eprocia/internal/ocr"
+
 	"github.com/dslipak/pdf"
 )
+
+// maxPrazosSeguidos é quantas páginas seguidas de um bloco refeito podem
+// estourar o prazo antes de as restantes serem dadas como prazo sem rodar.
+const maxPrazosSeguidos = 2
 
 type ocrTask struct {
 	pageNum  int
@@ -167,6 +174,9 @@ func (p *PDFParser) ParsePages(
 				"content":  content,
 				"ocr_erro": err.Error(),
 			}
+			if errors.Is(err, ocr.ErrPrazo) {
+				pageData["ocr_prazo"] = true
+			}
 		}
 
 		mapMu.Lock()
@@ -175,9 +185,9 @@ func (p *PDFParser) ParsePages(
 		concluir(task.pageNum)
 	}
 
-	runOCRTask := func(task ocrTask) {
-		if ctx.Err() != nil {
-			return
+	runOCRTask := func(task ocrTask) error {
+		if err := ctx.Err(); err != nil {
+			return err
 		}
 		log.Printf("[PDFParser] Iniciando OCR para página %d...", task.pageNum)
 		caminho, err := p.caminhoParaOCR()
@@ -186,11 +196,12 @@ func (p *PDFParser) ParsePages(
 			ocrText, err = ocrRunner(ctx, caminho, task.pageNum)
 		}
 		registrarOCR(task, ocrText, err)
+		return err
 	}
 
 	runOCRBloco := func(tasks []ocrTask) {
 		if len(tasks) == 1 {
-			runOCRTask(tasks[0])
+			_ = runOCRTask(tasks[0])
 			return
 		}
 		paginas := make([]int, len(tasks))
@@ -214,8 +225,19 @@ func (p *PDFParser) ParsePages(
 			// Uma página ruim derruba o tesseract do bloco inteiro; sozinhas,
 			// as outras ainda saem.
 			log.Printf("[PDFParser] OCR em bloco das páginas %v falhou: %v. Refazendo página a página...", paginas, err)
+			// Cada página que estoura o prazo custa o prazo inteiro: depois de
+			// maxPrazosSeguidos seguidas, as outras do bloco nem rodam.
+			seguidas := 0
 			for _, task := range tasks {
-				runOCRTask(task)
+				if seguidas >= maxPrazosSeguidos {
+					registrarOCR(task, "", fmt.Errorf("%w: página não tentada depois de %d páginas seguidas sem resposta", ocr.ErrPrazo, seguidas))
+					continue
+				}
+				if errors.Is(runOCRTask(task), ocr.ErrPrazo) {
+					seguidas++
+				} else {
+					seguidas = 0
+				}
 			}
 			return
 		}

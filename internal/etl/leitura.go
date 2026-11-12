@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strings"
 
+	"eprocia/internal/ocr"
+
 	"github.com/dslipak/pdf"
 )
 
@@ -65,7 +67,7 @@ func classificarErro(err error) Leitura {
 	switch {
 	case errors.Is(err, pdf.ErrInvalidPassword):
 		return LeituraSenha
-	case errors.Is(err, context.DeadlineExceeded):
+	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, ocr.ErrPrazo):
 		return LeituraPrazo
 	}
 	return LeituraIlegivel
