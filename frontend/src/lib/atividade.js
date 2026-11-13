@@ -40,7 +40,7 @@ export function ordenarDocs(docs) {
 }
 
 // Motivos de leitura (AtividadeDoc.leitura) que deixam o documento fora do texto.
-export const LEITURA_NAO_LIDO = ['sem_ocr', 'senha', 'ilegivel', 'prazo', 'ocr_falhou'];
+export const LEITURA_NAO_LIDO = ['sem_ocr', 'senha', 'ilegivel', 'prazo', 'ocr_falhou', 'sem_texto'];
 
 export function naoLido(d) {
   return LEITURA_NAO_LIDO.includes(d?.leitura);

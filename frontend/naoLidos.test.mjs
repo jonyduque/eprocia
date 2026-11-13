@@ -28,6 +28,15 @@ describe('naoLidos', () => {
     assert.equal(r.naoLidos, 2);
     assert.equal(r.semOCR, 1);
   });
+  it('sem_texto conta como não lido, não como sem OCR nem erro', () => {
+    const r = resumoAtividade({ docs: [
+      { estado: 'concluido', leitura: 'lido' },
+      { estado: 'concluido', leitura: 'sem_texto' }
+    ] });
+    assert.equal(r.naoLidos, 1);
+    assert.equal(r.semOCR, 0);
+    assert.equal(r.erros, 0);
+  });
   it('componentes usam as funções e o botão', () => {
     assert.match(fonte('./src/components/ProcessList.svelte'), /rotuloNaoLidos\(/);
     assert.match(fonte('./src/components/ProcessList.svelte'), /avisoCopiaNaoLidos\(/);

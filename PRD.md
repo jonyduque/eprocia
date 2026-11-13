@@ -118,7 +118,7 @@ Tokens estimados: [T]
 ...
 ```
 
-- **Documentos não lidos:** quantos documentos o app não conseguiu ler (arquivo ilegível, PDF digitalizado com o OCR desligado etc.). Sai sempre, também com 0.
+- **Documentos não lidos:** quantos documentos o app não conseguiu ler (arquivo ilegível, PDF digitalizado com o OCR desligado, nenhum texto encontrado etc.). Sai sempre, também com 0.
 - **`NÃO LIDO` no `<summary>`:** o documento não lido aparece como `- Evento N - NOME: NÃO LIDO`, no lugar do total de páginas.
 - **Corpo de um documento não lido:** uma única linha `[documento não lido: <motivo>; consulte o PDF original]` (em HTML, `consulte o arquivo original`), seguida do `[ERRO ...]` técnico quando houver. Documento não lido não entra na detecção de duplicatas.
 - **Data de Consolidação:** momento em que o arquivo foi gerado, no horário local.

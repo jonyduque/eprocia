@@ -174,3 +174,5 @@ Etapas propostas:
 5. **Lançamento.** Notas com: defeito presente desde a v0.2.0; como achar e refazer os `.txt` antigos; o OCR pode errar; sem OCR, digitalizações ficam marcadas como não lidas; fechar outras cópias antes de atualizar.
 
 Ao concluir, o registro das quatro classes sai da memória da sessão e vai para as "Known traps" do `CLAUDE.md`.
+
+**Nota de 2026-11-13.** O dono decidiu avisar também o documento sem texto (`sem_texto`, "nenhum texto encontrado"): em branco, ou digitalizado em que o OCR não achou texto. Isso revoga a regra "documento em branco conta como lido".

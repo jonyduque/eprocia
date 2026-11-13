@@ -16,7 +16,7 @@ func TestLeitura_NaoLido(t *testing.T) {
 	casos := map[Leitura]bool{
 		LeituraLido: false, LeituraSegundoLeitor: false, LeituraOCR: false,
 		LeituraSemOCR: true, LeituraSenha: true, LeituraIlegivel: true,
-		LeituraPrazo: true, LeituraOCRFalhou: true,
+		LeituraPrazo: true, LeituraOCRFalhou: true, LeituraSemTexto: true,
 	}
 	for l, esperado := range casos {
 		if l.NaoLido() != esperado {
@@ -38,6 +38,7 @@ func TestLeitura_FraseEAcao(t *testing.T) {
 		{LeituraIlegivel, "arquivo ilegível"},
 		{LeituraPrazo, "prazo de leitura esgotado"},
 		{LeituraOCRFalhou, "o OCR falhou em todas as páginas"},
+		{LeituraSemTexto, "nenhum texto encontrado"},
 	}
 	for _, c := range casos {
 		if got := c.l.Frase(); got != c.frase {
@@ -105,8 +106,11 @@ func TestClassificarPaginas(t *testing.T) {
 		{"h prazo", doc(pg("", erroOCR), pg("", prazo)), false, LeituraPrazo},
 		{"i erro", doc(pg("[ERRO ao ler página 1: x]", nil)), false, LeituraIlegivel},
 		{"i ilegivel", doc(pg(marcadorIlegivel("x"), nil)), false, LeituraIlegivel},
-		{"j vazio", map[string]any{}, false, LeituraLido},
-		{"k conteudo vazio", doc(pg("  \n", nil), pg("", nil)), false, LeituraLido},
+		{"j vazio", map[string]any{}, false, LeituraSemTexto},
+		{"k conteudo vazio", doc(pg("  \n", nil), pg("", nil)), false, LeituraSemTexto},
+		{"l ocr sem texto", doc(pg("", ocr), pg("", ocr)), false, LeituraSemTexto},
+		{"m vazia e sem_ocr", doc(pg("", nil), pg(marcadorPaginaSemOCR, semOCR)), false, LeituraSemOCR},
+		{"n vazia e texto", doc(pg("", nil), pg("a", nil)), false, LeituraLido},
 	}
 	for _, c := range casos {
 		if got := classificarPaginas(c.pags, c.segue); got != c.l {

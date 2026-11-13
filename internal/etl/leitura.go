@@ -22,12 +22,13 @@ const (
 	LeituraIlegivel      Leitura = "ilegivel"
 	LeituraPrazo         Leitura = "prazo"
 	LeituraOCRFalhou     Leitura = "ocr_falhou"
+	LeituraSemTexto      Leitura = "sem_texto"
 )
 
 // NaoLido informa se o documento ficou sem texto aproveitável.
 func (l Leitura) NaoLido() bool {
 	switch l {
-	case LeituraSemOCR, LeituraSenha, LeituraIlegivel, LeituraPrazo, LeituraOCRFalhou:
+	case LeituraSemOCR, LeituraSenha, LeituraIlegivel, LeituraPrazo, LeituraOCRFalhou, LeituraSemTexto:
 		return true
 	}
 	return false
@@ -50,6 +51,8 @@ func (l Leitura) Frase() string {
 		return "prazo de leitura esgotado"
 	case LeituraOCRFalhou:
 		return "o OCR falhou em todas as páginas"
+	case LeituraSemTexto:
+		return "nenhum texto encontrado"
 	}
 	return ""
 }
@@ -74,7 +77,9 @@ func classificarErro(err error) Leitura {
 }
 
 // classificarPaginas decide a leitura de um documento que terminou sem erro,
-// a partir do mapa de páginas.
+// a partir do mapa de páginas. Sem nenhuma página com texto e sem nenhuma
+// marca (sem_ocr, prazo, erro de OCR, marcador de erro), o documento é
+// sem_texto: em branco, ou digitalizado em que o OCR não achou texto.
 func classificarPaginas(paginas map[string]any, segundoLeitor bool) Leitura {
 	comTexto, todasOCR := 0, true
 	var semOCR, prazo, ocrErro, ilegivel bool
@@ -120,7 +125,7 @@ func classificarPaginas(paginas map[string]any, segundoLeitor bool) Leitura {
 	case ilegivel:
 		return LeituraIlegivel
 	}
-	return LeituraLido
+	return LeituraSemTexto
 }
 
 // docLeitura registra o motivo de leitura do documento i.
