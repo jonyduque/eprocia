@@ -31,7 +31,7 @@ describe('naoLidos', () => {
   it('sem_texto conta como não lido, não como sem OCR nem erro', () => {
     const r = resumoAtividade({ docs: [
       { estado: 'concluido', leitura: 'lido' },
-      { estado: 'concluido', leitura: 'sem_texto' }
+      { estado: 'erro', leitura: 'sem_texto' }
     ] });
     assert.equal(r.naoLidos, 1);
     assert.equal(r.semOCR, 0);
