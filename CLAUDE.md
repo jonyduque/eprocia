@@ -20,7 +20,8 @@ wails build
 
 # Release: exe + NSIS installer (makensis via `scoop install nsis`). The build
 # rewrites wailsjs/, go.mod and package.json.md5 with CRLF-only noise: revert it.
-# Publish with `gh release create vX.Y.Z --target main` (creates the tag remotely).
+# This is a local build only: published releases are built by release.yml from
+# the tag (skill `eprocia-release`), never uploaded from this machine.
 wails build -clean -nsis
 
 # Per-user install, also `irm .../install.ps1 | iex` (no admin; elevated shells
@@ -52,7 +53,7 @@ node --test .claude/hooks/hooks.test.mjs .claude/statusline.test.mjs .claude/wor
 node --test (Get-ChildItem frontend -Filter *.test.mjs).FullName   # pwsh
 ```
 
-CI (`.github/workflows/ci.yml`, Windows runner, push/PR to `main`) runs the same gate minus the smoke test, plus `gofmt -l`. `security.yml` runs osv-scanner (all lockfiles, with `--config=./osv-scanner.toml`, whose exceptions each carry a reason and an expiry date) and govulncheck on every push and weekly. `release.yml` builds and attests the release from a `v*` tag as a draft; tags `v*` are immutable by ruleset, so rehearse with a pre-release tag only after bumping `productVersion`. The local checkout uses `core.autocrlf=true`, so `gofmt -l` on the working copy lists every file; check formatting with `git show HEAD:<file> | gofmt -d` or trust CI, which checks out with LF. `go.sum` and the OCR binaries in `internal/ocr/embed/` are versioned (a clean clone must build).
+CI (`.github/workflows/ci.yml`, Windows runner, push/PR to `main`) runs the same gate minus the smoke test, plus `gofmt -l`. `security.yml` runs osv-scanner (all lockfiles, with `--config=./osv-scanner.toml`, whose exceptions each carry a reason and an expiry date) and govulncheck on every push and weekly. `release.yml` builds and attests the release from a `v*` tag as a draft; tags `v*` are immutable by ruleset, so rehearse with a pre-release tag only after bumping `productVersion` (the whole procedure, with what to check in the draft, is the skill `eprocia-release`). Changing the base branch of an open PR does not start a new CI run: push a commit or close and reopen the PR. The local checkout uses `core.autocrlf=true`, so `gofmt -l` on the working copy lists every file; check formatting with `git show HEAD:<file> | gofmt -d` or trust CI, which checks out with LF. `go.sum` and the OCR binaries in `internal/ocr/embed/` are versioned (a clean clone must build).
 
 There is no repo-level lint config beyond `go vet`. Frontend tests are `frontend/*.test.mjs` (node --test, no browser): many read the `.svelte` sources and assert conventions with regexes, so a UI change can break them even when svelte-check passes; run that glob in every frontend gate. `go test ./...` includes `scripts/bench`, whose `TestFixtures_LegibleToOCR` runs the real OCR (a few seconds; skipped with `-short`).
 
@@ -95,8 +96,9 @@ There is no repo-level lint config beyond `go vet`. Frontend tests are `frontend
 The repo carries a Claude Code harness for a general review and for fixing the findings the user approves. Spec: `docs/superpowers/specs/2026-10-15-harness-revisao-design.md`.
 
 - `/revisar [backend|frontend|tudo] [lentes=EF,...]` runs the `eprocia-revisao` workflow: one read-only reviewer per lens (backend EF, ES, GM, TE, RN; frontend VI, AN, RS, AC, DF), visual captures with fictitious data, one skeptic per lens, and a synthesis that writes `docs/revisao/AAAA-MM-DD-relatorio.md` with stable ids (`B-EF-03`, `F-RS-01`). Nothing is fixed at this stage.
+- Findings parked outside a `/revisar` round go in an addendum next to the reports (`docs/revisao/2026-11-14-residuais-pdfs-nao-lidos.md`, from the reviews of the unread-PDF fix), to be picked up by the next fix round.
 - `/corrigir <ids|todos>` runs the `eprocia-corrigir` workflow on branch `revisao/AAAA-MM-DD`: toolchain Step 0 and the Svelte 5 migration as prerequisites, then, per id, a fresh implementer (TDD), gates, a fresh reviewer, up to 3 attempts, and one commit `fix(<camada>): <título> [<id>]`. It never pushes or merges.
-- Configuration lives in `.claude/review.json` (lenses, files, capture matrix, benchmark thresholds, fix order). Agents are in `.claude/agents/`, skills in `.claude/skills/` (`eprocia-build`, `eprocia-bench`, `eprocia-visual`, `eprocia-icone`), scripts in `scripts/{build,bench,visual,icone}`.
+- Configuration lives in `.claude/review.json` (lenses, files, capture matrix, benchmark thresholds, fix order). Agents are in `.claude/agents/`, skills in `.claude/skills/` (`eprocia-build`, `eprocia-bench`, `eprocia-visual`, `eprocia-icone`, `eprocia-release`), scripts in `scripts/{build,bench,visual,icone}`.
 - Gates: `pwsh scripts/build/gate.ps1` (vet, `test -race`, `wails build`, 5 s smoke of the exe it started); benchmarks with `-count=10` compared by benchstat, accepted only with p < 0.05 and no other metric worse than 5%; visual before/after captures plus `svelte-check` and `npm run build`.
 - Progress for the status line is in `docs/revisao/estado.json` (git-ignored).
 
