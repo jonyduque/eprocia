@@ -50,6 +50,8 @@ O eprocIA faz tudo isso sozinho. Ele fica na bandeja do Windows, vigia a pasta d
 | 📚 | **Lê sem descompactar** | PDFs e HTMLs são lidos direto de dentro do ZIP, sem espalhar arquivos pelo disco. |
 | 🔢 | **Ordena por evento** | "Evento 2" vem antes de "Evento 10" (ordenação natural); arquivos sem número de evento vão para o fim. |
 | 🔍 | **OCR embutido** | Páginas escaneadas, desenhadas como vetor ou com texto nativo ilegível passam pelo Tesseract em português, já incluso no executável. O OCR roda em lote, por bloco de páginas. |
+| 🛟 | **Segundo leitor de PDF** | O PDF que a biblioteca de leitura recusa (versão 2.0, envelope de assinatura PKCS#7, cifra AES, tabela de referências inconsistente) é lido pelo Poppler, também embutido. |
+| ⚠️ | **Avisa o que não leu** | Documento protegido por senha, ilegível, sem nenhum texto ou digitalizado com o OCR desligado conta como não lido: o item da fila mostra "N não lidos", a notificação e o botão de copiar avisam, e o `.txt` traz a contagem e o motivo. |
 | 🧹 | **Higieniza o texto** | Quatro níveis. O Padrão remove cabeçalhos, rodapés e timbres que se repetem, resume as chancelas de assinatura numa linha e troca páginas e documentos repetidos por uma referência ao original. O Máxima também tira ruído de OCR e junta parágrafos quebrados. |
 | 🚫 | **Omite tipos de documento** | Informe os códigos (por exemplo `EXTR, COMP`) e esses documentos não são lidos nem passam por OCR: viram um aviso de uma linha no texto. |
 | 📊 | **Mostra o andamento por documento** | Abra o item em processamento para ver cada documento (aguardando, lendo, em OCR, concluído ou com erro) e quantos processos de OCR estão rodando. |
@@ -61,9 +63,6 @@ O eprocIA faz tudo isso sozinho. Ele fica na bandeja do Windows, vigia a pasta d
 | 🚀 | **Inicia com o Windows** | Sobe oculto na bandeja no logon, já vigiando a pasta. |
 | 🌗 | **Tema claro e escuro** | Segue o sistema por padrão; a escolha manual fica gravada. |
 | ♿ | **Acessível** | Navegação por teclado, foco visível, anúncios para leitor de tela e respeito à preferência por menos movimento. |
-
-> [!NOTE]
-> Este README descreve o código da branch `main`. A versão publicada (v0.3.0) ainda não tem os níveis Padrão e Máxima de higienização, a omissão por tipo, o andamento por documento, o reprocessamento, o duplo clique na bandeja nem a instância única. Eles chegam na próxima release.
 
 ## 🖼️ Telas
 
@@ -109,6 +108,8 @@ flowchart LR
 - A fila processa **um ZIP por vez**, do mais antigo para o mais novo, e pode ser pausada, retomada ou cancelada.
 - Dentro de um ZIP, os documentos são processados **em paralelo**, limitados ao número de núcleos da máquina.
 - O OCR só entra quando a página não tem texto nativo suficiente e tem imagens grandes ou texto desenhado como vetor, ou quando o texto nativo sai ilegível.
+- O PDF que a biblioteca de leitura não abre passa pelo Poppler antes de ser dado como não lido.
+- Os programas de OCR e de leitura rodam com prazo: um arquivo que trava é marcado e a fila segue.
 - Documentos dos tipos que você mandou omitir não são abertos: o tempo de leitura e de OCR deles é poupado.
 
 ## 📄 Formato da saída
@@ -119,6 +120,7 @@ O `.txt` sai com o mesmo nome do ZIP e segue o formato do [PRD §6](PRD.md):
 <contexto>
 PROCESSO JUDICIAL - ORDEM CRONOLÓGICA
 Total de Documentos: 57
+Documentos não lidos: 1
 Data de Consolidação: 10/11/2026 17:44:02
 Tokens estimados: 98450
 
@@ -126,6 +128,7 @@ Tokens estimados: 98450
 - Evento 1 - INIC1: 3 páginas
 - Evento 1 - PROC2: 1 página
 - Evento 3 - EXTR1: 12 páginas
+- Evento 4 - LAUDO1: NÃO LIDO
 </summary>
 </contexto>
 
@@ -148,26 +151,31 @@ Tokens estimados: 98450
 [documento omitido: EXTR, 12 páginas]
 </documento>
 </evento>
+<evento num="4">
+<documento index="4" nome="Evento 4 - LAUDO1.pdf">
+[documento não lido: protegido por senha; consulte o PDF original]
+</documento>
+</evento>
 ```
 
 - O texto sai sem recuo, para não gastar tokens.
 - Documento com uma página só não leva `<pag>`, e página vazia não é escrita.
+- A linha `Documentos não lidos:` sai sempre, também com 0. O documento não lido aparece no `<summary>` como `NÃO LIDO` e, no corpo, como `[documento não lido: <motivo>; consulte o PDF original]`.
+- Página digitalizada com o OCR desligado sai como `[página digitalizada: o OCR está desativado]`.
 - A higienização deixa marcadores no lugar do que tirou: `[assinado: NOME, CARGO, DATA]` para a chancela de assinatura, `[conteúdo idêntico a: evento N, DOCUMENTO, pág. P]` e `[documento idêntico a: evento N, DOCUMENTO]` para repetições, e `[documento omitido: TIPO, N páginas]` para os tipos omitidos.
-- Uma falha fica escrita no lugar do texto, começando por `[ERRO` (por exemplo `[ERRO ao analisar PDF: ...]`).
+- Uma falha numa página fica escrita no lugar do texto, começando por `[ERRO`, com um motivo curto. O detalhe técnico fica só no log local.
 
 > [!TIP]
 > As tags `<evento>`, `<documento>` e `<pag>` deixam a IA citar a peça e a página exatas ("Evento 5, despacho, página 1").
 
 ## ⚠️ Limitações conhecidas
 
-Alguns PDFs do Eproc não são lidos pela biblioteca de PDF que o eprocIA usa. Em três processos medidos, isso atingiu cerca de 1 em cada 10 PDFs. São quatro casos:
+- **PDF protegido por senha não é lido.** Ele conta como não lido, com o motivo dito no item e no `.txt`.
+- **O OCR pode errar.** Texto de página digitalizada vem do Tesseract e pode sair com letras trocadas, sobretudo em digitalização ruim ou manuscrito. Se o OCR não acha texto nenhum, o documento conta como não lido ("nenhum texto encontrado").
+- **Com o OCR desligado, documento digitalizado não é lido.** Ele sai marcado, e o item oferece "Reprocessar com OCR".
+- **`.txt` gerado antes da v0.4.1 pode estar incompleto sem avisar.** Da v0.2.0 à v0.3.0, o PDF que a biblioteca de leitura recusava (cerca de 1 em cada 10, em três processos medidos) ficava de fora do texto e o item aparecia como concluído; documento sem texto nenhum saía como bloco vazio, sem marca. Para conferir um `.txt` antigo, procure por `[ERRO` nele; para refazer, processe o ZIP de novo na versão atual.
 
-- PDF na versão 2.0 (comum em avisos de recebimento dos Correios);
-- PDF dentro de um envelope de assinatura digital (PKCS#7);
-- PDF com criptografia AES, mesmo sem senha;
-- PDF com a tabela de referências inconsistente.
-
-O documento não lido fica no `.txt` como `[ERRO ao analisar PDF: ...]`, sem o conteúdo, e **o item ainda aparece como concluído na fila**. Antes de confiar numa análise, procure por `[ERRO` no `.txt` ou abra o item e veja se há documentos "com erro". O conserto (um aviso claro de documentos não lidos e um segundo leitor para esses PDFs) está previsto para a próxima release.
+Antes de confiar numa análise, veja a linha `Documentos não lidos:` no começo do `.txt` ou o aviso "N não lidos" no item da fila.
 
 ## 📥 Instalação
 

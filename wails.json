@@ -13,6 +13,6 @@
   "wailsjsdir": "./frontend/src",
   "assetdir": "frontend/dist",
   "info": {
-    "productVersion": "0.4.0"
+    "productVersion": "0.4.1"
   }
 }
