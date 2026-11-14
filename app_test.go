@@ -210,3 +210,20 @@ func TestAoTerminar_RegistraFalhaEEsqueceSucesso(t *testing.T) {
 		t.Fatal("ZIP processado com sucesso continua registrado como falha")
 	}
 }
+
+func TestAoTerminar_NaoLidosNaoVaoParaFalhas(t *testing.T) {
+	dir := t.TempDir()
+	zip := filepath.Join(dir, "proc.zip")
+	if err := os.WriteFile(zip, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	info, _ := os.Stat(zip)
+	app := NewApp()
+	app.falhas = watchdog.CarregarFalhas(filepath.Join(dir, "falhas.json"))
+	app.falhas.Registrar(zip)
+
+	app.aoTerminar(&etl.QueueItem{Path: zip, Status: "success", UnreadDocs: 3})
+	if app.falhas.Ignorar(zip, info.ModTime()) {
+		t.Fatal("item de sucesso com não lidos continua registrado como falha")
+	}
+}

@@ -5,15 +5,17 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"slices"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"unicode"
 	"unicode/utf8"
 
 	"github.com/dslipak/pdf"
 )
+
+// maxPrazosSeguidos é quantas páginas seguidas de um bloco refeito podem
+// estourar o prazo antes de as restantes serem dadas como prazo sem rodar.
+const maxPrazosSeguidos = 2
 
 type ocrTask struct {
 	pageNum  int
@@ -38,7 +40,14 @@ type PDFParser struct {
 
 	lote      ocrLote
 	blocosOCR int
+
+	// poppler: o PDF foi aberto pelo segundo leitor (ver comPoppler).
+	poppler bool
 }
+
+// maxPaginasBlocoOCR é o teto de páginas de um bloco entregue ao ocrLote: o
+// prazo vale por bloco, e um bloco que falha é refeito página a página.
+const maxPaginasBlocoOCR = 20
 
 // ocrLote faz o OCR de várias páginas do mesmo PDF e devolve os textos na
 // ordem de paginas, chamando aoConcluir com cada página assim que o texto dela
@@ -109,6 +118,9 @@ func (p *PDFParser) ParsePages(
 	ocrRunner func(context.Context, string, int) (string, error),
 	onPageComplete func(pageNum int),
 ) (map[string]any, error) {
+	if p.poppler {
+		return p.parsePoppler(ctx, ocrEnabled, ocrRunner, onPageComplete)
+	}
 	reader, numPages, fechar, err := p.abrir()
 	if err != nil {
 		log.Printf("[PDFParser] Falha ao abrir PDF %s: %v", p.filePath, err)
@@ -124,123 +136,13 @@ func (p *PDFParser) ParsePages(
 		return nil, fmt.Errorf("árvore de páginas inválida: %w", err)
 	}
 
-	paginasMap := make(map[string]any)
-	var mapMu sync.Mutex
-	var wg sync.WaitGroup
-	var ocrFailures atomic.Int32
-
-	// O OCR em lote avisa cada página assim que o texto dela sai do tesseract;
-	// se o bloco cair depois e for refeito página a página, a página não pode
-	// contar duas vezes no progresso.
-	reportadas := make([]atomic.Bool, numPages+1)
-	concluir := func(pageNum int) {
-		if onPageComplete == nil || pageNum < 1 || pageNum > numPages {
-			return
-		}
-		if !reportadas[pageNum].Swap(true) {
-			onPageComplete(pageNum)
-		}
-	}
-
-	// Concurrency is bounded by the shared OCR semaphore passed in via
-	// ocrRunner (see Pipeline.ProcessZip), so each OCR task just blocks on
-	// that instead of going through a second, redundant worker pool here.
-	registrarOCR := func(task ocrTask, ocrText string, err error) {
-		var pageData map[string]any
-		if err == nil {
-			log.Printf("[PDFParser] OCR concluído para página %d (tamanho: %d)", task.pageNum, len(ocrText))
-			pageData = map[string]any{
-				"index":   task.pageNum,
-				"ocr":     true,
-				"content": ocrText,
-			}
-		} else {
-			content := task.fallback
-			if content == "" {
-				content = fmt.Sprintf("[ERRO de OCR: %s]", err.Error())
-			}
-			log.Printf("[PDFParser] Falha no OCR para página %d: %v. Usando o texto de reserva (%d chars).", task.pageNum, err, len(task.fallback))
-			ocrFailures.Add(1)
-			pageData = map[string]any{
-				"index":    task.pageNum,
-				"ocr":      false,
-				"content":  content,
-				"ocr_erro": err.Error(),
-			}
-		}
-
-		mapMu.Lock()
-		paginasMap[fmt.Sprintf("%d", task.pageNum)] = pageData
-		mapMu.Unlock()
-		concluir(task.pageNum)
-	}
-
-	runOCRTask := func(task ocrTask) {
-		if ctx.Err() != nil {
-			return
-		}
-		log.Printf("[PDFParser] Iniciando OCR para página %d...", task.pageNum)
-		caminho, err := p.caminhoParaOCR()
-		var ocrText string
-		if err == nil {
-			ocrText, err = ocrRunner(ctx, caminho, task.pageNum)
-		}
-		registrarOCR(task, ocrText, err)
-	}
-
-	runOCRBloco := func(tasks []ocrTask) {
-		if len(tasks) == 1 {
-			runOCRTask(tasks[0])
-			return
-		}
-		paginas := make([]int, len(tasks))
-		for i, task := range tasks {
-			paginas[i] = task.pageNum
-		}
-		log.Printf("[PDFParser] Iniciando OCR em bloco das páginas %v...", paginas)
-		caminho, err := p.caminhoParaOCR()
-		var textos []string
-		if err == nil {
-			textos, err = p.lote(ctx, caminho, paginas, concluir)
-		}
-		if err == nil && len(textos) != len(tasks) {
-			err = fmt.Errorf("OCR em bloco devolveu %d textos para %d páginas", len(textos), len(tasks))
-		}
-		if err != nil && ctx.Err() != nil {
-			log.Printf("[PDFParser] OCR em bloco das páginas %v interrompido por cancelamento: %v", paginas, ctx.Err())
-			return
-		}
-		if err != nil {
-			// Uma página ruim derruba o tesseract do bloco inteiro; sozinhas,
-			// as outras ainda saem.
-			log.Printf("[PDFParser] OCR em bloco das páginas %v falhou: %v. Refazendo página a página...", paginas, err)
-			for _, task := range tasks {
-				runOCRTask(task)
-			}
-			return
-		}
-		for i, task := range tasks {
-			registrarOCR(task, textos[i], nil)
-		}
-	}
-
-	// Um bloco vai ao OCR assim que junta tamBloco páginas, enquanto o texto
-	// nativo das seguintes ainda é lido. tamBloco é o bloco que sairia se todas
-	// as páginas fossem ao OCR, então um documento todo escaneado ainda dá um
-	// bloco por worker; o que sobrar no fim se divide pelos blocos restantes.
-	var pendentes []ocrTask
-	tamBloco := (numPages + p.blocosOCR - 1) / max(p.blocosOCR, 1)
-	despachados := 0
-	despachar := func(bloco []ocrTask) {
-		despachados++
-		wg.Go(func() { runOCRBloco(bloco) })
-	}
+	d := p.novoDespachoOCR(ctx, numPages, ocrRunner, onPageComplete)
 
 	for pageNum := 1; pageNum <= numPages; pageNum++ {
 		// Check for context cancellation
 		if err := ctx.Err(); err != nil {
 			log.Printf("[PDFParser] Contexto cancelado na leitura da página %d: %v", pageNum, err)
-			wg.Wait()
+			d.aguardar()
 			return nil, err
 		}
 
@@ -258,33 +160,21 @@ func (p *PDFParser) ParsePages(
 			content := ""
 			if errPag != nil {
 				log.Printf("[PDFParser] Falha ao ler a página %d de %s: %v", pageNum, p.filePath, errPag)
-				content = fmt.Sprintf("[ERRO ao ler página: %s]", errPag.Error())
+				content = fmt.Sprintf("[ERRO ao ler página: %s]", textoErroSaida(errPag))
 			} else {
 				log.Printf("[PDFParser] Página %d está nula/vazia", pageNum)
 			}
-			mapMu.Lock()
-			paginasMap[fmt.Sprintf("%d", pageNum)] = map[string]any{
+			d.paginaPronta(pageNum, map[string]any{
 				"index":   pageNum,
 				"ocr":     false,
 				"content": content,
-			}
-			mapMu.Unlock()
-			concluir(pageNum)
+			})
 			continue
 		}
 		cleanText, needsOcr := an.texto, an.precisaOcr
 
 		if needsOcr && ocrRunner != nil {
-			task := ocrTask{pageNum: pageNum, fallback: cleanText}
-			if p.lote != nil {
-				pendentes = append(pendentes, task)
-				if len(pendentes) == tamBloco {
-					despachar(pendentes)
-					pendentes = nil
-				}
-			} else {
-				wg.Go(func() { runOCRBloco([]ocrTask{task}) })
-			}
+			d.agendar(ocrTask{pageNum: pageNum, fallback: cleanText})
 		} else {
 			log.Printf("[PDFParser] Usando texto nativo para página %d (OCR habilitado: %t, precisa de OCR: %t)", pageNum, ocrEnabled, needsOcr)
 			pageData := map[string]any{
@@ -292,29 +182,24 @@ func (p *PDFParser) ParsePages(
 				"ocr":     false,
 				"content": cleanText,
 			}
-			mapMu.Lock()
-			paginasMap[fmt.Sprintf("%d", pageNum)] = pageData
-			mapMu.Unlock()
-			concluir(pageNum)
+			if an.semOcr {
+				pageData["sem_ocr"] = true
+				if cleanText == "" {
+					pageData["content"] = marcadorPaginaSemOCR
+				}
+			}
+			d.paginaPronta(pageNum, pageData)
 		}
 	}
 
-	if len(pendentes) > 0 {
-		restantes := max(p.blocosOCR-despachados, 1)
-		k := (len(pendentes) + restantes - 1) / restantes
-		for bloco := range slices.Chunk(pendentes, k) {
-			despachar(bloco)
-		}
-	}
-
-	wg.Wait()
+	paginasMap := d.esperar()
 
 	if err := ctx.Err(); err != nil {
 		log.Printf("[PDFParser] Análise abortada devido a cancelamento do contexto: %v", err)
 		return nil, err
 	}
 
-	if n := ocrFailures.Load(); n > 0 {
+	if n := d.falhas.Load(); n > 0 {
 		log.Printf("[PDFParser] ATENÇÃO: %d página(s) de %s com falha de OCR.", n, p.filePath)
 	}
 	log.Printf("[PDFParser] Análise concluída. %d páginas retornadas.", len(paginasMap))
@@ -449,7 +334,13 @@ type analisePagina struct {
 	nula       bool
 	texto      string
 	precisaOcr bool
+	// semOcr: a página iria ao OCR, mas ele está desligado.
+	semOcr bool
 }
+
+// marcadorPaginaSemOCR é o conteúdo da página digitalizada sem texto nativo
+// quando o OCR está desligado.
+const marcadorPaginaSemOCR = "[página digitalizada: o OCR está desativado]"
 
 // analisarPagina extracts the native text of one page and decides on OCR. The
 // library resolves objects lazily and panics on a malformed xref; the panic is
@@ -481,15 +372,18 @@ func analisarPagina(page pdf.Page, pageNum int, ocrEnabled bool) (an analisePagi
 		log.Printf("[PDFParser] Texto nativo da página %d é ilegível. OCR habilitado: %t", pageNum, ocrEnabled)
 		an.texto = marcadorIlegivel(an.texto)
 		an.precisaOcr = ocrEnabled
+		an.semOcr = !ocrEnabled
 		return an, nil
 	}
 
-	if ocrEnabled && len(an.texto) < 100 {
+	if len(an.texto) < 100 {
 		log.Printf("[PDFParser] Texto nativo da página %d é muito curto (%d chars). Verificando se há imagens...", pageNum, len(an.texto))
 		hasImages := HasImages(page)
 		hasDrawn := !hasImages && HasDrawnContent(page)
 		log.Printf("[PDFParser] Página %d possui imagens: %t, conteúdo vetorial: %t", pageNum, hasImages, hasDrawn)
-		an.precisaOcr = hasImages || hasDrawn
+		candidata := hasImages || hasDrawn
+		an.precisaOcr = ocrEnabled && candidata
+		an.semOcr = !ocrEnabled && candidata
 	}
 	return an, nil
 }

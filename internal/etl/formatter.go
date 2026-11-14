@@ -223,11 +223,20 @@ func refDocumento(evento int, nome string) string {
 	return fmt.Sprintf("[documento idêntico a: evento %d, %s]", evento, nome)
 }
 
+// ehHTML informa se o nome do arquivo tem extensão de HTML.
+func ehHTML(nome string) bool {
+	ext := strings.ToLower(filepath.Ext(nome))
+	return ext == ".html" || ext == ".htm"
+}
+
 // paginaOrdenada e docOrdenado guardam a ordem de saída: documentos por index
 // dentro do evento e páginas por index dentro do documento.
 type paginaOrdenada struct {
 	index   int
 	content string
+	// semOCR marca a página digitalizada que ficou sem OCR: o conteúdo é o
+	// marcador, que sai como está.
+	semOCR bool
 }
 
 type docOrdenado struct {
@@ -238,6 +247,8 @@ type docOrdenado struct {
 	// totalPaginas é o total de páginas dele, contado na origem.
 	omitido      string
 	totalPaginas int
+	// naoLido é a frase do motivo de o documento não ter sido lido ("" se foi).
+	naoLido string
 }
 
 // documentosOrdenados devolve os documentos de um evento, e as páginas de cada
@@ -249,11 +260,13 @@ func documentosOrdenados(evData map[string]any) []docOrdenado {
 		d := docOrdenado{nome: dData["nome"].(string), index: dData["index"].(int)}
 		d.omitido, _ = dData["omitido"].(string)
 		d.totalPaginas, _ = dData["total_paginas"].(int)
+		d.naoLido, _ = dData["nao_lido"].(string)
 		for _, pv := range dData["paginas"].(map[string]any) {
 			pData := pv.(map[string]any)
 			// Campos ausentes são tolerados.
 			c, _ := pData["content"].(string)
-			d.paginas = append(d.paginas, paginaOrdenada{pData["index"].(int), c})
+			so, _ := pData["sem_ocr"].(bool)
+			d.paginas = append(d.paginas, paginaOrdenada{pData["index"].(int), c, so})
 		}
 		slices.SortFunc(d.paginas, func(a, b paginaOrdenada) int { return cmp.Compare(a.index, b.index) })
 		docs = append(docs, d)
@@ -294,8 +307,9 @@ func duplicadasPorConteudo(eventos map[string]any, eventNums []int) duplicadasH7
 	}
 	for _, num := range eventNums {
 		for _, d := range documentosOrdenados(eventos[fmt.Sprintf("%d", num)].(map[string]any)) {
-			if d.omitido != "" {
-				// Omitido não é lido: fica fora da detecção e ninguém o referencia.
+			if d.omitido != "" || d.naoLido != "" {
+				// Omitido e não lido ficam fora da detecção e ninguém os referencia:
+				// dois erros iguais não são "o mesmo documento".
 				continue
 			}
 			cd := chaveDoc{num, d.index}
@@ -305,6 +319,10 @@ func duplicadasPorConteudo(eventos map[string]any, eventNums []int) duplicadasH7
 			todasDup := len(d.paginas) > 0
 			for i, p := range d.paginas {
 				chave := chaveConteudo(p.content)
+				if p.semOCR {
+					// O marcador de página sem OCR nunca é duplicata.
+					chave = ""
+				}
 				chaves[i] = chave
 				if chave == "" {
 					todasDup = false
@@ -356,17 +374,23 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 	slices.Sort(eventNums)
 
 	// Count total documents
-	totalDocs := 0
+	totalDocs, naoLidos := 0, 0
 	for _, val := range eventos {
 		evData := val.(map[string]any)
 		documentosMap := evData["documentos"].(map[string]any)
 		totalDocs += len(documentosMap)
+		for _, dv := range documentosMap {
+			if nl, _ := dv.(map[string]any)["nao_lido"].(string); nl != "" {
+				naoLidos++
+			}
+		}
 	}
 
 	// Header/Context info block
 	sb.WriteString("<contexto>\n")
 	sb.WriteString("PROCESSO JUDICIAL - ORDEM CRONOLÓGICA\n")
 	sb.WriteString(fmt.Sprintf("Total de Documentos: %d\n", totalDocs))
+	sb.WriteString(fmt.Sprintf("Documentos não lidos: %d\n", naoLidos))
 	sb.WriteString(fmt.Sprintf("Data de Consolidação: %s\n", time.Now().Format("02/01/2006 15:04:05")))
 	tokensAt := sb.Len()
 	sb.WriteString("\n<summary>\n")
@@ -378,9 +402,10 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 		documentosMap := evData["documentos"].(map[string]any)
 
 		type docSummaryEntry struct {
-			nome  string
-			index int
-			pages int
+			nome    string
+			index   int
+			pages   int
+			naoLido bool
 		}
 		var docs []docSummaryEntry
 		for _, val := range documentosMap {
@@ -390,10 +415,12 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 			if _, omitido := dData["omitido"].(string); omitido {
 				paginas, _ = dData["total_paginas"].(int)
 			}
+			nl, _ := dData["nao_lido"].(string)
 			docs = append(docs, docSummaryEntry{
-				nome:  dData["nome"].(string),
-				index: dData["index"].(int),
-				pages: paginas,
+				naoLido: nl != "",
+				nome:    dData["nome"].(string),
+				index:   dData["index"].(int),
+				pages:   paginas,
 			})
 		}
 		slices.SortFunc(docs, func(a, b docSummaryEntry) int {
@@ -401,7 +428,11 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 		})
 
 		for _, d := range docs {
-			sb.WriteString(fmt.Sprintf("- Evento %d - %s: %s\n", num, summaryDocName(d.nome), pageCountLabel(d.pages)))
+			rotulo := pageCountLabel(d.pages)
+			if d.naoLido {
+				rotulo = "NÃO LIDO"
+			}
+			sb.WriteString(fmt.Sprintf("- Evento %d - %s: %s\n", num, summaryDocName(d.nome), rotulo))
 		}
 	}
 	sb.WriteString("</summary>\n")
@@ -430,18 +461,35 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 				continue
 			}
 
+			if d.naoLido != "" {
+				original := "PDF"
+				if ehHTML(d.nome) {
+					original = "arquivo"
+				}
+				sb.WriteString(fmt.Sprintf("[documento não lido: %s; consulte o %s original]\n", d.naoLido, original))
+				if len(d.paginas) > 0 && strings.HasPrefix(d.paginas[0].content, "[ERRO") {
+					sb.WriteString(d.paginas[0].content)
+					sb.WriteString("\n")
+				}
+				sb.WriteString("</documento>\n")
+				continue
+			}
+
 			if o, ok := h7.documentos[chaveDoc{num, d.index}]; ok {
 				sb.WriteString(refDocumento(o.evento, o.nome))
 				sb.WriteString("\n</documento>\n")
 				continue
 			}
 
-			ext := strings.ToLower(filepath.Ext(d.nome))
-			ctx := &ctxDocumento{jaVistas: map[string]bool{}, html: ext == ".html" || ext == ".htm"}
+			ctx := &ctxDocumento{jaVistas: map[string]bool{}, html: ehHTML(d.nome)}
 			if cleaningLevel == NivelPadrao || cleaningLevel == NivelMaximo {
 				contents := make([]string, len(d.paginas))
 				for i, p := range d.paginas {
 					contents[i] = p.content
+					if p.semOCR {
+						// O marcador não conta como linha de borda repetida.
+						contents[i] = ""
+					}
 				}
 				ctx.repetidas = repeatedEdgeLines(contents)
 			}
@@ -449,6 +497,14 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 			// Limpa todas as páginas na ordem; só as que têm conteúdo saem.
 			var saem []paginaOrdenada
 			for _, p := range d.paginas {
+				if p.semOCR {
+					// Marcador de página sem OCR: sai como está, sem limpeza, e só
+					// se não for vazio.
+					if strings.TrimSpace(p.content) != "" {
+						saem = append(saem, paginaOrdenada{index: p.index, content: p.content})
+					}
+					continue
+				}
 				// cleanPage roda também nas duplicadas, e o resultado é descartado,
 				// de propósito: o estado do documento (timbre em jaVistas, marcadores
 				// em assinados) tem de avançar como se a página tivesse saído, porque
@@ -460,7 +516,7 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 				if strings.TrimSpace(cleanedText) == "" {
 					continue
 				}
-				saem = append(saem, paginaOrdenada{p.index, cleanedText})
+				saem = append(saem, paginaOrdenada{index: p.index, content: cleanedText})
 			}
 			switch {
 			case len(saem) == 0:

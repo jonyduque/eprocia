@@ -35,7 +35,7 @@ pwsh scripts/build/gate.ps1 -SemRace   # sem gcc/CGO
 
 - `-race` exige CGO e `gcc` no PATH (há um MinGW em `C:\ProgramData\mingw64`); sem gcc o script avisa e roda sem `-race`.
 - O `wails build` falha se `build/bin/eprocia.exe` estiver aberto. O script detecta e para com uma mensagem; feche o app pela bandeja (Sair). Nunca encerre um eprocia.exe que você não iniciou.
-- O smoke test encerra apenas o PID que o próprio script iniciou.
+- O smoke test encerra apenas o PID que o próprio script iniciou. Ele roda uma cópia `build/bin/eprocia-gate-teste.exe` e a apaga no fim: o WebView2 guarda os dados em `%APPDATA%\<nome do exe>`, e um segundo `eprocia.exe`, mesmo de outra pasta (o app do dono aberto, outra worktree), sai com código 1 e `error creating controller with 8007139f`.
 - O `wails build` regenera `frontend/src/wailsjs/` e roda `go mod tidy`. Inclua o `go.mod` no commit se ele mudar.
 
 ## Validação desta skill

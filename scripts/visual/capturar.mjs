@@ -146,6 +146,23 @@ async function main() {
               await linha.click();
             }
           }
+          if (nome === 'nao-lidos') {
+            // Primeiro o painel (sem aviso na tela), depois fecha-o e copia para o aviso.
+            const linha = await page.$('.item-row.success .info-btn');
+            if (linha) {
+              await linha.click();
+              await page.waitForTimeout(300);
+              await salvar('-atividade');
+              await linha.click();
+              await page.waitForTimeout(300);
+            }
+            const copiar = await page.$('.item-row.success button[data-acao="copiar"]');
+            if (copiar) {
+              await copiar.click();
+              await page.waitForTimeout(300);
+              await salvar('-copiado');
+            }
+          }
           if (nome === 'fila') {
             const botao = await page.$('.item-row.success button[data-acao="reprocessar"]');
             if (botao) {

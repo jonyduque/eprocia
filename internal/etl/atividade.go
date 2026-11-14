@@ -24,6 +24,9 @@ type AtividadeDoc struct {
 	// OCR conta as páginas deste documento num processo de OCR agora.
 	OCR  int    `json:"ocr"`
 	Erro string `json:"erro,omitempty"`
+	// Leitura é o motivo de leitura (ver Leitura); Detalhe, o texto técnico.
+	Leitura string `json:"leitura,omitempty"`
+	Detalhe string `json:"detalhe,omitempty"`
 }
 
 // InstantaneoAtividade é a cópia da atividade enviada ao frontend.

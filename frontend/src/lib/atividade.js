@@ -39,14 +39,23 @@ export function ordenarDocs(docs) {
     .sort((a, b) => (ORDEM_ESTADO[a.estado] ?? 9) - (ORDEM_ESTADO[b.estado] ?? 9) || a.i - b.i);
 }
 
+// Motivos de leitura (AtividadeDoc.leitura) que deixam o documento fora do texto.
+export const LEITURA_NAO_LIDO = ['sem_ocr', 'senha', 'ilegivel', 'prazo', 'ocr_falhou', 'sem_texto'];
+
+export function naoLido(d) {
+  return LEITURA_NAO_LIDO.includes(d?.leitura);
+}
+
 export function resumoAtividade(inst) {
-  const r = { ativos: 0, emOcr: 0, aguardando: 0, concluidos: 0, erros: 0, paginasOcr: 0 };
+  const r = { ativos: 0, emOcr: 0, aguardando: 0, concluidos: 0, erros: 0, paginasOcr: 0, naoLidos: 0, semOCR: 0 };
   for (const d of inst?.docs ?? []) {
+    if (naoLido(d)) r.naoLidos++;
+    if (d.leitura === 'sem_ocr') r.semOCR++;
     if (d.estado === 'lendo' || d.estado === 'ocr') r.ativos++;
     if (d.estado === 'ocr') r.emOcr++;
     if (d.estado === 'aguardando') r.aguardando++;
     if (d.estado === 'concluido') r.concluidos++;
-    if (d.estado === 'erro') r.erros++;
+    if (d.estado === 'erro' && !naoLido(d)) r.erros++;
     r.paginasOcr += d.ocr || 0;
   }
   return r;

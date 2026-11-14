@@ -40,7 +40,7 @@ describe('atividade', () => {
     assert.deepEqual(ordenarDocs(null), []);
   });
   it('resume', () => {
-    assert.deepEqual(resumoAtividade({ docs }), { ativos: 3, emOcr: 2, aguardando: 1, concluidos: 1, erros: 1, paginasOcr: 4 });
+    assert.deepEqual(resumoAtividade({ docs }), { ativos: 3, emOcr: 2, aguardando: 1, concluidos: 1, erros: 1, paginasOcr: 4, naoLidos: 0, semOCR: 0 });
   });
   it('segmentos do medidor', () => {
     assert.deepEqual(segmentos(2, 4), [true, true, false, false]);

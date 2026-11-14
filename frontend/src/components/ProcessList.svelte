@@ -38,6 +38,8 @@
   import { cubicOut } from 'svelte/easing';
   import { estadoItem, avisoFila } from '../lib/estado.js';
   import { criarAviso, duracaoMovimento, DUR_FAST, DUR_BASE } from '../lib/aviso.js';
+  import { aplicarReprocessarComOCR } from '../lib/reprocessar.js';
+  import { rotuloNaoLidos, avisoCopiaNaoLidos, tituloNaoLidos } from '../lib/naoLidos.js';
   import { formatarHora, filtrarItens, alvoFoco, escolherAcao, criarMovimentoFila } from '../lib/fila.js';
 
   export let items = [];
@@ -101,8 +103,26 @@
   }
 
   let reprocessarAberto = {};
+  // OCR sugerido ao abrir o painel pelo botão "Reprocessar com OCR" (vale só
+  // para esta abertura; a configuração global não muda).
+  let ocrSugerido = {};
+  // Muda a cada clique em "Reprocessar com OCR": remonta o formulário.
+  let geracaoReprocessar = {};
   function alternarReprocessar(id) {
     reprocessarAberto = { ...reprocessarAberto, [id]: !reprocessarAberto[id] };
+    const { [id]: _, ...resto } = ocrSugerido;
+    ocrSugerido = resto;
+  }
+
+  function reprocessarComOCR(id) {
+    const r = aplicarReprocessarComOCR({
+      aberto: !!reprocessarAberto[id],
+      ocr: ocrSugerido[id] ?? '',
+      geracao: geracaoReprocessar[id] ?? 0
+    });
+    ocrSugerido = { ...ocrSugerido, [id]: r.ocr };
+    geracaoReprocessar = { ...geracaoReprocessar, [id]: r.geracao };
+    reprocessarAberto = { ...reprocessarAberto, [id]: r.aberto };
   }
 
   async function confirmarReprocessar(item, ocr, limpeza) {
@@ -179,9 +199,11 @@
   let copiadoId = null;
   let copiadoTimer;
   let erroCopia = '';
+  let tipoAviso = 'error';
 
   const avisoCopia = criarAviso((a) => {
     erroCopia = a ? a.texto : '';
+    if (a) tipoAviso = a.tipo;
   });
 
   onDestroy(() => {
@@ -195,6 +217,8 @@
       copiadoId = item.id;
       clearTimeout(copiadoTimer);
       copiadoTimer = setTimeout(() => { copiadoId = null; }, 1500);
+      const alerta = avisoCopiaNaoLidos(item.unread_docs);
+      if (alerta) avisoCopia.mostrar(alerta, 'aviso');
     } catch (err) {
       console.error('Erro ao copiar o TXT:', err);
       avisoCopia.mostrar('Erro ao copiar o TXT: ' + (err?.message ?? err), 'error');
@@ -353,6 +377,12 @@
                     {item.docs_count} docs | {item.pages_count} pág{#if item.estimated_tokens > 0}
                       | <span title="Estimativa local: 1 token a cada 4 caracteres">~{formatoTokens.format(item.estimated_tokens)} tokens</span>{/if}
                   </span>
+                  {#if item.unread_docs > 0}
+                    <span class="nao-lidos" title={tituloNaoLidos(item.unread_docs)}>
+                      <Icone icone={CircleAlert} tamanho={12} cor="var(--warning)" />
+                      {rotuloNaoLidos(item.unread_docs)}
+                    </span>
+                  {/if}
                 {:else if estado === 'processando'}
                   <span class="progress-message">{item.message || 'Processando...'}</span>
                   <span class="meta-badge processing">
@@ -508,17 +538,20 @@
                 id="atividade-{item.id}"
                 atividade={atividadeDe(item.id, atividades, atividadesBuscadas)}
                 emAndamento={estado === 'processando'}
+                aoReprocessarComOCR={() => reprocessarComOCR(item.id)}
               />
             {/if}
 
             {#if reprocessarAberto[item.id] && item.status !== 'pending' && item.status !== 'processing'}
-              <ReprocessarItem
-                id="reprocessar-{item.id}"
-                ocrInicial={item.ocr_mode || config?.ocr_mode || 'normal'}
-                limpezaInicial={item.cleaning_level || config?.cleaning_level || 'standard'}
-                aoConfirmar={(ocr, limpeza) => confirmarReprocessar(item, ocr, limpeza)}
-                aoCancelar={() => alternarReprocessar(item.id)}
-              />
+              {#key geracaoReprocessar[item.id] ?? 0}
+                <ReprocessarItem
+                  id="reprocessar-{item.id}"
+                  ocrInicial={ocrSugerido[item.id] || item.ocr_mode || config?.ocr_mode || 'normal'}
+                  limpezaInicial={item.cleaning_level || config?.cleaning_level || 'standard'}
+                  aoConfirmar={(ocr, limpeza) => confirmarReprocessar(item, ocr, limpeza)}
+                  aoCancelar={() => alternarReprocessar(item.id)}
+                />
+              {/key}
             {/if}
           </div>
         {/each}
@@ -532,6 +565,7 @@
     {#if erroCopia}
       <div
         class="aviso-erro"
+        class:aviso-atencao={tipoAviso === 'aviso'}
         in:fly={{ y: 8, duration: duracaoMovimento(DUR_BASE), easing: cubicOut }}
         out:fade={{ duration: duracaoMovimento(DUR_FAST) }}
       >
@@ -556,6 +590,28 @@
     color: var(--error-strong);
     background-color: var(--surface);
     border-top: 1px solid currentColor;
+  }
+  .aviso-erro.aviso-atencao {
+    color: var(--warning);
+    background-color: var(--warning-soft);
+    border-top-color: var(--warning-line);
+  }
+  .aviso-erro.aviso-atencao .aviso-fechar:hover {
+    background-color: var(--warning-line);
+  }
+  .details-row > .nao-lidos {
+    flex: none;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .nao-lidos {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--warning);
+    font-size: var(--fs-meta);
+    font-weight: 500;
+    white-space: nowrap;
   }
   .aviso-texto {
     min-width: 0;

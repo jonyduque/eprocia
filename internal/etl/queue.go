@@ -32,8 +32,11 @@ type QueueItem struct {
 	TotalDocs       int     `json:"total_docs"`
 	ProcessedPages  int     `json:"processed_pages"`
 	TotalPages      int     `json:"total_pages"`
-	Error           string  `json:"error,omitempty"`
-	Timestamp       int64   `json:"timestamp"`
+	// UnreadDocs conta os documentos que ficaram sem texto aproveitável; o item
+	// continua "success".
+	UnreadDocs int    `json:"unread_docs"`
+	Error      string `json:"error,omitempty"`
+	Timestamp  int64  `json:"timestamp"`
 	// OcrMode e CleaningLevel são os da última execução do item (ou os que a
 	// próxima vai usar, num item reprocessado que ainda aguarda).
 	OcrMode       string             `json:"ocr_mode,omitempty"`
@@ -242,6 +245,7 @@ func copiarItem(item *QueueItem) *QueueItem {
 		TotalDocs:       item.TotalDocs,
 		ProcessedPages:  item.ProcessedPages,
 		TotalPages:      item.TotalPages,
+		UnreadDocs:      item.UnreadDocs,
 		Error:           item.Error,
 		Timestamp:       item.Timestamp,
 		OcrMode:         item.OcrMode,
@@ -279,6 +283,7 @@ func (q *Queue) Reprocessar(id, ocrMode, cleaningLevel string) error {
 	item.OutputPath = ""
 	item.DocsCount, item.PagesCount, item.EstimatedTokens = 0, 0, 0
 	item.ProcessedDocs, item.TotalDocs, item.ProcessedPages, item.TotalPages = 0, 0, 0, 0
+	item.UnreadDocs = 0
 	item.Timestamp = time.Now().UnixMilli()
 	// Vai para o topo, como um arquivo novo: a fila processa de baixo para cima.
 	q.items = slices.Delete(q.items, idx, idx+1)
@@ -552,6 +557,7 @@ func (q *Queue) processItem(item *QueueItem) {
 		item.TotalDocs = docsCount
 		item.ProcessedPages = pagesCount
 		item.TotalPages = pagesCount
+		item.UnreadDocs = atv.NaoLidos()
 	}
 	avisar := q.avisarFimLocked(item)
 	q.mu.Unlock()

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"embed"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -31,6 +32,7 @@ const arquivoVersao = ".versao"
 
 var (
 	binDir       string
+	popplerDir   string
 	tessdataDirs = map[string]string{}
 	initMu       sync.Mutex
 )
@@ -46,11 +48,9 @@ func InitBinaries() (string, error) {
 		return binDir, nil
 	}
 
-	tempDir := filepath.Join(os.TempDir(), "eprocIA_bin")
-	log.Printf("[OCR] Iniciando verificação e extração do embed.FS para %s...", tempDir)
-	if err := os.MkdirAll(tempDir, 0755); err != nil {
-		log.Printf("[OCR] Falha ao criar diretório de binários: %v", err)
-		return "", fmt.Errorf("falha ao criar a pasta temporária dos binários: %w", err)
+	tempDir, err := pastaBinarios()
+	if err != nil {
+		return "", err
 	}
 	if err := extrairBase(tempDir); err != nil {
 		log.Printf("[OCR] Falha ao extrair arquivos embutidos: %v", err)
@@ -59,7 +59,40 @@ func InitBinaries() (string, error) {
 
 	log.Printf("[OCR] Verificação/extração de binários concluída com sucesso no diretório: %s", tempDir)
 	binDir = tempDir
+	popplerDir = filepath.Join(tempDir, "poppler")
 	return binDir, nil
+}
+
+// pastaBinarios cria a pasta de extração em %TEMP%.
+func pastaBinarios() (string, error) {
+	tempDir := filepath.Join(os.TempDir(), "eprocIA_bin")
+	log.Printf("[OCR] Iniciando verificação e extração do embed.FS para %s...", tempDir)
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		log.Printf("[OCR] Falha ao criar diretório de binários: %v", err)
+		return "", fmt.Errorf("falha ao criar a pasta temporária dos binários: %w", err)
+	}
+	return tempDir, nil
+}
+
+// initPoppler extrai só o Poppler (sem tesseract nem tessdata) e devolve a
+// pasta dele. É a base de InfoPDF e TextoPDF, que valem com o OCR desligado.
+// Sucesso fica em cache; falha não.
+func initPoppler() (string, error) {
+	initMu.Lock()
+	defer initMu.Unlock()
+	if popplerDir != "" {
+		return popplerDir, nil
+	}
+	tempDir, err := pastaBinarios()
+	if err != nil {
+		return "", err
+	}
+	if err := extrairSub(tempDir, "poppler"); err != nil {
+		log.Printf("[OCR] Falha ao extrair o Poppler embutido: %v", err)
+		return "", fmt.Errorf("falha ao extrair o Poppler embutido: %w", err)
+	}
+	popplerDir = filepath.Join(tempDir, "poppler")
+	return popplerDir, nil
 }
 
 // tessdataDoModo extrai, uma vez por processo, o tessdata do modo pedido.
@@ -85,15 +118,20 @@ func CalcularVersaoEmbutidos() (string, error) {
 
 func extrairBase(dest string) error {
 	for _, sub := range []string{"poppler", "tesseract"} {
-		fontes, err := arquivosDe("embed/" + sub)
-		if err != nil {
-			return err
-		}
-		if err := sincronizar(filepath.Join(dest, sub), fontes); err != nil {
+		if err := extrairSub(dest, sub); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// extrairSub sincroniza embed/<sub> com dest/<sub>.
+func extrairSub(dest, sub string) error {
+	fontes, err := arquivosDe("embed/" + sub)
+	if err != nil {
+		return err
+	}
+	return sincronizar(filepath.Join(dest, sub), fontes)
 }
 
 // extrairTessdata grava em dest/tessdata/<modo> o por.traineddata do modo e o
@@ -236,18 +274,22 @@ func prepararFerramentas(mode string) (ferramentas, error) {
 // renderizar grava em dir as páginas primeira..ultima como p-<n>.png.
 func (f ferramentas) renderizar(ctx context.Context, pdfPath, dir string, primeira, ultima int) error {
 	log.Printf("[OCR] Executando pdftoppm para as páginas %d a %d do PDF %s...", primeira, ultima, pdfPath)
-	cmd := exec.CommandContext(ctx, f.pdftoppm,
-		"-f", strconv.Itoa(primeira),
-		"-l", strconv.Itoa(ultima),
-		"-png",
-		"-r", "150",
-		pdfPath,
-		filepath.Join(dir, "p"),
-	)
-	prepareCmd(cmd)
-	// As DLLs do Poppler são achadas pelo PATH.
-	cmd.Env = append(os.Environ(), "PATH="+f.popplerDir+";"+os.Getenv("PATH"))
-	if err := cmd.Run(); err != nil {
+	prazo := prazoDe(prazoRenderBase, prazoRenderPorPagina, ultima-primeira+1)
+	err := rodarComPrazo(ctx, prazo, func(ctx context.Context) *exec.Cmd {
+		cmd := exec.CommandContext(ctx, f.pdftoppm,
+			"-f", strconv.Itoa(primeira),
+			"-l", strconv.Itoa(ultima),
+			"-png",
+			"-r", "150",
+			pdfPath,
+			filepath.Join(dir, "p"),
+		)
+		prepareCmd(cmd)
+		// As DLLs do Poppler são achadas pelo PATH.
+		cmd.Env = append(os.Environ(), "PATH="+f.popplerDir+";"+os.Getenv("PATH"))
+		return cmd
+	})
+	if err != nil {
 		log.Printf("[OCR] pdftoppm falhou: %v", err)
 		return fmt.Errorf("falha no pdftoppm embutido: %w", err)
 	}
@@ -326,8 +368,9 @@ func (s *separadorPaginas) String() string {
 // com uma imagem por linha) e devolve o texto que ele escreve na saída padrão.
 // Os caminhos são relativos a dir, para que um %TEMP% com acentos não dependa
 // de como o tesseract decodifica o arquivo de lista. aoConcluir(i) é chamado
-// uma vez por imagem, assim que o texto dela termina de chegar.
-func (f ferramentas) reconhecer(ctx context.Context, dir, entrada string, aoConcluir func(i int)) (string, error) {
+// uma vez por imagem, assim que o texto dela termina de chegar. paginas é o
+// número de imagens, que define o prazo de cada execução do tesseract.
+func (f ferramentas) reconhecer(ctx context.Context, dir, entrada string, paginas int, aoConcluir func(i int)) (string, error) {
 	env := append(os.Environ(),
 		"PATH="+f.tessDir+";"+os.Getenv("PATH"),
 		"TESSDATA_PREFIX="+f.tessdata,
@@ -346,12 +389,15 @@ func (f ferramentas) reconhecer(ctx context.Context, dir, entrada string, aoConc
 	}
 	rodar := func(args ...string) (string, error) {
 		saida := &separadorPaginas{aoConcluir: avisar}
-		cmd := exec.CommandContext(ctx, f.tess, append([]string{entrada, "stdout"}, args...)...)
-		cmd.Dir = dir
-		cmd.Stdout = saida
-		prepareCmd(cmd)
-		cmd.Env = env
-		if err := cmd.Run(); err != nil {
+		err := rodarComPrazo(ctx, prazoDe(prazoOCRBase, prazoOCRPorPagina, paginas), func(ctx context.Context) *exec.Cmd {
+			cmd := exec.CommandContext(ctx, f.tess, append([]string{entrada, "stdout"}, args...)...)
+			cmd.Dir = dir
+			cmd.Stdout = saida
+			prepareCmd(cmd)
+			cmd.Env = env
+			return cmd
+		})
+		if err != nil {
 			return "", err
 		}
 		avisar(saida.concluidas)
@@ -360,6 +406,11 @@ func (f ferramentas) reconhecer(ctx context.Context, dir, entrada string, aoConc
 
 	log.Printf("[OCR] Executando tesseract no idioma 'por'...")
 	texto, err := rodar("-l", "por")
+	if err != nil && (errors.Is(err, ErrPrazo) || ctx.Err() != nil) {
+		// O fallback esgotaria o prazo de novo, ou já não tem para quem voltar.
+		log.Printf("[OCR] Tesseract em português interrompido: %v", err)
+		return "", fmt.Errorf("falha no tesseract embutido: %w", err)
+	}
 	if err != nil {
 		log.Printf("[OCR] Tesseract em português falhou: %v. Tentando inglês como fallback...", err)
 		texto, err = rodar()
@@ -463,7 +514,7 @@ func ocrPaginas(ctx context.Context, pdfPath string, paginas []int, mode string,
 			}
 		}
 	}
-	texto, err := f.reconhecer(ctx, tempDir, entrada, avisar)
+	texto, err := f.reconhecer(ctx, tempDir, entrada, len(nomes), avisar)
 	if err != nil {
 		return nil, err
 	}
