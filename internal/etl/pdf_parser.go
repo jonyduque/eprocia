@@ -176,7 +176,7 @@ func (p *PDFParser) ParsePages(
 		cleanText, needsOcr := an.texto, an.precisaOcr
 
 		if needsOcr && ocrRunner != nil {
-			d.agendar(ocrTask{pageNum: pageNum, fallback: cleanText})
+			d.agendar(ocrTask{pageNum: pageNum, fallback: cleanText, motivo: an.motivo, linhasAcima: an.linhasAcima})
 		} else {
 			log.Printf("[PDFParser] Usando texto nativo para página %d (OCR habilitado: %t, precisa de OCR: %t)", pageNum, ocrEnabled, needsOcr)
 			pageData := map[string]any{
@@ -338,6 +338,10 @@ type analisePagina struct {
 	precisaOcr bool
 	// semOcr: a página iria ao OCR, mas ele está desligado.
 	semOcr bool
+	// motivo: por que a página vai ao OCR (só vale com precisaOcr).
+	motivo motivoOCR
+	// linhasAcima vem de metricasPagina; só importa com motivoImagemDescoberta.
+	linhasAcima int
 }
 
 // marcadorPaginaSemOCR é o conteúdo da página digitalizada sem texto nativo
@@ -359,13 +363,19 @@ func analisarPagina(page pdf.Page, pageNum int, ocrEnabled bool) (an analisePagi
 	}
 
 	log.Printf("[PDFParser] Extraindo texto nativo da página %d...", pageNum)
-	text, errTexto := ExtractNativeText(page)
+	text, m, errTexto := extrairNativoSeguro(page)
 	if errTexto != nil {
 		log.Printf("[PDFParser] Falha ao extrair texto nativo na página %d: %v", pageNum, errTexto)
 		text = ""
 	}
+	for motivo, n := range m.formsIgnorados {
+		if n > 0 {
+			log.Printf("[PDFParser] Página %d: Form XObject ignorado (%s): %d", pageNum, motivoFormIgnorado(motivo), n)
+		}
+	}
 
 	an.texto = strings.TrimSpace(text)
+	an.linhasAcima = m.linhasAcima
 	log.Printf("[PDFParser] Texto nativo da página %d extraído. Tamanho bruto: %d, Limpo: %d", pageNum, len(text), len(an.texto))
 
 	if textoIlegivel(an.texto) {
@@ -375,6 +385,7 @@ func analisarPagina(page pdf.Page, pageNum int, ocrEnabled bool) (an analisePagi
 		an.texto = marcadorIlegivel(an.texto)
 		an.precisaOcr = ocrEnabled
 		an.semOcr = !ocrEnabled
+		an.motivo = motivoIlegivel
 		return an, nil
 	}
 
@@ -386,6 +397,15 @@ func analisarPagina(page pdf.Page, pageNum int, ocrEnabled bool) (an analisePagi
 		candidata := hasImages || hasDrawn
 		an.precisaOcr = ocrEnabled && candidata
 		an.semOcr = !ocrEnabled && candidata
+	}
+
+	// Regras novas: só com o OCR ligado (desligado, o texto nativo fica e a
+	// página conta como lida) e só se as regras acima não mandaram ao OCR.
+	if ocrEnabled && !an.precisaOcr {
+		if motivo, ok := regraNova(m, contagemParaRegra(m, an.texto)); ok {
+			an.precisaOcr = true
+			an.motivo = motivo
+		}
 	}
 	return an, nil
 }
