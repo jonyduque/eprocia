@@ -33,6 +33,8 @@ go tool benchstat "$TMP/antes.txt" "$TMP/depois.txt"
 
 Linha de base num `git worktree` do commit anterior: copie para ele o `go.sum` e `internal/ocr/embed/{poppler,tesseract}`, que são ignorados pelo git. Sem os binários, `ocr=fast` roda sem OCR (`procs/op` 0) e a base sai inválida.
 
+Duas medições feitas em horas diferentes não se comparam nesta máquina: em 2026-11-16 a mesma mudança deu +13% a +19% de `sec/op` com `allocs/op` igual, e nenhuma diferença (p de 0,31 a 0,59) quando as duas versões rodaram alternadas. Se o tempo piorar sem as alocações mudarem, compile o teste de cada árvore (`go test -c -o base.exe ./scripts/bench`) e rode os dois binários alternados, uma rodada de cada por vez (`-test.bench ... -test.count=1`, cada um a partir do seu `scripts/bench`), 20 rodadas ou mais; compare os dois arquivos com o benchstat.
+
 O benchstat está declarado como `tool` no `go.mod` (Passo 0 da skill `eprocia-build`); `go tool benchstat` usa a versão fixada ali.
 
 Corpus real: `EPROCIA_BENCH_DIR=D:\\caminho go test ./scripts/bench -run '^$' -bench Real -count=10 -benchmem`. Nada desse diretório entra no repositório; o hook `proteger-dados` bloqueia.
