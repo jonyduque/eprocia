@@ -23,6 +23,12 @@ Restrição do dono: essas situações são excepcionais. Não vale aumentar mui
 - **Texto-isca:** automático. Página com imagem cujo texto nativo não parece português vai ao OCR, e o texto nativo só é descartado se o OCR devolver texto.
 - **Release:** v0.4.2 própria, só com este pacote, antes dos 46 achados da revisão de 2026-11-10.
 
+## Decisões do dono (2026-11-16, sobre esta spec)
+
+- **Limite da imagem descoberta:** fica em 30% da página. Um print ou comprovante que cobre de 15% a 30% continua de fora, como hoje.
+- **Ordem na junção:** quando a página vai ao OCR e tem texto nativo que o OCR não trouxe, tentar montar o texto na ordem em que ele está na página, em vez de pôr o nativo no fim.
+- **Sem log de diagnóstico.** A linha de log por página, só com números, não entra. A calibração dos limiares usa a medição final, fora do aplicativo.
+
 ## Objetivos
 
 1. O texto dentro de Form XObject sai no `.txt`, na posição em que aparece na página.
@@ -47,7 +53,7 @@ Restrição do dono: essas situações são excepcionais. Não vale aumentar mui
 - O texto nativo bom de uma página ser trocado por um OCR pior ou vazio.
 - Texto oculto (camada opcional desligada, Form pintado fora da página) aparecer no `.txt`.
 - O processamento de um ZIP normal ficar visivelmente mais lento.
-- Um caminho, erro bruto ou trecho de conteúdo do PDF chegar ao log de diagnóstico novo: ele leva só números.
+- Um caminho, erro bruto, nome de objeto ou trecho de conteúdo do PDF chegar ao log: a única linha de log nova (Form ignorado) leva um motivo fixo e o número da página.
 
 ## Desenho
 
@@ -88,6 +94,8 @@ A página é dividida numa grade de 48×68 células (cerca de 12 pt numa A4). Um
 - `fImg`: células de imagem;
 - `fTxt`: células de texto;
 - `fDesc`: células de imagem sem nenhuma célula de texto a até uma célula de distância.
+
+A passada guarda mais um número, usado só pela junção (seção 4): **linhas acima das imagens**, a quantidade de linhas do texto nativo cuja linha de base fica na altura do topo da imagem útil mais alta, ou acima dele. Como o texto nativo sai de cima para baixo, essas são sempre as primeiras linhas.
 
 **Regra:** com o OCR ligado, a página é candidata se `fDesc ≥ 0,30` e `fTxt ≤ 0,10`. A regra vale para qualquer tamanho de texto nativo e se soma às de hoje (texto ilegível; texto curto com imagem grande; texto curto com desenho vetorial), que não mudam.
 
@@ -130,10 +138,21 @@ Medido nas sintéticas: iscas com 80–85% de palavras implausíveis e nenhuma f
 |---|---|---|
 | texto ilegível (hoje) | marcador `[texto ilegível na página: N caracteres omitidos]` | substitui (como hoje) |
 | texto curto com imagem ou desenho (hoje) | o texto nativo curto | substitui (como hoje) |
-| imagem descoberta (novo) | o texto nativo | texto do OCR e, depois dele, as linhas nativas que o OCR não trouxe |
+| imagem descoberta (novo) | o texto nativo | texto do OCR, com as linhas nativas que o OCR não trouxe encaixadas na ordem da página |
 | isca (novo) | o texto nativo | substitui: o nativo é descartado |
 
-Na imagem descoberta, uma linha nativa está "presente" no OCR se 60% ou mais das palavras de 3 caracteres ou mais dela estão no conjunto de palavras do OCR, comparadas em minúsculas e sem acento. Linha nativa sem nenhuma palavra de 3 caracteres ou mais (um número de página) é acrescentada se o texto dela não aparece no OCR. As linhas que faltam entram depois do texto do OCR, na ordem em que estavam, separadas por uma linha em branco.
+Na imagem descoberta, uma linha nativa está "presente" no OCR se 60% ou mais das palavras de 3 caracteres ou mais dela estão no conjunto de palavras do OCR, comparadas em minúsculas e sem acento. Linha nativa sem nenhuma palavra de 3 caracteres ou mais (um número de página) está presente se o texto dela aparece no OCR. Se nenhuma linha falta, o resultado é o texto do OCR, sem mudança.
+
+O OCR devolve texto sem posição, então a ordem da página é reconstruída por âncoras. A âncora de uma linha nativa presente é a linha do OCR que tem mais palavras dela (no empate, a primeira). As linhas nativas ficam de um de dois lados: acima das imagens (as primeiras, contadas na seção 2) ou abaixo (as demais). Cada linha nativa que falta entra, na ordem em que estava:
+
+1. logo depois da âncora da linha nativa presente mais próxima antes dela, se as duas estão do mesmo lado;
+2. sem essa linha: no começo, antes do texto do OCR, se ela é uma das linhas acima das imagens;
+3. senão, logo antes da âncora da próxima linha nativa presente;
+4. sem nenhuma dessas âncoras: no fim, depois do texto do OCR.
+
+O lado importa na regra 1 porque a imagem fica entre os dois: uma legenda embaixo da figura não pode ser colada na linha do cabeçalho só porque essa foi a última que o OCR achou.
+
+As linhas postas no começo ou no fim ficam separadas do texto do OCR por uma linha em branco; as encaixadas no meio, não. Nenhuma linha nativa é perdida, qualquer que seja o OCR. É uma tentativa: sem âncora, o que se sabe é só se a linha está acima das imagens ou não, e uma linha que fica entre duas imagens vai para o fim.
 
 Uma falha do OCR (erro ou prazo) segue como hoje: fica a reserva e a página leva `ocr_erro`.
 
@@ -141,9 +160,9 @@ Uma falha do OCR (erro ou prazo) segue como hoje: fica a reserva e a página lev
 
 Com o OCR desligado, as páginas das duas regras novas saem como hoje: o texto nativo fica, a página conta como lida e não leva marcador nem `sem_ocr`. É o mesmo tratamento que a página digitalizada com um pouco de texto nativo já tem (residual M1, fixado por `TestPipeline_SemOCR_TextoNativoCurtoComImagemContaComoLido`), e segue a decisão "sem aviso novo". O conserto do Form XObject não depende do OCR e vale sempre.
 
-### Log de diagnóstico
+### Log
 
-Para toda página com imagem útil (`fImg > 0`) ou com texto vindo de Form, uma linha no log com os números: página, bytes de texto nativo, `fImg`, `fTxt`, `fDesc`, trechos de texto vindos de Form, palavras, implausíveis, funcionais e a decisão. Nenhum texto da página, nome de arquivo ou caminho. Serve para calibrar os limiares e para explicar por que uma página foi ou não ao OCR.
+Não há log de diagnóstico por página (decisão do dono). A única linha de log nova é a do Form ignorado (seção 1): o número da página e um motivo fixo (`stream ilegível`, `profundidade`, `limite por página`, `pânico`), sem o erro bruto e sem o nome do objeto. Nenhuma outra linha de log muda.
 
 ## Erros de cada regra e o efeito no `.txt`
 
@@ -160,18 +179,18 @@ Para toda página com imagem útil (`fImg > 0`) ou com texto vindo de Form, uma 
 - **Falso positivo documentado:** timbre em página inteira mais 3 linhas é candidato; o teste fixa que o texto nativo permanece no resultado.
 - **Casos que têm de ir ao OCR:** legenda mais imagem (direta, em Form, inline em hexa); carimbo sobre a digitalização; mosaico com legenda; as três iscas (cinza claro, preta, em linhas regulares).
 - **Form:** corpo em Form mais legenda sai inteiro no texto nativo, sem OCR; Form sob `/OC`, Form fora da página, Form pintado duas vezes, Form que chama a si mesmo e Form com stream ilegível.
-- **Junção:** tabela de casos para cada motivo, com OCR aproveitável, em branco, ilegível e com erro.
+- **Junção:** tabela de casos para cada motivo, com OCR aproveitável, em branco, ilegível e com erro; e a ordem da página: linha que falta depois da âncora anterior, antes da próxima, no começo (acima das imagens) e no fim.
 - **Desempenho:** `BenchmarkParsePDF` e `BenchmarkSintetico` com `-count=10`, comparados por benchstat com a `main`. A página de texto puro não pode ficar pior que 5%.
-- **Medição real:** os três ZIPs reais do dono, em cópias no scratchpad, com `TEMP`/`TMP` redirecionados. Saem só contagens: quantos blocos `<documento>` ficaram iguais aos da v0.4.1, quantas páginas foram ao OCR por cada regra nova, quantas páginas ganharam texto de Form, a distribuição de `fDesc` (inclusive quantas páginas caem na faixa de 0,15 a 0,30) e o tempo total antes e depois. Se a medição mostrar um limiar mal calibrado, ele é ajustado antes do PR e a tabela desta spec é atualizada.
+- **Medição real:** os três ZIPs reais do dono, em cópias no scratchpad, com `TEMP`/`TMP` redirecionados. Saem só contagens: quantos blocos `<documento>` ficaram iguais aos da v0.4.1, quantas páginas foram ao OCR por cada regra nova, quantas páginas ganharam texto de Form, a distribuição de `fDesc` (inclusive quantas páginas caem na faixa de 0,15 a 0,30) e o tempo total antes e depois. Como não há log de diagnóstico, os números das páginas vêm de um arquivo de teste temporário, que chama as funções de estrutura direto sobre as cópias, imprime só contagens e não entra no repositório. Se a medição mostrar um limiar mal calibrado, ele é ajustado antes do PR e a tabela desta spec é atualizada.
 
 ## Escolhas do redator (não foram decididas pelo dono)
 
 1. Com o OCR desligado, as páginas das regras novas não levam marcador (o relatório de estrutura propunha `sem_ocr` mais o marcador). Motivo: a decisão "sem aviso novo" e a coerência com o M1.
-2. Os limiares (`fDesc ≥ 0,30`, `fTxt ≤ 0,10`, `fImg ≥ 0,10`, 30 palavras, 35%, 5%, 60%) são os do protótipo, medidos só em PDFs sintéticos.
-3. Na página de imagem descoberta, o texto do OCR vem primeiro e as linhas nativas que faltam vêm depois.
+2. Os limiares (`fTxt ≤ 0,10`, `fImg ≥ 0,10`, 30 palavras, 35%, 5%, 60%) são os do protótipo, medidos só em PDFs sintéticos. O de `fDesc ≥ 0,30` foi confirmado pelo dono em 2026-11-16.
+3. A ordem da página na junção (pedido do dono) é reconstruída por âncoras, com as quatro regras da seção 4. O que é escolha do redator: a âncora é a linha do OCR com mais palavras da linha nativa, e só vale para linhas do mesmo lado das imagens; sem âncora, só as linhas acima das imagens vão para o começo e o resto vai para o fim; a rotação da página (`/Rotate`) não é considerada.
 4. O lixo do OCR não é filtrado linha a linha: os dois testes existentes (`textoIlegivel` e o de língua) precisam de mais texto do que uma linha tem. Vale o teste do OCR inteiro.
 5. Form sob camada opcional (`/OC`) é ignorado sem consultar se a camada está ligada.
-6. O log de diagnóstico existe para toda página com imagem útil ou com texto de Form e leva só números.
+6. Sem o log de diagnóstico (decisão do dono), fica uma linha de log quando um Form é ignorado, com motivo fixo, no padrão das linhas que o leitor de PDF já escreve. Sem ela, um Form que não pôde ser lido some sem rastro.
 7. O caminho do segundo leitor (Poppler) recebe só o objetivo 4.
 8. Página de texto ilegível cujo OCR volta em branco passa a sair com o marcador `[texto ilegível na página: N caracteres omitidos]`, que já existe, em vez de vazia. Um documento só com páginas assim passa de "nenhum texto encontrado" para "arquivo ilegível"; continua não lido.
 9. Quando a página cumpre as duas regras novas, vale a de isca: o texto nativo é trocado pelo do OCR, em vez de juntado a ele. Juntar traria o lixo da isca de volta para o `.txt`.

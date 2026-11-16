@@ -24,6 +24,7 @@
 - Os ZIPs reais só entram na Task 7, pelo controlador, em cópias no scratchpad, e dela só saem contagens. Nenhum subagente abre arquivo real.
 - No máximo 3 subagentes ao mesmo tempo. Tarefas de implementação rodam uma por vez.
 - Decisão do dono, "só automático": nenhum aviso, marcador, botão, status ou valor de `Leitura` novo. O formato do `.txt` (PRD §6) não muda. O frontend não muda.
+- Decisões do dono de 2026-11-16: o limiar de `fDesc` fica em 0,30; não há log de diagnóstico por página (a única linha de log nova é a do Form ignorado, na Task 1); e a junção do OCR com o texto nativo tenta seguir a ordem da página (Tasks 2 e 4).
 - Uma página sem Form e sem imagem útil sai byte a byte igual à v0.4.1. Os testes existentes de `internal/etl` continuam passando sem alteração, salvo os que fixam o comportamento antigo do OCR em branco (Task 4), que são listados no relatório.
 - `go.mod` e `go.sum` não mudam. Nada entra em `internal/ocr/embed/`.
 - As linhas de log novas levam só números e textos fixos: nenhum texto de página, nome de arquivo, caminho, nome de objeto do PDF ou erro bruto.
@@ -176,12 +177,17 @@ type imagemColocada struct {
 type metricasPagina struct {
 	valida            bool // false: sem MediaBox legível, ou o texto veio do GetTextByRow
 	fImg, fTxt, fDesc float64
-	trechosForm       int
+	linhasAcima       int // linhas do texto nativo acima das imagens úteis; só a junção usa (Task 4)
 }
 
 // medirPagina é pura. Sem imagem útil devolve valida=true e as três frações em
-// zero, sem montar a grade.
+// zero, sem montar a grade. Não preenche linhasAcima.
 func medirPagina(mediaBox caixa, imagens []imagemColocada, textos []caixa) metricasPagina
+
+// linhasAcimaDasImagens conta as linhas do texto nativo (as que montarLinhas
+// emite) cuja linha de base fica na altura do topo da imagem útil mais alta,
+// ou acima dele. Pura. Sem imagem útil devolve 0.
+func linhasAcimaDasImagens(trechos []trecho, imagens []imagemColocada) int
 
 func (p passadaPagina) metricas() metricasPagina
 
@@ -214,6 +220,7 @@ func paginaSinteticaDe(t *testing.T, nome string) paginaSintetica
 - Caixa de texto: de `x` a `fimX` na largura, de `y` a `y + tamanho` na altura. Texto invisível (`Tr 3`) conta: o interpretador não distingue.
 - Grade de 48 colunas por 68 linhas sobre o MediaBox, com a origem real dele. Célula de imagem: o centro cai dentro de uma imagem útil (teste pelo inverso da CTM, para valer com espelho e giro). Célula de texto: alguma caixa de texto a toca.
 - `fImg` e `fTxt`: fração de células de imagem e de texto. `fDesc`: fração de células de imagem sem célula de texto a até uma célula de distância (as 8 vizinhas e ela mesma).
+- Linhas acima das imagens: o topo de uma imagem é o maior Y dos quatro cantos do quadrado unitário levados pela CTM; vale a imagem útil de topo mais alto. Conta as linhas cuja linha de base (`y` do trecho) é maior ou igual a esse topo. O agrupamento em linhas é o mesmo de `montarLinhas` (tire-o para uma função comum, em vez de copiá-lo), e só contam as linhas que `montarLinhas` emite, para que o número case com as primeiras linhas do texto. `metricas()` preenche `linhasAcima`; com `valida == false` ele fica 0.
 - `valida = false` quando não há MediaBox legível, e em `extrairNativoSeguro` quando o texto veio do `GetTextByRow` ou a extração posicional falhou.
 - Esta tarefa não muda o comportamento: `analisarPagina` continua chamando `ExtractNativeText`.
 
@@ -232,9 +239,10 @@ func paginaSinteticaDe(t *testing.T, nome string) paginaSintetica
 | `digitalizado-camada-ocr` | imagem de página inteira, texto `3 Tr` sobre ela | 1,00 | 0,55 | 0,39 | não | não |
 | `peticao-print` | texto mais imagem de 400×300 pt | 0,24 | 0,25 | 0,24 | não | não |
 | `comprovante-codigos` | rótulos em português, códigos, imagem de 25% da página ao lado do texto | ≥ 0,10 | > 0,10 | (livre) | não | não |
-| `legenda-imagem-direta` | legenda de 2 linhas mais imagem (`Do` na página) | 0,96 | 0,02 | 0,95 | sim | não |
+| `legenda-imagem-direta` | imagem (`Do` na página) e, embaixo dela, legenda de 2 linhas | 0,96 | 0,02 | 0,95 | sim | não |
 | `legenda-imagem-form` | a mesma, com a imagem dentro de um Form | 0,96 | 0,02 | 0,95 | sim | não |
 | `legenda-imagem-inline` | a mesma, com imagem inline em hexadecimal | 0,96 | 0,02 | 0,95 | sim | não |
+| `legenda-acima-imagem` | legenda de 2 linhas no topo (linhas de base em y = 800 e 780) e, embaixo, imagem `595 0 0 700 0 0 cm` | 0,84 | 0,02 | 0,84 | sim | não |
 | `carimbo-sobre-digitalizacao` | imagem de página inteira, carimbo de 2 linhas | 1,00 | 0,01 | 0,97 | sim | não |
 | `mosaico-legenda` | 237 imagens pequenas mais legenda de 2 linhas | 0,42 | 0,02 | 0,42 | sim | não |
 | `mosaico-legenda-curta` | o mosaico, com legenda de menos de 100 bytes | 0,42 | ≤ 0,02 | 0,42 | sim | não |
@@ -243,7 +251,7 @@ func paginaSinteticaDe(t *testing.T, nome string) paginaSintetica
 | `isca-preta` | a mesma, em preto | ≥ 0,10 | (livre) | (livre) | (livre) | sim |
 | `isca-linhas` | a mesma, em linhas regulares | ≥ 0,10 | (livre) | (livre) | (livre) | sim |
 
-Os números vêm da tabela da spec; o teste aceita ±0,05 em cada um. "(livre)" não é conferido. O campo `isca` é só o esperado: quem o confere é a Task 5.
+Os números vêm da tabela da spec (os de `legenda-acima-imagem` foram calculados para este plano); o teste aceita ±0,05 em cada um. "(livre)" não é conferido. O campo `isca` é só o esperado: quem o confere é a Task 5. Nas três `legenda-imagem-*` e nos dois mosaicos a legenda fica embaixo das imagens, como no protótipo (`referencia/gerar_pdfs.py`); o carimbo e as 3 linhas do timbre ficam sobre a imagem de página inteira, abaixo do topo dela. Só `legenda-acima-imagem` tem linhas acima das imagens. Nenhuma legenda, carimbo ou linha de timbre usa as palavras `texto`, `lido`, `pelo`, `ocr`, `linha`, `um`, `dois`, `imagem`: a Task 6 usa um OCR falso com essas palavras e precisa que as linhas nativas contem como ausentes.
 
 - [ ] **Passo 1: escrever os testes que falham**
 
@@ -262,6 +270,18 @@ Em `pdf_estrutura_test.go`, sobre `medirPagina` (sem PDF), com MediaBox `caixa{0
 | `TestMedir_OrigemDeslocada` | MediaBox `{100, 100, 695, 942}`; CTM `{595, 0, 0, 842, 100, 100}` | `fImg` ≥ 0,99 |
 | `TestMedir_ImagemParteFora` | imagem que começa em x = 297 e vai até x = 1190 | `fImg` entre 0,48 e 0,52 |
 
+`TestLinhasAcima`, tabela sobre `linhasAcimaDasImagens` (imagens de 1240×877 px salvo indicação; um trecho por linha salvo indicação):
+
+| caso | imagens (CTM) | linhas de base (y) | esperado |
+|---|---|---|---|
+| sem imagem | nenhuma | 800, 780, 700 | 0 |
+| imagem na metade de baixo | `{595, 0, 0, 421, 0, 0}` | 800, 780, 700, 300, 100 | 3 |
+| linha de base no topo exato | a mesma | 421, 300 | 1 |
+| espelhada | `{595, 0, 0, -421, 0, 421}` | 800, 780, 700, 300, 100 | 3 |
+| duas imagens (topos em 421 e 600) | `{595, 0, 0, 421, 0, 0}` e `{200, 0, 0, 100, 0, 500}` (413×207 px) | 800, 780, 700, 500, 300 | 3 |
+| imagem inútil | 1×1 px com `{595, 0, 0, 842, 0, 0}` | 800, 780 | 0 |
+| dois trechos na mesma linha | `{595, 0, 0, 421, 0, 0}` | 800 (dois trechos, x = 72 e x = 300), 300 | 1 |
+
 Em `pdf_sinteticos_test.go`:
 
 ```go
@@ -274,13 +294,15 @@ func TestSinteticas_Metricas(t *testing.T) {
 }
 ```
 
-Mais `TestExtrairNativoSeguro_IgualAoExtractNativeText` (para toda página sintética o texto das duas funções é idêntico) e `TestExtrairNativoSeguro_SemMediaBoxNaoEValida` (a página `legenda-imagem-direta` sem `/MediaBox`: `valida == false`, texto igual).
+Mais `TestExtrairNativoSeguro_IgualAoExtractNativeText` (para toda página sintética o texto das duas funções é idêntico) e `TestExtrairNativoSeguro_SemMediaBoxNaoEValida` (a página `legenda-imagem-direta` sem `/MediaBox`: `valida == false`, `linhasAcima == 0`, texto igual).
+
+`TestSinteticas_LinhasAcima`: `linhasAcima == 2` em `legenda-acima-imagem`; `== 0` em todas as outras páginas `candidataImagem`; e, em toda página sintética, `linhasAcima` não passa do número de linhas não vazias do texto.
 
 - [ ] **Passo 2: rodar e ver falhar**
 
-`go test ./internal/etl -run 'TestMedir_|TestSinteticas_|TestExtrairNativoSeguro_' -v`. Esperado: não compila; com cascas, `TestMedir_PaginaInteira` falha com `fImg = 0`.
+`go test ./internal/etl -run 'TestMedir_|TestLinhasAcima|TestSinteticas_|TestExtrairNativoSeguro_' -v`. Esperado: não compila; com cascas, `TestMedir_PaginaInteira` falha com `fImg = 0`.
 
-- [ ] **Passo 3: implementar** `medirPagina`, `metricas`, o registro das imagens no interpretador, `extrairNativo` e `extrairNativoSeguro`
+- [ ] **Passo 3: implementar** `medirPagina`, `linhasAcimaDasImagens`, `metricas`, o registro das imagens no interpretador, `extrairNativo` e `extrairNativoSeguro`
 
 `textoPosicionalSeguro` pode mudar de assinatura para devolver as métricas (só `ExtractNativeText` a chama). `ExtractNativeText` e `extrairTextoPosicional` mantêm a assinatura.
 
@@ -388,9 +410,10 @@ const (
 )
 
 type ocrTask struct {
-	pageNum  int
-	fallback string // a reserva: o texto nativo, ou o marcador de ilegível
-	motivo   motivoOCR
+	pageNum     int
+	fallback    string // a reserva: o texto nativo, ou o marcador de ilegível
+	motivo      motivoOCR
+	linhasAcima int // quantas das primeiras linhas da reserva ficam acima das imagens (Task 2); só a junção usa
 }
 
 const juncaoMinPresenca = 0.60
@@ -398,17 +421,27 @@ const juncaoMinPresenca = 0.60
 // conteudoAposOCR decide o conteúdo de uma página cujo OCR terminou sem erro.
 func conteudoAposOCR(task ocrTask, ocrText string) (content string, ocr bool)
 
-// juntarOCRComNativo devolve o texto do OCR e, depois de uma linha em branco,
-// as linhas de nativo que o OCR não trouxe, na ordem em que estavam.
-func juntarOCRComNativo(ocrText, nativo string) string
+// juntarOCRComNativo devolve o texto do OCR com as linhas de nativo que o OCR
+// não trouxe encaixadas na ordem da página: junto da linha do OCR que casa com
+// a linha nativa vizinha, ou, sem vizinha, antes do texto do OCR (linha acima
+// das imagens) ou depois dele. linhasAcima diz quantas das primeiras linhas de
+// nativo ficam acima das imagens. Nenhuma linha de nativo é perdida.
+func juntarOCRComNativo(ocrText, nativo string, linhasAcima int) string
 ```
 
 **Regras (da spec, seção 4):**
 - `conteudoAposOCR`:
   - sem reserva (`task.fallback == ""`): `(ocrText, true)`, qualquer que seja o texto, como hoje;
   - com reserva e OCR em branco (`strings.TrimSpace(ocrText) == ""`) ou reprovado por `textoIlegivel`: `(task.fallback, false)`;
-  - com reserva e OCR aproveitável: `motivoPadrao`, `motivoIlegivel` e `motivoIsca` devolvem `(ocrText, true)`; `motivoImagemDescoberta` devolve `(juntarOCRComNativo(ocrText, task.fallback), true)`.
-- `juntarOCRComNativo`: o conjunto de palavras do OCR são os pedaços de letras e dígitos com 3 caracteres ou mais, passados por `normalizarPalavra`. Uma linha nativa (sem espaços nas pontas, não vazia) está presente se 60% ou mais das suas palavras de 3 caracteres ou mais estão no conjunto. Linha sem nenhuma palavra dessas está presente se o texto dela aparece no texto do OCR. Sem linha faltando, devolve `ocrText` sem mudança. Com linhas faltando: `ocrText` sem o espaço do fim, uma linha em branco, e as linhas que faltam, uma por linha.
+  - com reserva e OCR aproveitável: `motivoPadrao`, `motivoIlegivel` e `motivoIsca` devolvem `(ocrText, true)`; `motivoImagemDescoberta` devolve `(juntarOCRComNativo(ocrText, task.fallback, task.linhasAcima), true)`.
+- `juntarOCRComNativo`, presença: as palavras de um texto são os pedaços de letras e dígitos com 3 caracteres ou mais, passados por `normalizarPalavra`. As linhas nativas são as linhas de `nativo` sem espaços nas pontas e não vazias, numeradas de 0. Uma linha nativa está presente se 60% ou mais das suas palavras (contadas com repetição; compare com inteiros, `presentes*100 >= total*60`) estão no conjunto de palavras do OCR. Linha sem nenhuma palavra está presente se o texto dela aparece no texto do OCR. Sem linha faltando, devolve `ocrText` sem mudança nenhuma.
+- `juntarOCRComNativo`, âncora e lado: as linhas do OCR são `ocrText` sem o espaço do fim, cortado em `\n` (as linhas vazias do meio ficam). A âncora de uma linha nativa presente é a linha do OCR com mais palavras distintas dela; no empate, a primeira. Para a linha presente sem palavras, é a primeira linha do OCR que contém o texto dela. A linha nativa `i` está acima das imagens se `i < linhasAcima`; senão, abaixo.
+- `juntarOCRComNativo`, encaixe: cada linha nativa que falta, na ordem em que estava, vai para o primeiro destino que valer:
+  1. logo depois da âncora da linha nativa presente mais próxima antes dela, se as duas estão do mesmo lado;
+  2. no começo, antes do texto do OCR, se ela está acima das imagens;
+  3. logo antes da âncora da próxima linha nativa presente;
+  4. no fim, depois do texto do OCR.
+- `juntarOCRComNativo`, montagem: o bloco do começo, uma linha em branco, as linhas do OCR com os encaixes, uma linha em branco, o bloco do fim; bloco vazio não deixa linha em branco. As linhas encaixadas no meio não levam linha em branco. Várias linhas no mesmo ponto ficam na ordem nativa, e as que vão depois da linha `A` do OCR saem antes das que vão antes da linha `A+1`. Uma forma simples: duas listas por linha do OCR, `antes` e `depois`.
 - `registrarOCR`, no ramo sem erro, grava `content` e `ocr` vindos de `conteudoAposOCR`. O ramo de erro não muda (`ocr_erro`, `ocr_prazo`, a reserva).
 - Nesta tarefa ninguém ainda preenche `motivo` com as regras novas: `analisarPagina` muda na Task 5.
 
@@ -416,24 +449,30 @@ func juntarOCRComNativo(ocrText, nativo string) string
 
 `TestJuntar`, tabela:
 
-| OCR | nativo | resultado |
-|---|---|---|
-| `PETICAO INICIAL\nFULANO DE TAL requer` | `Petição inicial` | igual ao OCR |
-| `TEXTO DA IMAGEM` | `Figura 1: fachada do imóvel` | `TEXTO DA IMAGEM\n\nFigura 1: fachada do imóvel` |
-| `alfa beta gama` | `alfa beta gama delta epsilon` (3 de 5) | igual ao OCR |
-| `alfa beta` | `alfa beta gama delta epsilon` (2 de 5) | OCR, linha em branco, a linha nativa |
-| `Página 12 de 40` | `12` | igual ao OCR |
-| `Texto qualquer` | `12` | `Texto qualquer\n\n12` |
-| `TEXTO\n\n` | `linha um aqui\nlinha dois aqui` | `TEXTO\n\nlinha um aqui\nlinha dois aqui` |
-| `TEXTO` | `` (vazio) | igual ao OCR |
+| OCR | nativo | acima | resultado |
+|---|---|---|---|
+| `PETICAO INICIAL\nFULANO DE TAL requer` | `Petição inicial` | 0 | igual ao OCR |
+| `TEXTO DA IMAGEM` | `Figura 1: fachada do imóvel` | 0 | `TEXTO DA IMAGEM\n\nFigura 1: fachada do imóvel` |
+| `TEXTO DA IMAGEM` | `Figura 1: fachada do imóvel` | 1 | `Figura 1: fachada do imóvel\n\nTEXTO DA IMAGEM` |
+| `alfa beta gama` | `alfa beta gama delta epsilon` (3 de 5) | 0 | igual ao OCR |
+| `alfa beta` | `alfa beta gama delta epsilon` (2 de 5) | 0 | `alfa beta\n\nalfa beta gama delta epsilon` |
+| `Página 12 de 40` | `12` | 0 | igual ao OCR |
+| `Texto qualquer` | `12` | 0 | `Texto qualquer\n\n12` |
+| `TEXTO\n\n` | `linha um aqui\nlinha dois aqui` | 0 | `TEXTO\n\nlinha um aqui\nlinha dois aqui` |
+| `TEXTO` | `` (vazio) | 0 | igual ao OCR |
+| `CABECALHO DO DOCUMENTO\nTEXTO DA IMAGEM\nRODAPE FINAL` | `Cabeçalho do documento\nlinha que o OCR perdeu\noutra linha perdida` | 3 | `CABECALHO DO DOCUMENTO\nlinha que o OCR perdeu\noutra linha perdida\nTEXTO DA IMAGEM\nRODAPE FINAL` (regra 1) |
+| `CABECALHO DO DOCUMENTO\nTEXTO DA IMAGEM` | `Cabeçalho do documento\nlegenda embaixo da figura` | 1 | `CABECALHO DO DOCUMENTO\nTEXTO DA IMAGEM\n\nlegenda embaixo da figura` (lados diferentes: regra 4) |
+| `TEXTO DA IMAGEM\nASSINATURA DIGITAL DO CARTORIO` | `selo perdido pelo leitor\nAssinatura digital do cartório` | 0 | `TEXTO DA IMAGEM\nselo perdido pelo leitor\nASSINATURA DIGITAL DO CARTORIO` (regra 3) |
+| `alfa beta\nalfa beta gama\ndelta` | `alfa beta gama\nfalta esta linha` | 0 | `alfa beta\nalfa beta gama\nfalta esta linha\ndelta` (a âncora é a linha com mais palavras) |
+| `RODAPE FINAL\nCABECALHO DO DOCUMENTO` | `Cabeçalho do documento\nfalta no topo\nfalta embaixo\nRodapé final` | 2 | `falta embaixo\nRODAPE FINAL\nCABECALHO DO DOCUMENTO\nfalta no topo` (OCR fora de ordem: `falta no topo` pela regra 1, depois da âncora do cabeçalho; `falta embaixo` pela regra 3, antes da âncora do rodapé, que é a primeira linha do OCR, sem linha em branco porque é encaixe e não bloco do começo) |
 
-`TestJuntar_NuncaPerdeLinhaNativa`: com um OCR sem nenhuma palavra em comum, toda linha não vazia de um nativo de 6 linhas aparece inteira no resultado, na mesma ordem, depois do texto do OCR.
+`TestJuntar_NuncaPerdeLinhaNativa`: com o OCR `XXXX YYYY\nZZZZ WWWW` (nenhuma palavra em comum) e um nativo de 6 linhas, para `linhasAcima` 0, 2 e 6: o resultado é as primeiras `linhasAcima` linhas nativas, uma linha em branco, o OCR, uma linha em branco e as demais, na ordem (sem a linha em branco do lado vazio). E uma propriedade, sobre todas as linhas da tabela de `TestJuntar` e sobre estes casos: toda linha nativa está presente ou aparece inteira, como linha, no resultado; e as linhas do OCR aparecem todas, na ordem do OCR.
 
 `TestConteudoAposOCR`, para cada motivo com reserva `"RESERVA NATIVA da página"`:
 
 | OCR | esperado |
 |---|---|
-| `"TEXTO BOM DO OCR"` | padrão, ilegível e isca: `("TEXTO BOM DO OCR", true)`; imagem descoberta: `("TEXTO BOM DO OCR\n\nRESERVA NATIVA da página", true)` |
+| `"TEXTO BOM DO OCR"` | padrão, ilegível e isca: `("TEXTO BOM DO OCR", true)`; imagem descoberta com `linhasAcima` 0: `("TEXTO BOM DO OCR\n\nRESERVA NATIVA da página", true)`; com `linhasAcima` 1: `("RESERVA NATIVA da página\n\nTEXTO BOM DO OCR", true)` |
 | `""`, `"  \n\t"`, `"\f"`, `"\n\f\n"` | `("RESERVA NATIVA da página", false)` em todos os motivos |
 | um texto que `textoIlegivel` reprova (o teste confere essa premissa antes) | `("RESERVA NATIVA da página", false)` em todos |
 
@@ -442,7 +481,7 @@ E sem reserva (`fallback: ""`), em todos os motivos: OCR `"X"` dá `("X", true)`
 `TestParsePages_OCREmBrancoMantemAReserva` (por `parsePagesWithDeadline`, com `pdfTextoCurtoEImagem` e um OCR falso que devolve `""`): o conteúdo da página é o texto nativo curto, `ocr == false`, sem `ocr_erro`. `TestParsePages_OCRComErroSegueComoHoje`: OCR falso que devolve erro; conteúdo é a reserva e `ocr_erro` está preenchido. Um teste pelo caminho do segundo leitor (com `trocarPoppler` e falsos, como os testes existentes desse caminho): página com texto curto e OCR em branco mantém o texto.
 
 - [ ] **Passo 2: rodar e ver falhar** (`go test ./internal/etl -run 'TestJuntar|TestConteudoAposOCR|TestParsePages_OCR' -v`)
-- [ ] **Passo 3: implementar** `pdf_juncao.go`, o campo `motivo` e a chamada em `registrarOCR`
+- [ ] **Passo 3: implementar** `pdf_juncao.go`, os campos `motivo` e `linhasAcima` de `ocrTask` e a chamada em `registrarOCR`
 - [ ] **Passo 4: rodar e ver passar**, depois o gate. Se um teste existente quebrar por fixar o OCR em branco substituindo a reserva, atualize-o para o comportamento novo e liste no relatório; qualquer outra quebra é para investigar.
 - [ ] **Passo 5: commit**
 
@@ -457,7 +496,7 @@ E sem reserva (`fallback: ""`), em todos os motivos: OCR `"X"` dá `("X", true)`
 - Criar: `internal/etl/pdf_regras.go`, `internal/etl/pdf_regras_test.go`
 
 **Interfaces:**
-- Consome: `extrairNativoSeguro`, `metricasPagina` (Task 2); `contarLingua`, `contagemLingua` (Task 3); `motivoOCR`, `ocrTask.motivo` (Task 4); `paginasSinteticas`, `primeiraPagina`.
+- Consome: `extrairNativoSeguro`, `metricasPagina` (com `linhasAcima`; Task 2); `contarLingua`, `contagemLingua` (Task 3); `motivoOCR`, `ocrTask.motivo`, `ocrTask.linhasAcima` (Task 4); `paginasSinteticas`, `primeiraPagina`.
 - Produz:
 
 ```go
@@ -471,27 +510,20 @@ const (
 // Isca vem antes de imagem descoberta. Com m.valida == false devolve false.
 func regraNova(m metricasPagina, c contagemLingua) (motivoOCR, bool)
 
-// linhaDiagnostico monta a linha de log da página: só números e a decisão.
-func linhaDiagnostico(pageNum, bytesNativo int, m metricasPagina, c contagemLingua, decisao string) string
-
-// analisePagina ganha o campo:  motivo motivoOCR
+// analisePagina ganha os campos:
+//	motivo      motivoOCR
+//	linhasAcima int // de metricasPagina; só importa quando motivo == motivoImagemDescoberta
 ```
 
-**Regras (da spec, seções 2, 3, "OCR desligado" e "Log de diagnóstico"):**
+**Regras (da spec, seções 2, 3, "OCR desligado" e "Log"):**
 - `analisarPagina` passa a chamar `extrairNativoSeguro`. A ordem das regras:
   1. texto ilegível (como hoje), com `motivo = motivoIlegivel`;
   2. texto com menos de 100 bytes e imagem grande ou desenho vetorial (como hoje), com `motivoPadrao`;
   3. se nenhuma das duas mandou ao OCR: `regraNova`. Isca: `m.fImg >= 0,10` e `c.isca()`. Imagem descoberta: `m.fDesc >= 0,30` e `m.fTxt <= 0,10`.
 - `contarLingua` só roda quando `m.valida` e `m.fImg >= 0,10`; fora disso a contagem é zero.
 - Com o OCR desligado, as regras novas não mudam nada: `precisaOcr` e `semOcr` ficam falsos e o texto nativo fica. As regras 1 e 2 seguem como hoje.
-- Quando a regra nova manda ao OCR, a reserva (`an.texto`) é o texto nativo, e `ParsePages` passa `motivo: an.motivo` para `d.agendar`.
-- Log: quando `m.valida` e (`m.fImg > 0` ou `m.trechosForm > 0`), uma linha `linhaDiagnostico`, neste formato exato:
-
-```
-[PDFParser] Estrutura da página 3: nativo=1532 fImg=0.96 fTxt=0.02 fDesc=0.95 trechosForm=0 palavras=0 implausiveis=0 funcionais=0 decisao=ocr_imagem_descoberta
-```
-
-  Decisões: `nativo`, `ocr_ilegivel`, `ocr_curto`, `ocr_imagem_descoberta`, `ocr_isca`, `ocr_desligado` (alguma regra mandaria ao OCR, e ele está desligado).
+- Quando a regra nova manda ao OCR, a reserva (`an.texto`) é o texto nativo, e `ParsePages` passa `motivo: an.motivo` e `linhasAcima: an.linhasAcima` para `d.agendar`. `an.linhasAcima` vem de `m.linhasAcima`.
+- Nenhuma linha de log nova nesta tarefa (decisão do dono): as linhas de log que `analisarPagina` já tem ficam como estão, com o mesmo texto. O revisor confere no diff que nenhuma chamada de `log.` foi acrescentada.
 
 - [ ] **Passo 1: escrever os testes que falham** em `pdf_regras_test.go`
 
@@ -513,13 +545,12 @@ func linhaDiagnostico(pageNum, bytesNativo int, m metricasPagina, c contagemLing
 - `p.isca`: `precisaOcr` e `motivo == motivoIsca`;
 - `p.candidataImagem` e não isca: `precisaOcr` e `motivo == motivoImagemDescoberta`;
 - as demais (inclusive `comprovante-codigos`): `!precisaOcr`;
-- em todas, `!semOcr` e `an.texto` igual ao texto de `ExtractNativeText` sem espaços nas pontas.
+- em todas, `!semOcr` e `an.texto` igual ao texto de `ExtractNativeText` sem espaços nas pontas;
+- `an.linhasAcima == 2` em `legenda-acima-imagem` e `== 0` em `legenda-imagem-direta`.
 
 `TestAnalisarPagina_SinteticasComOCRDesligado`: para as páginas `isca` ou `candidataImagem`, com `ocrEnabled = false`: `!precisaOcr`, `!semOcr`, texto nativo igual.
 
-`TestLinhaDiagnostico_SoNumeros`: a linha de uma chamada com valores conhecidos é exatamente a do formato acima; e a linha casa com `^\[PDFParser\] Estrutura da página \d+: ( ?[a-zA-Z]+=[0-9a-z_.]+)+$`.
-
-- [ ] **Passo 2: rodar e ver falhar** (`go test ./internal/etl -run 'TestRegraNova|TestAnalisarPagina_|TestLinhaDiagnostico' -v`)
+- [ ] **Passo 2: rodar e ver falhar** (`go test ./internal/etl -run 'TestRegraNova|TestAnalisarPagina_' -v`)
 - [ ] **Passo 3: implementar** `pdf_regras.go` e as mudanças em `pdf_parser.go`
 - [ ] **Passo 4: rodar e ver passar**, depois o gate. `TestPipeline_SemOCR_TextoNativoCurtoComImagemContaComoLido` e os demais testes existentes passam sem mudança.
 - [ ] **Passo 5: commit**
@@ -545,7 +576,8 @@ O OCR falso devolve `"TEXTO LIDO PELO OCR linha um\nTEXTO LIDO PELO OCR linha do
 | teste | páginas | afirma |
 |---|---|---|
 | `TestConteudoPerdido_ControlesNaoVaoAoOCR` | as que não são `isca` nem `candidataImagem` | o OCR falso não é chamado; o conteúdo da página é o texto de `extrairComPrazo`; `ocr == false` |
-| `TestConteudoPerdido_ImagemDescobertaJuntaOCRENativo` | `candidataImagem` e não `isca` | 1 chamada; o conteúdo começa com o texto do OCR; cada linha nativa aparece depois dele; `ocr == true` |
+| `TestConteudoPerdido_ImagemDescobertaJuntaOCRENativo` | `candidataImagem` e não `isca` | 1 chamada; `ocr == true`; o conteúdo é exatamente o texto do OCR, uma linha em branco e o texto nativo; em `legenda-acima-imagem` é o texto nativo, uma linha em branco e o texto do OCR |
+| `TestConteudoPerdido_LinhaQueFaltaVaiParaJuntoDaVizinha` | `legenda-acima-imagem`, com um OCR falso que devolve a primeira linha da legenda (lida do texto nativo da página) e, na linha seguinte, `CONTEUDO DA FIGURA` | o conteúdo é a primeira linha da legenda, a segunda linha da legenda e `CONTEUDO DA FIGURA`, uma por linha, sem linha em branco |
 | `TestConteudoPerdido_TimbreTresLinhasMantemONativo` | `timbre-3-linhas` | 1 chamada (falso positivo documentado); as 3 linhas nativas estão no conteúdo |
 | `TestConteudoPerdido_IscaTrocaPeloOCR` | as três iscas | 1 chamada; o conteúdo é exatamente o texto do OCR; nenhuma das palavras aleatórias aparece |
 | `TestConteudoPerdido_OCREmBrancoMantemONativo` | `isca` ou `candidataImagem`, com OCR falso que devolve `"\n\f"` | conteúdo igual ao texto nativo; `ocr == false`; sem `ocr_erro` |
@@ -571,9 +603,9 @@ Esta tarefa é da sessão principal. Não é despachada: lê os ZIPs reais do do
 
 - [ ] **Passo 0 (antes da Task 1):** com a máquina sem outros agentes, `go test ./scripts/bench -run '^$' -bench 'ParsePDF|Sintetico' -count=10 -benchmem`, guardado em `.superpowers/sdd/2026-11-15-conteudo-perdido/bench-antes.txt`.
 - [ ] **Passo 1: desempenho.** O mesmo comando depois da Task 6, em `bench-depois.txt`, e `go tool benchstat bench-antes.txt bench-depois.txt`. Critério: `ParsePDF/nativo`, `ParsePDF/contents-array` e `Sintetico` não ficam mais de 5% piores (com p < 0,05). Se ficarem, uma rodada de conserto com o número na mão, antes de seguir.
-- [ ] **Passo 2: medição real.** Com o harness de medição da v0.4.1 (scratchpad), sobre cópias dos três ZIPs do dono, com `TEMP`/`TMP` redirecionados: a `main` e a branch, OCR ligado. Saem só contagens: blocos `<documento>` iguais aos da v0.4.1; páginas por decisão (das linhas `Estrutura da página`); páginas com `trechosForm > 0`; distribuição de `fDesc`, com a faixa de 0,15 a 0,30 à parte; tempo total antes e depois.
+- [ ] **Passo 2: medição real.** Com o harness de medição da v0.4.1 (scratchpad), sobre cópias dos três ZIPs do dono, com `TEMP`/`TMP` redirecionados: a `main` e a branch, OCR ligado. Saem só contagens. Do harness: blocos `<documento>` iguais aos da v0.4.1 e tempo total antes e depois. De um arquivo de teste temporário, que fica no scratchpad, é copiado para `internal/etl` só durante a medição e não entra no repositório (não há log de diagnóstico de onde tirar estes números): chama `extrairNativoSeguro`, `contarLingua` e `regraNova` em cada página e imprime páginas por decisão, páginas com texto de Form (`interpretarPagina(...).trechosForm > 0`) e a distribuição de `fDesc`, com a faixa de 0,15 a 0,30 à parte. Nenhum texto de página, nome de arquivo ou caminho sai.
 - [ ] **Passo 3: limiares.** Se a medição mostrar um limiar mal calibrado, ajustar a constante, o teste e a tabela da spec, e medir de novo.
-- [ ] **Passo 4: documentação.** `CLAUDE.md`: o passo 3 da pipeline (as regras de OCR), o Form XObject, a junção, o log de números e as armadilhas novas. `PRD.md` RF06: quando o OCR é aplicado. Residuais: M2 resolvido, com o commit.
+- [ ] **Passo 4: documentação.** `CLAUDE.md`: o passo 3 da pipeline (as regras de OCR), o Form XObject, a junção na ordem da página e as armadilhas novas. `PRD.md` RF06: quando o OCR é aplicado. Residuais: M2 resolvido, com o commit.
 - [ ] **Passo 5: gate.** `pwsh scripts/build/gate.ps1`.
 - [ ] **Passo 6: commit** `docs: páginas de conteúdo perdido (CLAUDE.md, PRD RF06, residuais)`.
 - [ ] **Passo 7: revisão final** da branch inteira por um revisor novo, no modelo mais capaz; uma rodada de conserto; depois perguntar ao dono, no Pinboard, como integrar. Push, PR, `productVersion` 0.4.2 e release (skill `eprocia-release`) só quando o dono mandar.
