@@ -469,15 +469,15 @@ func fontesLegiveis(page pdf.Page) bool {
 	return true
 }
 
-// textoPosicionalSeguro roda extrairTextoPosicional com o pânico confinado,
-// para que ExtractNativeText ainda possa voltar ao GetTextByRow.
-func textoPosicionalSeguro(page pdf.Page) (text string, err error) {
+// textoPosicionalSeguro roda extrairNativo com o pânico confinado, para que
+// extrairNativoSeguro ainda possa voltar ao GetTextByRow.
+func textoPosicionalSeguro(page pdf.Page) (text string, m metricasPagina, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			text, err = "", fmt.Errorf("pânico no extrator posicional: %v", r)
+			text, m, err = "", metricasPagina{}, fmt.Errorf("pânico no extrator posicional: %v", r)
 		}
 	}()
-	return extrairTextoPosicional(page)
+	return extrairNativo(page)
 }
 
 // ExtractNativeText extracts plain text from a pdf.Page with extrairTextoPosicional,
@@ -485,23 +485,33 @@ func textoPosicionalSeguro(page pdf.Page) (text string, err error) {
 // Pages the PDF library cannot interpret yield an error (never a hang or a panic),
 // so the caller treats them as having no native text and may fall back to OCR.
 func ExtractNativeText(page pdf.Page) (text string, err error) {
+	text, _, err = extrairNativoSeguro(page)
+	return text, err
+}
+
+// extrairNativoSeguro é ExtractNativeText mais as métricas da estrutura da
+// página. As métricas não são válidas quando o texto veio do GetTextByRow
+// (então formsIgnorados ainda vem da passada, que não falhou), quando a
+// extração posicional falhou ou deu erro (tudo zerado) e quando a página
+// não tem MediaBox legível.
+func extrairNativoSeguro(page pdf.Page) (text string, m metricasPagina, err error) {
 	// The library panics on unsupported filters and malformed objects; this runs
 	// in a per-document goroutine, where an unrecovered panic kills the app.
 	defer func() {
 		if r := recover(); r != nil {
-			text, err = "", fmt.Errorf("pânico na extração de texto nativo: %v", r)
+			text, m, err = "", metricasPagina{}, fmt.Errorf("pânico na extração de texto nativo: %v", r)
 		}
 	}()
 
 	unico, err := checkContentStream(page)
 	if err != nil {
 		log.Printf("[PDFParser] Extração nativa ignorada: %v", err)
-		return "", err
+		return "", metricasPagina{}, err
 	}
 
-	text, errPos := textoPosicionalSeguro(page)
+	text, m, errPos := textoPosicionalSeguro(page)
 	if errPos == nil && strings.TrimSpace(text) != "" {
-		return text, nil
+		return text, m, nil
 	}
 	if errPos != nil {
 		log.Printf("[PDFParser] Extrator posicional falhou: %v", errPos)
@@ -509,9 +519,11 @@ func ExtractNativeText(page pdf.Page) (text string, err error) {
 	if !unico || !fontesLegiveis(page) {
 		// GetTextByRow gira para sempre num /Contents em array e num /ToUnicode
 		// ilegível, que ele interpreta sem validar.
-		return "", errPos
+		return "", m, errPos
 	}
 
+	// Daqui em diante o texto vem do GetTextByRow: sem estrutura.
+	m = metricasPagina{formsIgnorados: m.formsIgnorados}
 	log.Printf("[PDFParser] Chamando page.GetTextByRow()...")
 	// Não há fallback para GetPlainText: na v0.0.2 o recover de GetTextByRow
 	// não chega ao retorno (resultados sem nome), então err é sempre nil e um
@@ -519,7 +531,7 @@ func ExtractNativeText(page pdf.Page) (text string, err error) {
 	rows, err := page.GetTextByRow()
 	if err != nil {
 		log.Printf("[PDFParser] GetTextByRow() retornou erro: %v", err)
-		return "", err
+		return "", m, err
 	}
 
 	log.Printf("[PDFParser] GetTextByRow() encontrou %d linhas de texto.", len(rows))
@@ -534,7 +546,7 @@ func ExtractNativeText(page pdf.Page) (text string, err error) {
 			sb.WriteString("\n")
 		}
 	}
-	return sb.String(), nil
+	return sb.String(), m, nil
 }
 
 // HasImages checks if a page contains any image XObject of significant resolution.

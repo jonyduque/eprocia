@@ -52,6 +52,23 @@ func (m matriz) vezes(n matriz) matriz {
 
 func translacao(tx, ty float64) matriz { return matriz{1, 0, 0, 1, tx, ty} }
 
+// matrizDe lê uma matriz [a b c d e f]. Devolve false quando não são 6
+// números (quem chama a trata como ausente).
+func matrizDe(v pdf.Value) (matriz, bool) {
+	var m matriz
+	if v.Kind() != pdf.Array || v.Len() != len(m) {
+		return m, false
+	}
+	for i := range m {
+		e := v.Index(i)
+		if e.Kind() != pdf.Integer && e.Kind() != pdf.Real {
+			return m, false
+		}
+		m[i] = e.Float64()
+	}
+	return m, true
+}
+
 func matrizDosArgs(args []pdf.Value) matriz {
 	var m matriz
 	for i := range m {
@@ -183,8 +200,9 @@ func (m motivoFormIgnorado) String() string {
 
 // passadaPagina é o que uma passada pelos operadores da página produz.
 type passadaPagina struct {
-	trechos     []trecho // da página e dos Forms, em coordenadas da página
-	trechosForm int      // quantos vieram de Form, depois das proteções
+	trechos     []trecho         // da página e dos Forms, em coordenadas da página
+	trechosForm int              // quantos vieram de Form, depois das proteções
+	imagens     []imagemColocada // da página e dos Forms, no máximo imagensMaxPorPagina
 	mediaBox    caixa
 	temMediaBox bool
 	// formsIgnorados conta os Forms não interpretados, por motivo. Form em
@@ -210,6 +228,7 @@ type estadoForm struct {
 type interpretador struct {
 	estadoForm
 	trechos        []trecho
+	imagens        []imagemColocada
 	formsVistos    int
 	formsIgnorados [numMotivosForm]int
 }
@@ -346,17 +365,54 @@ func (it *interpretador) operador(stk *pdf.Stack, op string) {
 		if n == 1 {
 			it.fazerDo(args[0].Name())
 		}
+	case "ID":
+		// A biblioteca entrega o dicionário da imagem inline (BI … ID) como
+		// pares nome-valor antes do ID; os dados até o EI viram operadores
+		// que ninguém trata.
+		var w, h pdf.Value
+		for i := 0; i+1 < n; i += 2 {
+			switch args[i].Name() {
+			case "W", "Width":
+				w = args[i+1]
+			case "H", "Height":
+				h = args[i+1]
+			}
+		}
+		it.registrarImagem(w, h)
 	}
 }
 
-// fazerDo interpreta o XObject nome quando é um Form. Imagem, nome que não
-// existe nos recursos, Form em camada opcional e Do dentro de um trecho /OC
-// não fazem nada.
+// pixels lê /Width ou /Height: um inteiro positivo, ou 0.
+func pixels(v pdf.Value) int {
+	if v.Kind() != pdf.Integer || v.Int64() <= 0 || v.Int64() > math.MaxInt32 {
+		return 0
+	}
+	return int(v.Int64())
+}
+
+// registrarImagem guarda a imagem pintada agora, com a CTM atual. Imagem em
+// trecho /OC não entra, nem as que passam de imagensMaxPorPagina.
+func (it *interpretador) registrarImagem(w, h pdf.Value) {
+	if it.emOC() || len(it.imagens) >= imagensMaxPorPagina {
+		return
+	}
+	it.imagens = append(it.imagens, imagemColocada{ctm: it.ctm, largPx: pixels(w), altPx: pixels(h)})
+}
+
+// fazerDo interpreta o XObject nome quando é um Form e registra a imagem
+// quando é uma imagem. Nome que não existe nos recursos, XObject em camada
+// opcional e Do dentro de um trecho /OC não fazem nada.
 func (it *interpretador) fazerDo(nome string) {
 	if it.emOC() {
 		return
 	}
 	xo := it.recursos.Key("XObject").Key(nome)
+	if xo.Key("Subtype").Name() == "Image" {
+		if xo.Key("OC").IsNull() {
+			it.registrarImagem(xo.Key("Width"), xo.Key("Height"))
+		}
+		return
+	}
 	if xo.Kind() != pdf.Stream || xo.Key("Subtype").Name() != "Form" || !xo.Key("OC").IsNull() {
 		return
 	}
@@ -393,11 +449,7 @@ func (it *interpretador) rodarForm(xo pdf.Value) {
 		it.formsIgnorados[formIgnoradoStreamIlegivel]++
 		return
 	}
-	if m := xo.Key("Matrix"); m.Kind() == pdf.Array && m.Len() == 6 {
-		var mf matriz
-		for i := range mf {
-			mf[i] = m.Index(i).Float64()
-		}
+	if mf, ok := matrizDe(xo.Key("Matrix")); ok {
 		it.ctm = mf.vezes(it.ctm)
 	}
 	if r := xo.Key("Resources"); r.Kind() == pdf.Dict {
@@ -441,7 +493,7 @@ func interpretarPagina(page pdf.Page) (passadaPagina, error) {
 		pdf.Interpret(strm, it.operador)
 	}
 
-	p := passadaPagina{formsIgnorados: it.formsIgnorados}
+	p := passadaPagina{formsIgnorados: it.formsIgnorados, imagens: it.imagens}
 	p.mediaBox, p.temMediaBox = mediaBoxDe(page)
 	type chave struct {
 		texto string
@@ -475,24 +527,45 @@ func interpretarPagina(page pdf.Page) (passadaPagina, error) {
 // O chamador garante que /Contents é um stream ou um array de streams legíveis
 // (o lexer da biblioteca gira para sempre num stream ilegível) e recupera pânicos.
 func extrairTextoPosicional(page pdf.Page) (string, error) {
+	texto, _, err := extrairNativo(page)
+	return texto, err
+}
+
+// extrairNativo é extrairTextoPosicional mais as métricas da estrutura da
+// página, tiradas da mesma passada. Pede ao chamador as mesmas garantias.
+func extrairNativo(page pdf.Page) (string, metricasPagina, error) {
 	p, err := interpretarPagina(page)
 	if err != nil {
-		return "", err
+		return "", metricasPagina{}, err
 	}
-	return montarLinhas(p.trechos), nil
+	return montarLinhas(p.trechos), p.metricas(), nil
 }
 
 // montarLinhas agrupa os trechos por Y, do maior para o menor, e junta cada
-// linha em ordem de X.
+// linha em ordem de X. Ordena trechos no lugar.
 func montarLinhas(trechos []trecho) string {
+	var sb strings.Builder
+	paraCadaLinha(trechos, func(_ float64, linha string) {
+		if strings.TrimSpace(linha) != "" {
+			sb.WriteString(linha)
+			sb.WriteString("\n")
+		}
+	})
+	return sb.String()
+}
+
+// paraCadaLinha agrupa os trechos por Y, do maior para o menor, junta cada
+// linha em ordem de X e chama f com a linha de base (o Y do trecho mais alto
+// da linha) e o texto montado, vazio ou não. Ordena trechos no lugar.
+func paraCadaLinha(trechos []trecho, f func(y float64, linha string)) {
 	sort.SliceStable(trechos, func(i, j int) bool { return trechos[i].y > trechos[j].y })
 
-	var sb strings.Builder
 	for ini := 0; ini < len(trechos); {
 		fim := ini + 1
 		for fim < len(trechos) && math.Abs(trechos[ini].y-trechos[fim].y) < mesmaLinhaEm*trechos[ini].tamanho {
 			fim++
 		}
+		y := trechos[ini].y
 		linha := trechos[ini:fim]
 		ini = fim
 
@@ -508,10 +581,6 @@ func montarLinhas(trechos []trecho) string {
 			}
 			lb.WriteString(tr.texto)
 		}
-		if s := strings.TrimSpace(lb.String()); s != "" {
-			sb.WriteString(lb.String())
-			sb.WriteString("\n")
-		}
+		f(y, lb.String())
 	}
-	return sb.String()
 }

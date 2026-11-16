@@ -293,3 +293,43 @@ func TestMediaBoxDe(t *testing.T) {
 		})
 	}
 }
+
+func TestForm_MatrizInvalida(t *testing.T) {
+	conteudo := tF(72, 700, "PRIMEIRA") + tF(72, 600, "SEGUNDA")
+	for _, mat := range []string{"/Matrix [1 0 0 1 /X 0]", "/Matrix [1 0 0]", "/Matrix [1 0 0.25 /X 0 0]", "/Matrix [1 0 0 1 0 0 0]"} {
+		t.Run(mat, func(t *testing.T) {
+			objs := paginaComXObjects("/Fm1 Do", "/Fm1 6 0 R", formXObject(conteudo, mat))
+			if texto := extrairComPrazo(t, objs); texto != "PRIMEIRA\nSEGUNDA" {
+				t.Fatalf("texto = %q, quer %q", texto, "PRIMEIRA\nSEGUNDA")
+			}
+		})
+	}
+}
+
+// O "end" sem "begin" faz o Interpret da biblioteca entrar em pânico depois de
+// o stream ter passado pelo lerStream.
+func TestForm_PanicoNoMeioRestauraEstado(t *testing.T) {
+	objs := paginaComXObjects(tF(72, 400, "ANTES")+"/Fm1 Do "+tF(300, 400, "DEPOIS"), "/Fm1 6 0 R",
+		formXObject("1 0 0 1 300 -300 cm "+tF(72, 700, "PERDIDO")+"end", ""))
+	if texto := extrairComPrazo(t, objs); texto != "ANTES DEPOIS" {
+		t.Fatalf("texto = %q, quer %q", texto, "ANTES DEPOIS")
+	}
+	conferirIgnorados(t, passadaDe(t, objs), map[motivoFormIgnorado]int{formIgnoradoPanico: 1})
+}
+
+func TestForm_QSoltoEBDCSemFecho(t *testing.T) {
+	t.Run("Q a mais", func(t *testing.T) {
+		objs := paginaComXObjects(tF(72, 400, "ANTES")+"q 1 0 0 1 0 0 cm /Fm1 Do "+tF(300, 400, "DEPOIS")+"Q", "/Fm1 6 0 R",
+			formXObject("Q Q 1 0 0 1 0 -300 cm "+tF(72, 600, "DOFORM"), ""))
+		if texto := extrairComPrazo(t, objs); texto != "ANTES DEPOIS\nDOFORM" {
+			t.Fatalf("texto = %q, quer %q", texto, "ANTES DEPOIS\nDOFORM")
+		}
+	})
+	t.Run("BDC sem EMC", func(t *testing.T) {
+		objs := paginaComXObjects(tF(72, 400, "ANTES")+"/Fm1 Do /Fm2 Do "+tF(300, 400, "DEPOIS"), "/Fm1 6 0 R /Fm2 7 0 R",
+			formXObject("/OC /Camada BDC "+tF(72, 600, "OCULTO"), ""), formXObject(tF(72, 500, "SEGUNDO"), ""))
+		if texto := extrairComPrazo(t, objs); texto != "SEGUNDO\nANTES DEPOIS" {
+			t.Fatalf("texto = %q, quer %q", texto, "SEGUNDO\nANTES DEPOIS")
+		}
+	})
+}
