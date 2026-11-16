@@ -390,13 +390,18 @@ func pixels(v pdf.Value) int {
 	return int(v.Int64())
 }
 
-// registrarImagem guarda a imagem pintada agora, com a CTM atual. Imagem em
-// trecho /OC não entra, nem as que passam de imagensMaxPorPagina.
+// registrarImagem guarda a imagem pintada agora, com a CTM atual, quando ela é
+// útil. Imagem inútil (pequena, de baixa resolução, CTM singular) não entra nem
+// conta para imagensMaxPorPagina; imagem em trecho /OC também não entra.
 func (it *interpretador) registrarImagem(w, h pdf.Value) {
 	if it.emOC() || len(it.imagens) >= imagensMaxPorPagina {
 		return
 	}
-	it.imagens = append(it.imagens, imagemColocada{ctm: it.ctm, largPx: pixels(w), altPx: pixels(h)})
+	im := imagemColocada{ctm: it.ctm, largPx: pixels(w), altPx: pixels(h)}
+	if !im.util() {
+		return
+	}
+	it.imagens = append(it.imagens, im)
 }
 
 // fazerDo interpreta o XObject nome quando é um Form e registra a imagem
@@ -538,20 +543,39 @@ func extrairNativo(page pdf.Page) (string, metricasPagina, error) {
 	if err != nil {
 		return "", metricasPagina{}, err
 	}
-	return montarLinhas(p.trechos), p.metricas(), nil
+	m := p.metricas()
+	topo := math.Inf(1) // sem imagem útil ou sem página válida, nenhuma linha conta
+	if t, ok := topoImagens(p.imagens); ok && m.valida {
+		topo = t
+	}
+	texto, n := montarEContar(p.trechos, topo)
+	m.linhasAcima = n
+	return texto, m, nil
 }
 
 // montarLinhas agrupa os trechos por Y, do maior para o menor, e junta cada
 // linha em ordem de X. Ordena trechos no lugar.
 func montarLinhas(trechos []trecho) string {
+	texto, _ := montarEContar(trechos, math.Inf(1))
+	return texto
+}
+
+// montarEContar é montarLinhas que também conta, das linhas emitidas, as de
+// linha de base em y >= topo. Ordena trechos no lugar.
+func montarEContar(trechos []trecho, topo float64) (string, int) {
 	var sb strings.Builder
-	paraCadaLinha(trechos, func(_ float64, linha string) {
-		if strings.TrimSpace(linha) != "" {
-			sb.WriteString(linha)
-			sb.WriteString("\n")
+	n := 0
+	paraCadaLinha(trechos, func(y float64, linha string) {
+		if strings.TrimSpace(linha) == "" {
+			return
+		}
+		sb.WriteString(linha)
+		sb.WriteString("\n")
+		if y >= topo {
+			n++
 		}
 	})
-	return sb.String()
+	return sb.String(), n
 }
 
 // paraCadaLinha agrupa os trechos por Y, do maior para o menor, junta cada

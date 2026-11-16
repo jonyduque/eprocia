@@ -2,7 +2,6 @@ package etl
 
 import (
 	"math"
-	"strings"
 
 	"github.com/dslipak/pdf"
 )
@@ -218,10 +217,9 @@ func textoPerto(txt *[gradeLinhas][gradeColunas]bool, r, c int) bool {
 	return false
 }
 
-// linhasAcimaDasImagens conta as linhas do texto nativo (as que montarLinhas
-// emite) cuja linha de base fica na altura do topo da imagem útil mais alta,
-// ou acima dele. Pura. Sem imagem útil devolve 0.
-func linhasAcimaDasImagens(trechos []trecho, imagens []imagemColocada) int {
+// topoImagens devolve o maior Y dos cantos das imagens úteis, e false quando
+// nenhuma é útil.
+func topoImagens(imagens []imagemColocada) (float64, bool) {
 	topo, achou := math.Inf(-1), false
 	for _, im := range imagens {
 		if !im.util() {
@@ -230,16 +228,20 @@ func linhasAcimaDasImagens(trechos []trecho, imagens []imagemColocada) int {
 		_, ys := im.cantos()
 		topo, achou = max(topo, ys[0], ys[1], ys[2], ys[3]), true
 	}
+	return topo, achou
+}
+
+// linhasAcimaDasImagens conta as linhas do texto nativo (as que montarLinhas
+// emite) cuja linha de base fica na altura do topo da imagem útil mais alta,
+// ou acima dele. Pura. Sem imagem útil devolve 0. extrairNativo não a usa:
+// conta na mesma passada que monta o texto (montarEContar).
+func linhasAcimaDasImagens(trechos []trecho, imagens []imagemColocada) int {
+	topo, achou := topoImagens(imagens)
 	if !achou {
 		return 0
 	}
 	copia := append([]trecho(nil), trechos...) // paraCadaLinha ordena no lugar
-	n := 0
-	paraCadaLinha(copia, func(y float64, linha string) {
-		if y >= topo && strings.TrimSpace(linha) != "" {
-			n++
-		}
-	})
+	_, n := montarEContar(copia, topo)
 	return n
 }
 
@@ -254,7 +256,8 @@ func temImagemUtil(imagens []imagemColocada) bool {
 }
 
 // metricas mede a estrutura da passada. Sem MediaBox legível, valida=false.
-// As caixas de texto só são montadas quando há imagem útil.
+// As caixas de texto só são montadas quando há imagem útil. Não preenche
+// linhasAcima: quem conta é extrairNativo, na passada que monta o texto.
 func (p passadaPagina) metricas() metricasPagina {
 	m := metricasPagina{}
 	if p.temMediaBox {
@@ -266,9 +269,6 @@ func (p passadaPagina) metricas() metricasPagina {
 			}
 		}
 		m = medirPagina(p.mediaBox, p.imagens, textos)
-		if m.valida {
-			m.linhasAcima = linhasAcimaDasImagens(p.trechos, p.imagens)
-		}
 	}
 	m.formsIgnorados = p.formsIgnorados
 	return m

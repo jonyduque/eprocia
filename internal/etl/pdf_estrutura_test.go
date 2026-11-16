@@ -1,6 +1,7 @@
 package etl
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"testing"
@@ -207,11 +208,11 @@ func TestImagens_Registro(t *testing.T) {
 			}
 		})
 	}
-	t.Run("dimensões inválidas viram 0 px", func(t *testing.T) {
+	t.Run("dimensões inválidas viram 0 px e a imagem não entra", func(t *testing.T) {
 		ruim := "<< /Type /XObject /Subtype /Image /Width /X /Height -5 /ColorSpace /DeviceGray /BitsPerComponent 8 /Length 1 >>\nstream\nA\nendstream"
 		p := passadaDe(t, paginaComXObjects("q 595 0 0 842 0 0 cm /Im1 Do Q", "/Im1 6 0 R", ruim))
-		if len(p.imagens) != 1 || p.imagens[0].largPx != 0 || p.imagens[0].altPx != 0 {
-			t.Fatalf("imagens = %+v", p.imagens)
+		if len(p.imagens) != 0 {
+			t.Fatalf("imagens = %+v, quer nenhuma (0 px é imagem inútil)", p.imagens)
 		}
 		if m := p.metricas(); m.fImg != 0 {
 			t.Fatalf("fImg = %v, quer 0", m.fImg)
@@ -265,5 +266,68 @@ func TestMediaBoxDe_CicloDeParent(t *testing.T) {
 	comPrazo(t, func() { _, ok = mediaBoxDe(page) })
 	if ok {
 		t.Fatal("mediaBoxDe = true num ciclo de /Parent sem /MediaBox")
+	}
+}
+
+// Regressão da revisão da Task 2: o trecho AAA (fonte 20) abre o grupo de y=700
+// numa ordem e o BBB (fonte 2) na outra; contar as linhas reagrupando uma cópia
+// já reordenada pode dar mais linhas acima da imagem do que o texto tem.
+func TestExtrairNativo_LinhasAcimaCasaComOTexto(t *testing.T) {
+	stream := "q 595 0 0 600 0 0 cm /Im1 Do Q\n" +
+		"BT /F1 20 Tf 300 700 Td (AAA) Tj ET\n" +
+		"BT /F1 2 Tf 72 700 Td (BBB) Tj ET\n" +
+		"BT /F1 2 Tf 72 695 Td (CCC) Tj ET\n"
+	objs := paginaComXObjects(stream, "/Im1 6 0 R", imagemXObject(1240, 1250))
+	texto, m, err := extrairNativoSeguro(primeiraPagina(t, objs))
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for l := range strings.SplitSeq(texto, "\n") {
+		if strings.TrimSpace(l) != "" {
+			n++
+		}
+	}
+	if n != 1 || m.linhasAcima != 1 {
+		t.Fatalf("texto %q (%d linhas), linhasAcima %d: quer 1 linha e linhasAcima 1", texto, n, m.linhasAcima)
+	}
+}
+
+func TestImagens_TetoNaoContaInutil(t *testing.T) {
+	stream := strings.Repeat("/Im1 Do\n", 5000) + "q 595 0 0 842 0 0 cm /Im2 Do Q\n"
+	objs := paginaComXObjects(stream, "/Im1 6 0 R /Im2 7 0 R", imagemXObject(1, 1), imagemXObject(1240, 1754))
+	var p passadaPagina
+	comPrazo(t, func() { p = passadaDe(t, objs) })
+	if m := p.metricas(); !perto(m.fImg, 1, 0.02) {
+		t.Fatalf("fImg = %v (imagens %d), quer perto de 1", m.fImg, len(p.imagens))
+	}
+}
+
+// BenchmarkExtrairNativo mede só extrairNativo sobre a página já aberta.
+func BenchmarkExtrairNativo(b *testing.B) {
+	for _, nome := range []string{"texto-puro", "logotipo"} {
+		b.Run(nome, func(b *testing.B) {
+			var objs []string
+			for _, p := range paginasSinteticas() {
+				if p.nome == nome {
+					objs = p.objetos
+				}
+			}
+			dados := buildPDF(objs)
+			reader, n, err := abrirLeitorPDF(bytes.NewReader(dados), int64(len(dados)), 0)
+			if err != nil {
+				b.Fatal(err)
+			}
+			paginas, _, err := listarPaginas(reader, n)
+			if err != nil || len(paginas) == 0 {
+				b.Fatal(err)
+			}
+			b.ReportAllocs()
+			for b.Loop() {
+				if _, _, err := extrairNativo(paginas[0]); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
 	}
 }
