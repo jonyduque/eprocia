@@ -136,17 +136,19 @@ func (c *contagemLingua) somar(w string) {
 	}
 }
 
-// ehFuncional diz se w é uma das palavras funcionais do português, em
-// minúsculas e com acento. Só olha palavras curtas (nenhuma passa de 4 bytes
-// em UTF-8 mais folga), então não aloca para as longas.
+// ehFuncional diz se w é uma das palavras funcionais do português. A
+// comparação usa a forma de normalizarPalavra (minúsculas, sem acento), então
+// "não", "NAO" e "nao" valem igual; a lista abaixo já está normalizada. Só
+// olha palavras curtas (nenhuma passa de 5 bytes em UTF-8), então não aloca
+// para as longas.
 func ehFuncional(w string) bool {
 	if len(w) > 5 {
 		return false
 	}
-	switch strings.ToLower(w) {
+	switch normalizarPalavra(w) {
 	case "de", "da", "do", "das", "dos", "a", "o", "as", "os", "e", "em", "no",
-		"na", "nos", "nas", "para", "por", "com", "que", "não", "ao", "à", "aos",
-		"se", "um", "uma", "é":
+		"na", "nos", "nas", "para", "por", "com", "que", "nao", "ao", "aos",
+		"se", "um", "uma":
 		return true
 	}
 	return false

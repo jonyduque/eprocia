@@ -24,6 +24,10 @@ func TestContarLingua_Palavras(t *testing.T) {
 		{"É", contagemLingua{1, 0, 1}},
 		{"não", contagemLingua{1, 0, 1}},
 		{"à", contagemLingua{1, 0, 1}},
+		{"nao", contagemLingua{1, 0, 1}}, // acento perdido ainda é funcional
+		{"NAO", contagemLingua{1, 0, 1}}, // caixa alta também
+		{"NÃO", contagemLingua{1, 0, 1}},
+		{"Aos", contagemLingua{1, 0, 1}},
 		{"12/03/2026", contagemLingua{}},
 		{"1.234,56", contagemLingua{}},
 		{"123.456.789-00", contagemLingua{}},
@@ -107,6 +111,33 @@ func TestContarLingua_Textos(t *testing.T) {
 	}
 	if c.isca() {
 		t.Errorf("rodapé com URLs e códigos não pode ser isca: %+v", c)
+	}
+
+	// Rótulos e códigos de rodapé, sem preposição nem artigo: só o limiar de
+	// implausíveis decide. 12 de 42 (28,6%) não é isca; 17 de 42 (40,5%) é.
+	rotulos := strings.Fields(`Protocolo Autenticação Agência Documento Emitido Página Código Comarca Foro Central
+Cartório Distribuidor Volume Registro Selo Digital Sistema Consulta Recibo Número
+Guia Valor Total Situação Parcela Tribunal Unidade Serviço Cadastro Versão`)
+	codigos := strings.Fields(`k7Qz9X Xq4Lm2 bTrWq a9Zk3Q Pw8nB4 mX2vL9 tYh7Kd3 zQ5rT1 uJ6yN8 gF3dS0
+cV9bN2 hK4jL7 wE1rT6 yU8iO3 pL5kJ9 qA2sD7 eR5tY9`)
+	montar := func(nRot, nCod int) contagemLingua {
+		return contarLingua(strings.Join(rotulos[:nRot], " ") + " " + strings.Join(codigos[:nCod], " "))
+	}
+	c = montar(30, 12)
+	if c.palavras < 40 || c.funcionais*100 >= 5*c.palavras ||
+		c.implausiveis*100 < 28*c.palavras || c.implausiveis*100 > 33*c.palavras {
+		t.Fatalf("premissas do rodapé a 30%% falharam: %+v", c)
+	}
+	if c.isca() {
+		t.Errorf("rodapé com cerca de 30%% de implausíveis não pode ser isca: %+v", c)
+	}
+	c = montar(25, 17)
+	if c.palavras < 40 || c.funcionais*100 >= 5*c.palavras ||
+		c.implausiveis*100 < 38*c.palavras || c.implausiveis*100 > 43*c.palavras {
+		t.Fatalf("premissas do rodapé a 40%% falharam: %+v", c)
+	}
+	if !c.isca() {
+		t.Errorf("rodapé com cerca de 40%% de implausíveis deveria ser isca: %+v", c)
 	}
 
 	// Comprovante.
