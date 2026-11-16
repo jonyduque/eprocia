@@ -93,22 +93,11 @@ There is no repo-level lint config beyond `go vet`. Frontend tests are `frontend
 
 ## Harness de revisão
 
-The repo carries a Claude Code harness for a general review and for fixing the findings the user approves. Spec: `docs/superpowers/specs/2026-10-15-harness-revisao-design.md`.
+The repo carries a Claude Code harness for a general review (`/revisar [backend|frontend|tudo] [lentes=EF,...]`, fixes nothing) and for fixing the findings the user approves (`/corrigir <ids|todos>`, on branch `revisao/AAAA-MM-DD`, one commit per id, never pushes or merges). Read its sources only when working on it: procedure in `.claude/commands/` and `.claude/workflows/`, configuration in `.claude/review.json`, agents in `.claude/agents/` (`auxiliar` runs the mechanical workflow steps with a short first context), skills in `.claude/skills/` (`eprocia-build`, `eprocia-bench`, `eprocia-visual`, `eprocia-icone`, `eprocia-release`), spec in `docs/superpowers/specs/2026-10-15-harness-revisao-design.md`.
 
-- `/revisar [backend|frontend|tudo] [lentes=EF,...]` runs the `eprocia-revisao` workflow: one read-only reviewer per lens (backend EF, ES, GM, TE, RN; frontend VI, AN, RS, AC, DF), visual captures with fictitious data, one skeptic per lens, and a synthesis that writes `docs/revisao/AAAA-MM-DD-relatorio.md` with stable ids (`B-EF-03`, `F-RS-01`). Nothing is fixed at this stage.
-- Findings parked outside a `/revisar` round go in an addendum next to the reports (`docs/revisao/2026-11-14-residuais-pdfs-nao-lidos.md`, from the reviews of the unread-PDF fix), to be picked up by the next fix round.
-- `/corrigir <ids|todos>` runs the `eprocia-corrigir` workflow on branch `revisao/AAAA-MM-DD`: toolchain Step 0 and the Svelte 5 migration as prerequisites, then, per id, a fresh implementer (TDD), gates, a fresh reviewer, up to 3 attempts, and one commit `fix(<camada>): <título> [<id>]`. It never pushes or merges.
-- Configuration lives in `.claude/review.json` (lenses, files, capture matrix, benchmark thresholds, fix order). Agents are in `.claude/agents/`, skills in `.claude/skills/` (`eprocia-build`, `eprocia-bench`, `eprocia-visual`, `eprocia-icone`, `eprocia-release`), scripts in `scripts/{build,bench,visual,icone}`.
+- Reports are `docs/revisao/AAAA-MM-DD-relatorio.md`, with stable ids (`B-EF-03`, `F-RS-01`). Findings parked outside a `/revisar` round go in an addendum next to the reports (`docs/revisao/2026-11-14-residuais-pdfs-nao-lidos.md`, from the reviews of the unread-PDF fix), to be picked up by the next fix round.
 - Gates: `pwsh scripts/build/gate.ps1` (vet, `test -race`, `wails build`, 5 s smoke of the exe it started); benchmarks with `-count=10` compared by benchstat, accepted only with p < 0.05 and no other metric worse than 5%; visual before/after captures plus `svelte-check` and `npm run build`.
-- Progress for the status line is in `docs/revisao/estado.json` (git-ignored).
-
-Hooks (`.claude/settings.json`, logic in `.claude/hooks/*.mjs`):
-
-- `proteger-gerados` blocks edits to `frontend/src/wailsjs/**`, `frontend/dist/**`, `internal/ocr/embed/**` and `build/bin/**`.
-- `proteger-dados` blocks `git add`/`git commit` of `*.zip`, `*.pdf`, processing `.txt` outputs and anything under `EPROCIA_BENCH_DIR`, including broad `git add -A`/`.` when such files are not ignored. The synthetic fixtures in `scripts/bench/fixtures/` are allowed.
-- `guarda-bench` warns when `go test -bench` runs with `-count` below 6.
-- `go-check` reports `gofmt -l` and `go vet` for each edited `.go` file; `front-check` runs `svelte-check` for edited frontend files once it is installed.
-- `ambiente` prints, at session start, the Go version, whether the Wails CLI works with Go 1.27, whether eprocia.exe is running, and whether `EPROCIA_BENCH_DIR` is set.
+- Hooks (`.claude/settings.json`, logic in `.claude/hooks/*.mjs`): `proteger-gerados` blocks edits to `frontend/src/wailsjs/**`, `frontend/dist/**`, `internal/ocr/embed/**` and `build/bin/**`; `proteger-dados` blocks `git add`/`git commit` of `*.zip`, `*.pdf` and processing `.txt` outputs, broad `git add -A`/`.` included (the synthetic fixtures in `scripts/bench/fixtures/` are allowed); `guarda-bench`, `go-check`, `front-check` and `ambiente` only report.
 
 Known traps (fixed on 2026-10-14; keep them fixed):
 

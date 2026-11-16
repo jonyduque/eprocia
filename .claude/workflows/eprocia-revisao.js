@@ -118,13 +118,13 @@ async function comVaga(fn) {
 let capturasPromise = Promise.resolve(null)
 if (camadas.includes('frontend')) {
   phase('Visual')
-  capturasPromise = comVaga(() => agent(
+  capturasPromise = comPapel('auxiliar',
     `Use a skill eprocia-visual para capturar o frontend do eprocIA com dados fictícios.\n` +
       `Rode: node scripts/visual/capturar.mjs --saida ${pastaCapturas}\n` +
       `Não rode wails dev. Confirme que o Vite foi encerrado ao fim. ` +
       `Devolva ok=true e a lista de caminhos relativos dos PNGs gerados, ou ok=false com o erro.`,
     { label: 'visual:capturas', phase: 'Visual', schema: CAPTURAS, effort: 'low' },
-  ))
+  )
     .then((r) => {
       if (!r?.ok) log(`captura visual falhou: ${r?.erro ?? 'sem resposta'}; lentes RS/VI seguem só com o código`)
       return r?.ok ? r.capturas : null
@@ -202,7 +202,7 @@ log(`${mantidos.length} achados sobreviveram, ${derrubados.length} derrubados, $
 
 phase('Síntese')
 const capturas = await capturasPromise
-const sintese = await agent(
+const sintese = await comPapel('auxiliar',
   `Você é a síntese da revisão do eprocIA de ${data} (escopo: ${escopo}${filtroLentes ? `, lentes: ${[...filtroLentes].join(',')}` : ''}).\n\n` +
     `ACHADOS QUE SOBREVIVERAM (JSON):\n${JSON.stringify(mantidos, null, 1)}\n\n` +
     `DERRUBADOS (JSON):\n${JSON.stringify(derrubados, null, 1)}\n\n` +

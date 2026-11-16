@@ -79,6 +79,7 @@ describe('eprocia-revisao (simulado)', () => {
     assert.equal(resultado.mantidos, 1);
     assert.equal(resultado.derrubados, 1);
     assert.equal(chamadas[0].opts.agentType, 'revisor-go');
+    assert.equal(chamadas[2].opts.agentType, 'auxiliar');
     assert.match(chamadas[2].prompt, /docs\/revisao\/2026-10-15-relatorio\.md/);
   });
 
