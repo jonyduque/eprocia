@@ -143,16 +143,283 @@ type trecho struct {
 	x, y, fimX float64
 	tamanho    float64
 	espacoTJ   bool // o TJ pede espaço antes deste trecho (regra a)
+	deForm     bool // mostrado dentro de um Form XObject
 }
 
-// extrairTextoPosicional lê os operadores de texto da página e monta as linhas
-// pela posição dos glifos: uma linha por Y, do topo para baixo, e trechos
-// ordenados por X, separados por espaço só quando a distância entre eles o
-// indica. Junta assim as letras de PDFs com kerning ("C O N T E S T A").
+// Limites da interpretação de Form XObjects.
+const (
+	// formMaxProfundidade: o Form chamado pela página está na profundidade 1;
+	// um Do que levaria além desta é ignorado.
+	formMaxProfundidade = 4
+	// formMaxPorPagina: Forms interpretados por página, contando os aninhados.
+	formMaxPorPagina = 256
+)
+
+// motivoFormIgnorado diz por que um Form chamado por Do não foi interpretado.
+type motivoFormIgnorado int
+
+const (
+	formIgnoradoStreamIlegivel motivoFormIgnorado = iota
+	formIgnoradoProfundidade
+	formIgnoradoLimite
+	formIgnoradoPanico
+	numMotivosForm
+)
+
+// String devolve o texto fixo do motivo, para a linha de log.
+func (m motivoFormIgnorado) String() string {
+	switch m {
+	case formIgnoradoStreamIlegivel:
+		return "stream ilegível"
+	case formIgnoradoProfundidade:
+		return "profundidade"
+	case formIgnoradoLimite:
+		return "limite por página"
+	case formIgnoradoPanico:
+		return "pânico"
+	}
+	return "desconhecido"
+}
+
+// passadaPagina é o que uma passada pelos operadores da página produz.
+type passadaPagina struct {
+	trechos     []trecho // da página e dos Forms, em coordenadas da página
+	trechosForm int      // quantos vieram de Form, depois das proteções
+	mediaBox    caixa
+	temMediaBox bool
+	// formsIgnorados conta os Forms não interpretados, por motivo. Form em
+	// camada opcional (/OC) não entra: é regra, não falha.
+	formsIgnorados [numMotivosForm]int
+}
+
+// estadoForm é a parte do interpretador que um Form salva antes e restaura
+// depois, como num q … Q.
+type estadoForm struct {
+	ctm          matriz
+	pilhaCTM     []matriz
+	tm, tlm      matriz
+	fonte        *fonteTexto
+	tfs, leading float64
+	marcado      []bool // pilha de BDC/BMC: true quando o trecho é /OC
+	profundidade int    // 0 na página, 1 no Form chamado por ela...
+	recursos     pdf.Value
+	fontes       map[string]*fonteTexto // cache de fontes do escopo de recursos
+}
+
+// interpretador percorre os operadores da página e dos Forms que ela chama.
+type interpretador struct {
+	estadoForm
+	trechos        []trecho
+	formsVistos    int
+	formsIgnorados [numMotivosForm]int
+}
+
+// fonteDe devolve a fonte do escopo de recursos atual, carregada uma vez.
+func (it *interpretador) fonteDe(nome string) *fonteTexto {
+	if f, ok := it.fontes[nome]; ok {
+		return f
+	}
+	f := carregarFonte(pdf.Font{V: it.recursos.Key("Font").Key(nome)})
+	it.fontes[nome] = f
+	return f
+}
+
+// emOC diz se o operador atual está dentro de um trecho /OC … BDC … EMC.
+func (it *interpretador) emOC() bool {
+	for _, oc := range it.marcado {
+		if oc {
+			return true
+		}
+	}
+	return false
+}
+
+func (it *interpretador) td(tx, ty float64) {
+	it.tlm = translacao(tx, ty).vezes(it.tlm)
+	it.tm = it.tlm
+}
+
+func (it *interpretador) proximaLinha() { it.td(0, -it.leading) }
+
+// mostrar decodifica s, registra o trecho na posição atual e avança a matriz
+// de texto pela largura do trecho (real ou estimada). Dentro de um Form, o
+// texto de um trecho /OC não é registrado.
+func (it *interpretador) mostrar(s string, espacoTJ bool) {
+	texto := it.fonte.enc.Decode(s)
+	m := it.tm.vezes(it.ctm)
+	tamanho := it.tfs * math.Hypot(m[2], m[3])
+	x, y := m[4], m[5]
+	it.tm = translacao(it.fonte.largura(s, texto)*it.tfs, 0).vezes(it.tm)
+	if texto == "" || (it.profundidade > 0 && it.emOC()) {
+		return
+	}
+	it.trechos = append(it.trechos, trecho{texto: texto, x: x, y: y, fimX: it.tm.vezes(it.ctm)[4], tamanho: tamanho, espacoTJ: espacoTJ, deForm: it.profundidade > 0})
+}
+
+// operador trata um operador do stream de conteúdo.
+func (it *interpretador) operador(stk *pdf.Stack, op string) {
+	n := stk.Len()
+	args := make([]pdf.Value, n)
+	for i := n - 1; i >= 0; i-- {
+		args[i] = stk.Pop()
+	}
+	switch op {
+	case "q":
+		it.pilhaCTM = append(it.pilhaCTM, it.ctm)
+	case "Q":
+		if len(it.pilhaCTM) > 0 {
+			it.ctm = it.pilhaCTM[len(it.pilhaCTM)-1]
+			it.pilhaCTM = it.pilhaCTM[:len(it.pilhaCTM)-1]
+		}
+	case "cm":
+		if n == 6 {
+			it.ctm = matrizDosArgs(args).vezes(it.ctm)
+		}
+	case "BT":
+		it.tm, it.tlm = identidade, identidade
+	case "Tf":
+		if n == 2 {
+			it.fonte = it.fonteDe(args[0].Name())
+			it.tfs = args[1].Float64()
+		}
+	case "TL":
+		if n == 1 {
+			it.leading = args[0].Float64()
+		}
+	case "Td":
+		if n == 2 {
+			it.td(args[0].Float64(), args[1].Float64())
+		}
+	case "TD":
+		if n == 2 {
+			it.leading = -args[1].Float64()
+			it.td(args[0].Float64(), args[1].Float64())
+		}
+	case "Tm":
+		if n == 6 {
+			it.tm = matrizDosArgs(args)
+			it.tlm = it.tm
+		}
+	case "T*":
+		it.proximaLinha()
+	case "'":
+		if n == 1 {
+			it.proximaLinha()
+			it.mostrar(args[0].RawString(), false)
+		}
+	case "\"":
+		if n == 3 {
+			it.proximaLinha()
+			it.mostrar(args[2].RawString(), false)
+		}
+	case "Tj":
+		if n == 1 {
+			it.mostrar(args[0].RawString(), false)
+		}
+	case "TJ":
+		if n != 1 {
+			return
+		}
+		v := args[0]
+		var acumulado float64
+		houveTrecho := false
+		for i := 0; i < v.Len(); i++ {
+			x := v.Index(i)
+			switch x.Kind() {
+			case pdf.String:
+				it.mostrar(x.RawString(), houveTrecho && acumulado <= espacoTJMilesimos)
+				houveTrecho, acumulado = true, 0
+			case pdf.Integer, pdf.Real:
+				acumulado += x.Float64()
+				it.tm = translacao(-x.Float64()/1000*it.tfs, 0).vezes(it.tm)
+			}
+		}
+	case "BDC":
+		it.marcado = append(it.marcado, n == 2 && args[0].Name() == "OC")
+	case "BMC":
+		it.marcado = append(it.marcado, false)
+	case "EMC":
+		if len(it.marcado) > 0 {
+			it.marcado = it.marcado[:len(it.marcado)-1]
+		}
+	case "Do":
+		if n == 1 {
+			it.fazerDo(args[0].Name())
+		}
+	}
+}
+
+// fazerDo interpreta o XObject nome quando é um Form. Imagem, nome que não
+// existe nos recursos, Form em camada opcional e Do dentro de um trecho /OC
+// não fazem nada.
+func (it *interpretador) fazerDo(nome string) {
+	if it.emOC() {
+		return
+	}
+	xo := it.recursos.Key("XObject").Key(nome)
+	if xo.Kind() != pdf.Stream || xo.Key("Subtype").Name() != "Form" || !xo.Key("OC").IsNull() {
+		return
+	}
+	if it.profundidade >= formMaxProfundidade {
+		it.formsIgnorados[formIgnoradoProfundidade]++
+		return
+	}
+	if it.formsVistos >= formMaxPorPagina {
+		it.formsIgnorados[formIgnoradoLimite]++
+		return
+	}
+	// Conta antes de ler o stream: o limite também segura uma página que
+	// chama milhares de vezes um Form ilegível.
+	it.formsVistos++
+	it.rodarForm(xo)
+}
+
+// rodarForm interpreta o stream do Form com o estado salvo antes e restaurado
+// depois, mesmo se a interpretação parar no meio. Um pânico descarta os
+// trechos do Form (e dos que ele chamou) e a página segue.
+func (it *interpretador) rodarForm(xo pdf.Value) {
+	salvo := it.estadoForm
+	inicio := len(it.trechos)
+	defer func() {
+		if r := recover(); r != nil {
+			it.trechos = it.trechos[:inicio]
+			it.formsIgnorados[formIgnoradoPanico]++
+		}
+		it.estadoForm = salvo
+	}()
+	// O lexer da biblioteca gira para sempre num stream ilegível; um filtro
+	// não suportado entra em pânico já aqui.
+	if lerStream(xo) != nil {
+		it.formsIgnorados[formIgnoradoStreamIlegivel]++
+		return
+	}
+	if m := xo.Key("Matrix"); m.Kind() == pdf.Array && m.Len() == 6 {
+		var mf matriz
+		for i := range mf {
+			mf[i] = m.Index(i).Float64()
+		}
+		it.ctm = mf.vezes(it.ctm)
+	}
+	if r := xo.Key("Resources"); r.Kind() == pdf.Dict {
+		it.recursos = r
+		it.fontes = map[string]*fonteTexto{}
+	}
+	it.pilhaCTM = nil
+	it.marcado = nil
+	it.profundidade++
+	pdf.Interpret(xo, it.operador)
+}
+
+// interpretarPagina lê os operadores de texto do /Contents da página e dos
+// Forms que ele chama. Os trechos de Form passam por duas proteções: o que
+// começa fora do MediaBox é descartado (sem MediaBox legível, entra) e o
+// mesmo texto na mesma posição, arredondada a 0,5 pt, conta uma vez. Os
+// trechos do /Contents da página saem como sempre saíram.
 //
 // O chamador garante que /Contents é um stream ou um array de streams legíveis
-// (o lexer da biblioteca gira para sempre num stream ilegível) e recupera pânicos.
-func extrairTextoPosicional(page pdf.Page) (string, error) {
+// (o lexer da biblioteca gira para sempre num stream ilegível) e recupera os
+// pânicos de fora dos Forms.
+func interpretarPagina(page pdf.Page) (passadaPagina, error) {
 	contents := page.V.Key("Contents")
 	streams := []pdf.Value{contents}
 	if contents.Kind() == pdf.Array {
@@ -162,127 +429,57 @@ func extrairTextoPosicional(page pdf.Page) (string, error) {
 		}
 	}
 
-	cache := map[string]*fonteTexto{}
-	fonteDe := func(nome string) *fonteTexto {
-		if f, ok := cache[nome]; ok {
-			return f
-		}
-		f := carregarFonte(page.Font(nome))
-		cache[nome] = f
-		return f
+	it := &interpretador{
+		ctm:      identidade,
+		tm:       identidade,
+		tlm:      identidade,
+		fonte:    carregarFonte(pdf.Font{}),
+		recursos: page.Resources(),
+		fontes:   map[string]*fonteTexto{},
 	}
-
-	var (
-		trechos  []trecho
-		ctm      = identidade
-		pilhaCTM []matriz
-		tm, tlm  = identidade, identidade
-		fonte    = carregarFonte(pdf.Font{})
-		tfs      float64
-		leading  float64
-	)
-
-	td := func(tx, ty float64) {
-		tlm = translacao(tx, ty).vezes(tlm)
-		tm = tlm
-	}
-	// mostrar decodifica s, registra o trecho na posição atual e avança a matriz
-	// de texto pela largura do trecho (real ou estimada).
-	mostrar := func(s string, espacoTJ bool) {
-		texto := fonte.enc.Decode(s)
-		m := tm.vezes(ctm)
-		tamanho := tfs * math.Hypot(m[2], m[3])
-		x, y := m[4], m[5]
-		tm = translacao(fonte.largura(s, texto)*tfs, 0).vezes(tm)
-		if texto == "" {
-			return
-		}
-		trechos = append(trechos, trecho{texto: texto, x: x, y: y, fimX: tm.vezes(ctm)[4], tamanho: tamanho, espacoTJ: espacoTJ})
-	}
-	proximaLinha := func() { td(0, -leading) }
-
 	for _, strm := range streams {
-		pdf.Interpret(strm, func(stk *pdf.Stack, op string) {
-			n := stk.Len()
-			args := make([]pdf.Value, n)
-			for i := n - 1; i >= 0; i-- {
-				args[i] = stk.Pop()
-			}
-			switch op {
-			case "q":
-				pilhaCTM = append(pilhaCTM, ctm)
-			case "Q":
-				if len(pilhaCTM) > 0 {
-					ctm = pilhaCTM[len(pilhaCTM)-1]
-					pilhaCTM = pilhaCTM[:len(pilhaCTM)-1]
-				}
-			case "cm":
-				if n == 6 {
-					ctm = matrizDosArgs(args).vezes(ctm)
-				}
-			case "BT":
-				tm, tlm = identidade, identidade
-			case "Tf":
-				if n == 2 {
-					fonte = fonteDe(args[0].Name())
-					tfs = args[1].Float64()
-				}
-			case "TL":
-				if n == 1 {
-					leading = args[0].Float64()
-				}
-			case "Td":
-				if n == 2 {
-					td(args[0].Float64(), args[1].Float64())
-				}
-			case "TD":
-				if n == 2 {
-					leading = -args[1].Float64()
-					td(args[0].Float64(), args[1].Float64())
-				}
-			case "Tm":
-				if n == 6 {
-					tm = matrizDosArgs(args)
-					tlm = tm
-				}
-			case "T*":
-				proximaLinha()
-			case "'":
-				if n == 1 {
-					proximaLinha()
-					mostrar(args[0].RawString(), false)
-				}
-			case "\"":
-				if n == 3 {
-					proximaLinha()
-					mostrar(args[2].RawString(), false)
-				}
-			case "Tj":
-				if n == 1 {
-					mostrar(args[0].RawString(), false)
-				}
-			case "TJ":
-				if n != 1 {
-					return
-				}
-				v := args[0]
-				var acumulado float64
-				houveTrecho := false
-				for i := 0; i < v.Len(); i++ {
-					x := v.Index(i)
-					switch x.Kind() {
-					case pdf.String:
-						mostrar(x.RawString(), houveTrecho && acumulado <= espacoTJMilesimos)
-						houveTrecho, acumulado = true, 0
-					case pdf.Integer, pdf.Real:
-						acumulado += x.Float64()
-						tm = translacao(-x.Float64()/1000*tfs, 0).vezes(tm)
-					}
-				}
-			}
-		})
+		pdf.Interpret(strm, it.operador)
 	}
-	return montarLinhas(trechos), nil
+
+	p := passadaPagina{formsIgnorados: it.formsIgnorados}
+	p.mediaBox, p.temMediaBox = mediaBoxDe(page)
+	type chave struct {
+		texto string
+		x, y  float64
+	}
+	vistos := map[chave]bool{}
+	p.trechos = it.trechos[:0]
+	for _, tr := range it.trechos {
+		if tr.deForm {
+			if p.temMediaBox && !p.mediaBox.contem(tr.x, tr.y) {
+				continue
+			}
+			k := chave{tr.texto, math.Round(tr.x * 2), math.Round(tr.y * 2)}
+			if vistos[k] {
+				continue
+			}
+			vistos[k] = true
+			p.trechosForm++
+		}
+		p.trechos = append(p.trechos, tr)
+	}
+	return p, nil
+}
+
+// extrairTextoPosicional lê os operadores de texto da página (e dos Forms que
+// ela chama) e monta as linhas pela posição dos glifos: uma linha por Y, do
+// topo para baixo, e trechos ordenados por X, separados por espaço só quando a
+// distância entre eles o indica. Junta assim as letras de PDFs com kerning
+// ("C O N T E S T A").
+//
+// O chamador garante que /Contents é um stream ou um array de streams legíveis
+// (o lexer da biblioteca gira para sempre num stream ilegível) e recupera pânicos.
+func extrairTextoPosicional(page pdf.Page) (string, error) {
+	p, err := interpretarPagina(page)
+	if err != nil {
+		return "", err
+	}
+	return montarLinhas(p.trechos), nil
 }
 
 // montarLinhas agrupa os trechos por Y, do maior para o menor, e junta cada
