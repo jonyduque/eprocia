@@ -119,10 +119,13 @@ func (d *despachoOCR) registrarOCR(task ocrTask, ocrText string, err error) {
 	var pageData map[string]any
 	if err == nil {
 		log.Printf("[PDFParser] OCR concluído para página %d (tamanho: %d)", task.pageNum, len(ocrText))
+		// Um OCR em branco ou ilegível não apaga a reserva; com imagem
+		// descoberta, o texto nativo que o OCR não trouxe entra junto.
+		content, comOCR := conteudoAposOCR(task, ocrText)
 		pageData = map[string]any{
 			"index":   task.pageNum,
-			"ocr":     true,
-			"content": ocrText,
+			"ocr":     comOCR,
+			"content": content,
 		}
 	} else {
 		// O erro do OCR pode trazer o caminho de %TEMP% (com o nome de usuário)

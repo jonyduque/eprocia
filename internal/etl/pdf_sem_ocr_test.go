@@ -153,14 +153,19 @@ func TestPipeline_SemOCR_DocumentoMisto(t *testing.T) {
 
 // pdfTextoCurtoEImagem: uma página com texto nativo curto e imagem grande.
 func pdfTextoCurtoEImagem() []byte {
+	return buildPDF(objetosTextoCurtoEImagem())
+}
+
+// objetosTextoCurtoEImagem: os objetos de pdfTextoCurtoEImagem.
+func objetosTextoCurtoEImagem() []string {
 	stream := "BT\n/F1 12 Tf\n72 712 Td\n(Texto nativo curto ficticio) Tj\nET\n/Im1 Do"
-	return buildPDF([]string{
+	return []string{
 		"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
 		"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj",
 		"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /XObject << /Im1 5 0 R >> >> /Contents 4 0 R >>\nendobj",
 		fmt.Sprintf("4 0 obj\n<< /Length %d >>\nstream\n%s\nendstream\nendobj", len(stream), stream),
 		"5 0 obj\n<< /Type /XObject /Subtype /Image /Width 200 /Height 200 /ColorSpace /DeviceGray /BitsPerComponent 8 /Length 0 >>\nstream\nendstream\nendobj",
-	})
+	}
 }
 
 func TestPipeline_SemOCR_TextoNativoCurtoComImagemContaComoLido(t *testing.T) {

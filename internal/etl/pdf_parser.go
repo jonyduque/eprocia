@@ -18,8 +18,10 @@ import (
 const maxPrazosSeguidos = 2
 
 type ocrTask struct {
-	pageNum  int
-	fallback string
+	pageNum     int
+	fallback    string // a reserva: o texto nativo, ou o marcador de ilegível
+	motivo      motivoOCR
+	linhasAcima int // quantas das primeiras linhas da reserva ficam acima das imagens (Task 2); só a junção usa
 }
 
 // PDFParser wraps the PDF file processing.
