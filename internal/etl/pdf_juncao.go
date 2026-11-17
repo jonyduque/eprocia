@@ -122,7 +122,10 @@ func contarPresentes(palavras []string, conjunto map[string]struct{}) int {
 // não trouxe encaixadas na ordem da página: junto da linha do OCR que casa com
 // a linha nativa vizinha, ou, sem vizinha, antes do texto do OCR (linha acima
 // das imagens) ou depois dele. linhasAcima diz quantas das primeiras linhas de
-// nativo ficam acima das imagens. Nenhuma linha de nativo é perdida.
+// nativo ficam acima das imagens. Só entra a linha nativa ausente do OCR: a que
+// conta como presente (linhaNativaPresente: 60% das palavras de 3 ou mais
+// caracteres aparecem no texto do OCR) não é inserida, e o pedaço dela que o
+// OCR não trouxe se perde.
 func juntarOCRComNativo(ocrText, nativo string, linhasAcima int) string {
 	nat := linhasNativas(nativo)
 	if len(nat) == 0 {
