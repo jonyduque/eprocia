@@ -3,9 +3,12 @@ package etl
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync/atomic"
 	"testing"
+
+	"eprocia/internal/ocr"
 )
 
 const ocrFalsoTexto = "TEXTO LIDO PELO OCR linha um\nTEXTO LIDO PELO OCR linha dois"
@@ -168,16 +171,81 @@ func TestConteudoPerdido_OCREmBrancoMantemONativo(t *testing.T) {
 	}
 }
 
+// errosOCR são as duas classes de falha do OCR: erro comum e prazo esgotado.
+var errosOCR = []struct {
+	nome string
+	err  error
+}{
+	{"erro", errors.New("falha simulada")},
+	{"prazo", fmt.Errorf("%w: simulado", ocr.ErrPrazo)},
+}
+
+// Ruling 4: com a reserva nativa, a falha do OCR numa página das regras novas
+// grava a página como a v0.4.1 gravaria, sem ocr_erro nem ocr_prazo.
 func TestConteudoPerdido_OCRComErroMantemONativo(t *testing.T) {
 	for _, p := range paginasComNativoEOCR() {
-		t.Run(p.nome, func(t *testing.T) {
-			runner, _ := ocrFalso("", errors.New("falha simulada"))
-			pg := paginaUm(t, parsePagesWithDeadline(t, p.objetos, runner))
-			if conteudoDe(pg) != extrairComPrazo(t, p.objetos) {
-				t.Errorf("conteúdo = %q, quer o nativo", conteudoDe(pg))
+		for _, e := range errosOCR {
+			t.Run(p.nome+"/"+e.nome, func(t *testing.T) {
+				runner, _ := ocrFalso("", e.err)
+				pg := paginaUm(t, parsePagesWithDeadline(t, p.objetos, runner))
+				if conteudoDe(pg) != extrairComPrazo(t, p.objetos) {
+					t.Errorf("conteúdo = %q, quer o nativo", conteudoDe(pg))
+				}
+				if o, _ := pg["ocr"].(bool); o {
+					t.Errorf("ocr = true")
+				}
+				for _, k := range []string{"ocr_erro", "ocr_prazo"} {
+					if v, tem := pg[k]; tem {
+						t.Errorf("%s presente: %v", k, v)
+					}
+				}
+			})
+		}
+	}
+}
+
+// No nível do documento: a falha do OCR numa página das regras novas não deixa
+// o documento como não lido.
+func TestConteudoPerdido_OCRComErroDocumentoLido(t *testing.T) {
+	for _, nome := range []string{"legenda-imagem-direta", "isca-preta"} {
+		p := paginaSinteticaDe(t, nome)
+		for _, e := range errosOCR {
+			t.Run(nome+"/"+e.nome, func(t *testing.T) {
+				runner, n := ocrFalso("", e.err)
+				pages := parsePagesWithDeadline(t, p.objetos, runner)
+				if n.Load() == 0 {
+					t.Fatalf("OCR não foi chamado")
+				}
+				l := classificarPaginas(pages, false)
+				if l != LeituraLido {
+					t.Errorf("leitura = %q, quer %q", l, LeituraLido)
+				}
+				if l.NaoLido() {
+					t.Errorf("NaoLido() = true")
+				}
+				if c := conteudoDe(paginaUm(t, pages)); c != extrairComPrazo(t, p.objetos) {
+					t.Errorf("conteúdo = %q, quer o nativo", c)
+				}
+			})
+		}
+	}
+}
+
+// Controle: a regra antiga (motivoPadrao, reserva curta) continua marcando a
+// falha do OCR.
+func TestConteudoPerdido_OCRComErroRegraAntigaMarca(t *testing.T) {
+	for _, e := range errosOCR {
+		t.Run(e.nome, func(t *testing.T) {
+			runner, _ := ocrFalso("", e.err)
+			pg := paginaUm(t, parsePagesWithDeadline(t, objetosTextoCurtoEImagem(), runner))
+			if c := conteudoDe(pg); !strings.Contains(c, "Texto nativo curto ficticio") {
+				t.Errorf("conteúdo = %q, quer a reserva", c)
 			}
-			if e, _ := pg["ocr_erro"].(string); e == "" {
-				t.Errorf("ocr_erro vazio")
+			if f, _ := pg["ocr_erro"].(string); f == "" {
+				t.Errorf("ocr_erro ausente: %v", pg)
+			}
+			if _, tem := pg["ocr_prazo"]; tem != (e.nome == "prazo") {
+				t.Errorf("ocr_prazo presente = %t, quer %t", tem, e.nome == "prazo")
 			}
 		})
 	}

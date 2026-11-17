@@ -139,13 +139,20 @@ func (d *despachoOCR) registrarOCR(task ocrTask, ocrText string, err error) {
 		log.Printf("[PDFParser] Falha no OCR para página %d: %v. Usando o texto de reserva (%d chars).", task.pageNum, err, len(task.fallback))
 		d.falhas.Add(1)
 		pageData = map[string]any{
-			"index":    task.pageNum,
-			"ocr":      false,
-			"content":  content,
-			"ocr_erro": frase,
+			"index":   task.pageNum,
+			"ocr":     false,
+			"content": content,
 		}
-		if errors.Is(err, ocr.ErrPrazo) {
-			pageData["ocr_prazo"] = true
+		// Nas regras novas (imagem descoberta, isca) a reserva é o texto
+		// nativo que a v0.4.1 gravaria: a página fica como ela gravaria, sem
+		// ocr_erro nem ocr_prazo, para a falha não tirar o documento de lido.
+		regraNovaComReserva := task.fallback != "" &&
+			(task.motivo == motivoImagemDescoberta || task.motivo == motivoIsca)
+		if !regraNovaComReserva {
+			pageData["ocr_erro"] = frase
+			if errors.Is(err, ocr.ErrPrazo) {
+				pageData["ocr_prazo"] = true
+			}
 		}
 	}
 
