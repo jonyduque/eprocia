@@ -194,6 +194,10 @@ func TestPDFParser_ParsePages_OcrFailureMarksPage(t *testing.T) {
 	if page["ocr_erro"] != frasePaginaOCRFalha {
 		t.Errorf("expected ocr_erro to carry the fixed phrase, got %v", page["ocr_erro"])
 	}
+	// Sem texto de reserva o marcador já é o conteúdo: não há aviso a pôr antes.
+	if _, tem := page["ocr_aviso"]; tem {
+		t.Errorf("ocr_aviso presente numa página sem texto de reserva: %v", page)
+	}
 	if completed != 1 {
 		t.Errorf("expected onPageComplete once, got %d", completed)
 	}

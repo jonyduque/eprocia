@@ -140,14 +140,25 @@ const (
 	textoErroInterno = "erro interno; detalhe no log"
 )
 
-// Marcadores da página cujo OCR falhou sem texto nativo de reserva. ocr_erro
-// guarda a mesma frase, sem os colchetes.
+// Textos da página cujo OCR falhou. Quem lê o .txt é um modelo de IA: os dois
+// textos pedem que ele avise o usuário, e do erro só levam a frase fixa da
+// classe. ocr_erro guarda a frase, sem os colchetes nem o pedido.
 const (
 	frasePaginaOCRPrazo = "tempo esgotado"
 	frasePaginaOCRFalha = "o OCR não conseguiu ler a página"
-	marcadorOCRPrazo    = "[ERRO de OCR: " + frasePaginaOCRPrazo + "]"
-	marcadorOCRFalha    = "[ERRO de OCR: " + frasePaginaOCRFalha + "]"
+	instrucaoFalhaOCR   = "avise o usuário de que houve erro no OCR desta página e recomende a consulta ao PDF original"
+	// Página sem texto nativo de reserva: o marcador é o conteúdo dela.
+	marcadorOCRPrazo = "[ERRO de OCR: " + frasePaginaOCRPrazo + "; " + instrucaoFalhaOCR + "]"
+	marcadorOCRFalha = "[ERRO de OCR: " + frasePaginaOCRFalha + "; " + instrucaoFalhaOCR + "]"
+	// Página que ficou com o texto nativo de reserva (ocr_aviso): o formatter
+	// põe o aviso antes do texto.
+	avisoOCRComReserva = "[aviso de OCR: houve erro no OCR desta página e o texto dela pode estar incompleto; avise o usuário e recomende a consulta ao PDF original]"
 )
+
+// marcadorErroOCR monta o marcador da página não lida a partir da frase fixa.
+func marcadorErroOCR(frase string) string {
+	return "[ERRO de OCR: " + frase + "; " + instrucaoFalhaOCR + "]"
+}
 
 // pareceCaminho reconhece um caminho do Windows no texto: letra de unidade
 // seguida de barra (C:\ ou C:/, sem outra letra antes, para não pegar "http://")

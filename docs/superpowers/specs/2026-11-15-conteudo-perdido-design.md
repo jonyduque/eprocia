@@ -18,7 +18,7 @@ Restrição do dono: essas situações são excepcionais. Não vale aumentar mui
 
 ## Decisões do dono (2026-11-15)
 
-- **Só automático.** OCR automático nas páginas de sinal forte, sem aviso novo no item nem no `.txt` e sem botão novo. As páginas de sinal fraco continuam saindo incompletas sem aviso.
+- **Só automático.** OCR automático nas páginas de sinal forte, sem aviso novo no item nem no `.txt` e sem botão novo. As páginas de sinal fraco continuam saindo incompletas sem aviso. Exceção pedida pelo dono em 2026-11-16: a falha do OCR deixa no `.txt` um texto que diz que houve erro no OCR e pede ao modelo de IA que avise o usuário (ver a seção da junção).
 - **Form XObject:** o texto dentro de Form entra no texto nativo, sem OCR.
 - **Texto-isca:** automático. Página com imagem cujo texto nativo não parece português vai ao OCR, e o texto nativo só é descartado se o OCR devolver texto.
 - **Release:** v0.4.2 própria, só com este pacote, antes dos 46 achados da revisão de 2026-11-10.
@@ -154,7 +154,7 @@ O lado importa na regra 1 porque a imagem fica entre os dois: uma legenda embaix
 
 As linhas postas no começo ou no fim ficam separadas do texto do OCR por uma linha em branco; as encaixadas no meio, não. Nenhuma linha nativa é perdida, qualquer que seja o OCR. É uma tentativa: sem âncora, o que se sabe é só se a linha está acima das imagens ou não, e uma linha que fica entre duas imagens vai para o fim.
 
-Uma falha do OCR (erro ou prazo) numa página das regras de hoje segue como hoje: fica a reserva e a página leva `ocr_erro`. Numa página que só foi ao OCR pelas duas regras novas, a falha deixa a página como a v0.4.1 a gravava: o texto nativo, sem `ocr_erro`. Com `ocr_erro` a página não contaria como texto, e um documento de uma página só sairia como não lido, sem o texto que antes saía (corrigido na revisão final, em 2026-11-16).
+Uma falha do OCR (erro ou prazo) numa página das regras de hoje segue como hoje: fica a reserva e a página leva `ocr_erro`. Numa página que só foi ao OCR pelas duas regras novas, a falha deixa a página como a v0.4.1 a gravava: o texto nativo, sem `ocr_erro`. Com `ocr_erro` a página não contaria como texto, e um documento de uma página só sairia como não lido, sem o texto que antes saía (corrigido na revisão final, em 2026-11-16). Em qualquer regra, a página cujo OCR falhou e ficou com a reserva leva `ocr_aviso`, e o formatter põe antes do texto dela uma linha fixa: `[aviso de OCR: houve erro no OCR desta página e o texto dela pode estar incompleto; avise o usuário e recomende a consulta ao PDF original]`. A linha entra depois da limpeza, e a página com aviso não é duplicata nem origem de duplicata. A página sem reserva leva o marcador `[ERRO de OCR: <frase>; avise o usuário de que houve erro no OCR desta página e recomende a consulta ao PDF original]`. O texto não precisa dizer qual foi o erro (pedido do dono em 2026-11-16).
 
 ### OCR desligado
 

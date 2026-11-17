@@ -64,4 +64,5 @@ Decisões registradas, sem ação pedida:
 
 - A página sintética `mosaico-legenda-curta` (legenda curta sob imagens) fica na regra antiga de texto curto, e o OCR substitui a legenda, como na v0.4.1. Fixado por `TestConteudoPerdido_MosaicoLegendaCurta`.
 - `ParsePDF/escaneado` ficou 23% mais lento (304 para 375 microssegundos, 456 para 503 alocações): é a medição de estrutura numa página que depois vai ao OCR, que leva segundos. Os outros benchmarks não mudaram (comparação intercalada de 25 rodadas).
-- A falha do OCR numa página que só foi ao OCR pelas regras novas não grava `ocr_erro` (ver a spec, seção da junção): o único rastro é a linha de log da falha.
+- A falha do OCR numa página que só foi ao OCR pelas regras novas não grava `ocr_erro` (ver a spec, seção da junção): a página conta como lida, leva `ocr_aviso` e sai no `.txt` com a linha de aviso de falha do OCR antes do texto nativo (pedido do dono em 2026-11-16).
+- O pedido de aviso ao usuário só existe para a falha do OCR. Os outros motivos de documento não lido (senha, arquivo ilegível, OCR desligado, nenhum texto) seguem com `consulte o PDF original`, sem pedir ao modelo que avise o usuário.

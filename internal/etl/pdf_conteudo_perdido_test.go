@@ -180,8 +180,9 @@ var errosOCR = []struct {
 	{"prazo", fmt.Errorf("%w: simulado", ocr.ErrPrazo)},
 }
 
-// Ruling 4: com a reserva nativa, a falha do OCR numa página das regras novas
-// grava a página como a v0.4.1 gravaria, sem ocr_erro nem ocr_prazo.
+// Ruling 4 e 5: com a reserva nativa, a falha do OCR numa página das regras
+// novas grava o texto nativo sem ocr_erro nem ocr_prazo (a página conta como
+// lida) e com ocr_aviso, que faz o formatter pôr o aviso antes do texto.
 func TestConteudoPerdido_OCRComErroMantemONativo(t *testing.T) {
 	for _, p := range paginasComNativoEOCR() {
 		for _, e := range errosOCR {
@@ -199,8 +200,27 @@ func TestConteudoPerdido_OCRComErroMantemONativo(t *testing.T) {
 						t.Errorf("%s presente: %v", k, v)
 					}
 				}
+				if av, _ := pg["ocr_aviso"].(bool); !av {
+					t.Errorf("ocr_aviso ausente: %v", pg)
+				}
 			})
 		}
+	}
+}
+
+// Ponta a ponta: o documento de uma página das regras novas cujo OCR falhou
+// sai lido, com o aviso antes do texto nativo.
+func TestConteudoPerdido_OCRComErroSaiComAviso(t *testing.T) {
+	p := paginaSinteticaDe(t, "legenda-imagem-direta")
+	runner, _ := ocrFalso("", errosOCR[0].err)
+	pages := parsePagesWithDeadline(t, p.objetos, runner)
+	doc := map[string]any{"index": 1, "nome": "Evento 1 - A.pdf", "paginas": pages, "total_paginas": 1}
+	saida, _ := GenerateConsolidatedOutput(eventoNL(doc), NivelNenhum)
+	if !strings.Contains(saida, "nome=\"Evento 1 - A.pdf\">\n"+avisoOCRComReserva+"\n") {
+		t.Errorf("saída sem o aviso logo depois da abertura do documento:\n%s", saida)
+	}
+	if !strings.Contains(saida, "Documentos não lidos: 0\n") {
+		t.Errorf("documento contou como não lido:\n%s", saida)
 	}
 }
 
@@ -246,6 +266,9 @@ func TestConteudoPerdido_OCRComErroRegraAntigaMarca(t *testing.T) {
 			}
 			if _, tem := pg["ocr_prazo"]; tem != (e.nome == "prazo") {
 				t.Errorf("ocr_prazo presente = %t, quer %t", tem, e.nome == "prazo")
+			}
+			if av, _ := pg["ocr_aviso"].(bool); !av {
+				t.Errorf("ocr_aviso ausente: %v", pg)
 			}
 		})
 	}
