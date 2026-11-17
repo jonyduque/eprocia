@@ -141,7 +141,7 @@ Medido nas sintéticas: iscas com 80–85% de palavras implausíveis e nenhuma f
 | imagem descoberta (novo) | o texto nativo | texto do OCR, com as linhas nativas que o OCR não trouxe encaixadas na ordem da página |
 | isca (novo) | o texto nativo | substitui: o nativo é descartado |
 
-Na imagem descoberta, uma linha nativa está "presente" no OCR se 60% ou mais das palavras de 3 caracteres ou mais dela estão no conjunto de palavras do OCR, comparadas em minúsculas e sem acento. Linha nativa sem nenhuma palavra de 3 caracteres ou mais (um número de página) está presente se o texto dela aparece no OCR. Se nenhuma linha falta, o resultado é o texto do OCR, sem mudança.
+Na imagem descoberta, uma linha nativa está "presente" no OCR se todas as palavras de 3 caracteres ou mais dela estão no conjunto de palavras do OCR (era 60% até 2026-11-17, quando o dono escolheu exigir todas depois da medição em ZIPs reais; ver CP3 em `docs/revisao/2026-11-14-residuais-pdfs-nao-lidos.md`), comparadas em minúsculas e sem acento. Linha nativa sem nenhuma palavra de 3 caracteres ou mais (um número de página) está presente se o texto dela aparece no OCR. Se nenhuma linha falta, o resultado é o texto do OCR, sem mudança.
 
 O OCR devolve texto sem posição, então a ordem da página é reconstruída por âncoras. A âncora de uma linha nativa presente é a linha do OCR que tem mais palavras dela (no empate, a primeira). As linhas nativas ficam de um de dois lados: acima das imagens (as primeiras, contadas na seção 2) ou abaixo (as demais). Cada linha nativa que falta entra, na ordem em que estava:
 
@@ -186,7 +186,7 @@ Não há log de diagnóstico por página (decisão do dono). A única linha de l
 ## Escolhas do redator (não foram decididas pelo dono)
 
 1. Com o OCR desligado, as páginas das regras novas não levam marcador (o relatório de estrutura propunha `sem_ocr` mais o marcador). Motivo: a decisão "sem aviso novo" e a coerência com o M1.
-2. Os limiares (`fTxt ≤ 0,10`, `fImg ≥ 0,10`, 30 palavras, 35%, 5%, 60%) são os do protótipo, medidos só em PDFs sintéticos. O de `fDesc ≥ 0,30` foi confirmado pelo dono em 2026-11-16.
+2. Os limiares (`fTxt ≤ 0,10`, `fImg ≥ 0,10`, 30 palavras, 35%, 5%) são os do protótipo, medidos só em PDFs sintéticos. O de `fDesc ≥ 0,30` foi confirmado pelo dono em 2026-11-16.
 3. A ordem da página na junção (pedido do dono) é reconstruída por âncoras, com as quatro regras da seção 4. O que é escolha do redator: a âncora é a linha do OCR com mais palavras da linha nativa, e só vale para linhas do mesmo lado das imagens; sem âncora, só as linhas acima das imagens vão para o começo e o resto vai para o fim; a rotação da página (`/Rotate`) não é considerada.
 4. O lixo do OCR não é filtrado linha a linha: os dois testes existentes (`textoIlegivel` e o de língua) precisam de mais texto do que uma linha tem. Vale o teste do OCR inteiro.
 5. Form sob camada opcional (`/OC`) é ignorado sem consultar se a camada está ligada.

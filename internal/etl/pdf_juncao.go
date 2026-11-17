@@ -16,14 +16,6 @@ const (
 	motivoIsca                              // regra nova
 )
 
-// juncaoMinPresenca é a fração das palavras de uma linha nativa que precisa
-// estar no texto do OCR para a linha contar como presente.
-const juncaoMinPresenca = 0.60
-
-// juncaoMinPresencaPct é juncaoMinPresenca em pontos percentuais, para a
-// comparação em inteiros.
-const juncaoMinPresencaPct = int(juncaoMinPresenca * 100)
-
 // juncaoMinRunasPalavra é o tamanho mínimo, em caracteres, de uma palavra.
 const juncaoMinRunasPalavra = 3
 
@@ -99,13 +91,16 @@ func conjuntoDePalavras(s string) map[string]struct{} {
 }
 
 // linhaNativaPresente diz se a linha nativa (com as palavras dela) já está no
-// texto do OCR: 60% ou mais das palavras (com repetição) estão no conjunto do
-// OCR; sem palavras, se o texto dela aparece no texto do OCR.
+// texto do OCR: todas as palavras estão no conjunto do OCR; sem palavras, se o
+// texto dela aparece no texto do OCR. Exigir todas (e não uma fração) evita
+// perder o pedaço que o OCR não leu, quase sempre um número (decisão do dono em
+// 2026-11-17, medida em ZIPs reais: com 60%, 182 de 4.971 palavras nativas
+// sumiam; com todas, nenhuma, ao custo de 4,7% de texto a mais nessas páginas).
 func linhaNativaPresente(linha string, palavras []string, conjuntoOCR map[string]struct{}, ocrText string) bool {
 	if len(palavras) == 0 {
 		return strings.Contains(ocrText, linha)
 	}
-	return contarPresentes(palavras, conjuntoOCR)*100 >= len(palavras)*juncaoMinPresencaPct
+	return contarPresentes(palavras, conjuntoOCR) == len(palavras)
 }
 
 func contarPresentes(palavras []string, conjunto map[string]struct{}) int {
@@ -123,9 +118,9 @@ func contarPresentes(palavras []string, conjunto map[string]struct{}) int {
 // a linha nativa vizinha, ou, sem vizinha, antes do texto do OCR (linha acima
 // das imagens) ou depois dele. linhasAcima diz quantas das primeiras linhas de
 // nativo ficam acima das imagens. Só entra a linha nativa ausente do OCR: a que
-// conta como presente (linhaNativaPresente: 60% das palavras de 3 ou mais
-// caracteres aparecem no texto do OCR) não é inserida, e o pedaço dela que o
-// OCR não trouxe se perde.
+// conta como presente (linhaNativaPresente: todas as palavras de 3 ou mais
+// caracteres aparecem no texto do OCR) não é inserida. Uma linha inserida pode
+// repetir parte do que o OCR já trouxe.
 func juntarOCRComNativo(ocrText, nativo string, linhasAcima int) string {
 	nat := linhasNativas(nativo)
 	if len(nat) == 0 {

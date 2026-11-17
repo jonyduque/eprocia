@@ -19,7 +19,11 @@ var casosJuntar = []casoJuntar{
 	{"PETICAO INICIAL\nFULANO DE TAL requer", "Petição inicial", 0, "PETICAO INICIAL\nFULANO DE TAL requer"},
 	{"TEXTO DA IMAGEM", "Figura 1: fachada do imóvel", 0, "TEXTO DA IMAGEM\n\nFigura 1: fachada do imóvel"},
 	{"TEXTO DA IMAGEM", "Figura 1: fachada do imóvel", 1, "Figura 1: fachada do imóvel\n\nTEXTO DA IMAGEM"},
-	{"alfa beta gama", "alfa beta gama delta epsilon", 0, "alfa beta gama"},
+	// Linha nativa com uma palavra que o OCR não trouxe entra, mesmo com as
+	// outras todas no OCR: o pedaço que falta (um valor, uma data) não se perde.
+	{"alfa beta gama", "alfa beta gama delta epsilon", 0, "alfa beta gama\n\nalfa beta gama delta epsilon"},
+	{"Valor total: R$", "Valor total: R$ 1.500,00", 0, "Valor total: R$\n\nValor total: R$ 1.500,00"},
+	{"alfa beta gama delta epsilon", "Alfa beta gama delta épsilon", 0, "alfa beta gama delta epsilon"},
 	{"alfa beta", "alfa beta gama delta epsilon", 0, "alfa beta\n\nalfa beta gama delta epsilon"},
 	{"Página 12 de 40", "12", 0, "Página 12 de 40"},
 	{"Texto qualquer", "12", 0, "Texto qualquer\n\n12"},
