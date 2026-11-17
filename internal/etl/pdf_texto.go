@@ -411,14 +411,8 @@ func (it *interpretador) fazerDo(nome string) {
 	if it.emOC() {
 		return
 	}
-	xo := it.recursos.Key("XObject").Key(nome)
-	if xo.Key("Subtype").Name() == "Image" {
-		if xo.Key("OC").IsNull() {
-			it.registrarImagem(xo.Key("Width"), xo.Key("Height"))
-		}
-		return
-	}
-	if xo.Kind() != pdf.Stream || xo.Key("Subtype").Name() != "Form" || !xo.Key("OC").IsNull() {
+	xo, form := it.resolverXObject(nome)
+	if !form {
 		return
 	}
 	if it.profundidade >= formMaxProfundidade {
@@ -435,15 +429,44 @@ func (it *interpretador) fazerDo(nome string) {
 	it.rodarForm(xo)
 }
 
+// resolverXObject resolve o XObject nome e registra a imagem quando ele é uma.
+// Devolve o XObject e true quando é um Form visível, a interpretar. A
+// biblioteca resolve os objetos sob demanda e entra em pânico quando a tabela
+// de objetos aponta para outro objeto; o pânico conta como XObject
+// inexistente: o Do não faz nada e a página segue, sem log (não se sabe se
+// era um Form).
+func (it *interpretador) resolverXObject(nome string) (xo pdf.Value, form bool) {
+	nImagens := len(it.imagens)
+	defer func() {
+		if recover() != nil {
+			it.imagens = it.imagens[:nImagens]
+			xo, form = pdf.Value{}, false
+		}
+	}()
+	xo = it.recursos.Key("XObject").Key(nome)
+	if xo.Key("Subtype").Name() == "Image" {
+		if xo.Key("OC").IsNull() {
+			it.registrarImagem(xo.Key("Width"), xo.Key("Height"))
+		}
+		return pdf.Value{}, false
+	}
+	if xo.Kind() != pdf.Stream || xo.Key("Subtype").Name() != "Form" || !xo.Key("OC").IsNull() {
+		return pdf.Value{}, false
+	}
+	return xo, true
+}
+
 // rodarForm interpreta o stream do Form com o estado salvo antes e restaurado
 // depois, mesmo se a interpretação parar no meio. Um pânico descarta os
-// trechos do Form (e dos que ele chamou) e a página segue.
+// trechos e as imagens do Form (e dos que ele chamou) e a página segue.
 func (it *interpretador) rodarForm(xo pdf.Value) {
 	salvo := it.estadoForm
 	inicio := len(it.trechos)
+	nImagens := len(it.imagens)
 	defer func() {
 		if r := recover(); r != nil {
 			it.trechos = it.trechos[:inicio]
+			it.imagens = it.imagens[:nImagens]
 			it.formsIgnorados[formIgnoradoPanico]++
 		}
 		it.estadoForm = salvo
@@ -465,6 +488,18 @@ func (it *interpretador) rodarForm(xo pdf.Value) {
 	it.marcado = nil
 	it.profundidade++
 	pdf.Interpret(xo, it.operador)
+}
+
+// mediaBoxSeguro é mediaBoxDe com o pânico da biblioteca (objeto que a tabela
+// aponta para outro) tratado como página sem MediaBox: as métricas ficam
+// inválidas e a página fica no texto nativo.
+func mediaBoxSeguro(page pdf.Page) (c caixa, ok bool) {
+	defer func() {
+		if recover() != nil {
+			c, ok = caixa{}, false
+		}
+	}()
+	return mediaBoxDe(page)
 }
 
 // interpretarPagina lê os operadores de texto do /Contents da página e dos
@@ -499,7 +534,7 @@ func interpretarPagina(page pdf.Page) (passadaPagina, error) {
 	}
 
 	p := passadaPagina{formsIgnorados: it.formsIgnorados, imagens: it.imagens}
-	p.mediaBox, p.temMediaBox = mediaBoxDe(page)
+	p.mediaBox, p.temMediaBox = mediaBoxSeguro(page)
 	type chave struct {
 		texto string
 		x, y  float64
