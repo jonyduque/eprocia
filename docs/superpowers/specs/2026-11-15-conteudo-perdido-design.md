@@ -154,7 +154,7 @@ O lado importa na regra 1 porque a imagem fica entre os dois: uma legenda embaix
 
 As linhas postas no começo ou no fim ficam separadas do texto do OCR por uma linha em branco; as encaixadas no meio, não. Nenhuma linha nativa é perdida, qualquer que seja o OCR. É uma tentativa: sem âncora, o que se sabe é só se a linha está acima das imagens ou não, e uma linha que fica entre duas imagens vai para o fim.
 
-Uma falha do OCR (erro ou prazo) segue como hoje: fica a reserva e a página leva `ocr_erro`.
+Uma falha do OCR (erro ou prazo) numa página das regras de hoje segue como hoje: fica a reserva e a página leva `ocr_erro`. Numa página que só foi ao OCR pelas duas regras novas, a falha deixa a página como a v0.4.1 a gravava: o texto nativo, sem `ocr_erro`. Com `ocr_erro` a página não contaria como texto, e um documento de uma página só sairia como não lido, sem o texto que antes saía (corrigido na revisão final, em 2026-11-16).
 
 ### OCR desligado
 

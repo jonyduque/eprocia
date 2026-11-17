@@ -38,3 +38,30 @@ Os ids são os do registro de execução do plano (`docs/superpowers/plans/2026-
 | P13 | `pdf_ocr_despacho.go`, `pdf_parser.go` | `esperar()` não zera `d.pendentes` (uma segunda chamada despacharia de novo; hoje há uma só), e `aguardar`/`esperar` têm nomes quase iguais com efeitos diferentes. |
 | P14 | `internal/ocr` | Sem teste unitário de `ErrSenha` nem de cancelamento diferente de `ErrPrazo` em `rodarPoppler` (o `pdf_classes_test.go` cobre `ErrSenha` com o binário real). |
 | P16 | `pdf_classes_test.go` | A pasta fixa `%TEMP%\eprocia_testes_classes` fica na máquina (dezenas de MB, reaproveitada entre execuções): limpar no `TestMain`. Separar os geradores num arquivo próprio e usar tabela nos casos. |
+
+## Residuais da v0.4.2 (páginas de conteúdo perdido)
+
+Itens que as revisões da v0.4.2 (spec `docs/superpowers/specs/2026-11-15-conteudo-perdido-design.md`) apontaram e que ficaram de fora por decisão registrada. Nenhum deixa a página pior do que na v0.4.1. Os ids `CP` são desta seção.
+
+| Id | Onde | O que é | Sugestão |
+|---|---|---|---|
+| CP1 | `internal/etl/pdf_texto.go` (limite de Forms), `pdf_parser.go` (`checkContentStream`), `pdf_estrutura.go` (malha de `medirPagina`) | O limite conta Forms, não bytes: uma página pode mandar ler 256 Forms de até 64 MiB cada, sem prazo. A mesma exposição já existia na v0.4.1 para um `/Contents` em array. | Teto de bytes por página, ou prazo para a leitura do texto nativo. |
+| CP2 | `internal/etl/lingua.go` (`iscaMinImplausiveis`) | Texto-isca feito só de letras minúsculas aleatórias fica com 35% a 43% de palavras implausíveis, perto do limiar de 35%: cerca de metade das páginas assim passa. O falso negativo deixa a página como na v0.4.1. Na medição de 2026-11-16 não havia página-isca entre 733 páginas reais, e páginas reais chegam a 25% a 35%. | Só mexer no limiar com uma página-isca real para medir. |
+| CP3 | `internal/etl/pdf_juncao.go` (`linhaNativaPresente`) | A linha nativa conta como presente quando 60% das suas palavras de 3 ou mais caracteres aparecem em qualquer lugar do texto do OCR. Uma linha curta de palavras comuns pode contar como presente e o pedaço que o OCR não trouxe (um valor, uma data) se perde. Medido nos ZIPs reais: 1 de 27 e 2 de 3492 palavras. Segue a spec. | Exigir a presença na linha-âncora, ou tratar como ausente a linha com menos de 3 palavras contáveis. Decisão do dono. |
+| CP4 | `internal/etl/pdf_estrutura.go` (`topoImagens`) | Conta imagem útil mesmo fora do MediaBox, que `medirPagina` recorta. Só muda a ordem do encaixe na junção. | Usar só as imagens que cruzam o MediaBox. |
+| CP5 | `internal/etl/pdf_juncao.go` (`proximaAncora`, normalização) | `proximaAncora` é quadrática (1,36 s com 50 mil linhas ausentes); uma linha com acento decomposto (NFD) conta como ausente e sai duas vezes (duplica, não perde). | Índice da próxima âncora; normalizar para NFC antes de comparar. |
+| CP9 | `internal/etl/pdf_parser.go` (`HasImages`) | Não tem `recover` próprio. Numa página de texto curto com um XObject cuja tabela de objetos está inconsistente, o pânico cai no `recover` de fora e a página sai como erro de leitura, como na v0.4.1. A página com texto suficiente não chama `HasImages` e sai lida. | `recover` dentro de `HasImages`, tratando o pânico como página sem imagens. |
+
+Testes:
+
+| Id | Onde | O que é |
+|---|---|---|
+| CP6 | `pdf_juncao_test.go` | O teste de propriedade usa a `linhaNativaPresente` da própria implementação e não vê linha duplicada nem o caso do CP3. |
+| CP7 | `pdf_juncao.go`, `leitura.go` | Reserva igual ao marcador de ilegível com OCR em branco faz o documento passar de `sem_texto` para `ilegivel`; falta o teste. |
+| CP8 | `pdf_conteudo_perdido_test.go` | Os filtros sobre `paginasSinteticas()` não têm guarda de quantidade mínima (um filtro vazio passaria sem testar nada); o laço das palavras-isca é redundante. |
+
+Decisões registradas, sem ação pedida:
+
+- A página sintética `mosaico-legenda-curta` (legenda curta sob imagens) fica na regra antiga de texto curto, e o OCR substitui a legenda, como na v0.4.1. Fixado por `TestConteudoPerdido_MosaicoLegendaCurta`.
+- `ParsePDF/escaneado` ficou 23% mais lento (304 para 375 microssegundos, 456 para 503 alocações): é a medição de estrutura numa página que depois vai ao OCR, que leva segundos. Os outros benchmarks não mudaram (comparação intercalada de 25 rodadas).
+- A falha do OCR numa página que só foi ao OCR pelas regras novas não grava `ocr_erro` (ver a spec, seção da junção): o único rastro é a linha de log da falha.
