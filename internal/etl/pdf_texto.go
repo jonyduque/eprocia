@@ -134,23 +134,48 @@ func (f *fonteTexto) largura(cru, texto string) float64 {
 // descompressão vira página sem texto nativo.
 const streamMaximo = 64 << 20
 
+// Tetos por página, para que um PDF montado de propósito não faça uma página
+// ler sem fim: o limite de streamMaximo vale para cada stream, e estes valem
+// para a soma. São variáveis só para os testes poderem baixá-los.
+var (
+	// paginaBytesMaximo: soma dos streams do /Contents da página, descomprimidos.
+	paginaBytesMaximo = 64 << 20
+	// formBytesMaxPorPagina: soma dos streams de Form lidos na página,
+	// descomprimidos, contando cada chamada (o mesmo Form chamado 100 vezes
+	// conta 100 vezes).
+	formBytesMaxPorPagina = 64 << 20
+	// trechosMaxPorPagina: trechos de texto guardados por página (da página e
+	// dos Forms). Uma página real tem poucos milhares.
+	trechosMaxPorPagina = 200_000
+)
+
+// errStreamGrande: o stream passou do limite pedido a lerStreamAte.
+var errStreamGrande = errors.New("stream acima do limite")
+
 // lerStream lê o stream por inteiro e devolve o erro de leitura, se houver,
 // ou um erro quando o lexer da biblioteca giraria para sempre nele (dicionário,
 // array ou string sem fecho; veja pdf_lexer.go).
 func lerStream(v pdf.Value) error {
+	_, err := lerStreamAte(v, streamMaximo)
+	return err
+}
+
+// lerStreamAte é lerStream com o limite dado (no máximo streamMaximo) e devolve
+// também quantos bytes descomprimidos leu, mesmo com erro.
+func lerStreamAte(v pdf.Value, limite int) (int, error) {
 	rc := v.Reader()
 	defer rc.Close()
-	dados, err := io.ReadAll(io.LimitReader(rc, streamMaximo+1))
+	dados, err := io.ReadAll(io.LimitReader(rc, int64(limite)+1))
 	if err != nil {
-		return err
+		return len(dados), err
 	}
-	if len(dados) > streamMaximo {
-		return fmt.Errorf("stream maior que %d MiB", streamMaximo>>20)
+	if len(dados) > limite {
+		return len(dados), fmt.Errorf("%w (%d MiB)", errStreamGrande, limite>>20)
 	}
 	if !lexerTermina(dados) {
-		return errors.New("dicionário, array ou string sem fecho")
+		return len(dados), errors.New("dicionário, array ou string sem fecho")
 	}
-	return nil
+	return len(dados), nil
 }
 
 // trecho é um pedaço de texto mostrado por um Tj ou por uma string de TJ, em
@@ -230,6 +255,7 @@ type interpretador struct {
 	trechos        []trecho
 	imagens        []imagemColocada
 	formsVistos    int
+	bytesForms     int // descomprimidos, somados sobre os Forms lidos
 	formsIgnorados [numMotivosForm]int
 }
 
@@ -269,7 +295,7 @@ func (it *interpretador) mostrar(s string, espacoTJ bool) {
 	tamanho := it.tfs * math.Hypot(m[2], m[3])
 	x, y := m[4], m[5]
 	it.tm = translacao(it.fonte.largura(s, texto)*it.tfs, 0).vezes(it.tm)
-	if texto == "" || (it.profundidade > 0 && it.emOC()) {
+	if texto == "" || (it.profundidade > 0 && it.emOC()) || len(it.trechos) >= trechosMaxPorPagina {
 		return
 	}
 	it.trechos = append(it.trechos, trecho{texto: texto, x: x, y: y, fimX: it.tm.vezes(it.ctm)[4], tamanho: tamanho, espacoTJ: espacoTJ, deForm: it.profundidade > 0})
@@ -419,7 +445,7 @@ func (it *interpretador) fazerDo(nome string) {
 		it.formsIgnorados[formIgnoradoProfundidade]++
 		return
 	}
-	if it.formsVistos >= formMaxPorPagina {
+	if it.formsVistos >= formMaxPorPagina || it.bytesForms >= formBytesMaxPorPagina {
 		it.formsIgnorados[formIgnoradoLimite]++
 		return
 	}
@@ -472,8 +498,17 @@ func (it *interpretador) rodarForm(xo pdf.Value) {
 		it.estadoForm = salvo
 	}()
 	// O lexer da biblioteca gira para sempre num stream ilegível; um filtro
-	// não suportado entra em pânico já aqui.
-	if lerStream(xo) != nil {
+	// não suportado entra em pânico já aqui. O que foi lido gasta o teto de
+	// bytes da página, legível ou não.
+	restante := formBytesMaxPorPagina - it.bytesForms
+	n, err := lerStreamAte(xo, min(streamMaximo, restante))
+	it.bytesForms += n
+	if err != nil {
+		if errors.Is(err, errStreamGrande) && restante < streamMaximo {
+			it.bytesForms = formBytesMaxPorPagina
+			it.formsIgnorados[formIgnoradoLimite]++
+			return
+		}
 		it.formsIgnorados[formIgnoradoStreamIlegivel]++
 		return
 	}

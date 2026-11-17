@@ -2,6 +2,7 @@ package etl
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -469,13 +470,20 @@ func checkContentStream(page pdf.Page) (unico bool, err error) {
 	if len(streams) == 0 {
 		return false, fmt.Errorf("conteúdo da página é um array vazio")
 	}
+	restante := paginaBytesMaximo
 	for _, s := range streams {
 		if s.Kind() != pdf.Stream {
 			return false, fmt.Errorf("conteúdo da página não é stream (kind %v)", s.Kind())
 		}
-		if err := lerStream(s); err != nil {
+		limite := min(streamMaximo, restante)
+		n, err := lerStreamAte(s, limite)
+		if err != nil {
+			if errors.Is(err, errStreamGrande) && limite < streamMaximo {
+				return false, fmt.Errorf("conteúdo da página maior que %d MiB", paginaBytesMaximo>>20)
+			}
 			return false, fmt.Errorf("stream de conteúdo ilegível: %w", err)
 		}
+		restante -= n
 	}
 	return contents.Kind() == pdf.Stream, nil
 }
