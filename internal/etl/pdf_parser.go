@@ -2,6 +2,7 @@ package etl
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -18,8 +19,10 @@ import (
 const maxPrazosSeguidos = 2
 
 type ocrTask struct {
-	pageNum  int
-	fallback string
+	pageNum     int
+	fallback    string // a reserva: o texto nativo, ou o marcador de ilegível
+	motivo      motivoOCR
+	linhasAcima int // quantas das primeiras linhas da reserva ficam acima das imagens (Task 2); só a junção usa
 }
 
 // PDFParser wraps the PDF file processing.
@@ -174,7 +177,7 @@ func (p *PDFParser) ParsePages(
 		cleanText, needsOcr := an.texto, an.precisaOcr
 
 		if needsOcr && ocrRunner != nil {
-			d.agendar(ocrTask{pageNum: pageNum, fallback: cleanText})
+			d.agendar(ocrTask{pageNum: pageNum, fallback: cleanText, motivo: an.motivo, linhasAcima: an.linhasAcima})
 		} else {
 			log.Printf("[PDFParser] Usando texto nativo para página %d (OCR habilitado: %t, precisa de OCR: %t)", pageNum, ocrEnabled, needsOcr)
 			pageData := map[string]any{
@@ -336,6 +339,10 @@ type analisePagina struct {
 	precisaOcr bool
 	// semOcr: a página iria ao OCR, mas ele está desligado.
 	semOcr bool
+	// motivo: por que a página vai ao OCR (só vale com precisaOcr).
+	motivo motivoOCR
+	// linhasAcima vem de metricasPagina; só importa com motivoImagemDescoberta.
+	linhasAcima int
 }
 
 // marcadorPaginaSemOCR é o conteúdo da página digitalizada sem texto nativo
@@ -357,13 +364,19 @@ func analisarPagina(page pdf.Page, pageNum int, ocrEnabled bool) (an analisePagi
 	}
 
 	log.Printf("[PDFParser] Extraindo texto nativo da página %d...", pageNum)
-	text, errTexto := ExtractNativeText(page)
+	text, m, errTexto := extrairNativoSeguro(page)
 	if errTexto != nil {
 		log.Printf("[PDFParser] Falha ao extrair texto nativo na página %d: %v", pageNum, errTexto)
 		text = ""
 	}
+	for motivo, n := range m.formsIgnorados {
+		if n > 0 {
+			log.Printf("[PDFParser] Página %d: Form XObject ignorado (%s): %d", pageNum, motivoFormIgnorado(motivo), n)
+		}
+	}
 
 	an.texto = strings.TrimSpace(text)
+	an.linhasAcima = m.linhasAcima
 	log.Printf("[PDFParser] Texto nativo da página %d extraído. Tamanho bruto: %d, Limpo: %d", pageNum, len(text), len(an.texto))
 
 	if textoIlegivel(an.texto) {
@@ -373,6 +386,7 @@ func analisarPagina(page pdf.Page, pageNum int, ocrEnabled bool) (an analisePagi
 		an.texto = marcadorIlegivel(an.texto)
 		an.precisaOcr = ocrEnabled
 		an.semOcr = !ocrEnabled
+		an.motivo = motivoIlegivel
 		return an, nil
 	}
 
@@ -384,6 +398,15 @@ func analisarPagina(page pdf.Page, pageNum int, ocrEnabled bool) (an analisePagi
 		candidata := hasImages || hasDrawn
 		an.precisaOcr = ocrEnabled && candidata
 		an.semOcr = !ocrEnabled && candidata
+	}
+
+	// Regras novas: só com o OCR ligado (desligado, o texto nativo fica e a
+	// página conta como lida) e só se as regras acima não mandaram ao OCR.
+	if ocrEnabled && !an.precisaOcr {
+		if motivo, ok := regraNova(m, contagemParaRegra(m, an.texto)); ok {
+			an.precisaOcr = true
+			an.motivo = motivo
+		}
 	}
 	return an, nil
 }
@@ -447,13 +470,20 @@ func checkContentStream(page pdf.Page) (unico bool, err error) {
 	if len(streams) == 0 {
 		return false, fmt.Errorf("conteúdo da página é um array vazio")
 	}
+	restante := paginaBytesMaximo
 	for _, s := range streams {
 		if s.Kind() != pdf.Stream {
 			return false, fmt.Errorf("conteúdo da página não é stream (kind %v)", s.Kind())
 		}
-		if err := lerStream(s); err != nil {
+		limite := min(streamMaximo, restante)
+		n, err := lerStreamAte(s, limite)
+		if err != nil {
+			if errors.Is(err, errStreamGrande) && limite < streamMaximo {
+				return false, fmt.Errorf("conteúdo da página maior que %d MiB", paginaBytesMaximo>>20)
+			}
 			return false, fmt.Errorf("stream de conteúdo ilegível: %w", err)
 		}
+		restante -= n
 	}
 	return contents.Kind() == pdf.Stream, nil
 }
@@ -469,15 +499,15 @@ func fontesLegiveis(page pdf.Page) bool {
 	return true
 }
 
-// textoPosicionalSeguro roda extrairTextoPosicional com o pânico confinado,
-// para que ExtractNativeText ainda possa voltar ao GetTextByRow.
-func textoPosicionalSeguro(page pdf.Page) (text string, err error) {
+// textoPosicionalSeguro roda extrairNativo com o pânico confinado, para que
+// extrairNativoSeguro ainda possa voltar ao GetTextByRow.
+func textoPosicionalSeguro(page pdf.Page) (text string, m metricasPagina, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			text, err = "", fmt.Errorf("pânico no extrator posicional: %v", r)
+			text, m, err = "", metricasPagina{}, fmt.Errorf("pânico no extrator posicional: %v", r)
 		}
 	}()
-	return extrairTextoPosicional(page)
+	return extrairNativo(page)
 }
 
 // ExtractNativeText extracts plain text from a pdf.Page with extrairTextoPosicional,
@@ -485,23 +515,33 @@ func textoPosicionalSeguro(page pdf.Page) (text string, err error) {
 // Pages the PDF library cannot interpret yield an error (never a hang or a panic),
 // so the caller treats them as having no native text and may fall back to OCR.
 func ExtractNativeText(page pdf.Page) (text string, err error) {
+	text, _, err = extrairNativoSeguro(page)
+	return text, err
+}
+
+// extrairNativoSeguro é ExtractNativeText mais as métricas da estrutura da
+// página. As métricas não são válidas quando o texto veio do GetTextByRow
+// (então formsIgnorados ainda vem da passada, que não falhou), quando a
+// extração posicional falhou ou deu erro (tudo zerado) e quando a página
+// não tem MediaBox legível.
+func extrairNativoSeguro(page pdf.Page) (text string, m metricasPagina, err error) {
 	// The library panics on unsupported filters and malformed objects; this runs
 	// in a per-document goroutine, where an unrecovered panic kills the app.
 	defer func() {
 		if r := recover(); r != nil {
-			text, err = "", fmt.Errorf("pânico na extração de texto nativo: %v", r)
+			text, m, err = "", metricasPagina{}, fmt.Errorf("pânico na extração de texto nativo: %v", r)
 		}
 	}()
 
 	unico, err := checkContentStream(page)
 	if err != nil {
 		log.Printf("[PDFParser] Extração nativa ignorada: %v", err)
-		return "", err
+		return "", metricasPagina{}, err
 	}
 
-	text, errPos := textoPosicionalSeguro(page)
+	text, m, errPos := textoPosicionalSeguro(page)
 	if errPos == nil && strings.TrimSpace(text) != "" {
-		return text, nil
+		return text, m, nil
 	}
 	if errPos != nil {
 		log.Printf("[PDFParser] Extrator posicional falhou: %v", errPos)
@@ -509,9 +549,11 @@ func ExtractNativeText(page pdf.Page) (text string, err error) {
 	if !unico || !fontesLegiveis(page) {
 		// GetTextByRow gira para sempre num /Contents em array e num /ToUnicode
 		// ilegível, que ele interpreta sem validar.
-		return "", errPos
+		return "", m, errPos
 	}
 
+	// Daqui em diante o texto vem do GetTextByRow: sem estrutura.
+	m = metricasPagina{formsIgnorados: m.formsIgnorados}
 	log.Printf("[PDFParser] Chamando page.GetTextByRow()...")
 	// Não há fallback para GetPlainText: na v0.0.2 o recover de GetTextByRow
 	// não chega ao retorno (resultados sem nome), então err é sempre nil e um
@@ -519,7 +561,7 @@ func ExtractNativeText(page pdf.Page) (text string, err error) {
 	rows, err := page.GetTextByRow()
 	if err != nil {
 		log.Printf("[PDFParser] GetTextByRow() retornou erro: %v", err)
-		return "", err
+		return "", m, err
 	}
 
 	log.Printf("[PDFParser] GetTextByRow() encontrou %d linhas de texto.", len(rows))
@@ -534,7 +576,7 @@ func ExtractNativeText(page pdf.Page) (text string, err error) {
 			sb.WriteString("\n")
 		}
 	}
-	return sb.String(), nil
+	return sb.String(), m, nil
 }
 
 // HasImages checks if a page contains any image XObject of significant resolution.

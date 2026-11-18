@@ -121,7 +121,7 @@ const lenteDe = (id) => id.split('-')[1]
 
 // ---------------------------------------------------------------- Preparação
 phase('Preparação')
-const prep = await agent(
+const prep = await comPapel('auxiliar',
   `Prepare a correção de achados do eprocIA.\n` +
     `1. Rode git status --porcelain. Se houver arquivos rastreados modificados, pare com ok=false e motivo (não descarte nada do usuário).\n` +
     `2. Garanta a branch ${branch}: se existir, git switch ${branch}; senão, git switch -c ${branch} a partir do HEAD atual. Nunca trabalhe na main. Nunca faça push.\n` +
@@ -157,7 +157,7 @@ async function executarTarefa({ chaves, rotulo, pedido, gate, mensagem, faseProg
     if (!impl) { feedback = 'o implementador não devolveu resultado'; continue }
     impl.arquivos.forEach((a) => tocados.add(a))
 
-    const g = await agent(
+    const g = await comPapel('auxiliar',
       `Gate da tarefa ${rotulo} do eprocIA (não edite código; só rode e relate).\n${gate}\n` +
         `Arquivos alterados segundo o implementador: ${impl.arquivos.join(', ')}.\n` +
         `Devolva passou=true só se todas as etapas passarem; em resumo, a última linha decisiva de cada etapa.`,
@@ -173,7 +173,7 @@ async function executarTarefa({ chaves, rotulo, pedido, gate, mensagem, faseProg
     )
     if (!rev?.aprovado) { feedback = `revisor reprovou: ${rev?.motivo ?? 'sem resposta'}`; continue }
 
-    const c = await agent(
+    const c = await comPapel('auxiliar',
       `Faça o commit da tarefa ${rotulo} do eprocIA na branch ${branch} (nunca push).\n` +
         `Adicione pelo nome só os arquivos da tarefa (git status mostra quais; inclua go.mod e frontend/src/wailsjs se o build os regenerou). ` +
         `Nunca adicione docs/revisao/estado.json nem os caminhos ${protegidos}. Nunca use git add -A ou git add .\n` +
@@ -185,7 +185,7 @@ async function executarTarefa({ chaves, rotulo, pedido, gate, mensagem, faseProg
     feedback = `commit falhou: ${c?.erro ?? 'sem resposta'}`
   }
 
-  const d = await agent(
+  const d = await comPapel('auxiliar',
     `A tarefa ${rotulo} do eprocIA falhou ${TENTATIVAS} vezes. Descarte só as mudanças dela, nesta ordem:\n` +
       `1. Arquivos rastreados da tarefa: para cada um destes que git ls-files conhece, rode git restore --staged --worktree -- <arquivo>: ${JSON.stringify([...tocados])}. Não restaure nenhum outro arquivo.\n` +
       `2. Não rastreados novos: liste exatamente com\n` +
@@ -322,14 +322,14 @@ for (const membros of tarefas) {
 
 // ---------------------------------------------------------------- Final
 phase('Final')
-const revisaoFinal = await agent(
+const revisaoFinal = await comPapel('auxiliar',
   `Revise a branch ${branch} inteira do eprocIA: git log --oneline ${prep.base}..HEAD e git diff ${prep.base}..HEAD. Read-only.\n` +
     `Procure: interação ruim entre correções, regressão, código morto deixado para trás, mensagens fora do pt-BR, arquivos sensíveis commitados (zip, pdf, saídas .txt). ` +
     `Rode go vet ./... e go test ./... -count=1. Devolva achados em texto curto, um por linha, com arquivo:linha; ou "nenhum problema".`,
   { label: 'revisao-final', phase: 'Final' },
 )
 
-await agent(
+await comPapel('auxiliar',
   `Atualize ${relatorio} com o resultado da correção de ${data} e faça um commit só dele.\n` +
     `Status por id (troque a linha "Status: pendente" de cada seção): ${JSON.stringify(status)}.\n` +
     `Detalhes por id (sha, benchstat, capturas, motivo de bloqueio): ${JSON.stringify(detalhes)}.\n` +

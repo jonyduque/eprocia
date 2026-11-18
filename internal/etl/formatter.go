@@ -237,6 +237,26 @@ type paginaOrdenada struct {
 	// semOCR marca a página digitalizada que ficou sem OCR: o conteúdo é o
 	// marcador, que sai como está.
 	semOCR bool
+	// avisoOCR marca a página cujo OCR falhou e que ficou com o texto nativo
+	// de reserva: avisoOCRComReserva sai antes do texto. erroOCR é a frase
+	// fixa da falha do OCR ("" se não houve, ou se a página conta como lida).
+	avisoOCR bool
+	erroOCR  string
+}
+
+// marcadorDoNaoLido devolve a linha técnica que acompanha a linha do documento
+// não lido: o marcador de erro que é o conteúdo da primeira página ou, sem
+// ele, o marcador da primeira página cujo OCR falhou. "" quando não há nenhum.
+func marcadorDoNaoLido(paginas []paginaOrdenada) string {
+	if len(paginas) > 0 && strings.HasPrefix(paginas[0].content, "[ERRO") {
+		return paginas[0].content
+	}
+	for _, p := range paginas {
+		if p.erroOCR != "" {
+			return marcadorErroOCR(p.erroOCR)
+		}
+	}
+	return ""
 }
 
 type docOrdenado struct {
@@ -266,7 +286,9 @@ func documentosOrdenados(evData map[string]any) []docOrdenado {
 			// Campos ausentes são tolerados.
 			c, _ := pData["content"].(string)
 			so, _ := pData["sem_ocr"].(bool)
-			d.paginas = append(d.paginas, paginaOrdenada{pData["index"].(int), c, so})
+			av, _ := pData["ocr_aviso"].(bool)
+			eo, _ := pData["ocr_erro"].(string)
+			d.paginas = append(d.paginas, paginaOrdenada{index: pData["index"].(int), content: c, semOCR: so, avisoOCR: av, erroOCR: eo})
 		}
 		slices.SortFunc(d.paginas, func(a, b paginaOrdenada) int { return cmp.Compare(a.index, b.index) })
 		docs = append(docs, d)
@@ -319,8 +341,10 @@ func duplicadasPorConteudo(eventos map[string]any, eventNums []int) duplicadasH7
 			todasDup := len(d.paginas) > 0
 			for i, p := range d.paginas {
 				chave := chaveConteudo(p.content)
-				if p.semOCR {
-					// O marcador de página sem OCR nunca é duplicata.
+				if p.semOCR || p.avisoOCR {
+					// O marcador de página sem OCR nunca é duplicata. A página
+					// cujo OCR falhou também não, nem serve de origem: o texto
+					// dela pode estar incompleto e o aviso tem de sair.
 					chave = ""
 				}
 				chaves[i] = chave
@@ -467,8 +491,8 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 					original = "arquivo"
 				}
 				sb.WriteString(fmt.Sprintf("[documento não lido: %s; consulte o %s original]\n", d.naoLido, original))
-				if len(d.paginas) > 0 && strings.HasPrefix(d.paginas[0].content, "[ERRO") {
-					sb.WriteString(d.paginas[0].content)
+				if m := marcadorDoNaoLido(d.paginas); m != "" {
+					sb.WriteString(m)
 					sb.WriteString("\n")
 				}
 				sb.WriteString("</documento>\n")
@@ -512,6 +536,15 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 				cleanedText := cleanPage(p.content, cleaningLevel, ctx)
 				if o, ok := h7.paginas[chavePagina{num, d.index, p.index}]; ok {
 					cleanedText = o.refPagina()
+				}
+				if p.avisoOCR {
+					// O aviso entra depois da limpeza, que nunca o vê, e sai
+					// mesmo que a limpeza não deixe texto na página.
+					if strings.TrimSpace(cleanedText) == "" {
+						cleanedText = avisoOCRComReserva
+					} else {
+						cleanedText = avisoOCRComReserva + "\n" + cleanedText
+					}
 				}
 				if strings.TrimSpace(cleanedText) == "" {
 					continue

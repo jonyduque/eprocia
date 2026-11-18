@@ -119,10 +119,13 @@ func (d *despachoOCR) registrarOCR(task ocrTask, ocrText string, err error) {
 	var pageData map[string]any
 	if err == nil {
 		log.Printf("[PDFParser] OCR concluído para página %d (tamanho: %d)", task.pageNum, len(ocrText))
+		// Um OCR em branco ou ilegível não apaga a reserva; com imagem
+		// descoberta, o texto nativo que o OCR não trouxe entra junto.
+		content, comOCR := conteudoAposOCR(task, ocrText)
 		pageData = map[string]any{
 			"index":   task.pageNum,
-			"ocr":     true,
-			"content": ocrText,
+			"ocr":     comOCR,
+			"content": content,
 		}
 	} else {
 		// O erro do OCR pode trazer o caminho de %TEMP% (com o nome de usuário)
@@ -131,18 +134,30 @@ func (d *despachoOCR) registrarOCR(task ocrTask, ocrText string, err error) {
 		frase := fraseOCR(err)
 		content := task.fallback
 		if content == "" {
-			content = "[ERRO de OCR: " + frase + "]"
+			content = marcadorErroOCR(frase)
 		}
 		log.Printf("[PDFParser] Falha no OCR para página %d: %v. Usando o texto de reserva (%d chars).", task.pageNum, err, len(task.fallback))
 		d.falhas.Add(1)
 		pageData = map[string]any{
-			"index":    task.pageNum,
-			"ocr":      false,
-			"content":  content,
-			"ocr_erro": frase,
+			"index":   task.pageNum,
+			"ocr":     false,
+			"content": content,
 		}
-		if errors.Is(err, ocr.ErrPrazo) {
-			pageData["ocr_prazo"] = true
+		// Com texto de reserva, em qualquer regra, a página leva ocr_aviso: o
+		// formatter põe antes do texto o aviso de que o OCR falhou.
+		if task.fallback != "" {
+			pageData["ocr_aviso"] = true
+		}
+		// Nas regras novas (imagem descoberta, isca) a reserva é o texto
+		// nativo que a v0.4.1 gravaria: a página fica sem ocr_erro nem
+		// ocr_prazo, para a falha não tirar o documento de lido.
+		regraNovaComReserva := task.fallback != "" &&
+			(task.motivo == motivoImagemDescoberta || task.motivo == motivoIsca)
+		if !regraNovaComReserva {
+			pageData["ocr_erro"] = frase
+			if errors.Is(err, ocr.ErrPrazo) {
+				pageData["ocr_prazo"] = true
+			}
 		}
 	}
 
