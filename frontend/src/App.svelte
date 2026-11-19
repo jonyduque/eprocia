@@ -1,5 +1,6 @@
 <script>
   import Icone from './components/Icone.svelte';
+  import MenuNivel from './components/MenuNivel.svelte';
   import Check from 'lucide-svelte/icons/check';
   import ChevronLeft from 'lucide-svelte/icons/chevron-left';
   import CirclePause from 'lucide-svelte/icons/circle-pause';
@@ -47,7 +48,7 @@
   import { fade } from 'svelte/transition';
   import { LARGURA_MIN_PAINEL, criarArrasto, larguraMaxPainel, limitarPainel, teclaDivisor } from './lib/divisor.js';
   import { DUR_BASE, DUR_FAST, avisoSoltura, criarAviso, duracaoMovimento, separarZips } from './lib/aviso.js';
-  import { OPCOES_LIMPEZA, OPCOES_OCR, nivelOpcao, proximaOpcao, rotuloOpcao } from './lib/atividade.js';
+  import { OPCOES_LIMPEZA, OPCOES_OCR, rotuloOpcao } from './lib/atividade.js';
   import { gravarPainel, lerPainel } from './lib/painel.js';
   import { rolagem } from './lib/rolagem.js';
   import { ROTULO_MONITORAMENTO, estadoMonitoramento, textoMonitoramento } from './lib/monitoramento.js';
@@ -277,28 +278,20 @@
   }
 
   async function salvarRapido(mudanca, texto) {
-    if (!config) return;
+    if (!config) return false;
     const novo = { ...config, ...mudanca };
     try {
       await SaveConfig(novo);
       config = novo;
       await anunciar(texto);
+      return true;
     } catch (err) {
       const msg = String(err?.message ?? err);
       // "configurações salvas, mas..." já se explica sozinha.
       aviso.mostrar(/^configurações salvas/i.test(msg) ? msg[0].toUpperCase() + msg.slice(1) : 'Erro ao salvar: ' + msg, 'error');
       await refreshConfig();
+      return false;
     }
-  }
-
-  function ciclarOcr() {
-    const prox = proximaOpcao(OPCOES_OCR, config?.ocr_mode);
-    salvarRapido({ ocr_mode: prox.valor }, `OCR: ${prox.rotulo}`);
-  }
-
-  function ciclarLimpeza() {
-    const prox = proximaOpcao(OPCOES_LIMPEZA, config?.cleaning_level);
-    salvarRapido({ cleaning_level: prox.valor }, `Higienização: ${prox.rotulo}`);
   }
 
   // Sem pasta configurada, ligar o monitoramento começa pela escolha da pasta.
@@ -317,8 +310,6 @@
     await salvarRapido({ watchdog_enabled: ligar }, ligar ? 'Monitoramento ativado' : 'Monitoramento pausado');
   }
 
-  $: rotuloOcr = rotuloOpcao(OPCOES_OCR, config?.ocr_mode);
-  $: rotuloLimpeza = rotuloOpcao(OPCOES_LIMPEZA, config?.cleaning_level);
   $: acaoMonitor = !config?.monitored_path
     ? 'Escolher pasta e ativar o monitoramento'
     : (config.watchdog_enabled ? 'Pausar o monitoramento' : 'Ativar o monitoramento');
@@ -634,37 +625,25 @@
             <Icone icone={Upload} />
           </button>
 
-          <button
-            type="button"
-            class="collapsed-tool-btn nivel-btn"
-            on:click={ciclarOcr}
-            disabled={!config}
-            title="OCR: {rotuloOcr}. Clique para {rotuloOpcao(OPCOES_OCR, proximaOpcao(OPCOES_OCR, config?.ocr_mode).valor)}"
-            aria-label="OCR: {rotuloOcr}. Mudar para {rotuloOpcao(OPCOES_OCR, proximaOpcao(OPCOES_OCR, config?.ocr_mode).valor)}"
-          >
-            <Icone icone={ScanText} tamanho={14} />
-            <span class="nivel" aria-hidden="true">
-              {#each OPCOES_OCR.slice(1) as _, i}
-                <span class="nivel-ponto" class:cheio={i < nivelOpcao(OPCOES_OCR, config?.ocr_mode)}></span>
-              {/each}
-            </span>
-          </button>
+          <MenuNivel
+            id="ocr"
+            legenda="OCR"
+            icone={ScanText}
+            opcoes={OPCOES_OCR}
+            valor={config?.ocr_mode}
+            desabilitado={!config}
+            aoEscolher={(v) => salvarRapido({ ocr_mode: v }, `OCR: ${rotuloOpcao(OPCOES_OCR, v)}`)}
+          />
 
-          <button
-            type="button"
-            class="collapsed-tool-btn nivel-btn"
-            on:click={ciclarLimpeza}
-            disabled={!config}
-            title="Higienização: {rotuloLimpeza}. Clique para {rotuloOpcao(OPCOES_LIMPEZA, proximaOpcao(OPCOES_LIMPEZA, config?.cleaning_level).valor)}"
-            aria-label="Higienização: {rotuloLimpeza}. Mudar para {rotuloOpcao(OPCOES_LIMPEZA, proximaOpcao(OPCOES_LIMPEZA, config?.cleaning_level).valor)}"
-          >
-            <Icone icone={Sparkles} tamanho={14} />
-            <span class="nivel" aria-hidden="true">
-              {#each OPCOES_LIMPEZA.slice(1) as _, i}
-                <span class="nivel-ponto" class:cheio={i < nivelOpcao(OPCOES_LIMPEZA, config?.cleaning_level)}></span>
-              {/each}
-            </span>
-          </button>
+          <MenuNivel
+            id="limpeza"
+            legenda="Higienização"
+            icone={Sparkles}
+            opcoes={OPCOES_LIMPEZA}
+            valor={config?.cleaning_level}
+            desabilitado={!config}
+            aoEscolher={(v) => salvarRapido({ cleaning_level: v }, `Higienização: ${rotuloOpcao(OPCOES_LIMPEZA, v)}`)}
+          />
         </div>
       {/if}
 
@@ -1163,30 +1142,6 @@
     opacity: 0.6;
   }
 
-  /* Ícone com os pontos de nível embaixo: o nível muda a cada clique. */
-  .nivel-btn {
-    flex-direction: column;
-    gap: 3px;
-    height: 36px;
-  }
-
-  .nivel {
-    display: flex;
-    gap: 2px;
-  }
-
-  .nivel-ponto {
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background-color: var(--border-strong);
-    transition: background-color var(--dur-fast) var(--ease-out);
-  }
-
-  .nivel-ponto.cheio {
-    background-color: var(--accent);
-  }
-
   .collapsed-tool-btn {
     background-color: var(--surface-hover);
     border: 1px solid var(--border);
@@ -1364,20 +1319,12 @@
     font-size: var(--fs-meta);
   }
 
-  /* Alto contraste do Windows: o fundo vira Canvas e os pontos sumiriam.
-     Vazio = desligado/vazio; Highlight = ligado/cheio. */
+  /* Alto contraste do Windows: o fundo vira Canvas e o ponto sumiria. */
   @media (forced-colors: active) {
-    .nivel-ponto,
     .pulse-dot {
       forced-color-adjust: none;
-      border: 1px solid CanvasText;
-      background-color: Canvas;
-    }
-
-    .nivel-ponto.cheio,
-    .pulse-dot {
+      border: 1px solid Highlight;
       background-color: Highlight;
-      border-color: Highlight;
     }
   }
 

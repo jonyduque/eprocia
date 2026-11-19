@@ -18,11 +18,12 @@ describe('higienização em Settings.svelte', () => {
     assert.match(settings, /cleaning_level: 'standard'/);
   });
   it('ajuda de cada nível', () => {
-    const ajuda = settings.match(/const AJUDA_LIMPEZA = \{[\s\S]*?\};/)?.[0] ?? '';
-    assert.match(ajuda, /none: 'Texto como extraído'/);
-    assert.match(ajuda, /basic: 'Remove espaços e linhas vazias'/);
-    assert.match(ajuda, /standard: 'Remove cabeçalhos, rodapés e duplicatas; resume assinaturas'/);
-    assert.match(ajuda, /aggressive: 'Padrão \+ ruído de OCR e parágrafos contínuos'/);
+    const ajuda = Object.fromEntries(OPCOES_LIMPEZA.map((o) => [o.valor, o.descricao]));
+    assert.equal(ajuda.none, 'Texto como extraído');
+    assert.equal(ajuda.basic, 'Remove espaços e linhas vazias');
+    assert.equal(ajuda.standard, 'Remove cabeçalhos, rodapés e duplicatas; resume assinaturas');
+    assert.equal(ajuda.aggressive, 'Padrão + ruído de OCR e parágrafos contínuos');
+    assert.match(settings, /descricaoOpcao\(OPCOES_LIMPEZA, previaLimpeza \?\? config\.cleaning_level\)/);
   });
 });
 
@@ -30,8 +31,8 @@ describe('padrão fora das Configurações', () => {
   it('lista de processos usa standard como reserva', () => {
     assert.doesNotMatch(lista, /cleaning_level \|\| 'basic'/);
   });
-  it('indicador da barra recolhida cobre os 4 níveis', () => {
-    assert.match(app, /OPCOES_LIMPEZA\.slice\(1\)/);
+  it('menu da barra recolhida cobre os 4 níveis', () => {
+    assert.match(app, /<MenuNivel[^>]*opcoes=\{OPCOES_LIMPEZA\}/);
   });
 });
 

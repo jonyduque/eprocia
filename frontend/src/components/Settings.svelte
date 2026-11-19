@@ -14,7 +14,7 @@
   import Segmentado from './Segmentado.svelte';
   import { onDestroy, tick } from 'svelte';
   import { criarConfirmacao } from '../lib/aviso.js';
-  import { OPCOES_OCR, OPCOES_LIMPEZA } from '../lib/atividade.js';
+  import { OPCOES_OCR, OPCOES_LIMPEZA, descricaoOpcao } from '../lib/atividade.js';
   import { ROTULO_MONITORAMENTO, estadoMonitoramento, reticenciasMeio } from '../lib/monitoramento.js';
   import { SaveConfig, SelectDirectory } from '../wailsjs/go/main/App.js';
 
@@ -35,20 +35,6 @@
     auto_start: false,
     watchdog_enabled: true,
     omitir_tipos: []
-  };
-
-  const AJUDA_OCR = {
-    none: 'Páginas só com imagem ficam sem texto.',
-    fast: 'Modelo leve: mais rápido, menos preciso.',
-    normal: 'Equilíbrio entre velocidade e precisão.',
-    best: 'Modelo mais preciso, porém mais lento.'
-  };
-
-  const AJUDA_LIMPEZA = {
-    none: 'Texto como extraído',
-    basic: 'Remove espaços e linhas vazias',
-    standard: 'Remove cabeçalhos, rodapés e duplicatas; resume assinaturas',
-    aggressive: 'Padrão + ruído de OCR e parágrafos contínuos'
   };
 
   // Opção sob o ponteiro em cada controle: a ajuda a descreve antes de gravar.
@@ -232,7 +218,7 @@
         >
           <svelte:fragment slot="legenda"><Salvo campo="ocr" {confirmado} /></svelte:fragment>
         </Segmentado>
-        <p class="help-text" id="ajuda-ocr">{AJUDA_OCR[previaOcr ?? config.ocr_mode] ?? ''}</p>
+        <p class="help-text" id="ajuda-ocr">{descricaoOpcao(OPCOES_OCR, previaOcr ?? config.ocr_mode)}</p>
       </div>
 
       <div class="form-group">
@@ -248,7 +234,7 @@
         >
           <svelte:fragment slot="legenda"><Salvo campo="limpeza" {confirmado} /></svelte:fragment>
         </Segmentado>
-        <p class="help-text" id="ajuda-limpeza">{AJUDA_LIMPEZA[previaLimpeza ?? config.cleaning_level] ?? ''}</p>
+        <p class="help-text" id="ajuda-limpeza">{descricaoOpcao(OPCOES_LIMPEZA, previaLimpeza ?? config.cleaning_level)}</p>
       </div>
 
       <div class="form-group">

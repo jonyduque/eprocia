@@ -13,6 +13,7 @@ const app = ler('src', 'App.svelte');
 const settings = ler('src', 'components', 'Settings.svelte');
 const lista = ler('src', 'components', 'ProcessList.svelte');
 const avisoComp = ler('src', 'components', 'Aviso.svelte');
+const menuNivel = ler('src', 'components', 'MenuNivel.svelte');
 const css = ler('src', 'assets', 'css', 'style.css');
 
 function estilo(texto) {
@@ -266,7 +267,7 @@ test('alto contraste: interruptor com contorno, bolinha e trilho ligado em Highl
 // F-AC-09: o monitoramento virou ícone (traço em currentColor, que o modo de
 // alto contraste já pinta); ficam os pontos de nível.
 test('alto contraste: pontos de nível com contorno e Highlight quando cheios', () => {
-  const b = forcado(app, 'App');
+  const b = forcado(menuNivel, 'MenuNivel');
   const r = regraForcada(b, '.nivel-ponto');
   assert.match(r, /forced-color-adjust:\s*none/);
   assert.match(r, /border:\s*1px solid CanvasText/);
