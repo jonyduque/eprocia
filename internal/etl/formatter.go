@@ -82,10 +82,9 @@ func normalizeEdgeLine(trimmed string) string {
 }
 
 // edgeLines returns the normalized first and last edgeLineCount non-empty
-// lines of a page, without duplicates.
-func edgeLines(page string) map[string]bool {
-	// Mesma limpeza e mesmas posições que cleanPage usa ao consultar o conjunto.
-	nonEmpty := linhasBasicas(page)
+// lines of a page (as given by linhasBasicas), without duplicates.
+func edgeLines(nonEmpty []string) map[string]bool {
+	// Mesmas posições que cleanPage usa ao consultar o conjunto.
 	edges := make(map[string]bool)
 	if paginaCurta(len(nonEmpty)) {
 		return edges
@@ -101,6 +100,15 @@ func edgeLines(page string) map[string]bool {
 // repeatedEdgeLines finds the normalized header/footer lines that appear at the
 // edges of at least 60% of a document's pages (documents with 2+ pages only).
 func repeatedEdgeLines(pages []string) map[string]bool {
+	linhas := make([][]string, len(pages))
+	for i, p := range pages {
+		linhas[i] = linhasBasicas(p)
+	}
+	return repeatedEdgeLinesDe(linhas)
+}
+
+// repeatedEdgeLinesDe é repeatedEdgeLines sobre as linhas básicas já prontas.
+func repeatedEdgeLinesDe(pages [][]string) map[string]bool {
 	if len(pages) < 2 {
 		return nil
 	}
@@ -137,7 +145,12 @@ func cleanPage(text string, level string, ctx *ctxDocumento) string {
 	if level == NivelNenhum {
 		return text
 	}
-	lines := linhasBasicas(text)
+	return cleanLinhas(linhasBasicas(text), level, ctx)
+}
+
+// cleanLinhas é cleanPage, fora do nível none, sobre as linhas básicas da
+// página já prontas.
+func cleanLinhas(lines []string, level string, ctx *ctxDocumento) string {
 	if level != NivelPadrao && level != NivelMaximo {
 		return strings.Join(lines, "\n")
 	}
@@ -234,6 +247,9 @@ func ehHTML(nome string) bool {
 type paginaOrdenada struct {
 	index   int
 	content string
+	// linhas são as linhas básicas de content, calculadas uma vez por
+	// prepararLinhas para H7, bordas repetidas e limpeza.
+	linhas []string
 	// semOCR marca a página digitalizada que ficou sem OCR: o conteúdo é o
 	// marcador, que sai como está.
 	semOCR bool
@@ -297,6 +313,22 @@ func documentosOrdenados(evData map[string]any) []docOrdenado {
 	return docs
 }
 
+// prepararLinhas calcula as linhas básicas de cada página que H7, as bordas
+// repetidas ou a limpeza vão ler: fora ficam omitidos, não lidos e as páginas
+// sem OCR, que nenhuma das três etapas limpa.
+func prepararLinhas(docs []docOrdenado) {
+	for _, d := range docs {
+		if d.omitido != "" || d.naoLido != "" {
+			continue
+		}
+		for i := range d.paginas {
+			if !d.paginas[i].semOCR {
+				d.paginas[i].linhas = linhasBasicas(d.paginas[i].content)
+			}
+		}
+	}
+}
+
 // duplicadasH7 é o resultado da pré-passada: páginas repetidas e documentos
 // idênticos, por inteiro, a um documento anterior.
 type duplicadasH7 struct {
@@ -306,8 +338,8 @@ type duplicadasH7 struct {
 
 // chaveConteudo é o sha256 das linhas básicas unidas por espaço; "" quando a
 // página tem menos de duplicadaMinRunas runas.
-func chaveConteudo(content string) string {
-	juntas := strings.Join(linhasBasicas(content), " ")
+func chaveConteudo(linhas []string) string {
+	juntas := strings.Join(linhas, " ")
 	if utf8.RuneCountInString(juntas) < duplicadaMinRunas {
 		return ""
 	}
@@ -319,7 +351,7 @@ func chaveConteudo(content string) string {
 // e devolve, para cada página repetida, a origem da primeira ocorrência. Um
 // documento só é idêntico a outro se tem o mesmo número de páginas e a página i
 // de um tem a mesma chave da página i do outro, para todo i (e todas longas).
-func duplicadasPorConteudo(eventos map[string]any, eventNums []int) duplicadasH7 {
+func duplicadasPorConteudo(porEvento map[int][]docOrdenado, eventNums []int) duplicadasH7 {
 	primeiras := map[string]origemPagina{}
 	chavesDoc := map[chaveDoc][]string{}
 	nomes := map[chaveDoc]string{}
@@ -328,7 +360,7 @@ func duplicadasPorConteudo(eventos map[string]any, eventNums []int) duplicadasH7
 		documentos: map[chaveDoc]origemPagina{},
 	}
 	for _, num := range eventNums {
-		for _, d := range documentosOrdenados(eventos[fmt.Sprintf("%d", num)].(map[string]any)) {
+		for _, d := range porEvento[num] {
 			if d.omitido != "" || d.naoLido != "" {
 				// Omitido e não lido ficam fora da detecção e ninguém os referencia:
 				// dois erros iguais não são "o mesmo documento".
@@ -340,12 +372,12 @@ func duplicadasPorConteudo(eventos map[string]any, eventNums []int) duplicadasH7
 			chaves := make([]string, len(d.paginas))
 			todasDup := len(d.paginas) > 0
 			for i, p := range d.paginas {
-				chave := chaveConteudo(p.content)
-				if p.semOCR || p.avisoOCR {
-					// O marcador de página sem OCR nunca é duplicata. A página
-					// cujo OCR falhou também não, nem serve de origem: o texto
-					// dela pode estar incompleto e o aviso tem de sair.
-					chave = ""
+				// O marcador de página sem OCR nunca é duplicata. A página cujo
+				// OCR falhou também não, nem serve de origem: o texto dela pode
+				// estar incompleto e o aviso tem de sair.
+				chave := ""
+				if !p.semOCR && !p.avisoOCR {
+					chave = chaveConteudo(p.linhas)
 				}
 				chaves[i] = chave
 				if chave == "" {
@@ -467,17 +499,25 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 	// H7: na Padrão e na Máxima, páginas de 200+ runas com o mesmo conteúdo
 	// (após linhasBasicas) viram referência à primeira ocorrência, e o documento
 	// idêntico a outro, página a página, vira uma referência só.
+	completa := cleaningLevel == NivelPadrao || cleaningLevel == NivelMaximo
+	porEvento := make(map[int][]docOrdenado, len(eventNums))
+	for _, num := range eventNums {
+		docs := documentosOrdenados(eventos[fmt.Sprintf("%d", num)].(map[string]any))
+		if completa {
+			prepararLinhas(docs)
+		}
+		porEvento[num] = docs
+	}
 	var h7 duplicadasH7
-	if cleaningLevel == NivelPadrao || cleaningLevel == NivelMaximo {
-		h7 = duplicadasPorConteudo(eventos, eventNums)
+	if completa {
+		h7 = duplicadasPorConteudo(porEvento, eventNums)
 	}
 
 	// Loop over each Event chronologically
 	for _, num := range eventNums {
-		evData := eventos[fmt.Sprintf("%d", num)].(map[string]any)
 		sb.WriteString(fmt.Sprintf("<evento num=\"%d\">\n", num))
 
-		for _, d := range documentosOrdenados(evData) {
+		for _, d := range porEvento[num] {
 			sb.WriteString(fmt.Sprintf("<documento index=\"%d\" nome=\"%s\">\n", d.index, escapeAttr(d.nome)))
 
 			if d.omitido != "" {
@@ -506,16 +546,14 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 			}
 
 			ctx := &ctxDocumento{jaVistas: map[string]bool{}, html: ehHTML(d.nome)}
-			if cleaningLevel == NivelPadrao || cleaningLevel == NivelMaximo {
-				contents := make([]string, len(d.paginas))
+			if completa {
+				// A página sem OCR não tem linhas: o marcador não conta como
+				// linha de borda repetida.
+				linhas := make([][]string, len(d.paginas))
 				for i, p := range d.paginas {
-					contents[i] = p.content
-					if p.semOCR {
-						// O marcador não conta como linha de borda repetida.
-						contents[i] = ""
-					}
+					linhas[i] = p.linhas
 				}
-				ctx.repetidas = repeatedEdgeLines(contents)
+				ctx.repetidas = repeatedEdgeLinesDe(linhas)
 			}
 
 			// Limpa todas as páginas na ordem; só as que têm conteúdo saem.
@@ -533,7 +571,12 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 				// de propósito: o estado do documento (timbre em jaVistas, marcadores
 				// em assinados) tem de avançar como se a página tivesse saído, porque
 				// o texto já apareceu na origem.
-				cleanedText := cleanPage(p.content, cleaningLevel, ctx)
+				var cleanedText string
+				if completa {
+					cleanedText = cleanLinhas(p.linhas, cleaningLevel, ctx)
+				} else {
+					cleanedText = cleanPage(p.content, cleaningLevel, ctx)
+				}
 				if o, ok := h7.paginas[chavePagina{num, d.index, p.index}]; ok {
 					cleanedText = o.refPagina()
 				}

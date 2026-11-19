@@ -44,8 +44,15 @@ func linhaSeparadora(l string) bool {
 // linhasBasicas tira caracteres de controle (exceto \n e \t), colapsa espaços,
 // tabs e NBSP, apara as linhas e descarta as vazias e as separadoras.
 func linhasBasicas(text string) []string {
-	var out []string
+	out := make([]string, 0, strings.Count(text, "\n")+1)
 	for linha := range strings.SplitSeq(text, "\n") {
+		if linhaLimpa(linha) {
+			// Reaproveita a fatia do texto: Map, Fields e Join a devolveriam igual.
+			if linha != "" && !linhaSeparadora(linha) {
+				out = append(out, linha)
+			}
+			continue
+		}
 		linha = strings.Map(func(r rune) rune {
 			switch {
 			case r == '\t' || r == ' ' || r == '\v' || r == '\f' || r == '\u0085':
@@ -62,6 +69,38 @@ func linhasBasicas(text string) []string {
 		out = append(out, linha)
 	}
 	return out
+}
+
+// linhaLimpa informa se linhasBasicas devolveria l sem mudança: nenhum
+// controle, nenhum espaço além do ' ' simples entre palavras e UTF-8 válido
+// (strings.Map troca o byte inválido por U+FFFD).
+func linhaLimpa(l string) bool {
+	espaco := true // um ' ' no começo já suja a linha
+	for i := 0; i < len(l); {
+		c := l[i]
+		if c < utf8.RuneSelf {
+			switch {
+			case c == ' ':
+				if espaco {
+					return false
+				}
+				espaco = true
+			case c < 0x20 || c == 0x7f:
+				return false
+			default:
+				espaco = false
+			}
+			i++
+			continue
+		}
+		r, n := utf8.DecodeRuneInString(l[i:])
+		if r == utf8.RuneError || unicode.IsSpace(r) || unicode.IsControl(r) {
+			return false
+		}
+		espaco = false
+		i += n
+	}
+	return !espaco || l == ""
 }
 
 // Janelas de H6: a chancela só é procurada nas últimas linhas da página e, no
