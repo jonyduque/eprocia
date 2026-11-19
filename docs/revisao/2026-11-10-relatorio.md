@@ -3577,7 +3577,60 @@ Capturas (antes / depois):
 - **Justificativa do cético:** Confirmado: ciclarOcr/ciclarLimpeza (App.svelte:220-228) avançam com proximaOpcao circular e gravam a cada clique, de Preciso a Normal são 3 cliques passando por Desativado, e o estado visível são três pontos de 4px (captura processando-recolhido). Mas é um atalho da barra recolhida, com title/aria-label corretos e o painel completo a um clique, e a proposta se sobrepõe ao controle segmentado de F-VI-02: baixa.
 - **Nota da síntese:** Depende do componente de F-VI-02, cujo conteúdo o menu reaproveita.
 
-Status: pendente
+Status: feito. Commit `84a05da0d8d8b35107caa1e623272869222fb015`.
+
+Capturas (antes / depois):
+
+- 800x600-claro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-claro-configuracoes.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-claro-processando.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-claro-processando-recolhido.png)
+- 800x600-escuro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-escuro-configuracoes.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-escuro-processando.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-escuro-processando-recolhido.png)
+- 1024x768-claro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-claro-configuracoes.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-claro-processando.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-claro-processando-recolhido.png)
+- 1024x768-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-escuro-configuracoes.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-escuro-processando.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-escuro-processando-recolhido.png)
+- 1440x900-claro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-claro-configuracoes.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-claro-processando.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-claro-processando-recolhido.png)
+- 1440x900-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-escuro-configuracoes.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-escuro-processando.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-escuro-processando-recolhido.png)
+- 1920x1080-claro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-claro-configuracoes.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-claro-processando.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-escuro-configuracoes.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-escuro-processando.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-escuro-processando-recolhido.png)
+- 1024x768-alto-contraste-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-alto-contraste-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-alto-contraste-configuracoes.png)
+- 1024x768-alto-contraste-processando: [antes](capturas/2026-11-10/antes/1024x768-alto-contraste-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-alto-contraste-processando.png)
 
 ### F-AC-15 — Fila: cinco paradas de Tab por linha, sem setas nem atalhos
 
@@ -3909,6 +3962,25 @@ Não encontrei interação ruim entre as correções nem regressão nestes ponto
 - Bandeja oculta com troca de tema.
 - `confirmarReprocessar` com `devolverFoco` (prefere "cancelar").
 - `Show` com `Cancelar` do animador: `Cancelar` espera a reposição, então não há corrida no aviso de visibilidade.
+
+## Revisão final da branch
+
+Revisão do intervalo 7cc90e2..HEAD (só o commit 84a05da, F-AC-14). O código não tem defeitos; há um problema, na mensagem de commit.
+
+Achado:
+
+- O título do commit 84a05da (F-AC-14) contradiz o código: "OCR e higienização são botões de ciclo com três pontinhos, sem mostrar as opções". O commit remove o ciclo (`ciclarOcr`/`ciclarLimpeza`/`proximaOpcao` saíram de `frontend/src/App.svelte` e `frontend/src/lib/atividade.js`) e acrescenta um menu que mostra as 4 opções com suas descrições (`frontend/src/components/MenuNivel.svelte`), conforme DESIGN.md:121 e a decisão do dono em 7cc90e2 ("menu flutuante"). O título precisa ser reescrito.
+
+Verificações:
+
+- Escopo: o intervalo 7cc90e2..HEAD contém só 84a05da.
+- Arquivos sensíveis: nenhum .zip, .pdf ou .txt. Os binários do diff são as capturas PNG em `depois-F-AC-14/`.
+- Código morto: nenhum. `proximaOpcao`, `AJUDA_OCR` e `AJUDA_LIMPEZA` saíram sem referências restantes; `.nivel-btn` e `.nivel-ponto` foram para `MenuNivel.svelte` com as regras de alto contraste.
+- `.pulse-dot` em `frontend/src/App.svelte`: a regra de alto contraste virou um bloco só, com o mesmo efeito (preenchimento e borda Highlight).
+- Interação entre correções: nenhuma. `salvarRapido` agora devolve booleano, e `MenuNivel` o usa para mostrar a confirmação só depois de gravar; os demais chamadores ignoram o retorno.
+- Versão do Svelte: 5.57.1 suporta o `{@attach}` usado em `MenuNivel.svelte`.
+- Idioma: mensagens e comentários novos em pt-BR.
+- Testes: `go vet ./...` sem saída; `go test ./... -count=1` passou em todos os pacotes; testes do frontend (`node --test frontend/*.test.mjs`): 310 passaram, 0 falharam.
 
 ## Como aprovar
 
