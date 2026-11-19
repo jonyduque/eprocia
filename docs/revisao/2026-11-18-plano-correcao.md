@@ -164,7 +164,7 @@ Perguntas feitas em 2026-11-18 (no Pinboard, com os ids deslocados em +1: d2 de 
 | # | Achado | Pergunta | Resposta do dono |
 |---|--------|----------|------------------|
 | d1 | F-AC-12 | O X do item pendente faz o quê? | Só cancela, não remove. Depois de cancelado, a linha mostra o botão de excluir. O usuário pode querer mudar os parâmetros e reprocessar antes de excluir. Diferente da recomendação. |
-| d2 | F-AC-14 | OCR e higienização na barra recolhida | **Sem resposta.** O achado fica no bloco 5, que roda por último. |
+| d2 | F-AC-14 | OCR e higienização na barra recolhida | Menu flutuante com as 4 opções e a descrição de cada uma (resposta de 2026-11-19, a recomendada). |
 | d3 | F-AC-03 | A lixeira da pasta monitorada | Sai sem substituto; trocar a pasta só por "Alterar". Diferente da recomendação. |
 | d4 | F-AC-09 e F-VI-04 | Ícones do monitoramento | `FolderSearch`, `CirclePause` e `FolderX` (a recomendada). |
 | d5 | F-AC-01 | Copiar o TXT na linha concluída | Não mover Copiar; só retorno visual e anúncio. Diferente da recomendação. |
