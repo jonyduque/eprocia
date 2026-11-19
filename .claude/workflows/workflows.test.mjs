@@ -219,6 +219,33 @@ describe('eprocia-corrigir (simulado)', () => {
     await assert.rejects(rodar('eprocia-corrigir.js', { ...args, grupos: [['B-ES-01', 'F-RS-01']] }, responder(base)), /mesma camada/);
   });
 
+  it('gate visual roda os testes do frontend e reprova em qualquer falha', async () => {
+    const { chamadas } = await rodar('eprocia-corrigir.js', args, responder(base));
+    const gate = chamadas.find((c) => c.opts.label === 'gate:F-RS-01#1').prompt;
+    assert.match(gate, /node --test.*frontend\/\*\.test\.mjs/);
+    assert.match(gate, /qualquer falha/);
+  });
+
+  it('implementador e revisor de correção rodam o glob de testes do frontend', () => {
+    for (const nome of ['implementador.md', 'revisor-correcao.md']) {
+      const src = readFileSync(path.join(DIR, '..', 'agents', nome), 'utf8');
+      assert.match(src, /node --test.*frontend\/\*\.test\.mjs/, nome);
+    }
+  });
+
+  it('gate de benchmark recebe as observações do implementador e ignora o pico-mem-B com OCR', async () => {
+    const resp = responder(base);
+    const { chamadas } = await rodar('eprocia-corrigir.js', args, (p, o) => {
+      if (o.label?.startsWith('implementar:B-EF-01')) {
+        return { arquivos: ['a.go'], teste: 't', comandos: 'go test', observacoes: 'metrica-alvo: sec/op do BenchmarkSintetico OCR fast' };
+      }
+      return resp(p, o);
+    });
+    const gate = chamadas.find((c) => c.opts.label === 'gate:B-EF-01#1').prompt;
+    assert.match(gate, /metrica-alvo: sec\/op do BenchmarkSintetico OCR fast/);
+    assert.match(gate, /Não conte o pico-mem-B do modo com OCR/);
+  });
+
   it('Passo 0 com falha impede qualquer correção', async () => {
     const { resultado, chamadas } = await rodar('eprocia-corrigir.js', args, responder({ ...base, passo0_feito: false }, { reprovar: (l) => l.startsWith('revisar:passo0') }));
     assert.match(resultado.erro, /Passo 0 falhou/);

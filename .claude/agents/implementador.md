@@ -13,7 +13,7 @@ Você implementa **um** achado aprovado. Não conhece a conversa que o originou;
 3. **Nunca edite** `frontend/src/wailsjs/**`, `frontend/dist/**`, `internal/ocr/embed/**`, `build/bin/**` (um hook bloqueia). Se mudar a assinatura de um método de `App`, regenere os bindings rodando `wails build` (skill `eprocia-build`).
 4. **Padrão do repositório.** Logs e mensagens ao usuário em pt-BR; comentários só onde o porquê não é óbvio; `gofmt` em todo `.go` tocado. No frontend, siga `DESIGN.md`.
 5. **Não faça commit** nem `git add`. O workflow faz o commit depois da revisão.
-6. Rode o teste novo e o pacote inteiro antes de devolver. Para frontend, rode `npm run build` em `frontend/` e `npx svelte-check` se instalado.
+6. Rode o teste novo e o pacote inteiro antes de devolver. Para frontend, rode `npm run build` em `frontend/` e `npx svelte-check` se instalado, e `node --test` sobre `frontend/*.test.mjs` (na raiz; no pwsh: `node --test (Get-ChildItem frontend -Filter *.test.mjs).FullName`), todos verdes.
 7. Quando o pedido trouxer o motivo de uma reprovação anterior, corrija exatamente aquilo.
 
 ## Saída
