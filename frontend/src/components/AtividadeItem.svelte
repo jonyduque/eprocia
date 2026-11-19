@@ -5,7 +5,11 @@
   import Clock from 'lucide-svelte/icons/clock';
   import FileText from 'lucide-svelte/icons/file-text';
   import ScanText from 'lucide-svelte/icons/scan-text';
-  import { ordenarDocs, resumoAtividade, segmentos, naoLido } from '../lib/atividade.js';
+  import { flip } from 'svelte/animate';
+  import { fade } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
+  import { prepararDocs, segmentos, naoLido, LIMITE_AGUARDANDO, LIMITE_FLIP_DOCS } from '../lib/atividade.js';
+  import { duracaoMovimento, DUR_FAST } from '../lib/aviso.js';
 
   // Instantâneo de etl.InstantaneoAtividade; null enquanto carrega e
   // 'nenhuma' quando o item foi cancelado antes de começar.
@@ -17,6 +21,7 @@
   export let aoReprocessarComOCR = () => {};
 
   let mostrarConcluidos = false;
+  let expandirAguardando = false;
 
   const ROTULO_LEITURA = { ocr: 'via OCR', segundo_leitor: 'segundo leitor' };
 
@@ -28,12 +33,10 @@
     erro: 'Erro'
   };
 
-  $: docs = ordenarDocs(atividade?.docs);
-  $: resumo = resumoAtividade(atividade);
+  $: ({ visiveis, resumo } = prepararDocs(atividade, { mostrarConcluidos, expandirAguardando }));
   $: limiteDocs = atividade?.limite_docs || 0;
   $: limiteOcr = atividade?.limite_ocr || 0;
   $: ocrAtivos = atividade?.ocr_ativos || 0;
-  $: visiveis = mostrarConcluidos ? docs : docs.filter((d) => d.estado !== 'concluido');
 
   function pct(d) {
     if (!d.paginas) return d.estado === 'concluido' ? 100 : 0;
@@ -110,35 +113,46 @@
     {#if visiveis.length > 0}
       <ul class="docs">
         {#each visiveis as d (d.i)}
-          <li class="doc {d.estado}" class:nao-lido={naoLido(d)} title={naoLido(d) && d.detalhe ? `${d.nome}\n${d.detalhe}` : d.erro ? `${d.nome}\n${d.erro}` : d.nome}>
-            <span class="doc-icone">
-              {#if d.estado === 'ocr'}
-                <span class="pulsa"><Icone icone={ScanText} tamanho={12} cor="var(--processing)" /></span>
-              {:else if d.estado === 'lendo'}
-                <Icone icone={FileText} tamanho={12} cor="var(--accent)" />
-              {:else if naoLido(d)}
-                <Icone icone={CircleAlert} tamanho={12} cor="var(--warning)" />
-              {:else if d.estado === 'concluido'}
-                <Icone icone={CircleCheck} tamanho={12} cor="var(--success)" />
-              {:else if d.estado === 'erro'}
-                <Icone icone={CircleAlert} tamanho={12} cor="var(--error)" />
-              {:else}
-                <Icone icone={Clock} tamanho={12} cor="var(--text-secondary)" />
-              {/if}
-              <span class="sr-only">{ROTULO[d.estado] ?? d.estado}:</span>
-            </span>
-            <span class="doc-nome">{d.nome}</span>
-            {#if d.ocr > 0}
-              <span class="doc-ocr font-tabular">OCR · {d.ocr} pág.</span>
-            {/if}
-            {#if ROTULO_LEITURA[d.leitura]}
-              <span class="doc-leitura">{ROTULO_LEITURA[d.leitura]}</span>
-            {/if}
-            {#if d.estado === 'erro'}
-              <span class="doc-erro" class:aviso={naoLido(d)}>{d.erro}</span>
+          <li class="doc {d.mais ? 'mais' : d.estado}" class:nao-lido={naoLido(d)} title={d.mais ? undefined : naoLido(d) && d.detalhe ? `${d.nome}\n${d.detalhe}` : d.erro ? `${d.nome}\n${d.erro}` : d.nome} animate:flip={{ duration: LIMITE_FLIP_DOCS < visiveis.length ? 0 : duracaoMovimento(DUR_FAST), easing: cubicOut }} out:fade={{ duration: duracaoMovimento(DUR_FAST) }}>
+            {#if d.mais}
+              <button
+                type="button"
+                class="mais-aguardando"
+                aria-expanded={expandirAguardando}
+                on:click={() => (expandirAguardando = !expandirAguardando)}
+              >
+                {#if d.expandido}Mostrar só os primeiros {LIMITE_AGUARDANDO}{:else}+ {d.n} aguardando{/if}
+              </button>
             {:else}
-              <span class="doc-barra" aria-hidden="true"><span style:--p={pct(d) / 100}></span></span>
-              <span class="doc-paginas font-tabular">{d.feitas}/{d.paginas}</span>
+              <span class="doc-icone">
+                {#if d.estado === 'ocr'}
+                  <span class="pulsa"><Icone icone={ScanText} tamanho={12} cor="var(--processing)" /></span>
+                {:else if d.estado === 'lendo'}
+                  <Icone icone={FileText} tamanho={12} cor="var(--accent)" />
+                {:else if naoLido(d)}
+                  <Icone icone={CircleAlert} tamanho={12} cor="var(--warning)" />
+                {:else if d.estado === 'concluido'}
+                  <Icone icone={CircleCheck} tamanho={12} cor="var(--success)" />
+                {:else if d.estado === 'erro'}
+                  <Icone icone={CircleAlert} tamanho={12} cor="var(--error)" />
+                {:else}
+                  <Icone icone={Clock} tamanho={12} cor="var(--text-secondary)" />
+                {/if}
+                <span class="sr-only">{ROTULO[d.estado] ?? d.estado}:</span>
+              </span>
+              <span class="doc-nome">{d.nome}</span>
+              {#if d.ocr > 0}
+                <span class="doc-ocr font-tabular">OCR · {d.ocr} pág.</span>
+              {/if}
+              {#if ROTULO_LEITURA[d.leitura]}
+                <span class="doc-leitura">{ROTULO_LEITURA[d.leitura]}</span>
+              {/if}
+              {#if d.estado === 'erro'}
+                <span class="doc-erro" class:aviso={naoLido(d)}>{d.erro}</span>
+              {:else}
+                <span class="doc-barra" aria-hidden="true"><span style:--p={pct(d) / 100}></span></span>
+                <span class="doc-paginas font-tabular">{d.feitas}/{d.paginas}</span>
+              {/if}
             {/if}
           </li>
         {/each}
@@ -325,6 +339,25 @@
     padding: 0 4px;
     border-radius: 3px;
     min-width: 0;
+  }
+
+  .mais-aguardando {
+    background: transparent;
+    border: none;
+    padding: 0;
+    border-radius: 3px;
+    font: inherit;
+    color: var(--accent-text);
+    cursor: pointer;
+  }
+
+  .mais-aguardando:hover {
+    text-decoration: underline;
+  }
+
+  .mais-aguardando:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
   }
 
   .doc.ocr,

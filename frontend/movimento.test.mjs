@@ -360,3 +360,25 @@ test('barras de progresso animam transform, não width', () => {
   }
   assert.match(design.slice(design.indexOf('## 7. Movimento')), /scaleX/);
 });
+
+// --- F-AN-09 ---------------------------------------------------------------
+
+import { LIMITE_FLIP_DOCS, LIMITE_AGUARDANDO } from './src/lib/atividade.js';
+
+test('documentos da atividade deslizam com flip, que desliga em listas longas, e saem com fade', () => {
+  const at = ler('src', 'components', 'AtividadeItem.svelte');
+  const linha = tag(at, 'class="doc ');
+  assert.match(linha, /animate:flip=\{\{ duration: LIMITE_FLIP_DOCS < visiveis\.length \? 0 : duracaoMovimento\(DUR_FAST\), easing: cubicOut \}\}/);
+  assert.match(linha, /out:fade=\{\{ duration: duracaoMovimento\(DUR_FAST\) \}\}/);
+  assert.match(at, /import \{ flip \} from 'svelte\/animate'/);
+  assert.match(at, /import \{ fade \} from 'svelte\/transition'/);
+  assert.match(at, /import \{ cubicOut \} from 'svelte\/easing'/);
+  assert.match(at, /\{#each visiveis as d \(d\.i\)\}\s*<li class="doc /, 'li é o único filho do each');
+  // Recolhido, o painel cabe no limite mesmo com muitos núcleos: o flip só desliga com os concluídos à mostra.
+  assert.ok(LIMITE_FLIP_DOCS >= LIMITE_AGUARDANDO + 32);
+});
+
+test('DESIGN.md descreve o movimento do painel de atividade', () => {
+  const sec = design.slice(design.indexOf('## 7. Movimento'));
+  assert.match(sec, /Documentos do painel de atividade/);
+});

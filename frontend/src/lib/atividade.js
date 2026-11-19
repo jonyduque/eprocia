@@ -61,6 +61,45 @@ export function resumoAtividade(inst) {
   return r;
 }
 
+// Aguardando montados no painel antes da linha "+ N aguardando"; o instantâneo
+// chega a cada 200 ms e um ZIP grande tem centenas na espera.
+export const LIMITE_AGUARDANDO = 20;
+
+// Acima disto o flip mede linhas demais a cada instantâneo: as linhas trocam de
+// lugar sem deslizar.
+export const LIMITE_FLIP_DOCS = 60;
+
+// Ordem de ordenarDocs e resumo de resumoAtividade num laço só, clonando apenas
+// as linhas que vão ao DOM. A linha de expansão tem chave -1 e fica entre os
+// aguardando e os concluídos.
+export function prepararDocs(inst, { mostrarConcluidos = false, expandirAguardando = false } = {}) {
+  const docs = inst?.docs ?? [];
+  const resumo = { ativos: 0, emOcr: 0, aguardando: 0, concluidos: 0, erros: 0, paginasOcr: 0, naoLidos: 0, semOCR: 0 };
+  const grupos = [[], [], [], [], [], []];
+  for (let i = 0; i < docs.length; i++) {
+    const d = docs[i];
+    const nl = naoLido(d);
+    if (nl) resumo.naoLidos++;
+    if (d.leitura === 'sem_ocr') resumo.semOCR++;
+    if (d.estado === 'lendo' || d.estado === 'ocr') resumo.ativos++;
+    if (d.estado === 'ocr') resumo.emOcr++;
+    if (d.estado === 'concluido') resumo.concluidos++;
+    if (d.estado === 'erro' && !nl) resumo.erros++;
+    resumo.paginasOcr += d.ocr || 0;
+    const g = ORDEM_ESTADO[d.estado] ?? 5;
+    if (d.estado === 'aguardando') {
+      if (resumo.aguardando++ >= LIMITE_AGUARDANDO && !expandirAguardando) continue;
+    } else if (d.estado === 'concluido' && !mostrarConcluidos) continue;
+    grupos[g].push({ ...d, i });
+  }
+  const ocultos = Math.max(0, resumo.aguardando - grupos[3].length);
+  const visiveis = [...grupos[0], ...grupos[1], ...grupos[2], ...grupos[3]];
+  if (ocultos > 0) visiveis.push({ i: -1, mais: true, n: ocultos, expandido: false });
+  else if (expandirAguardando && resumo.aguardando > LIMITE_AGUARDANDO) visiveis.push({ i: -1, mais: true, n: 0, expandido: true });
+  visiveis.push(...grupos[4], ...grupos[5]);
+  return { visiveis, resumo, aguardandoOcultos: ocultos };
+}
+
 // Vagas de um medidor: true para as ocupadas. Limites grandes (muitos
 // núcleos) viram no máximo `max` segmentos proporcionais.
 export function segmentos(ocupadas, limite, max = 16) {
