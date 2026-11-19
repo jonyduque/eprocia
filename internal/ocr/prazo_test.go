@@ -47,7 +47,7 @@ func TestReconhecer_EstouraOPrazo(t *testing.T) {
 	f := presos(t)
 
 	inicio := time.Now()
-	_, err := f.reconhecer(context.Background(), t.TempDir(), "p-1.png", 1, nil)
+	_, err := f.reconhecer(context.Background(), t.TempDir(), "p-1.pgm", 1, nil)
 	if d := time.Since(inicio); d > 5*time.Second {
 		t.Errorf("reconhecer voltou em %v, quero menos de 5 s (o fallback não deve rodar depois do prazo)", d)
 	}

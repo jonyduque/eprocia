@@ -163,6 +163,8 @@ Sintetico/escaneado24/ocr=fast-12   17.67k ± 0%   17.68k ± 0%       ~ (p=0.481
 ¹ all samples are equal
 ```
 
+Conferência em processos reais (2026-11-19): 9 ZIPs reais, OCR normal, higienização nenhuma, na mesma máquina, em sequência. Tempo total de 746 s com PNG e 567 s com PGM (-24%). Palavras lidas: 798.027 e 798.493, com 99,3% em comum. Das palavras que só um lado leu, as do PGM são um pouco melhores: 50% conhecidas e 9% lixo, contra 44% e 10% no PNG. Conclusão: a troca não perde texto e fica mantida.
+
 Capturas: não se aplica (correção de backend).
 
 ### F-AC-02 — Texto colorido de 11px abaixo de 4,5:1 na fila e no painel de atividade

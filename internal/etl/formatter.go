@@ -123,17 +123,9 @@ func edgeLines(nonEmpty []string) map[string]bool {
 	return edges
 }
 
-// repeatedEdgeLines finds the normalized header/footer lines that appear at the
-// edges of at least 60% of a document's pages (documents with 2+ pages only).
-func repeatedEdgeLines(pages []string) map[string]bool {
-	linhas := make([][]string, len(pages))
-	for i, p := range pages {
-		linhas[i] = linhasBasicas(p)
-	}
-	return repeatedEdgeLinesDe(linhas)
-}
-
-// repeatedEdgeLinesDe é repeatedEdgeLines sobre as linhas básicas já prontas.
+// repeatedEdgeLinesDe acha as linhas de borda normalizadas (cabeçalho/rodapé) que
+// aparecem em pelo menos 60% das páginas de um documento (só com 2+ páginas),
+// sobre as linhas básicas já prontas.
 func repeatedEdgeLinesDe(pages [][]string) map[string]bool {
 	if len(pages) < 2 {
 		return nil
@@ -159,7 +151,7 @@ func repeatedEdgeLinesDe(pages [][]string) map[string]bool {
 // cleanPage limpa uma página conforme o nível (none, basic, standard,
 // aggressive). Níveis desconhecidos valem como basic. Em standard e aggressive
 // tira marcadores de página e linhas só de símbolos e as bordas listadas em
-// ctx.repetidas (ver repeatedEdgeLines): só as posições de borda contam, então a
+// ctx.repetidas (ver repeatedEdgeLinesDe): só as posições de borda contam, então a
 // mesma frase no meio da página sobrevive. O timbre fica na primeira página em
 // que aparece (ctx.jaVistas). As chancelas de assinatura nas bordas viram
 // "[assinado: ...]" (resumirChancelas) antes das bordas repetidas, e o marcador

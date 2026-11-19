@@ -368,7 +368,7 @@ func TestCleanPage_MaximaTiraCabecalhoComEspacoIrregular(t *testing.T) {
 		"TRIBUNAL DE JUSTICA FICTICIO\n_____\n" + pg("", "dois", ""),
 		"TRIBUNAL\tDE JUSTICA FICTICIO\n=====\n" + pg("", "tres", ""),
 	}
-	ctx := &ctxDocumento{repetidas: repeatedEdgeLines(pags)}
+	ctx := &ctxDocumento{repetidas: repeatedEdgeLinesDe(linhasDe(pags))}
 	for i, p := range pags {
 		got := cleanPage(p, NivelMaximo, ctx)
 		if want := i == 0; strings.Contains(got, "TRIBUNAL") != want {
