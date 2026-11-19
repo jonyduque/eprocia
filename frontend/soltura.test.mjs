@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { criarSoltura, temArquivos, textoAceitos } from './src/lib/soltura.js';
+import { criarSoltura, temArquivos, textoAceitos, textoJaNaFila } from './src/lib/soltura.js';
 
 const raiz = dirname(fileURLToPath(import.meta.url));
 const app = readFileSync(join(raiz, 'src', 'App.svelte'), 'utf8');
@@ -41,6 +41,11 @@ test('temArquivos só aceita arrastos com Files', () => {
 test('textoAceitos usa singular e plural', () => {
   assert.equal(textoAceitos(1), '1 arquivo adicionado');
   assert.equal(textoAceitos(3), '3 arquivos adicionados');
+});
+
+test('textoJaNaFila concorda com o número solto', () => {
+  assert.equal(textoJaNaFila(1), 'Esse arquivo já está na fila');
+  assert.equal(textoJaNaFila(2), 'Esses arquivos já estão na fila');
 });
 
 test('arrasto de texto não liga o overlay', () => {
@@ -115,8 +120,10 @@ test('App usa o controlador de soltura, sem clientX/clientY, e anuncia o aceito'
   assert.doesNotMatch(app, /clientX === 0|clientY === 0/);
   assert.match(app, /criarSoltura\(/);
   assert.match(app, /soltura\.recebido\(/);
-  // anuncia só depois que a fila aceitou, esvaziando antes (mesmo texto repetido)
-  assert.match(app, /AddFilesToQueue\(zips\)\.then\(\(\) => anunciar\(textoAceitos\(/);
+  // overlay e anúncio usam o número que a fila devolveu, não o que foi solto
+  assert.match(app, /AddFilesToQueue\(zips\)\.then\(\(n\) => \{\s*soltura\.recebido\(n\);/);
+  assert.match(app, /anunciar\(n > 0 \? textoAceitos\(n\) : textoJaNaFila\(zips\.length\)\)/);
+  assert.doesNotMatch(app, /soltura\.recebido\(zips\.length\)/);
   assert.match(app, /anuncio = '';\s*await tick\(\);/);
   assert.match(app, /lucide-svelte\/icons\/check'/);
   assert.match(app, /\{#if soltura?Estado\}|\{#if estadoSoltura\}/);

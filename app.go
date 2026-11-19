@@ -417,11 +417,13 @@ func (a *App) SelectZipFiles() ([]string, error) {
 	})
 }
 
-// AddFilesToQueue adds files manually to the processing queue.
-func (a *App) AddFilesToQueue(filePaths []string) {
+// AddFilesToQueue adds files manually to the processing queue and returns how
+// many actually entered (a path already pending or processing is dropped).
+func (a *App) AddFilesToQueue(filePaths []string) int {
 	if a.queue != nil {
-		a.queue.AddFiles(filePaths)
+		return a.queue.AddFiles(filePaths)
 	}
+	return 0
 }
 
 // GetQueue returns the current list of items in the queue.

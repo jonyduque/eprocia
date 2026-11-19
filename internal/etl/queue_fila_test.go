@@ -382,6 +382,29 @@ func TestFila_LimparConcluidosMantemEmCursoEPendentes(t *testing.T) {
 	esperarOcioso(t, q)
 }
 
+func TestFila_AddFilesDevolveQuantosEntraram(t *testing.T) {
+	p := novoProcFalso()
+	q, _ := novaFilaGravada(t, p.processar)
+
+	if n := q.AddFiles([]string{"a.zip"}); n != 1 {
+		t.Fatalf("primeira soltura: esperava 1, veio %d", n)
+	}
+	p.esperarInicio(t, "a.zip")
+	if n := q.AddFiles([]string{"a.zip"}); n != 0 {
+		t.Fatalf("mesmo caminho de novo: esperava 0, veio %d", n)
+	}
+	if n := q.AddFiles([]string{"a.zip", "b.zip", "c.zip", "c.zip"}); n != 2 {
+		t.Fatalf("novos misturados a duplicados: esperava 2, veio %d", n)
+	}
+
+	p.libera("a.zip", nil)
+	p.esperarInicio(t, "b.zip")
+	p.libera("b.zip", nil)
+	p.esperarInicio(t, "c.zip")
+	p.libera("c.zip", nil)
+	esperarOcioso(t, q)
+}
+
 func TestFila_AddFilesIgnoraDuplicadoEmAndamento(t *testing.T) {
 	p := novoProcFalso()
 	q, _ := novaFilaGravada(t, p.processar)

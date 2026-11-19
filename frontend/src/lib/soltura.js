@@ -14,6 +14,10 @@ export function textoAceitos(n) {
   return n === 1 ? '1 arquivo adicionado' : `${n} arquivos adicionados`;
 }
 
+export function textoJaNaFila(n) {
+  return n === 1 ? 'Esse arquivo já está na fila' : 'Esses arquivos já estão na fila';
+}
+
 // O drop do DOM chega antes do OnFileDrop; sem resposta em `espera` ms
 // (soltura recusada pelo Wails), o overlay fecha sozinho.
 export function criarSoltura(definir, relogio = globalThis, duracaoAceito = 220, espera = 1000) {

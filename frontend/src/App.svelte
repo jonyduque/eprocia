@@ -52,7 +52,7 @@
   import { gravarPainel, lerPainel } from './lib/painel.js';
   import { rolagem } from './lib/rolagem.js';
   import { ROTULO_MONITORAMENTO, estadoMonitoramento, textoMonitoramento } from './lib/monitoramento.js';
-  import { criarSoltura, textoAceitos } from './lib/soltura.js';
+  import { criarSoltura, textoAceitos, textoJaNaFila } from './lib/soltura.js';
   import {
     CONSULTA_ESCURO,
     NOME_TEMA,
@@ -187,9 +187,15 @@
     try {
       OnFileDrop((x, y, paths) => {
         const { zips, ignorados } = separarZips(paths);
-        soltura.recebido(zips.length);
-        if (zips.length > 0) {
-          AddFilesToQueue(zips).then(() => anunciar(textoAceitos(zips.length))).catch((err) => {
+        // O overlay e o anúncio esperam a fila dizer quantos entraram de fato:
+        // um ZIP já pendente ou em processamento é descartado por ela.
+        if (zips.length === 0) soltura.recebido(0);
+        else {
+          AddFilesToQueue(zips).then((n) => {
+            soltura.recebido(n);
+            anunciar(n > 0 ? textoAceitos(n) : textoJaNaFila(zips.length));
+          }).catch((err) => {
+            soltura.recebido(0);
             console.error('Erro ao adicionar à fila:', err);
             aviso.mostrar('Erro ao adicionar à fila: ' + (err?.message ?? err), 'error');
           });
