@@ -28,6 +28,7 @@
     PauseQueue,
     ResumeQueue,
     ClearQueue,
+    ClearFinishedQueue,
     GetQueueActivity,
     ReprocessQueueItem
   } from '../wailsjs/go/main/App.js';
@@ -44,7 +45,15 @@
   import { rotuloNaoLidos, avisoCopiaNaoLidos, tituloNaoLidos } from '../lib/naoLidos.js';
   import { rolagem } from '../lib/rolagem.js';
   import { marcosFila, anuncioCopia, anuncioPausa, anuncioFiltro } from '../lib/anuncios.js';
-  import { formatarHora, filtrarItens, alvoFoco, escolherAcao, criarMovimentoFila } from '../lib/fila.js';
+  import {
+    formatarHora,
+    filtrarItens,
+    alvoFoco,
+    escolherAcao,
+    criarMovimentoFila,
+    contarConcluidos,
+    textoConfirmarLimpeza
+  } from '../lib/fila.js';
 
   export let items = [];
   export let isPaused = false;
@@ -176,7 +185,7 @@
     }
   }
 
-  // Cancelar/Remover/Limpar Fila somem com a linha (ou trocam de botão) quando
+  // Cancelar/Remover/Limpar somem com a linha (ou trocam de botão) quando
   // o queue:update chega; sem isto o foco cai no body.
   let tituloEl;
   let listaEl;
@@ -304,7 +313,53 @@
     }
   }
 
+  $: concluidos = contarConcluidos(items);
+
+  async function handleLimparConcluidos(evento) {
+    guardarFoco(null, evento);
+    try {
+      await ClearFinishedQueue();
+    } catch (err) {
+      focoPendente = null;
+      console.error('Erro ao limpar concluídos:', err);
+      avisoAcao.mostrar('Erro ao limpar os concluídos: ' + (err?.message ?? err), 'error');
+    }
+  }
+
+  // "Limpar tudo" cancela o item em andamento: só age depois da confirmação em
+  // linha, que não expira (sem prazo, o usuário lê a contagem com calma).
+  let confirmandoLimpeza = false;
+  let limparTudoEl;
+  let cancelarLimpezaEl;
+
+  async function pedirLimpeza() {
+    if (confirmandoLimpeza) {
+      cancelarLimpeza();
+      return;
+    }
+    confirmandoLimpeza = true;
+    await tick();
+    cancelarLimpezaEl?.focus();
+  }
+
+  async function cancelarLimpeza() {
+    confirmandoLimpeza = false;
+    await tick();
+    limparTudoEl?.focus();
+  }
+
+  function teclaConfirmacao(e) {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      cancelarLimpeza();
+    }
+  }
+
+  // A fila esvaziou por outro caminho: não há mais o que confirmar.
+  $: if (items.length === 0) confirmandoLimpeza = false;
+
   async function handleClear(evento) {
+    confirmandoLimpeza = false;
     guardarFoco(null, evento);
     try {
       await ClearQueue();
@@ -342,13 +397,36 @@
             <span class="rotulo-acao">Pausar</span>
           </button>
         {/if}
-        <button class="btn-clear" on:click={handleClear} title="Limpar todos os itens da fila" aria-label="Limpar Fila">
-          <Icone icone={ListX} tamanho={12} />
-          <span class="rotulo-acao">Limpar Fila</span>
+        {#if concluidos > 0}
+          <button class="btn-clear" on:click={handleLimparConcluidos} title="Remover da lista os concluídos, com erro e cancelados" aria-label="Limpar concluídos">
+            <Icone icone={ListX} tamanho={12} />
+            <span class="rotulo-acao">Limpar concluídos</span>
+          </button>
+        {/if}
+        <button
+          class="btn-clear btn-clear-all"
+          bind:this={limparTudoEl}
+          on:click={pedirLimpeza}
+          title="Cancelar o que está em andamento e remover todos os itens"
+          aria-label="Limpar tudo"
+          aria-expanded={confirmandoLimpeza}
+          aria-controls="confirmar-limpeza"
+        >
+          <Icone icone={Trash2} tamanho={12} />
+          <span class="rotulo-acao">Limpar tudo</span>
         </button>
       {/if}
     </div>
   </div>
+
+  {#if confirmandoLimpeza}
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <div class="queue-notice confirmar-limpeza" id="confirmar-limpeza" role="group" aria-labelledby="confirmar-limpeza-texto" on:keydown={teclaConfirmacao} transition:fade={{ duration: duracaoMovimento(DUR_FAST) }}>
+      <span class="confirmar-texto" id="confirmar-limpeza-texto">{textoConfirmarLimpeza(items)}</span>
+      <button type="button" class="btn-confirmar" bind:this={cancelarLimpezaEl} on:click={cancelarLimpeza}>Cancelar</button>
+      <button type="button" class="btn-confirmar perigo" on:click={handleClear}>Limpar tudo</button>
+    </div>
+  {/if}
 
   {#if aviso}
     <div class="queue-notice">
@@ -361,11 +439,11 @@
 
   <div class="items-container" use:rolagem={marcarLista}>
     {#if items.length > 0 && filteredItems.length === 0}
-      <div class="empty-state">
+      <div class="empty-state" in:fade={{ duration: duracaoMovimento(DUR_FAST), delay: duracaoMovimento(DUR_FAST) }}>
         <p>Nenhum item corresponde ao filtro</p>
       </div>
     {:else if filteredItems.length === 0}
-      <div class="empty-state">
+      <div class="empty-state" in:fade={{ duration: duracaoMovimento(DUR_FAST), delay: duracaoMovimento(DUR_FAST) }}>
         <Icone icone={Archive} tamanho={32} />
         <p>Nenhum processo no histórico.</p>
         <button type="button" class="manual-select-btn" on:click={aoSelecionarZip}>
@@ -384,7 +462,7 @@
             class:has-progress={estado === 'processando'}
             data-id={item.id}
             in:fly|global={{ y: 8, duration: mov.novo(item.id) ? duracaoMovimento(DUR_BASE) : 0, easing: cubicOut }}
-            out:fade={{ duration: mov.removido(item.id) ? duracaoMovimento(DUR_FAST) : 0 }}
+            out:fade|global={{ duration: mov.removido(item.id) ? duracaoMovimento(DUR_FAST) : 0 }}
             animate:flip={{ duration: mov.porFiltro() ? 0 : duracaoMovimento(DUR_FAST), easing: cubicOut }}
           >
             <!-- Status Icon -->
@@ -480,6 +558,7 @@
                   data-acao="cancelar"
                   on:click={(e) => handleCancel(item.id, e)}
                   title="Cancelar processamento ativo"
+                  aria-label="Cancelar"
                 >
                   <Icone icone={X} tamanho={14} />
                 </button>
@@ -488,7 +567,8 @@
                   class="btn-action btn-cancel"
                   data-acao="cancelar"
                   on:click={(e) => handleCancel(item.id, e)}
-                  title="Remover da fila"
+                  title="Cancelar"
+                  aria-label="Cancelar"
                 >
                   <Icone icone={X} tamanho={14} />
                 </button>
@@ -536,6 +616,7 @@
                     data-acao="remover"
                     on:click={(e) => handleRemove(item.id, e)}
                     title="Remover da lista"
+                    aria-label="Remover da lista"
                   >
                     <Icone icone={Trash2} tamanho={14} />
                   </button>
@@ -573,6 +654,7 @@
                     data-acao="remover"
                     on:click={(e) => handleRemove(item.id, e)}
                     title="Remover da lista"
+                    aria-label="Remover da lista"
                   >
                     <Icone icone={Trash2} tamanho={14} />
                   </button>
@@ -766,6 +848,54 @@
     border-color: var(--error);
   }
 
+  .btn-clear-all[aria-expanded='true'] {
+    color: var(--error);
+    border-color: var(--error);
+  }
+
+  /* Confirmação em linha de "Limpar tudo": sem prazo, Esc ou Cancelar fecham. */
+  .confirmar-limpeza {
+    align-items: center;
+    gap: 6px;
+    font-size: var(--fs-meta);
+    color: var(--text-primary);
+  }
+
+  .confirmar-texto {
+    flex: 1;
+    min-width: 0;
+    font-weight: 500;
+  }
+
+  .btn-confirmar {
+    flex-shrink: 0;
+    background-color: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: var(--fs-meta);
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+  }
+
+  .btn-confirmar:hover {
+    background-color: var(--surface-hover);
+    border-color: var(--border-strong);
+  }
+
+  .btn-confirmar.perigo {
+    color: var(--error-strong);
+    border-color: var(--error);
+  }
+
+  .btn-confirmar.perigo:hover {
+    background-color: var(--error-soft);
+    border-color: var(--error);
+  }
+
   .btn-pause {
     background-color: var(--surface-hover);
     border: 1px solid var(--border);
@@ -805,15 +935,22 @@
   .items-container {
     flex: 1;
     overflow-y: auto;
+    /* Âncora do vazio, que entra por cima da lista enquanto ela sai com fade. */
+    position: relative;
     background-color: transparent;
   }
 
   .empty-state {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    min-height: 100%;
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100%;
     padding: 48px 12px;
     gap: 8px;
     color: var(--text-secondary);

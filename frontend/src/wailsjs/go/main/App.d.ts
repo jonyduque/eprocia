@@ -7,6 +7,8 @@ export function AddFilesToQueue(arg1:Array<string>):Promise<void>;
 
 export function CancelQueueItem(arg1:string):Promise<void>;
 
+export function ClearFinishedQueue():Promise<void>;
+
 export function ClearQueue():Promise<void>;
 
 export function CopyOutput(arg1:string):Promise<void>;

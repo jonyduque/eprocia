@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { formatarHora, filtrarItens, alvoFoco, escolherAcao } from './src/lib/fila.js';
+import { formatarHora, filtrarItens, alvoFoco, escolherAcao, textoConfirmarLimpeza, contarConcluidos } from './src/lib/fila.js';
 
 const raiz = dirname(fileURLToPath(import.meta.url));
 const ler = (...p) => readFileSync(join(raiz, 'src', ...p), 'utf8').replace(/\r\n/g, '\n');
@@ -115,17 +115,94 @@ test('linhas e botões de ação são localizáveis para devolver o foco', () =>
   }
 });
 
-test('Cancelar, Remover e Limpar Fila registram para onde o foco volta', () => {
+test('Cancelar, Remover e as limpezas registram para onde o foco volta', () => {
   assert.match(lista, /on:click=\{\(e\) => handleCancel\(item\.id, e\)\}/);
   assert.match(lista, /on:click=\{\(e\) => handleRemove\(item\.id, e\)\}/);
+  assert.match(lista, /on:click=\{handleLimparConcluidos\}/);
   assert.match(lista, /on:click=\{handleClear\}/);
-  for (const nome of ['handleCancel', 'handleRemove', 'handleClear']) {
+  for (const nome of ['handleCancel', 'handleRemove', 'handleClear', 'handleLimparConcluidos']) {
     const i = lista.indexOf(`async function ${nome}`);
+    assert.ok(i >= 0, `${nome} ausente`);
     const corpo = lista.slice(i, lista.indexOf('\n  }\n', i));
     assert.match(corpo, /guardarFoco\(/, `${nome} não guarda o foco`);
   }
   assert.match(lista, /alvoFoco\(/);
   assert.match(lista, /tick\(\)/);
+});
+
+// --- F-AC-06 ---------------------------------------------------------------
+
+function funcao(texto, nome) {
+  const i = texto.indexOf(`function ${nome}`);
+  assert.ok(i >= 0, `${nome} ausente`);
+  return texto.slice(i, texto.indexOf('\n  }\n', i));
+}
+
+test('textoConfirmarLimpeza diz quantos cancela e quantos remove', () => {
+  const it = (status, id) => ({ id, status });
+  assert.equal(
+    textoConfirmarLimpeza(['processing', 'pending', 'success', 'error', 'cancelled'].map(it)),
+    'Cancelar 1 em andamento e remover 5 itens?',
+  );
+  assert.equal(textoConfirmarLimpeza(['success', 'error'].map(it)), 'Remover 2 itens da lista?');
+  assert.equal(textoConfirmarLimpeza(['success'].map(it)), 'Remover 1 item da lista?');
+  assert.equal(textoConfirmarLimpeza(['processing'].map(it)), 'Cancelar 1 em andamento e remover 1 item?');
+});
+
+test('contarConcluidos conta sucesso, erro e cancelado', () => {
+  const itens = ['processing', 'pending', 'success', 'error', 'cancelled'].map((status, id) => ({ id, status }));
+  assert.equal(contarConcluidos(itens), 3);
+  assert.equal(contarConcluidos([]), 0);
+});
+
+test('Limpar concluídos remove sem confirmar e Limpar tudo pede confirmação em linha', () => {
+  const concl = tag(lista, 'aria-label="Limpar concluídos"');
+  assert.match(concl, /on:click=\{handleLimparConcluidos\}/);
+  assert.match(funcao(lista, 'handleLimparConcluidos'), /await ClearFinishedQueue\(\)/);
+  assert.match(lista, /\{#if concluidos > 0\}/);
+
+  const tudo = tag(lista, 'aria-label="Limpar tudo"');
+  assert.match(tudo, /on:click=\{pedirLimpeza\}/);
+  assert.match(tudo, /bind:this=\{limparTudoEl\}/);
+  assert.match(tudo, /aria-expanded=\{confirmandoLimpeza\}/);
+  assert.doesNotMatch(funcao(lista, 'pedirLimpeza'), /ClearQueue/);
+  assert.match(funcao(lista, 'handleClear'), /await ClearQueue\(\)/);
+  assert.doesNotMatch(lista, /aria-label="Limpar Fila"/);
+
+  const faixa = tag(lista, 'class="queue-notice confirmar-limpeza"');
+  assert.match(faixa, /role="group"/);
+  assert.match(faixa, /aria-labelledby="confirmar-limpeza-texto"/);
+  assert.match(faixa, /on:keydown=\{teclaConfirmacao\}/);
+  assert.match(faixa, /transition:fade=\{\{ duration: duracaoMovimento\(DUR_FAST\) \}\}/);
+  const i = lista.indexOf('class="queue-notice confirmar-limpeza"');
+  const bloco = lista.slice(i, lista.indexOf('{/if}', i));
+  assert.match(bloco, /id="confirmar-limpeza-texto"[^>]*>\{textoConfirmarLimpeza\(items\)\}/);
+  assert.match(bloco, /on:click=\{cancelarLimpeza\}[^>]*>Cancelar<\/button>/);
+  assert.match(bloco, /on:click=\{handleClear\}[^>]*>Limpar tudo<\/button>/);
+  assert.doesNotMatch(lista, /setTimeout\([^)]*confirmandoLimpeza/, 'a confirmação não expira');
+
+  assert.match(funcao(lista, 'teclaConfirmacao'), /e\.key === 'Escape'[\s\S]*cancelarLimpeza\(\)/);
+  assert.match(funcao(lista, 'cancelarLimpeza'), /confirmandoLimpeza = false[\s\S]*await tick\(\)[\s\S]*limparTudoEl\?\.focus\(\)/);
+  assert.match(funcao(lista, 'pedirLimpeza'), /confirmandoLimpeza = true[\s\S]*await tick\(\)[\s\S]*\.focus\(\)/);
+  assert.match(funcao(lista, 'handleClear'), /confirmandoLimpeza = false/);
+});
+
+// --- F-AC-12 ---------------------------------------------------------------
+
+test('o X do item que aguarda só cancela e diz isso; a linha cancelada oferece Remover da lista', () => {
+  assert.doesNotMatch(lista, /Remover da fila/);
+  const i = lista.indexOf("{:else if item.status === 'pending'}");
+  assert.ok(i >= 0);
+  const botao = lista.slice(i, lista.indexOf('</button>', i));
+  assert.match(botao, /title="Cancelar"/);
+  assert.match(botao, /aria-label="Cancelar"/);
+  assert.match(botao, /handleCancel\(item\.id, e\)/);
+  const j = lista.indexOf("{#if item.status === 'processing'}");
+  assert.match(lista.slice(j, lista.indexOf('</button>', j)), /aria-label="Cancelar"/);
+  const k = lista.indexOf('<!-- Error or Cancelled -->');
+  const resto = lista.slice(k, lista.indexOf('</div>', k));
+  assert.match(resto, /data-acao="reprocessar"/);
+  assert.match(resto, /data-acao="remover"[\s\S]*aria-label="Remover da lista"/);
 });
 
 // --- F-AC-10 ---------------------------------------------------------------

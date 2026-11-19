@@ -99,7 +99,7 @@ test('em contêiner estreito os botões ficam só com ícone e mantêm nome aces
   const css = estilo(lista);
   assert.match(regra(css, '.list-card'), /container-type:\s*inline-size/);
   assert.match(css, /@container[^{]*\(max-width:\s*420px\)\s*\{[^}]*\.rotulo-acao\s*\{[^}]*display:\s*none/);
-  for (const nome of ['Retomar', 'Pausar', 'Limpar Fila']) {
+  for (const nome of ['Retomar', 'Pausar', 'Limpar concluídos', 'Limpar tudo']) {
     assert.match(lista, new RegExp(`aria-label="${nome}"`), `${nome} sem aria-label`);
     assert.match(lista, new RegExp(`<span class="rotulo-acao">${nome}</span>`), `${nome} sem rótulo ocultável`);
   }

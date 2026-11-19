@@ -288,11 +288,25 @@ test('linha da fila: só entrada com fly, saída com fade e flip, controlados po
   const linha = tag(lista, 'class="item-row {item.status}"');
   assert.doesNotMatch(linha, /transition:fly/);
   assert.match(linha, /in:fly\|global=\{\{ y: 8, duration: mov\.novo\(item\.id\) \? duracaoMovimento\(DUR_BASE\) : 0, easing: cubicOut \}\}/);
-  assert.match(linha, /out:fade=\{\{ duration: mov\.removido\(item\.id\) \? duracaoMovimento\(DUR_FAST\) : 0 \}\}/);
+  assert.match(linha, /out:fade\|global=\{\{ duration: mov\.removido\(item\.id\) \? duracaoMovimento\(DUR_FAST\) : 0 \}\}/);
   assert.match(linha, /animate:flip=\{\{ duration: mov\.porFiltro\(\) \? 0 : duracaoMovimento\(DUR_FAST\), easing: cubicOut \}\}/);
   assert.match(lista, /import \{ flip \} from 'svelte\/animate'/);
   assert.match(lista, /const mov = criarMovimentoFila\(\)/);
   assert.match(lista, /\$: mov\.atualizar\(items, filterText\)/);
+});
+
+// F-AN-04 (2026-11-10): Limpar tudo e remover o último item saem com o mesmo
+// fade de um item só; o vazio entra depois, por cima da lista que sai.
+test('estado vazio entra com fade atrasado e cobre a lista que ainda sai', () => {
+  const vazios = [...lista.matchAll(/<div class="empty-state"[^>]*>/g)].map((m) => m[0]);
+  assert.equal(vazios.length, 2);
+  for (const v of vazios) {
+    assert.match(v, /in:fade=\{\{ duration: duracaoMovimento\(DUR_FAST\), delay: duracaoMovimento\(DUR_FAST\) \}\}/);
+  }
+  const s = estilo(lista);
+  assert.match(s, /\.items-container\s*\{[^}]*position:\s*relative/);
+  assert.match(s, /\.empty-state\s*\{[^}]*position:\s*absolute/);
+  assert.match(s, /\.empty-state\s*\{[^}]*min-height:\s*100%/);
 });
 
 // --- F-AN-06 ---------------------------------------------------------------

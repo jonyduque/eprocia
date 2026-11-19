@@ -349,6 +349,39 @@ func TestFila_ClearCancelaEmCursoEDescartaPendentes(t *testing.T) {
 	p.nenhumInicio(t)
 }
 
+func TestFila_LimparConcluidosMantemEmCursoEPendentes(t *testing.T) {
+	p := novoProcFalso()
+	q, _ := novaFilaGravada(t, p.processar)
+
+	q.AddFiles([]string{"a.zip", "b.zip", "c.zip", "d.zip", "e.zip"})
+	p.esperarInicio(t, "a.zip")
+	q.CancelItem(itemPorNome(t, q, "d.zip").ID)
+	p.libera("a.zip", nil)
+	p.esperarInicio(t, "b.zip")
+	p.libera("b.zip", errors.New("falhou"))
+	p.esperarInicio(t, "c.zip")
+
+	q.LimparConcluidos()
+	itens := q.GetItems()
+	estado := map[string]string{}
+	for _, it := range itens {
+		estado[it.Name] = it.Status
+	}
+	if len(itens) != 2 || estado["c.zip"] != "processing" || estado["e.zip"] != "pending" {
+		t.Fatalf("LimparConcluidos deixou %v, esperava c.zip:processing e e.zip:pending", nomes(itens))
+	}
+
+	p.libera("c.zip", nil)
+	esperarFim(t, q, "c.zip")
+	if it := itemPorNome(t, q, "c.zip"); it.Status != "success" {
+		t.Fatalf("item em curso foi afetado: %q", it.Status)
+	}
+	p.esperarInicio(t, "e.zip")
+	p.libera("e.zip", nil)
+	esperarFim(t, q, "e.zip")
+	esperarOcioso(t, q)
+}
+
 func TestFila_AddFilesIgnoraDuplicadoEmAndamento(t *testing.T) {
 	p := novoProcFalso()
 	q, _ := novaFilaGravada(t, p.processar)

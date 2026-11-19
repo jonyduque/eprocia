@@ -393,6 +393,23 @@ func (q *Queue) Clear() {
 	q.broadcast()
 }
 
+// LimparConcluidos tira da lista os itens com sucesso, erro ou cancelados; o
+// item em processamento e os que aguardam continuam como estão.
+func (q *Queue) LimparConcluidos() {
+	q.mu.Lock()
+	restantes := q.items[:0:0]
+	for _, item := range q.items {
+		switch item.Status {
+		case "success", "error", "cancelled":
+		default:
+			restantes = append(restantes, item)
+		}
+	}
+	q.items = restantes
+	q.mu.Unlock()
+	q.broadcast()
+}
+
 func (q *Queue) startProcessing() {
 	q.mu.Lock()
 	log.Printf("[Queue] startProcessing chamado. isPaused: %t, isWorking: %t, total_items: %d", q.isPaused, q.isWorking, len(q.items))

@@ -75,3 +75,19 @@ export function criarMovimentoFila() {
     porFiltro: () => filtrou,
   };
 }
+
+const CONCLUIDO = new Set(['success', 'error', 'cancelled']);
+
+export function contarConcluidos(items) {
+  return items.filter((i) => CONCLUIDO.has(i.status)).length;
+}
+
+// Pergunta da confirmação de "Limpar tudo": conta a lista inteira, não só o
+// que o filtro mostra, porque ClearQueue apaga tudo.
+export function textoConfirmarLimpeza(items) {
+  const n = items.length;
+  const itens = n === 1 ? '1 item' : `${n} itens`;
+  const andamento = items.filter((i) => i.status === 'processing').length;
+  if (andamento > 0) return `Cancelar ${andamento} em andamento e remover ${itens}?`;
+  return `Remover ${itens} da lista?`;
+}

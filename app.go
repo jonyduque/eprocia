@@ -460,6 +460,14 @@ func (a *App) ClearQueue() {
 	}
 }
 
+// ClearFinishedQueue remove da lista os itens concluídos, com erro ou
+// cancelados, sem tocar no que está em andamento ou aguardando.
+func (a *App) ClearFinishedQueue() {
+	if a.queue != nil {
+		a.queue.LimparConcluidos()
+	}
+}
+
 // Greet returns a greeting for the given name (default Wails method)
 func (a *App) Greet(name string) string {
 	return "Olá " + name + "! Bem-vindo ao eprocIA."
