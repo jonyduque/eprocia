@@ -3,7 +3,7 @@
 // Rodar com: node --test frontend/movimento.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { criarArrasto } from './src/lib/divisor.js';
@@ -19,7 +19,27 @@ const design = ler('..', 'DESIGN.md');
 
 function estilo(texto) {
   const i = texto.indexOf('<style>');
+  if (i < 0) return '';
   return texto.slice(i, texto.indexOf('</style>', i));
+}
+
+// Todo .svelte de src (fora dos bindings gerados), para que um componente novo
+// já nasça sob as regras de movimento.
+const componentes = readdirSync(join(raiz, 'src'), { recursive: true })
+  .map((p) => String(p).split('\\').join('/'))
+  .filter((p) => p.endsWith('.svelte') && !p.startsWith('wailsjs/'))
+  .sort()
+  .map((p) => [p, ler('src', ...p.split('/'))]);
+
+// Corpo de um bloco CSS a partir de uma posição, respeitando chaves aninhadas.
+function bloco(texto, ini) {
+  const abre = texto.indexOf('{', ini);
+  let prof = 0;
+  for (let j = abre; j < texto.length; j++) {
+    if (texto[j] === '{') prof++;
+    else if (texto[j] === '}' && --prof === 0) return texto.slice(abre + 1, j);
+  }
+  return texto.slice(abre + 1);
 }
 
 function tag(texto, marca) {
@@ -114,7 +134,38 @@ test('alça captura 8px e desenha uma linha de 2px', () => {
 
 // --- F-AN-03 ---------------------------------------------------------------
 
-const folhas = { 'App.svelte': estilo(app), 'ProcessList.svelte': estilo(lista), 'Settings.svelte': estilo(settings), 'style.css': css };
+const folhas = { ...Object.fromEntries(componentes.map(([nome, t]) => [nome, estilo(t)])), 'style.css': css };
+
+test('regras de movimento cobrem todos os componentes', () => {
+  const nomes = componentes.map(([n]) => n);
+  for (const n of ['App.svelte', 'components/ProcessList.svelte', 'components/Settings.svelte', 'components/AtividadeItem.svelte', 'components/ReprocessarItem.svelte']) {
+    assert.ok(nomes.includes(n), `${n} fora da varredura`);
+  }
+});
+
+const REDUZIDO = '@media (prefers-reduced-motion: reduce)';
+
+test('animação infinita fora do spin só mexe em transform/opacity e para em reduced-motion', () => {
+  for (const [nome, comComentarios] of Object.entries(folhas)) {
+    const folha = comComentarios.replace(/\/\*[\s\S]*?\*\//g, '');
+    let reduzidos = '';
+    for (let i = folha.indexOf(REDUZIDO); i >= 0; i = folha.indexOf(REDUZIDO, i + 1)) reduzidos += bloco(folha, i) + '\n';
+    for (const m of folha.matchAll(/([^{};]+)\{[^{}]*animation:\s*([\w-]+)[^;]*\binfinite\b/g)) {
+      const anim = m[2];
+      if (anim === 'spin') continue;
+      const ik = folha.indexOf(`@keyframes ${anim}`);
+      assert.ok(ik >= 0, `${nome}: @keyframes ${anim} ausente`);
+      for (const p of bloco(folha, ik).matchAll(/([a-z-]+)\s*:/g)) {
+        assert.ok(['transform', 'opacity'].includes(p[1]), `${nome}: @keyframes ${anim} anima ${p[1]}`);
+      }
+      const sel = m[1].trim().split(',').at(-1).trim();
+      const ok = [...reduzidos.matchAll(/([^{}]+)\{([^}]*)\}/g)].some(
+        ([, s, decl]) => s.split(',').map((x) => x.trim()).includes(sel) && /animation:\s*none/.test(decl),
+      );
+      assert.ok(ok, `${nome}: ${sel} sem animation: none em reduced-motion`);
+    }
+  }
+});
 
 test('transições e animações usam tokens, sem durações nem curvas soltas', () => {
   for (const [nome, folha] of Object.entries(folhas)) {
@@ -170,10 +221,15 @@ test('hover da linha não desloca', () => {
   }
 });
 
+const USO_SVELTE = /(?:transition|in|out|animate):(?:fly|fade|scale|slide|flip)(?:\|(?:global|local))?=\{\{[^}]*\}\}/g;
+
 test('transições do Svelte passam por duracaoMovimento', () => {
-  for (const [nome, f] of [['App', app], ['ProcessList', lista], ['Settings', settings]]) {
-    const usos = f.match(/(?:transition|in|out):(?:fly|fade)(?:\|global)?=\{\{[^}]*\}\}/g) || [];
-    for (const u of usos) assert.match(u, /duration:\s*(?:[^,?]*\?\s*)?duracaoMovimento\(DUR_(FAST|BASE)\)/, `${nome}: ${u}`);
+  for (const errado of ['in:scale={{ duration: 200 }}', 'out:slide={{ duration: 200 }}', 'animate:flip={{ duration: 150 }}']) {
+    assert.equal(errado.match(USO_SVELTE)?.length, 1, `regex não reconhece ${errado}`);
+  }
+  for (const [nome, f] of componentes) {
+    const usos = f.match(USO_SVELTE) || [];
+    for (const u of usos) assert.match(u, /duration:\s*(?:[^,?]*\?\s*(?:0\s*:\s*)?)?duracaoMovimento\(DUR_(FAST|BASE)\)/, `${nome}: ${u}`);
   }
 });
 
@@ -273,4 +329,27 @@ test('DESIGN.md descreve o movimento da fila e do painel recolhível', () => {
   assert.match(sec, /animate:flip/);
   assert.match(sec, /filtro/);
   assert.match(sec, /Recolher\/expandir o painel/);
+});
+
+// --- F-DF-01 ---------------------------------------------------------------
+
+test('barras de progresso animam transform, não width', () => {
+  const at = ler('src', 'components', 'AtividadeItem.svelte');
+  for (const [nome, f, sel, marca, valor] of [
+    ['ProcessList', lista, '.progress-bar', 'class="progress-bar"', /style:--p=\{item\.progress \|\| 0\}/],
+    ['AtividadeItem', at, '.doc-barra span', 'class="doc-barra"', /style:--p=\{pct\(d\) \/ 100\}/],
+  ]) {
+    const r = regra(estilo(f), sel);
+    assert.doesNotMatch(r, /transition:\s*width/, `${nome}: width anima no layout`);
+    assert.match(r, /width:\s*100%/, nome);
+    assert.match(r, /transform:\s*scaleX\(var\(--p\)\)/, nome);
+    assert.match(r, /transform-origin:\s*left center/, nome);
+    assert.match(r, /transition:\s*transform var\(--dur-base\) var\(--ease-out\)/, nome);
+    const i = f.indexOf(marca);
+    assert.ok(i >= 0, `${nome}: ${marca} ausente`);
+    const linha = f.slice(i, f.indexOf('\n', i));
+    assert.match(linha, valor, `${nome}: --p ausente`);
+    assert.doesNotMatch(linha, /style="width/, `${nome}: largura inline`);
+  }
+  assert.match(design.slice(design.indexOf('## 7. Movimento')), /scaleX/);
 });

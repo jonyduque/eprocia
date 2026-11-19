@@ -415,7 +415,7 @@
                 aria-valuenow={Math.round((item.progress || 0) * 100)}
                 aria-label="Progresso de {item.name}"
               >
-                <div class="progress-bar" style="width: {item.progress * 100}%"></div>
+                <div class="progress-bar" style:--p={item.progress || 0}></div>
               </div>
             {/if}
 
@@ -1024,9 +1024,13 @@
   }
 
   .progress-bar {
+    /* scaleX em vez de width: o progresso muda até 10x/s e width refaz o layout a cada quadro. */
+    width: 100%;
     height: 100%;
     background-color: var(--processing);
-    transition: width var(--dur-base) var(--ease-out);
+    transform: scaleX(var(--p));
+    transform-origin: left center;
+    transition: transform var(--dur-base) var(--ease-out);
   }
 
   /* Quatro botões de 22px (reprocessar, copiar, abrir, remover) sem invadir os contadores. */

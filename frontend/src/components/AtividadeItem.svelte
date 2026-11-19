@@ -134,7 +134,7 @@
             {#if d.estado === 'erro'}
               <span class="doc-erro" class:aviso={naoLido(d)}>{d.erro}</span>
             {:else}
-              <span class="doc-barra" aria-hidden="true"><span style="width: {pct(d)}%"></span></span>
+              <span class="doc-barra" aria-hidden="true"><span style:--p={pct(d) / 100}></span></span>
               <span class="doc-paginas font-tabular">{d.feitas}/{d.paginas}</span>
             {/if}
           </li>
@@ -376,9 +376,12 @@
 
   .doc-barra span {
     display: block;
+    width: 100%;
     height: 100%;
     background-color: var(--processing);
-    transition: width var(--dur-base) var(--ease-out);
+    transform: scaleX(var(--p));
+    transform-origin: left center;
+    transition: transform var(--dur-base) var(--ease-out);
   }
 
   .doc.concluido .doc-barra span {
