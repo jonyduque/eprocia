@@ -122,6 +122,11 @@
     background-color: var(--accent-strong-hover);
   }
 
+  /* Com 1px o anel encosta no fundo do botão, da mesma cor (--accent-strong). */
+  .primario:focus-visible {
+    outline-offset: 2px;
+  }
+
   .primario:disabled {
     opacity: 0.6;
     cursor: default;

@@ -1,6 +1,5 @@
 <script>
   import Icone from './Icone.svelte';
-  import SettingsIcon from 'lucide-svelte/icons/settings';
   import Trash2 from 'lucide-svelte/icons/trash-2';
   import Salvo from './Salvo.svelte';
   import { onDestroy, tick } from 'svelte';
@@ -126,19 +125,16 @@
   }
 </script>
 
+<!-- O título "Configurações" fica na faixa do botão de recolher (App). -->
 <div class="settings-card">
-  <div class="card-header">
-    <Icone icone={SettingsIcon} tamanho={12} />
-    <h2>Configurações</h2>
-  </div>
-
   {#if loading}
     <div class="loading-state">
       <div class="spinner"></div>
       <span>Carregando configurações...</span>
     </div>
   {:else}
-    <div class="settings-form">
+    <div class="grupo">
+      <h3 class="rotulo-grupo">Monitoramento</h3>
 
       <div class="form-group toggle-group">
         <label for="watchdog-toggle">
@@ -149,6 +145,7 @@
           <input
             id="watchdog-toggle"
             type="checkbox"
+            role="switch"
             bind:checked={config.watchdog_enabled}
             on:change={() => handleSave('watchdog')}
           />
@@ -156,7 +153,6 @@
         </label>
       </div>
 
-      <!-- Monitored Path Section -->
       <div class="form-group">
         <label for="monitored-path">
           Pasta Monitorada
@@ -181,8 +177,11 @@
           {/if}
         </div>
       </div>
+    </div>
 
-      <!-- OCR Settings Dropdown -->
+    <div class="grupo">
+      <h3 class="rotulo-grupo">Processamento</h3>
+
       <div class="form-group">
         <label for="ocr-mode">
           Processamento de Imagens (OCR)
@@ -190,6 +189,7 @@
         </label>
         <select
           id="ocr-mode"
+          aria-describedby="ajuda-ocr"
           bind:value={config.ocr_mode}
           on:change={() => handleSave('ocr')}
         >
@@ -198,10 +198,9 @@
           <option value="normal">Normal</option>
           <option value="best">Preciso</option>
         </select>
-        <p class="help-text">{AJUDA_OCR[config.ocr_mode] ?? ''}</p>
+        <p class="help-text" id="ajuda-ocr">{AJUDA_OCR[config.ocr_mode] ?? ''}</p>
       </div>
 
-      <!-- Cleaning Level -->
       <div class="form-group">
         <label for="cleaning-level">
           Higienização de texto
@@ -209,6 +208,7 @@
         </label>
         <select
           id="cleaning-level"
+          aria-describedby="ajuda-limpeza"
           bind:value={config.cleaning_level}
           on:change={() => handleSave('limpeza')}
         >
@@ -217,10 +217,9 @@
           <option value="standard">Padrão</option>
           <option value="aggressive">Máxima</option>
         </select>
-        <p class="help-text">{AJUDA_LIMPEZA[config.cleaning_level] ?? ''}</p>
+        <p class="help-text" id="ajuda-limpeza">{AJUDA_LIMPEZA[config.cleaning_level] ?? ''}</p>
       </div>
 
-      <!-- Tipos de documento omitidos -->
       <div class="form-group">
         <label for="omitir-tipos">
           Omitir documentos dos tipos
@@ -229,16 +228,20 @@
         <input
           id="omitir-tipos"
           type="text"
+          aria-describedby="ajuda-omitir"
           placeholder="EXTR, COMP"
           autocomplete="off"
           spellcheck="false"
           bind:value={omitirTexto}
           on:change={handleSalvarOmitir}
         />
-        <p class="help-text">Ex.: EXTR, COMP. O documento vira um aviso no texto e não é lido.</p>
+        <p class="help-text" id="ajuda-omitir">Ex.: EXTR, COMP. O documento vira um aviso no texto e não é lido.</p>
       </div>
+    </div>
 
-      <!-- Auto Start Toggle -->
+    <div class="grupo">
+      <h3 class="rotulo-grupo">Sistema</h3>
+
       <div class="form-group toggle-group">
         <label for="autostart-toggle">
           Iniciar com o Windows
@@ -248,6 +251,7 @@
           <input
             id="autostart-toggle"
             type="checkbox"
+            role="switch"
             bind:checked={config.auto_start}
             on:change={() => handleSave('autostart')}
           />
@@ -263,34 +267,28 @@
 </div>
 
 <style>
-  /* Seção do painel, sem moldura de cartão: o rótulo pequeno já separa. */
+  /* Seção do painel, sem moldura de cartão. flex: none: a 600px de altura
+     quem rola é .sidebar-content (App), em vez de a seção encolher e cortar. */
   .settings-card {
-    padding: 0 0 8px;
+    flex: none;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 16px;
   }
 
-  .card-header {
+  .grupo {
     display: flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--text-secondary);
+    flex-direction: column;
+    gap: 12px;
   }
 
-  .card-header h2 {
+  .rotulo-grupo {
     font-size: var(--fs-section);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin: 0;
     color: var(--text-secondary);
-  }
-
-  .settings-form {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
   }
 
   .form-group {
@@ -381,6 +379,11 @@
 
   .btn-primary:hover {
     background-color: var(--accent-strong-hover);
+  }
+
+  /* Com 1px o anel encosta no fundo do botão, da mesma cor (--accent-strong). */
+  .btn-primary:focus-visible {
+    outline-offset: 2px;
   }
 
   .btn-primary:active {

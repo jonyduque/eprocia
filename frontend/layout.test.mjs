@@ -105,3 +105,16 @@ test('em contêiner estreito os botões ficam só com ícone e mantêm nome aces
   }
   assert.match(lista, /class="btn-clear"[^>]*>\s*<Icone icone=\{ListX\}/);
 });
+
+// --- F-VI-01 ---------------------------------------------------------------
+
+test('seções do painel não encolhem: a rolagem fica na área do painel', () => {
+  const settings = ler('src', 'components', 'Settings.svelte');
+  const cfg = regra(estilo(settings), '.settings-card');
+  assert.match(cfg, /flex:\s*none/, 'Configurações encolhe e corta os controles a 600px de altura');
+  assert.doesNotMatch(cfg, /overflow:\s*hidden/);
+  const manual = regra(estilo(app), '.manual-card');
+  assert.match(manual, /flex:\s*none/, 'Importação Manual encolhe');
+  assert.doesNotMatch(manual, /overflow:\s*hidden/);
+  assert.match(regra(estilo(app), '.sidebar-content'), /overflow-y:\s*auto/);
+});

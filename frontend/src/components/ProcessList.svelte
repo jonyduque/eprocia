@@ -360,11 +360,12 @@
               <span class="sr-only">{ROTULO_ESTADO[estado] ?? ''}</span>
             </div>
 
-            <!-- Name and Info: vira botão quando há atividade para mostrar -->
+            <!-- Name and Info: vira botão quando há atividade para mostrar.
+                 Sem role: como button já é botão, e como div o clique não faz nada. -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
             <svelte:element
               this={expansivel ? 'button' : 'div'}
               type={expansivel ? 'button' : undefined}
-              role={expansivel ? 'button' : undefined}
               class="info-col"
               class:info-btn={expansivel}
               aria-expanded={expansivel ? !!atividadeAberta[item.id] : undefined}

@@ -9,6 +9,7 @@
   import Monitor from 'lucide-svelte/icons/monitor';
   import Moon from 'lucide-svelte/icons/moon';
   import ScanText from 'lucide-svelte/icons/scan-text';
+  import SettingsIcon from 'lucide-svelte/icons/settings';
   import Sparkles from 'lucide-svelte/icons/sparkles';
   import Square from 'lucide-svelte/icons/square';
   import Sun from 'lucide-svelte/icons/sun';
@@ -396,17 +397,16 @@
   }
 </script>
 
-<svelte:window bind:innerWidth={larguraJanela} on:resize={atualizarMaximizada} />
-
-<div
-  class="app-container"
-  role="region"
-  aria-label="Aplicativo eprocIA"
+<svelte:window
+  bind:innerWidth={larguraJanela}
+  on:resize={atualizarMaximizada}
   on:dragover={handleDragOver}
   on:dragenter={handleDragOver}
   on:dragleave={handleDragLeave}
   on:drop={handleWindowDrop}
->
+/>
+
+<div class="app-container">
   <!-- Full Window Drag & Drop Overlay -->
   {#if dragActive}
     <div class="drag-overlay" transition:fade={{ duration: duracaoMovimento(DUR_FAST) }}>
@@ -476,17 +476,23 @@
   </div>
 
   <!-- Main Content Grid -->
-  <main class="grid-layout">
+  <div class="grid-layout">
     <!-- Sidebar (Collapsible & Resizable) -->
     <aside
       id="sidebar"
       class="sidebar"
+      aria-label="Configurações e importação"
       style="width: {sidebarCollapsed ? '48px' : larguraPainel + 'px'}"
       style:--largura-painel="{larguraPainel}px"
       class:collapsed={sidebarCollapsed}
       class:resizing={isResizing}
     >
       <div class="sidebar-header-toggle">
+        <!-- Montado também recolhido: some com fade, como o conteúdo. -->
+        <div class="painel-titulo">
+          <Icone icone={SettingsIcon} tamanho={12} />
+          <h2>Configurações</h2>
+        </div>
         <button
           class="btn-toggle-sidebar"
           bind:this={botaoRecolher}
@@ -513,7 +519,7 @@
         <div class="manual-card">
           <div class="card-header">
             <Icone icone={FilePlusCorner} tamanho={12} />
-            <h3>Importação Manual</h3>
+            <h2>Importação Manual</h2>
           </div>
 
           <button
@@ -591,7 +597,7 @@
         <div
           class="resize-handle"
           role="slider"
-          aria-label="Redimensionador de Menu"
+          aria-label="Largura do painel"
           aria-orientation="horizontal"
           aria-valuemin={LARGURA_MIN_PAINEL}
           aria-valuemax={maxPainel}
@@ -611,10 +617,10 @@
     </aside>
 
     <!-- Right Process List Area -->
-    <section class="content-area">
+    <main class="content-area">
       <ProcessList bind:items={items} {isPaused} {atividades} {config} />
-    </section>
-  </main>
+    </main>
+  </div>
 
   <!-- Footer Status Bar -->
   <footer>
@@ -860,11 +866,13 @@
     overflow: hidden;
   }
 
-  /* Só o botão de recolher: o painel não repete um título acima das seções. */
+  /* Rótulo "Configurações" à esquerda e botão de recolher à direita. */
   .sidebar-header-toggle {
+    position: relative;
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     align-items: center;
+    gap: 8px;
     padding: 8px 12px;
     border-bottom: 1px solid var(--border);
     height: 38px;
@@ -877,7 +885,36 @@
     padding: 8px 0;
   }
 
+  .painel-titulo {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    color: var(--text-secondary);
+    transition: opacity var(--dur-fast) var(--ease-out) var(--dur-fast);
+  }
+
+  .painel-titulo h2 {
+    font-size: var(--fs-section);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    margin: 0;
+    white-space: nowrap;
+  }
+
+  /* Fora do fluxo, para o chevron centralizar na coluna de 48px. */
+  .sidebar.collapsed .painel-titulo {
+    position: absolute;
+    left: 12px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--dur-fast) var(--ease-out), visibility var(--dur-fast) linear;
+  }
+
   .btn-toggle-sidebar {
+    flex-shrink: 0;
     background: transparent;
     border: none;
     color: var(--text-secondary);
@@ -894,11 +931,12 @@
     background-color: var(--surface-hover);
   }
 
+  /* 12px: a mesma guia vertical da barra de título, do rodapé e da lista. */
   .sidebar-content {
-    padding: 8px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 16px;
     flex: 1;
     overflow-y: auto;
     transition: opacity var(--dur-fast) var(--ease-out) var(--dur-fast);
@@ -1074,9 +1112,11 @@
 
   /* Manual process card */
   /* Seção do painel: divisor de 1px no lugar da moldura de cartão. */
+  /* flex: none: a 600px de altura a área rola em vez de espremer a seção. */
   .manual-card {
+    flex: none;
     border-top: 1px solid var(--border);
-    padding-top: 8px;
+    padding-top: 16px;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -1090,7 +1130,7 @@
     color: var(--text-secondary);
   }
 
-  .manual-card h3 {
+  .manual-card h2 {
     font-size: var(--fs-section);
     font-weight: 600;
     text-transform: uppercase;

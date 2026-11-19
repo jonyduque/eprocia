@@ -123,8 +123,42 @@ function rotuloSecao(r, nome) {
 }
 
 test('Configurações e Importação Manual viram seções com rótulo pequeno', () => {
-  rotuloSecao(regra(estilo(settings), '.card-header h2'), 'Configurações');
-  rotuloSecao(regra(estilo(app), '.manual-card h3'), 'Importação Manual');
+  // F-VI-07: "Configurações" vai para a faixa do botão de recolher.
+  const ini = app.indexOf('<div class="sidebar-header-toggle">');
+  const cab = app.slice(ini, app.indexOf('</div>', app.indexOf('</h2>', ini)));
+  assert.match(cab, /<h2[^>]*>Configurações<\/h2>/);
+  rotuloSecao(regra(estilo(app), '.painel-titulo h2'), 'Configurações');
+  rotuloSecao(regra(estilo(app), '.manual-card h2'), 'Importação Manual');
+});
+
+test('Configurações em três blocos rotulados: Monitoramento, Processamento, Sistema', () => {
+  const blocos = [...settings.matchAll(/<h3 class="rotulo-grupo"[^>]*>([^<]+)<\/h3>/g)].map((m) => m[1]);
+  assert.deepEqual(blocos, ['Monitoramento', 'Processamento', 'Sistema']);
+  rotuloSecao(regra(estilo(settings), '.rotulo-grupo'), 'blocos');
+  const ordem = ['Monitoramento', 'id="watchdog-toggle"', 'id="monitored-path"', 'Processamento',
+    'id="ocr-mode"', 'id="cleaning-level"', 'id="omitir-tipos"', 'Sistema', 'id="autostart-toggle"'];
+  const pos = ordem.map((o) => settings.indexOf(o));
+  for (let i = 1; i < pos.length; i++) assert.ok(pos[i] > pos[i - 1], `${ordem[i]} fora de ordem`);
+});
+
+test('painel com a guia de 12px das barras, 16px entre seções e 12px entre grupos', () => {
+  const s = estilo(app);
+  const conteudo = regra(s, '.sidebar-content');
+  assert.equal(px(conteudo, 'padding'), '12px');
+  assert.equal(px(conteudo, 'gap'), '16px');
+  assert.equal(px(regra(s, '.manual-card'), 'padding-top'), '16px');
+  assert.match(px(regra(s, '.sidebar-header-toggle'), 'padding'), /^\d+px 12px$/);
+  const st = estilo(settings);
+  assert.equal(px(regra(st, '.settings-card'), 'gap'), '16px');
+  assert.equal(px(regra(st, '.grupo'), 'gap'), '12px');
+});
+
+test('DESIGN.md: título do painel na faixa de recolher e guia de 12px', () => {
+  const s53 = design.slice(design.indexOf('### 5.3'), design.indexOf('### 5.4'));
+  assert.doesNotMatch(s53, /Sem título geral/);
+  assert.match(s53, /Monitoramento, Processamento e Sistema/);
+  const s6 = design.slice(design.indexOf('## 6.'), design.indexOf('## 7.'));
+  assert.match(s6, /painel[^.]*12px/i);
 });
 
 test('seções do painel sem moldura de cartão, separadas por divisor de 1px', () => {

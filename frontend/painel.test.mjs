@@ -145,3 +145,63 @@ test('SVGs dos botões da barra de título e do painel são decorativos', () => 
   assert.ok(icones.length >= 6);
   assert.doesNotMatch(trecho, /<svg/);
 });
+
+// --- F-AC-11 ---------------------------------------------------------------
+
+const settings = readFileSync(join(raiz, 'src', 'components', 'Settings.svelte'), 'utf8').replace(/\r\n/g, '\n');
+const lista = readFileSync(join(raiz, 'src', 'components', 'ProcessList.svelte'), 'utf8').replace(/\r\n/g, '\n');
+const reprocessar = readFileSync(join(raiz, 'src', 'components', 'ReprocessarItem.svelte'), 'utf8').replace(/\r\n/g, '\n');
+const designAc = readFileSync(join(raiz, '..', 'DESIGN.md'), 'utf8').replace(/\r\n/g, '\n');
+
+test('janela sem marco region; arrastar ZIP escutado na window', () => {
+  const cont = tag(app, 'class="app-container"');
+  assert.doesNotMatch(cont, /role=/);
+  assert.doesNotMatch(cont, /on:drag|on:drop/);
+  assert.doesNotMatch(app, /Aplicativo eprocIA/);
+  assert.match(app, /<svelte:window[^>]*on:dragover=\{handleDragOver\}[^>]*on:drop=\{handleWindowDrop\}/);
+});
+
+test('painel é um aside nomeado fora do main; main só na fila', () => {
+  assert.match(tag(app, 'id="sidebar"'), /aria-label="Configurações e importação"/);
+  const ini = app.indexOf('<main');
+  assert.ok(ini > app.indexOf('</aside>'), 'aside fora do main');
+  assert.match(tag(app, '<main'), /class="content-area"/);
+  assert.equal((app.match(/<main\b/g) ?? []).length, 1);
+});
+
+test('títulos do painel no mesmo nível e divisor com nome curto', () => {
+  assert.match(app, /<h2[^>]*>Configurações<\/h2>/);
+  assert.match(app, /<h2[^>]*>Importação Manual<\/h2>/);
+  assert.doesNotMatch(app, /<h3>Importação Manual/);
+  assert.doesNotMatch(settings, /<h2/);
+  assert.match(tag(app, 'class="resize-handle"'), /aria-label="Largura do painel"/);
+  assert.doesNotMatch(app, /Redimensionador/);
+});
+
+test('ajudas ligadas aos campos e interruptores com role=switch', () => {
+  for (const [campo, ajuda] of [['ocr-mode', 'ajuda-ocr'], ['cleaning-level', 'ajuda-limpeza'], ['omitir-tipos', 'ajuda-omitir']]) {
+    assert.match(tag(settings, `id="${campo}"`), new RegExp(`aria-describedby="${ajuda}"`), campo);
+    assert.match(settings, new RegExp(`<p class="help-text" id="${ajuda}">`), ajuda);
+  }
+  for (const id of ['watchdog-toggle', 'autostart-toggle']) {
+    assert.match(tag(settings, `id="${id}"`), /role="switch"/, id);
+  }
+});
+
+test('botão da linha sem role redundante', () => {
+  const i = lista.indexOf('class="info-col"');
+  const el = lista.slice(lista.lastIndexOf('<svelte:element', i), i);
+  assert.doesNotMatch(el, /role=/);
+});
+
+test('botões primários afastam o anel de foco do fundo azul', () => {
+  const s = estilo(settings);
+  const m = s.match(/\.btn-primary:focus-visible\s*\{([^}]*)\}/);
+  assert.ok(m, '.btn-primary:focus-visible ausente');
+  assert.match(m[1], /outline-offset:\s*2px/);
+  const r = estilo(reprocessar).match(/\.primario:focus-visible\s*\{([^}]*)\}/);
+  assert.ok(r, '.primario:focus-visible ausente');
+  assert.match(r[1], /outline-offset:\s*2px/);
+  const sec = designAc.slice(designAc.indexOf('**Foco visível:**'), designAc.indexOf('**Botões com estado:**'));
+  assert.match(sec, /primário[^.]*offset `2px`/);
+});

@@ -315,12 +315,19 @@ test('conteúdo do painel fica montado, inerte e some com fade ao recolher', () 
   assert.match(tag(app, 'class="sidebar"'), /style:--largura-painel="\{larguraPainel\}px"/);
 });
 
-test('cabeçalho do painel só com o botão e ferramentas recolhidas entram depois da largura', () => {
-  // F-VI-10: o título "Painel de Controle" saiu; nada no cabeçalho aparece ou some de repente.
+test('rótulo do cabeçalho fica montado e some com fade; ferramentas recolhidas entram depois da largura', () => {
+  // F-VI-10/F-VI-07: só o rótulo "Configurações" e o botão; nada aparece ou some de repente.
   const ini = app.indexOf('<div class="sidebar-header-toggle">');
   const cab = app.slice(ini, app.indexOf('<button', ini));
   assert.doesNotMatch(cab, /\{#if/);
-  assert.doesNotMatch(cab, /<span/);
+  assert.match(cab, /class="painel-titulo"/);
+  const s = estilo(app);
+  assert.match(regra(s, '.painel-titulo'), /transition:\s*opacity var\(--dur-fast\) var\(--ease-out\) var\(--dur-fast\)/, 'ao expandir, aparece depois da largura');
+  const fechado = regra(s, '.sidebar.collapsed .painel-titulo');
+  assert.match(fechado, /position:\s*absolute/, 'não empurra o chevron da coluna de 48px');
+  assert.match(fechado, /opacity:\s*0/);
+  assert.match(fechado, /visibility:\s*hidden/);
+  assert.match(fechado, /transition:\s*opacity var\(--dur-fast\) var\(--ease-out\), visibility var\(--dur-fast\) linear/);
   assert.match(tag(app, 'class="collapsed-tools"'), /in:fade=\{\{ duration: duracaoMovimento\(DUR_FAST\), delay: duracaoMovimento\(DUR_FAST\) \}\}/);
 });
 
