@@ -132,6 +132,13 @@ body {
   transition: none !important;
 }
 
+/* Janela na bandeja (F-AN-10): spinner, pulso e o que mais girar ficam parados. */
+:root.oculta *,
+:root.oculta *::before,
+:root.oculta *::after {
+  animation-play-state: paused !important;
+}
+
 /* Botões (DESIGN.md §7, tabela de estados): a mesma transição em todos, sem
    especificidade, para cada componente só dizer as cores. */
 :where(button) {

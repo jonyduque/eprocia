@@ -46,6 +46,10 @@ export function IsQueuePaused() {
   return window['go']['main']['App']['IsQueuePaused']();
 }
 
+export function JanelaVisivel() {
+  return window['go']['main']['App']['JanelaVisivel']();
+}
+
 export function OpenDirectory(arg1) {
   return window['go']['main']['App']['OpenDirectory'](arg1);
 }

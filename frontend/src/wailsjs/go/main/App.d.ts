@@ -25,6 +25,8 @@ export function Hide():Promise<void>;
 
 export function IsQueuePaused():Promise<boolean>;
 
+export function JanelaVisivel():Promise<boolean>;
+
 export function OpenDirectory(arg1:string):Promise<void>;
 
 export function PauseQueue():Promise<void>;

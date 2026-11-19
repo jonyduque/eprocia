@@ -33,6 +33,7 @@
     GetQueue,
     SelectZipFiles,
     IsQueuePaused,
+    JanelaVisivel,
     Hide,
     SetTheme,
     SaveConfig,
@@ -126,6 +127,18 @@
 
   onMount(async () => {
     consultaTema.addEventListener('change', mudouTemaDoSistema);
+
+    // Antes de qualquer await: o aviso pode chegar enquanto a consulta volta.
+    let visibilidadeAvisada = false;
+    unsubscribers.push(
+      EventsOn('janela:visivel', (visivel) => {
+        visibilidadeAvisada = true;
+        mudarVisibilidade(visivel);
+      })
+    );
+    JanelaVisivel().then((visivel) => {
+      if (!visibilidadeAvisada) mudarVisibilidade(visivel);
+    }).catch((err) => console.warn('Erro ao consultar a visibilidade da janela:', err));
     atualizarMaximizada();
 
     // Load initial config
@@ -144,13 +157,16 @@
     unsubscribers.push(
       EventsOn('queue:update', (data) => {
         filaQuadro.lista(data);
-        podarAtividades(data);
+        if (janelaOculta) listaOculta = data;
+        else podarAtividades(data);
       })
     );
 
     unsubscribers.push(
       EventsOn('queue:atividade', (inst) => {
-        if (inst?.item_id) atividades = { ...atividades, [inst.item_id]: inst };
+        if (!inst?.item_id) return;
+        if (janelaOculta) atividadesOcultas[inst.item_id] = inst;
+        else atividades = { ...atividades, [inst.item_id]: inst };
       })
     );
 
@@ -203,6 +219,31 @@
       OnFileDropOff();
     } catch (e) {}
   });
+
+  // Na bandeja a WebView2 segue renderizando (o Windows só esconde a janela):
+  // :root.oculta pausa as animações e a fila e a atividade só guardam o último
+  // estado, aplicado ao reabrir.
+  let janelaOculta = false;
+  let atividadesOcultas = {};
+  let listaOculta = null;
+
+  function mudarVisibilidade(visivel) {
+    janelaOculta = !visivel;
+    document.documentElement.classList.toggle('oculta', janelaOculta);
+    if (janelaOculta) {
+      filaQuadro.pausar();
+      return;
+    }
+    if (Object.keys(atividadesOcultas).length) {
+      atividades = { ...atividades, ...atividadesOcultas };
+      atividadesOcultas = {};
+    }
+    if (listaOculta) {
+      podarAtividades(listaOculta);
+      listaOculta = null;
+    }
+    filaQuadro.retomar();
+  }
 
   // Item removido ou de volta à fila (reprocessar) não mostra a atividade antiga.
   function podarAtividades(lista) {

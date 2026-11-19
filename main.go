@@ -39,6 +39,8 @@ func main() {
 	// Create an instance of the app structure
 	app := NewApp()
 	app.cfg = carregarConfig(config.Load)
+	iniciarOculto := autostart.IniciarOculto(os.Args)
+	app.iniciarOculta(iniciarOculto)
 
 	go executarTray(func() {
 		prepararBandeja(bandejaSystray{}, acoesDoApp(app))
@@ -65,7 +67,7 @@ func main() {
 		// Fechar a janela (X, Alt+F4, barra de tarefas) vai para a bandeja
 		// com animação; HideWindowOnClose ocultaria sem passar por aqui.
 		OnBeforeClose: app.antesDeFechar,
-		StartHidden:   autostart.IniciarOculto(os.Args),
+		StartHidden:   iniciarOculto,
 		DragAndDrop: &options.DragAndDrop{
 			EnableFileDrop: true,
 		},
