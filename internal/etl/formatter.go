@@ -17,6 +17,12 @@ import (
 // legitimate sentences that merely mention the word "página" intact.
 var pageMarkerRegex = regexp.MustCompile(`(?i)^p[áa]g(ina|\.)?\s*\d+(\s*(de|/)\s*\d+)?$`)
 
+// marcadorPagina é pageMarkerRegex com pré-filtro: sob (?i), o p só casa com
+// p ou P, então a linha que não começa por um deles nem passa pela regex.
+func marcadorPagina(l string) bool {
+	return len(l) > 0 && (l[0] == 'p' || l[0] == 'P') && pageMarkerRegex.MatchString(l)
+}
+
 // escapeAttr escapes a value for safe use inside a double-quoted XML attribute.
 func escapeAttr(s string) string {
 	return attrEscaper.Replace(s)
@@ -59,9 +65,29 @@ func pageCountLabel(n int) string {
 // page are candidates for repeated header/footer detection.
 const edgeLineCount = 5
 
-// valorEdgeRegex acha linhas com valor monetário ou percentual: nelas os
-// dígitos importam, então a chave é a linha exata.
-var valorEdgeRegex = regexp.MustCompile(`R\$|US\$|\d+,\d{2}|%`)
+// temValorEdge acha linhas com valor monetário ou percentual: nelas os
+// dígitos importam, então a chave é a linha exata. Equivale à regex
+// `R\$|US\$|\d+,\d{2}|%` (um "$" sem R ou US antes não conta), feita à mão
+// porque roda em toda linha de borda.
+func temValorEdge(l string) bool {
+	for i := 0; i < len(l); i++ {
+		switch l[i] {
+		case '%':
+			return true
+		case '$':
+			if i >= 1 && l[i-1] == 'R' || i >= 2 && l[i-2] == 'U' && l[i-1] == 'S' {
+				return true
+			}
+		case ',':
+			if i >= 1 && digitoASCII(l[i-1]) && i+2 < len(l) && digitoASCII(l[i+1]) && digitoASCII(l[i+2]) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func digitoASCII(b byte) bool { return b >= '0' && b <= '9' }
 
 // paginaCurta informa se a página, com n linhas não vazias, é toda borda: com
 // até 2*edgeLineCount linhas não sobra miolo, então fica fora da detecção.
@@ -70,7 +96,7 @@ func paginaCurta(n int) bool { return n <= 2*edgeLineCount }
 // normalizeEdgeLine maps lines that differ only by numbers (página, folha, data)
 // to the same key, so "fl. 1" and "fl. 2" count as the same footer.
 func normalizeEdgeLine(trimmed string) string {
-	if valorEdgeRegex.MatchString(trimmed) {
+	if temValorEdge(trimmed) {
 		return trimmed
 	}
 	return strings.Map(func(r rune) rune {
@@ -187,7 +213,7 @@ func cleanLinhas(lines []string, level string, ctx *ctxDocumento) string {
 			}
 			continue
 		}
-		if pageMarkerRegex.MatchString(line) || linhaSoSimbolos(line) || (level == NivelMaximo && linhaLetraSolta(line)) {
+		if marcadorPagina(line) || linhaSoSimbolos(line) || (level == NivelMaximo && linhaLetraSolta(line)) {
 			continue
 		}
 		if len(repeated) > 0 && !paginaCurta(len(lines)) && (pos < edgeLineCount || pos >= len(lines)-edgeLineCount) {

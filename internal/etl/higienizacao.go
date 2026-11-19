@@ -358,6 +358,11 @@ var (
 // nem outro caractere, que não são numeral romano (D de débito incluído),
 // alínea, sigla de UF, crase ou "é" soltos, nem contêm º ou ª ("nº").
 func linhaLetraSolta(l string) bool {
+	// Mais de duas runas nunca é letra solta; contar runas, e não bytes, mantém
+	// "ﬁﬁ" (6 bytes) na regra.
+	if len(l) > 2*utf8.UTFMax || utf8.RuneCountInString(l) > 2 {
+		return false
+	}
 	if romanoRegex.MatchString(l) || alineaRegex.MatchString(l) || siglasUF[l] || strings.ContainsAny(l, "ºª") {
 		return false
 	}
@@ -395,15 +400,55 @@ func paginaCertificado(linhas []string) bool {
 	n := 0
 	titulo := false
 	for _, l := range linhas {
-		if certificadoTituloRegex.MatchString(l) {
+		if tituloCertificado(l) {
 			titulo = true
 		}
-		if m := certificadoCampoRegex.FindStringSubmatch(l); m != nil {
+		if campo, ok := campoCertificado(l); ok {
 			n++
-			tipos[strings.ToLower(strings.Join(strings.Fields(m[1]), " "))] = true
+			tipos[strings.ToLower(strings.Join(strings.Fields(campo), " "))] = true
 		}
 	}
 	return (titulo && n >= 1) || (n >= 3 && len(tipos) >= 2)
+}
+
+// tituloCertificado é certificadoTituloRegex com pré-filtro: a linha precisa
+// conter "eletr" em qualquer caixa. O filtro não usa o s, que sob (?i) casa
+// também com ſ; e, l, t e r só casam com as próprias maiúscula e minúscula.
+func tituloCertificado(l string) bool {
+	return contemSemCaixaASCII(l, "eletr") && certificadoTituloRegex.MatchString(l)
+}
+
+// campoCertificado é certificadoCampoRegex com pré-filtro no primeiro byte
+// (E, V, A ou N, em qualquer caixa) e devolve o campo casado.
+func campoCertificado(l string) (string, bool) {
+	if len(l) == 0 {
+		return "", false
+	}
+	switch l[0] | 0x20 {
+	case 'e', 'v', 'a', 'n':
+	default:
+		return "", false
+	}
+	m := certificadoCampoRegex.FindStringSubmatch(l)
+	if m == nil {
+		return "", false
+	}
+	return m[1], true
+}
+
+// contemSemCaixaASCII informa se s contém sub (letras minúsculas ASCII)
+// ignorando a caixa das letras ASCII.
+func contemSemCaixaASCII(s, sub string) bool {
+	for i := 0; i+len(sub) <= len(s); i++ {
+		j := 0
+		for j < len(sub) && s[i+j]|0x20 == sub[j] {
+			j++
+		}
+		if j == len(sub) {
+			return true
+		}
+	}
+	return false
 }
 
 // Limites de H9.
