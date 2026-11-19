@@ -18,6 +18,7 @@
   import Play from 'lucide-svelte/icons/play';
   import RotateCcw from 'lucide-svelte/icons/rotate-ccw';
   import Trash2 from 'lucide-svelte/icons/trash-2';
+  import Upload from 'lucide-svelte/icons/upload';
   import X from 'lucide-svelte/icons/x';
   import {
     OpenDirectory,
@@ -50,6 +51,8 @@
   export let atividades = {};
   // Config atual: valores iniciais do reprocessamento de itens antigos.
   export let config = null;
+  // Abre a seleção de ZIPs do App: o vazio oferece a ação sem depender do painel.
+  export let aoSelecionarZip = () => {};
 
   let filterText = '';
 
@@ -330,7 +333,11 @@
       <div class="empty-state">
         <Icone icone={Archive} tamanho={32} />
         <p>Nenhum processo no histórico.</p>
-        <p class="sub-text">Arraste arquivos ZIP em qualquer lugar ou clique em "Selecionar" no painel ao lado.</p>
+        <button type="button" class="manual-select-btn" on:click={aoSelecionarZip}>
+          <Icone icone={Upload} tamanho={14} />
+          <span>Selecionar arquivos ZIP...</span>
+        </button>
+        <p class="sub-text">ou arraste os ZIPs para a janela</p>
       </div>
     {:else}
       <div class="items-list" bind:this={listaEl}>
@@ -776,7 +783,31 @@
 
   .empty-state .sub-text {
     font-size: var(--fs-meta);
+    font-weight: 400;
     max-width: 250px;
+  }
+
+  /* Mesmo botão da Importação Manual do painel (App.svelte). */
+  .manual-select-btn {
+    background-color: var(--bg-main);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: var(--fs-base);
+    font-weight: 600;
+    padding: 10px 16px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+  }
+
+  .manual-select-btn:hover {
+    border-color: var(--accent);
+    background-color: var(--surface-hover);
   }
 
   .items-list {

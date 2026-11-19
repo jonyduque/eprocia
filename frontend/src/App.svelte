@@ -3,9 +3,12 @@
   import Check from 'lucide-svelte/icons/check';
   import ChevronLeft from 'lucide-svelte/icons/chevron-left';
   import ChevronRight from 'lucide-svelte/icons/chevron-right';
+  import CirclePause from 'lucide-svelte/icons/circle-pause';
   import Copy from 'lucide-svelte/icons/copy';
   import FileArchive from 'lucide-svelte/icons/file-archive';
   import FilePlusCorner from 'lucide-svelte/icons/file-plus-corner';
+  import FolderSearch from 'lucide-svelte/icons/folder-search';
+  import FolderX from 'lucide-svelte/icons/folder-x';
   import Minus from 'lucide-svelte/icons/minus';
   import Monitor from 'lucide-svelte/icons/monitor';
   import Moon from 'lucide-svelte/icons/moon';
@@ -47,6 +50,7 @@
   import { OPCOES_LIMPEZA, OPCOES_OCR, nivelOpcao, proximaOpcao, rotuloOpcao } from './lib/atividade.js';
   import { gravarPainel, lerPainel } from './lib/painel.js';
   import { rolagem } from './lib/rolagem.js';
+  import { ROTULO_MONITORAMENTO, estadoMonitoramento, textoMonitoramento } from './lib/monitoramento.js';
   import { criarSoltura, textoAceitos } from './lib/soltura.js';
   import {
     CONSULTA_ESCURO,
@@ -103,10 +107,10 @@
   // Pausar a fila não interrompe o item em curso, que segue ativo.
   $: processingCount = contarAtivos(items);
 
-  $: monitorando = !!(config && config.watchdog_enabled && config.monitored_path);
-  $: textoMonitoramento = monitorando
-    ? `Monitorando: ${config.monitored_path}`
-    : (config && !config.watchdog_enabled && config.monitored_path ? 'Monitoramento pausado' : 'Sem monitoramento ativo');
+  // Mesmos rótulos e ícones do painel (Settings.svelte).
+  const ICONE_MONITORAMENTO = { monitorando: FolderSearch, pausado: CirclePause, sem_pasta: FolderX };
+  $: estado = estadoMonitoramento(config);
+  $: textoMonitor = textoMonitoramento(config);
 
   $: temaAtual = temaEfetivo(temaPref, sistemaEscuro);
   $: {
@@ -556,16 +560,21 @@
           <button
             type="button"
             class="collapsed-indicator"
-            class:active={monitorando}
-            class:inactive={!monitorando}
+            class:pausado={estado === 'pausado'}
             on:click={alternarMonitoramento}
-            title="{textoMonitoramento}. Clique para {acaoMonitor.toLowerCase()}"
-            aria-label="{textoMonitoramento}. {acaoMonitor}"
-            aria-pressed={monitorando}
+            title="{textoMonitor}. Clique para {acaoMonitor.toLowerCase()}"
+            aria-label="Monitoramento"
+            aria-pressed={estado === 'monitorando'}
+            aria-describedby="estado-monitor-recolhido"
             disabled={!config}
           >
-            <span class="collapsed-dot" aria-hidden="true"></span>
+            {#key estado}
+              <span class="monitor-icone" in:fade={{ duration: duracaoMovimento(DUR_FAST) }}>
+                <Icone icone={ICONE_MONITORAMENTO[estado]} />
+              </span>
+            {/key}
           </button>
+          <span id="estado-monitor-recolhido" class="sr-only">{textoMonitor}</span>
 
           <button class="collapsed-tool-btn" on:click={triggerManualSelect} title="Processar ZIP Manualmente" aria-label="Processar ZIP manualmente">
             <Icone icone={Upload} />
@@ -631,7 +640,7 @@
 
     <!-- Right Process List Area -->
     <main class="content-area">
-      <ProcessList bind:items={items} {isPaused} {atividades} {config} />
+      <ProcessList bind:items={items} {isPaused} {atividades} {config} aoSelecionarZip={triggerManualSelect} />
     </main>
   </div>
 
@@ -640,25 +649,31 @@
     <div class="status-item status-main">
       <button
         type="button"
-        class="status-dot-btn"
+        class="monitor-btn"
+        class:pausado={estado === 'pausado'}
         on:click={alternarMonitoramento}
         disabled={!config}
-        title={acaoMonitor}
-        aria-label={acaoMonitor}
-        aria-pressed={monitorando}
+        title="{textoMonitor}. Clique para {acaoMonitor.toLowerCase()}"
+        aria-label="Monitoramento"
+        aria-pressed={estado === 'monitorando'}
       >
-        <span class="status-dot" class:active={monitorando} class:inactive={!monitorando}></span>
+        {#key estado}
+          <span class="monitor-icone" in:fade={{ duration: duracaoMovimento(DUR_FAST) }}>
+            <Icone icone={ICONE_MONITORAMENTO[estado]} tamanho={12} />
+          </span>
+        {/key}
       </button>
-      {#if config && config.watchdog_enabled && config.monitored_path}
+      {#if estado === 'monitorando'}
         <span class="status-text truncate" title={config.monitored_path}>
-          Pasta monitorada: <strong>{config.monitored_path}</strong>
+          Monitorando: <strong>{config.monitored_path}</strong>
         </span>
-      {:else if config && !config.watchdog_enabled && config.monitored_path}
+      {:else if estado === 'pausado'}
         <span class="status-text truncate" title={config.monitored_path}>
-          Monitoramento pausado (pasta configurada: <strong>{config.monitored_path}</strong>)
+          Pausado: <strong>{config.monitored_path}</strong>
         </span>
       {:else}
-        <span class="status-text truncate">Monitoramento inativo. Configure uma pasta no painel ao lado.</span>
+        <span class="status-text">{ROTULO_MONITORAMENTO[estado]}.</span>
+        <button type="button" class="status-link" on:click={alternarMonitoramento} disabled={!config}>Escolher pasta para monitorar</button>
       {/if}
     </div>
     <div class="status-item status-count font-tabular">
@@ -1034,7 +1049,7 @@
     border: 0;
   }
 
-  /* Botão de 24px em volta do ponto de 6px: alvo fácil sem mudar o visual. */
+  /* Ícone do estado do monitoramento (o mesmo do rodapé e do painel). */
   .collapsed-indicator {
     width: 24px;
     height: 24px;
@@ -1045,30 +1060,31 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    color: var(--text-secondary);
     cursor: pointer;
-    transition: background-color var(--dur-fast) var(--ease-out);
+    transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
   }
 
   .collapsed-indicator:hover {
     background-color: var(--surface-hover);
+    color: var(--text-primary);
   }
 
-  .collapsed-indicator:hover .collapsed-dot {
-    transform: scale(1.4);
+  .collapsed-indicator.pausado,
+  .monitor-btn.pausado {
+    color: var(--warning);
+  }
+
+  .monitor-icone {
+    display: flex;
   }
 
   .collapsed-indicator:disabled,
   .collapsed-tool-btn:disabled,
-  .status-dot-btn:disabled {
+  .monitor-btn:disabled,
+  .status-link:disabled {
     cursor: default;
     opacity: 0.6;
-  }
-
-  .collapsed-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
   }
 
   /* Ícone com os pontos de nível embaixo: o nível muda a cada clique. */
@@ -1093,14 +1109,6 @@
 
   .nivel-ponto.cheio {
     background-color: var(--accent);
-  }
-
-  .collapsed-indicator.active .collapsed-dot {
-    background-color: var(--success);
-  }
-
-  .collapsed-indicator.inactive .collapsed-dot {
-    background-color: var(--warning);
   }
 
   .collapsed-tool-btn {
@@ -1230,35 +1238,46 @@
     background-color: var(--border);
   }
 
-  .status-dot-btn {
+  /* Alvo de 24px no rodapé de 26px; a margem negativa alinha o ícone à guia de 12px. */
+  .monitor-btn {
     flex-shrink: 0;
-    width: 18px;
-    height: 18px;
-    margin: 0 -6px;
+    width: 24px;
+    height: 24px;
+    margin: 0 -4px 0 -6px;
     padding: 0;
     border: none;
-    border-radius: 50%;
+    border-radius: 4px;
     background: transparent;
+    color: var(--text-secondary);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
   }
 
-  .status-dot-btn:hover {
+  .monitor-btn:hover {
     background-color: var(--surface-hover);
+    color: var(--text-primary);
   }
 
-  .status-dot-btn:hover .status-dot {
-    transform: scale(1.4);
-  }
-
-  .status-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
+  .status-link {
     flex-shrink: 0;
-    transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+    padding: 0 4px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--accent-text);
+    font-family: inherit;
+    font-size: var(--fs-meta);
+    text-decoration: underline;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color var(--dur-fast) var(--ease-out);
+  }
+
+  .status-link:hover {
+    background-color: var(--surface-hover);
   }
 
   .aviso-flutuante {
@@ -1271,14 +1290,6 @@
     max-width: min(480px, calc(100% - 32px));
   }
 
-  .status-dot.active {
-    background-color: var(--success);
-  }
-
-  .status-dot.inactive {
-    background-color: var(--warning);
-  }
-
   .status-text {
     font-size: var(--fs-meta);
   }
@@ -1286,10 +1297,6 @@
   /* Alto contraste do Windows: o fundo vira Canvas e os pontos sumiriam.
      Vazio = desligado/vazio; Highlight = ligado/cheio. */
   @media (forced-colors: active) {
-    .status-dot,
-    .status-dot.inactive,
-    .collapsed-dot,
-    .collapsed-indicator.inactive .collapsed-dot,
     .nivel-ponto,
     .pulse-dot {
       forced-color-adjust: none;
@@ -1297,8 +1304,6 @@
       background-color: Canvas;
     }
 
-    .status-dot.active,
-    .collapsed-indicator.active .collapsed-dot,
     .nivel-ponto.cheio,
     .pulse-dot {
       background-color: Highlight;

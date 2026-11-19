@@ -44,9 +44,16 @@ test('ícones importados um a um de lucide-svelte/icons', () => {
     const usos = marcacao(f).match(/<Icone\b[^>]*>/g) ?? [];
     assert.ok(usos.length > 0, `${nome} sem <Icone>`);
     for (const u of usos) {
-      const m = u.match(/icone=\{(\w+)\}/);
-      assert.ok(m, u);
-      assert.match(f, new RegExp(`import ${m[1]} from 'lucide-svelte/icons/[a-z0-9-]+'`), `${m[1]} sem import`);
+      // Um mapa de estado para ícone (ICONE_MONITORAMENTO[estado]) vale se
+      // cada valor do mapa for um ícone importado.
+      const mapa = u.match(/icone=\{(\w+)\[\w+\]\}/);
+      const nomes = mapa
+        ? [...f.match(new RegExp(`const ${mapa[1]} = \\{([^}]*)\\}`))[1].matchAll(/:\s*(\w+)/g)].map((x) => x[1])
+        : [u.match(/icone=\{(\w+)\}/)?.[1]];
+      for (const n of nomes) {
+        assert.ok(n, u);
+        assert.match(f, new RegExp(`import ${n} from 'lucide-svelte/icons/[a-z0-9-]+'`), `${n} sem import`);
+      }
     }
     const semMarca = marcacao(f).replace(/<svg[^>]*class="brand-icon"[\s\S]*?<\/svg>/, '');
     assert.doesNotMatch(semMarca, /stroke-width|strokeWidth/, `${nome} sobrescreve o traço`);
@@ -66,12 +73,12 @@ test('estados da fila usam o mapeamento do DESIGN', () => {
   }
 });
 
+// F-AC-03: a lixeira do painel (que apagava a pasta) saiu; fica a da fila.
 test('lixeira é Trash2 em todo lugar', () => {
   for (const [nome, f] of Object.entries(arquivos)) {
     assert.doesNotMatch(f, /icons\/trash'/, `${nome} usa trash`);
   }
   assert.match(arquivos.ProcessList, /import Trash2 from 'lucide-svelte\/icons\/trash-2'/);
-  assert.match(arquivos.Settings, /import Trash2 from 'lucide-svelte\/icons\/trash-2'/);
 });
 
 test('seletores de svg alcançam o filho via :global', () => {

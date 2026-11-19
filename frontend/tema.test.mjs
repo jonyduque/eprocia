@@ -138,9 +138,12 @@ test('opções curtas com texto de ajuda abaixo do controle segmentado', () => {
   assert.match(regra(estilo(settings), '.help-text'), /font-size:\s*var\(--fs-meta\)/);
 });
 
+// F-AC-03: o caminho é texto (não campo), com reticências no meio pela ação
+// reticenciasMeio e text-overflow como reserva.
 test('pasta monitorada com title e reticências', () => {
-  const i = settings.indexOf('id="monitored-path"');
-  const input = settings.slice(settings.lastIndexOf('<input', i), settings.indexOf('/>', i));
-  assert.match(input, /title=\{/);
-  assert.match(regra(estilo(settings), 'input[type="text"]'), /text-overflow:\s*ellipsis/);
+  const i = settings.indexOf('use:reticenciasMeio=');
+  const caminho = settings.slice(settings.lastIndexOf('<span', i), settings.indexOf('>', i));
+  assert.match(caminho, /id="monitored-path"/);
+  assert.match(caminho, /title=\{/);
+  assert.match(regra(estilo(settings), '.caminho'), /text-overflow:\s*ellipsis/);
 });

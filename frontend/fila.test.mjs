@@ -158,8 +158,10 @@ test('linha expandida mostra a mensagem completa e o caminho, selecionáveis', (
 test('indicador da barra recolhida é botão com o estado no nome e aria-pressed', () => {
   const ind = tag(app, 'class="collapsed-indicator"');
   assert.match(ind, /type="button"/);
-  assert.match(ind, /aria-label="\{textoMonitoramento\}\. \{acaoMonitor\}"/);
-  assert.match(ind, /aria-pressed=\{monitorando\}/);
+  // F-AC-09: rótulo fixo; o estado vai em aria-pressed e na descrição.
+  assert.match(ind, /aria-label="Monitoramento"/);
+  assert.match(ind, /aria-pressed=\{estado === 'monitorando'\}/);
+  assert.match(ind, /aria-describedby="estado-monitor-recolhido"/);
   assert.match(ind, /on:click=\{alternarMonitoramento\}/);
   assert.match(app, /<div class="sr-only" role="status" aria-live="polite">\{anuncio\}<\/div>/);
   assert.match(app, /\.sr-only\s*\{[^}]*clip/);

@@ -263,22 +263,15 @@ test('alto contraste: interruptor com contorno, bolinha e trilho ligado em Highl
   assert.match(regraForcada(b, '.switch input:focus-visible + .slider'), /outline-color:\s*CanvasText/);
 });
 
-test('alto contraste: pontos de estado e de nível com contorno e Highlight quando cheios', () => {
+// F-AC-09: o monitoramento virou ícone (traço em currentColor, que o modo de
+// alto contraste já pinta); ficam os pontos de nível.
+test('alto contraste: pontos de nível com contorno e Highlight quando cheios', () => {
   const b = forcado(app, 'App');
-  for (const s of ['.status-dot', '.collapsed-dot', '.nivel-ponto']) {
-    const r = regraForcada(b, s);
-    assert.match(r, /forced-color-adjust:\s*none/, s);
-    assert.match(r, /border:\s*1px solid CanvasText/, s);
-  }
-  for (const s of ['.status-dot.active', '.collapsed-indicator.active .collapsed-dot', '.nivel-ponto.cheio']) {
-    assert.match(regraForcada(b, s), /background-color:\s*Highlight/, s);
-  }
-  // .inactive pinta o ponto de âmbar fora do bloco e é mais específico que .status-dot.
-  for (const s of ['.status-dot.inactive', '.collapsed-indicator.inactive .collapsed-dot']) {
-    const r = regraForcada(b, s);
-    assert.match(r, /background-color:\s*Canvas\s*;/, s);
-    assert.match(r, /border:\s*1px solid CanvasText/, s);
-  }
+  const r = regraForcada(b, '.nivel-ponto');
+  assert.match(r, /forced-color-adjust:\s*none/);
+  assert.match(r, /border:\s*1px solid CanvasText/);
+  assert.match(regraForcada(b, '.nivel-ponto.cheio'), /background-color:\s*Highlight/);
+  assert.doesNotMatch(app, /status-dot|collapsed-dot/);
 });
 
 test('alto contraste: barras e vagas com trilho contornado e preenchimento Highlight', () => {

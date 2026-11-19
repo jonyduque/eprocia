@@ -1,11 +1,15 @@
 <script>
   import Icone from './Icone.svelte';
-  import Trash2 from 'lucide-svelte/icons/trash-2';
+  import CirclePause from 'lucide-svelte/icons/circle-pause';
+  import FolderOpen from 'lucide-svelte/icons/folder-open';
+  import FolderSearch from 'lucide-svelte/icons/folder-search';
+  import FolderX from 'lucide-svelte/icons/folder-x';
   import Salvo from './Salvo.svelte';
   import Segmentado from './Segmentado.svelte';
   import { onDestroy, tick } from 'svelte';
   import { criarConfirmacao } from '../lib/aviso.js';
   import { OPCOES_OCR, OPCOES_LIMPEZA } from '../lib/atividade.js';
+  import { ROTULO_MONITORAMENTO, estadoMonitoramento, reticenciasMeio } from '../lib/monitoramento.js';
   import { SaveConfig, SelectDirectory } from '../wailsjs/go/main/App.js';
 
   // O App lê a config uma vez e a compartilha por bind; null enquanto carrega.
@@ -75,10 +79,17 @@
   }
   $: loading = !config;
 
+  const ICONE_MONITORAMENTO = { monitorando: FolderSearch, pausado: CirclePause, sem_pasta: FolderX };
+  $: estado = estadoMonitoramento(config);
+  $: semPasta = estado === 'sem_pasta';
+
+  // Escolher a primeira pasta liga o monitoramento, como no rodapé; trocar de
+  // pasta mantém o estado do interruptor.
   async function handleSelectDirectory() {
     try {
       const selected = await SelectDirectory();
       if (selected) {
+        if (!config.monitored_path) config.watchdog_enabled = true;
         config.monitored_path = selected;
         await handleSave('pasta');
       }
@@ -87,9 +98,9 @@
     }
   }
 
-  async function handleClearDirectory() {
-    config.monitored_path = '';
-    await handleSave('pasta');
+  async function handleToggleWatchdog(e) {
+    config.watchdog_enabled = e.currentTarget.checked;
+    await handleSave('watchdog');
   }
 
   async function handleSave(campo) {
@@ -142,43 +153,55 @@
     <div class="grupo">
       <h3 class="rotulo-grupo">Monitoramento</h3>
 
-      <div class="form-group toggle-group">
-        <label for="watchdog-toggle">
-          Monitoramento ativo
-          <Salvo campo="watchdog" {confirmado} />
-        </label>
-        <label class="switch">
-          <input
-            id="watchdog-toggle"
-            type="checkbox"
-            role="switch"
-            bind:checked={config.watchdog_enabled}
-            on:change={() => handleSave('watchdog')}
-          />
-          <span class="slider" aria-hidden="true"></span>
-        </label>
+      <div class="form-group">
+        <div class="toggle-group">
+          <label for="watchdog-toggle">
+            Monitorar a pasta
+            <Salvo campo="watchdog" {confirmado} />
+          </label>
+          <label class="switch">
+            <input
+              id="watchdog-toggle"
+              type="checkbox"
+              role="switch"
+              checked={estado === 'monitorando'}
+              disabled={semPasta}
+              aria-describedby={semPasta ? 'ajuda-monitoramento' : undefined}
+              on:change={handleToggleWatchdog}
+            />
+            <span class="slider" aria-hidden="true"></span>
+          </label>
+        </div>
+        <p class="help-text estado-monitor" class:pausado={estado === 'pausado'}>
+          <Icone icone={ICONE_MONITORAMENTO[estado]} tamanho={12} />
+          <span>{ROTULO_MONITORAMENTO[estado]}</span>
+        </p>
+        {#if semPasta}
+          <p class="help-text" id="ajuda-monitoramento">Escolha uma pasta para monitorar</p>
+        {/if}
       </div>
 
       <div class="form-group">
-        <label for="monitored-path">
-          Pasta Monitorada
+        <span class="rotulo-campo" id="rotulo-pasta">
+          Pasta monitorada
           <Salvo campo="pasta" {confirmado} />
-        </label>
+        </span>
         <div class="path-input-group">
-          <input
-            id="monitored-path"
-            type="text"
-            readonly
-            value={config.monitored_path || 'Nenhuma pasta (inativo)'}
-            title={config.monitored_path || 'Nenhuma pasta monitorada'}
-            class:inactive={!config.monitored_path}
-          />
-          <button type="button" class="btn-primary" on:click={handleSelectDirectory}>
-            Alterar
-          </button>
-          {#if config.monitored_path}
-            <button type="button" class="btn-danger-icon" on:click={handleClearDirectory} title="Desativar monitoramento">
-              <Icone icone={Trash2} tamanho={14} />
+          {#if semPasta}
+            <span id="monitored-path" class="caminho vazio">Nenhuma pasta escolhida</span>
+            <button type="button" class="btn-primary btn-icone-texto" on:click={handleSelectDirectory}>
+              <Icone icone={FolderOpen} tamanho={12} />
+              Escolher pasta...
+            </button>
+          {:else}
+            <span id="monitored-path" class="caminho" title={config.monitored_path} use:reticenciasMeio={config.monitored_path}></span>
+            <button
+              type="button"
+              class="btn-primary"
+              aria-describedby="rotulo-pasta monitored-path"
+              on:click={handleSelectDirectory}
+            >
+              Alterar
             </button>
           {/if}
         </div>
@@ -296,11 +319,31 @@
   }
 
   .toggle-group {
+    display: flex;
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
     gap: 12px;
     min-height: 32px;
+  }
+
+  .rotulo-campo {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--fs-base);
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .estado-monitor {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .estado-monitor.pausado {
+    color: var(--warning-strong);
   }
 
   .toggle-group label:not(.switch) {
@@ -322,7 +365,31 @@
 
   .path-input-group {
     display: flex;
+    align-items: center;
     gap: 6px;
+    min-height: 30px;
+  }
+
+  /* Texto, não campo: sem contorno nem foco; o caminho inteiro fica no title. */
+  .caminho {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--fs-base);
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .caminho.vazio {
+    color: var(--text-secondary);
+    font-style: italic;
+  }
+
+  .btn-icone-texto {
+    display: flex;
+    align-items: center;
+    gap: 4px;
   }
 
   input[type="text"] {
@@ -338,11 +405,6 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  input[type="text"].inactive {
-    color: var(--text-secondary);
-    font-style: italic;
   }
 
   button {
@@ -375,21 +437,6 @@
     transform: scale(0.98);
   }
 
-  .btn-danger-icon {
-    background-color: transparent;
-    border: 1px solid var(--border);
-    color: var(--error);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 6px 8px;
-  }
-
-  .btn-danger-icon:hover {
-    background-color: var(--error-soft);
-    border-color: var(--error);
-  }
-
   /* Switch / Toggle styling */
   .switch {
     position: relative;
@@ -415,6 +462,12 @@
     background-color: var(--border-strong);
     transition: background-color var(--dur-base) var(--ease-out);
     border-radius: 20px;
+  }
+
+  /* Sem pasta: desligado e desabilitado (a ajuda abaixo diz o que fazer). */
+  .switch input:disabled + .slider {
+    cursor: default;
+    opacity: 0.6;
   }
 
   /* O input fica invisível (0x0), então o anel vai no trilho. */
