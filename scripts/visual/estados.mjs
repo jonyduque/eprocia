@@ -136,6 +136,9 @@ export function instalarStubs({ estado, tema }) {
     GetConfig: estado.config,
     GetQueue: estado.fila,
     IsQueuePaused: estado.pausado,
+    // Sem isto a chamada devolve undefined, o app toma a janela como oculta
+    // e as capturas saem com spinner, pulso e realce parados.
+    JanelaVisivel: true,
     GetQueueActivity: (id) => estado.atividades?.[id] ?? null,
     SelectZipFiles: [],
     SelectDirectory: '',
