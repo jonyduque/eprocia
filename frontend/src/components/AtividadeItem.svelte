@@ -70,21 +70,24 @@
       </div>
     {/if}
 
-    <div class="resumo font-tabular" role="status">
-      {#if emAndamento}
-        <span class="chip ativo">{resumo.ativos} em andamento</span>
-        {#if resumo.paginasOcr > 0}
-          <span class="chip ocr">{resumo.paginasOcr} pág. em OCR</span>
+    <!-- Sem região viva: os marcos (fim, erros, não lidos) são anunciados uma vez pelo ProcessList. -->
+    <div class="resumo-linha">
+      <div class="resumo font-tabular">
+        {#if emAndamento}
+          <span class="chip ativo">{resumo.ativos} em andamento</span>
+          {#if resumo.paginasOcr > 0}
+            <span class="chip ocr">{resumo.paginasOcr} pág. em OCR</span>
+          {/if}
+          <span class="chip">{resumo.aguardando} aguardando</span>
         {/if}
-        <span class="chip">{resumo.aguardando} aguardando</span>
-      {/if}
-      <span class="chip ok">{resumo.concluidos} concluído{resumo.concluidos === 1 ? '' : 's'}</span>
-      {#if resumo.naoLidos > 0}
-        <span class="chip aviso">{resumo.naoLidos} não lido{resumo.naoLidos === 1 ? '' : 's'}</span>
-      {/if}
-      {#if resumo.erros > 0}
-        <span class="chip erro">{resumo.erros} com erro</span>
-      {/if}
+        <span class="chip ok">{resumo.concluidos} concluído{resumo.concluidos === 1 ? '' : 's'}</span>
+        {#if resumo.naoLidos > 0}
+          <span class="chip aviso">{resumo.naoLidos} não lido{resumo.naoLidos === 1 ? '' : 's'}</span>
+        {/if}
+        {#if resumo.erros > 0}
+          <span class="chip erro">{resumo.erros} com erro</span>
+        {/if}
+      </div>
       {#if resumo.concluidos > 0}
         <button
           type="button"
@@ -208,6 +211,12 @@
 
   .medidor-valor {
     font-weight: 600;
+  }
+
+  .resumo-linha {
+    display: flex;
+    align-items: center;
+    gap: 4px;
   }
 
   .resumo {

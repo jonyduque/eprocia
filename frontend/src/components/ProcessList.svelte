@@ -35,7 +35,7 @@
   import ReprocessarItem from './ReprocessarItem.svelte';
   import Aviso from './Aviso.svelte';
   import { onDestroy, tick } from 'svelte';
-  import { fly, fade } from 'svelte/transition';
+  import { fly, fade, scale } from 'svelte/transition';
   import { flip } from 'svelte/animate';
   import { cubicOut } from 'svelte/easing';
   import { estadoItem, avisoFila } from '../lib/estado.js';
@@ -43,6 +43,7 @@
   import { aplicarReprocessarComOCR } from '../lib/reprocessar.js';
   import { rotuloNaoLidos, avisoCopiaNaoLidos, tituloNaoLidos } from '../lib/naoLidos.js';
   import { rolagem } from '../lib/rolagem.js';
+  import { marcosFila, anuncioCopia, anuncioPausa, anuncioFiltro } from '../lib/anuncios.js';
   import { formatarHora, filtrarItens, alvoFoco, escolherAcao, criarMovimentoFila } from '../lib/fila.js';
 
   export let items = [];
@@ -67,7 +68,40 @@
 
   $: aviso = avisoFila(items, isPaused);
 
+  // Região viva única da lista: só marcos (fim do item, erros, pausa, filtro,
+  // cópia). Limpar antes de escrever faz o leitor repetir um texto igual.
+  let anuncio = '';
+  async function anunciar(texto) {
+    if (!texto) return;
+    anuncio = '';
+    await tick();
+    anuncio = texto;
+  }
+
+  let estadoMarcos = null;
+  function registrarMarcos(lista, ativ) {
+    const r = marcosFila(estadoMarcos, lista, ativ);
+    estadoMarcos = r.estado;
+    if (r.mensagens.length > 0) anunciar(r.mensagens.join('. '));
+  }
+  $: registrarMarcos(items, atividades);
+
+  let pausaAnterior;
+  function registrarPausa(pausada) {
+    anunciar(anuncioPausa(pausaAnterior, pausada, avisoFila(items, true)));
+    pausaAnterior = pausada;
+  }
+  $: registrarPausa(isPaused);
+
   $: filteredItems = filtrarItens(items, filterText);
+
+  let ultimoFiltro = '';
+  function registrarFiltro(texto, n) {
+    const msg = anuncioFiltro(texto, n);
+    if (msg !== ultimoFiltro) anunciar(msg);
+    ultimoFiltro = msg;
+  }
+  $: registrarFiltro(filterText, filteredItems.length);
 
   const mov = criarMovimentoFila();
   $: mov.atualizar(items, filterText);
@@ -223,6 +257,7 @@
       copiadoTimer = setTimeout(() => { copiadoId = null; }, 1500);
       const alerta = avisoCopiaNaoLidos(item.unread_docs);
       if (alerta) avisoAcao.mostrar(alerta, 'aviso');
+      anunciar(anuncioCopia(item.name, item.unread_docs));
     } catch (err) {
       console.error('Erro ao copiar o TXT:', err);
       avisoAcao.mostrar('Erro ao copiar o TXT: ' + (err?.message ?? err), 'error');
@@ -317,7 +352,7 @@
 
   {#if aviso}
     <div class="queue-notice">
-      <span class="queue-chip" role="status" title={aviso}>
+      <span class="queue-chip" title={aviso}>
         <Icone icone={CirclePause} tamanho={12} />
         <span class="queue-chip-text">{aviso}</span>
       </span>
@@ -327,7 +362,7 @@
   <div class="items-container" use:rolagem={marcarLista}>
     {#if items.length > 0 && filteredItems.length === 0}
       <div class="empty-state">
-        <p role="status">Nenhum item corresponde ao filtro</p>
+        <p>Nenhum item corresponde ao filtro</p>
       </div>
     {:else if filteredItems.length === 0}
       <div class="empty-state">
@@ -387,10 +422,14 @@
               <span class="details-row">
                 <span class="timestamp">{formatarHora(item.timestamp)}</span>
                 {#if estado === 'sucesso'}
+                  {#if copiadoId === item.id}
+                    <span class="copiado-texto" in:fade={{ duration: duracaoMovimento(DUR_FAST) }}>Copiado</span>
+                  {:else}
                   <span class="meta-badge success">
                     {item.docs_count} docs | {item.pages_count} pág{#if item.estimated_tokens > 0}
                       | <span title="Estimativa local: 1 token a cada 4 caracteres">~{formatoTokens.format(item.estimated_tokens)} tokens</span>{/if}
                   </span>
+                  {/if}
                   {#if item.unread_docs > 0}
                     <span class="nao-lidos" title={tituloNaoLidos(item.unread_docs)}>
                       <Icone icone={CircleAlert} tamanho={12} cor="var(--warning)" />
@@ -469,15 +508,20 @@
                   <button
                     class="btn-action"
                     data-acao="copiar"
+                    class:copiado={copiadoId === item.id}
                     on:click={() => handleCopy(item)}
                     title={copiadoId === item.id ? 'Copiado!' : 'Copiar o TXT para colar na IA'}
                     aria-label="Copiar o TXT"
                   >
-                    {#if copiadoId === item.id}
-                      <Icone icone={Check} tamanho={14} />
-                    {:else}
-                      <Icone icone={Copy} tamanho={14} />
-                    {/if}
+                    {#key copiadoId === item.id}
+                      <span class="icone-copiar" in:scale={{ start: 0.6, duration: duracaoMovimento(DUR_FAST), easing: cubicOut }}>
+                        {#if copiadoId === item.id}
+                          <Icone icone={Check} tamanho={14} />
+                        {:else}
+                          <Icone icone={Copy} tamanho={14} />
+                        {/if}
+                      </span>
+                    {/key}
                   </button>
                   <button
                     class="btn-action"
@@ -574,6 +618,7 @@
   </div>
 
   <Aviso aviso={avisoAtual} aoFechar={avisoAcao.fechar} />
+  <div class="sr-only" role="status" aria-live="polite">{anuncio}</div>
 </div>
 
 <style>
@@ -1062,6 +1107,22 @@
   .btn-action:hover {
     color: var(--text-primary);
     background-color: var(--surface-hover);
+  }
+
+  .btn-action.copiado,
+  .btn-action.copiado:hover {
+    color: var(--success);
+    background-color: var(--success-soft);
+  }
+
+  .icone-copiar {
+    display: inline-flex;
+  }
+
+  .copiado-texto {
+    color: var(--success-strong);
+    font-size: var(--fs-meta);
+    font-weight: 600;
   }
 
   .btn-cancel:hover {
