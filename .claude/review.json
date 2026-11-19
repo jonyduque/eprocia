@@ -102,6 +102,7 @@
     "temas": ["escuro", "claro"],
     "estados": ["vazio", "fila", "processando", "erro", "configuracoes", "nao-lidos"],
     "divisor": ["minimo", "maximo", "recolhido"],
+    "alto_contraste": ["processando", "configuracoes"],
     "saida": "docs/revisao/capturas"
   },
   "bench": {

@@ -46,6 +46,7 @@
   import { DUR_BASE, DUR_FAST, avisoSoltura, criarAviso, duracaoMovimento, separarZips } from './lib/aviso.js';
   import { OPCOES_LIMPEZA, OPCOES_OCR, nivelOpcao, proximaOpcao, rotuloOpcao } from './lib/atividade.js';
   import { gravarPainel, lerPainel } from './lib/painel.js';
+  import { rolagem } from './lib/rolagem.js';
   import { criarSoltura, textoAceitos } from './lib/soltura.js';
   import {
     CONSULTA_ESCURO,
@@ -79,6 +80,8 @@
   const painelSalvo = lerPainel(armazenamento(), larguraJanela);
   let sidebarWidth = painelSalvo.largura;
   let sidebarCollapsed = painelSalvo.recolhido;
+  let painelMaisAbaixo = false;
+  const marcarPainel = (e) => (painelMaisAbaixo = e.abaixo);
   let isResizing = false;
   let maximizada = false;
   let botaoRecolher;
@@ -521,7 +524,7 @@
       </div>
 
       <!-- Escondido, não desmontado: o Settings mantém o aviso e a config. -->
-      <div class="sidebar-content" inert={sidebarCollapsed}>
+      <div class="sidebar-content" class:mais-abaixo={painelMaisAbaixo} use:rolagem={marcarPainel} inert={sidebarCollapsed}>
         <!-- Settings Component -->
         <Settings bind:config {erroConfig} aoFalharSalvar={refreshConfig} avisar={avisarPainel} />
 
@@ -802,7 +805,7 @@
     align-items: center;
     gap: 6px;
     font-size: var(--fs-meta);
-    color: var(--accent);
+    color: var(--accent-text);
     font-weight: 600;
     background-color: var(--accent-soft);
     padding: 2px 8px;
@@ -949,7 +952,14 @@
     gap: 16px;
     flex: 1;
     overflow-y: auto;
-    transition: opacity var(--dur-fast) var(--ease-out) var(--dur-fast);
+    /* A sombra de "há mais abaixo" precisa ficar por cima do pé do painel. */
+    position: relative;
+    z-index: 1;
+    transition: opacity var(--dur-fast) var(--ease-out) var(--dur-fast), box-shadow var(--dur-fast) var(--ease-out);
+  }
+
+  .sidebar-content.mais-abaixo {
+    box-shadow: var(--shadow-sm);
   }
   .painel-aviso {
     flex-shrink: 0;
@@ -1271,6 +1281,29 @@
 
   .status-text {
     font-size: var(--fs-meta);
+  }
+
+  /* Alto contraste do Windows: o fundo vira Canvas e os pontos sumiriam.
+     Vazio = desligado/vazio; Highlight = ligado/cheio. */
+  @media (forced-colors: active) {
+    .status-dot,
+    .status-dot.inactive,
+    .collapsed-dot,
+    .collapsed-indicator.inactive .collapsed-dot,
+    .nivel-ponto,
+    .pulse-dot {
+      forced-color-adjust: none;
+      border: 1px solid CanvasText;
+      background-color: Canvas;
+    }
+
+    .status-dot.active,
+    .collapsed-indicator.active .collapsed-dot,
+    .nivel-ponto.cheio,
+    .pulse-dot {
+      background-color: Highlight;
+      border-color: Highlight;
+    }
   }
 
   .font-tabular {

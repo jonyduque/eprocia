@@ -443,6 +443,34 @@
     transform: translateX(16px);
   }
 
+  /* Alto contraste do Windows: o trilho vira Canvas; contorno e bolinha mostram o estado. */
+  @media (forced-colors: active) {
+    .slider {
+      border: 1px solid ButtonText;
+    }
+
+    .slider:before {
+      forced-color-adjust: none;
+      background-color: ButtonText;
+      left: 2px;
+      bottom: 2px;
+    }
+
+    input:checked + .slider {
+      forced-color-adjust: none;
+      background-color: Highlight;
+      border-color: Highlight;
+    }
+
+    input:checked + .slider:before {
+      background-color: HighlightText;
+    }
+
+    .switch input:focus-visible + .slider {
+      outline-color: CanvasText;
+    }
+  }
+
 
   .sr-only {
     position: absolute;

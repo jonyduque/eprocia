@@ -151,3 +151,153 @@ test('nenhum componente remove o outline', () => {
     assert.doesNotMatch(estilo(texto), /outline:\s*(none|0)\b/, nome);
   }
 });
+
+// --- Revisão 2026-11-10: F-AC-02 (texto colorido de 11px por seletor) -------
+
+const atividadeComp = ler('src', 'components', 'AtividadeItem.svelte');
+const design = ler('..', 'DESIGN.md');
+
+// Fundo tonal (color-mix com transparent) composto sobre um fundo opaco.
+function sobre(t, nome, base) {
+  const m = (t[nome] ?? '').match(/^color-mix\(in srgb, var\((--[\w-]+)\) (\d+)%, transparent\)$/);
+  if (!m) return hex(t, nome);
+  const p = Number(m[2]) / 100;
+  const [a, b] = [hex(t, m[1]), hex(t, base)].map((h) => parseInt(h.slice(1), 16));
+  const canal = (s) => Math.round(((a >> s) & 255) * p + ((b >> s) & 255) * (1 - p));
+  return '#' + [16, 8, 0].map((s) => canal(s).toString(16).padStart(2, '0')).join('');
+}
+
+function corTexto(r, seletor) {
+  const m = r.match(/(?:^|[^-])color:\s*var\((--[\w-]+)\)/);
+  assert.ok(m, `${seletor} sem color: var(...)`);
+  return m[1];
+}
+
+// [componente, seletor, fundos opacos sob o elemento]
+const TEXTOS = [
+  [lista, '.meta-badge.success', ['--surface', '--surface-hover']],
+  [lista, '.queue-chip', ['--surface']],
+  [lista, '.paused-message', ['--surface', '--surface-hover']],
+  [lista, '.error-message', ['--surface', '--surface-hover']],
+  [lista, '.progress-message', ['--surface', '--surface-hover']],
+  [lista, '.nao-lidos', ['--surface', '--surface-hover']],
+  [atividadeComp, '.chip.ok', ['--bg-main']],
+  [atividadeComp, '.chip.ocr', ['--bg-main']],
+  [atividadeComp, '.chip.erro', ['--bg-main']],
+  [atividadeComp, '.chip.aviso', ['--bg-main']],
+  [atividadeComp, '.btn-ocr', ['--bg-main']],
+  [atividadeComp, '.doc-ocr', ['--bg-main', '--accent-faint']],
+  [atividadeComp, '.doc-erro', ['--bg-main']],
+  [atividadeComp, '.doc-erro.aviso', ['--bg-main']],
+  [app, '.pulse-indicator', ['--surface']],
+];
+
+test('texto colorido de 11px passa de 4,5:1 nos dois temas, com hover e fundo tonal', () => {
+  for (const [comp, seletor, fundos] of TEXTOS) {
+    // Regra cujo seletor começa a linha (".details-row > .nao-lidos" não conta).
+    const esc = seletor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const m = estilo(comp).match(new RegExp(`\\n\\s*${esc}\\s*\\{([^}]*)\\}`));
+    assert.ok(m, `${seletor} ausente`);
+    const r = m[1];
+    const frente = corTexto(r, seletor);
+    assert.match(frente, /-(strong|text)$/, `${seletor}: texto em ${frente}; use a variante -strong/-text`);
+    const tonal = r.match(/background-color:\s*var\((--[\w-]+)\)/)?.[1];
+    for (const [tema, t] of TEMAS) {
+      for (const f of fundos) {
+        const base = f === '--accent-faint' ? sobre(t, f, '--bg-main') : hex(t, f);
+        const tt = { ...t, '--base-tmp': base };
+        const fundo = tonal ? sobre(tt, tonal, '--base-tmp') : base;
+        const c = contraste(hex(t, frente), fundo);
+        assert.ok(c >= 4.5, `${tema}: ${seletor} (${frente} sobre ${tonal ?? f} em ${f}) = ${c.toFixed(2)}:1`);
+      }
+    }
+  }
+});
+
+// Mesmo o --success-faint fica em 4,27:1 sob o hover claro: o selo usa o fundo da linha.
+test('selo verde da fila sobre fundo neutro, com contorno', () => {
+  const r = regra(estilo(lista), '.meta-badge.success');
+  assert.doesNotMatch(r, /background(-color)?:/);
+  assert.match(r, /border:\s*1px solid currentColor/);
+});
+
+test('--warning-strong registrado no style.css e no DESIGN.md', () => {
+  assert.equal(hex(claro, '--warning-strong').toUpperCase(), '#9A5B00');
+  for (const [tema, t] of TEMAS) {
+    for (const fundo of ['--surface', '--bg-main', '--surface-hover']) exige(t, tema, '--warning-strong', fundo, 4.5);
+  }
+  const sec = design.slice(design.indexOf('## 2. Cores e Temas'), design.indexOf('## 3.'));
+  assert.match(sec, /--warning-strong/);
+  assert.match(sec, /#9A5B00/i);
+});
+
+// --- Revisão 2026-11-10: F-AC-10 (modo de alto contraste do Windows) --------
+
+function forcado(texto, nome) {
+  const folha = estilo(texto);
+  const i = folha.indexOf('@media (forced-colors: active)');
+  assert.ok(i >= 0, `${nome}: sem @media (forced-colors: active)`);
+  let n = 0;
+  for (let j = folha.indexOf('{', i); j < folha.length; j++) {
+    if (folha[j] === '{') n++;
+    else if (folha[j] === '}' && --n === 0) return folha.slice(i, j + 1);
+  }
+  assert.fail(`${nome}: bloco forced-colors sem fechamento`);
+}
+
+function regraForcada(bloco, seletor) {
+  const esc = seletor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const m = bloco.match(new RegExp(`(?:^|[\\s,}])${esc}\\s*(?:,[^{]*)?\\{([^}]*)\\}`));
+  assert.ok(m, `forced-colors: ${seletor} ausente`);
+  return m[1];
+}
+
+test('alto contraste: interruptor com contorno, bolinha e trilho ligado em Highlight', () => {
+  const b = forcado(settings, 'Settings');
+  assert.match(regraForcada(b, '.slider'), /border:\s*1px solid ButtonText/);
+  assert.match(regraForcada(b, '.slider:before'), /background-color:\s*ButtonText/);
+  const ligado = regraForcada(b, 'input:checked + .slider');
+  assert.match(ligado, /forced-color-adjust:\s*none/);
+  assert.match(ligado, /background-color:\s*Highlight/);
+  assert.match(regraForcada(b, 'input:checked + .slider:before'), /background-color:\s*HighlightText/);
+  assert.match(regraForcada(b, '.switch input:focus-visible + .slider'), /outline-color:\s*CanvasText/);
+});
+
+test('alto contraste: pontos de estado e de nível com contorno e Highlight quando cheios', () => {
+  const b = forcado(app, 'App');
+  for (const s of ['.status-dot', '.collapsed-dot', '.nivel-ponto']) {
+    const r = regraForcada(b, s);
+    assert.match(r, /forced-color-adjust:\s*none/, s);
+    assert.match(r, /border:\s*1px solid CanvasText/, s);
+  }
+  for (const s of ['.status-dot.active', '.collapsed-indicator.active .collapsed-dot', '.nivel-ponto.cheio']) {
+    assert.match(regraForcada(b, s), /background-color:\s*Highlight/, s);
+  }
+  // .inactive pinta o ponto de âmbar fora do bloco e é mais específico que .status-dot.
+  for (const s of ['.status-dot.inactive', '.collapsed-indicator.inactive .collapsed-dot']) {
+    const r = regraForcada(b, s);
+    assert.match(r, /background-color:\s*Canvas\s*;/, s);
+    assert.match(r, /border:\s*1px solid CanvasText/, s);
+  }
+});
+
+test('alto contraste: barras e vagas com trilho contornado e preenchimento Highlight', () => {
+  const l = forcado(lista, 'ProcessList');
+  assert.match(regraForcada(l, '.progress-bar-container'), /border-top:\s*1px solid CanvasText/);
+  const barra = regraForcada(l, '.progress-bar');
+  assert.match(barra, /forced-color-adjust:\s*none/);
+  assert.match(barra, /background-color:\s*Highlight/);
+
+  const a = forcado(atividadeComp, 'AtividadeItem');
+  for (const s of ['.vaga', '.doc-barra']) assert.match(regraForcada(a, s), /border:\s*1px solid CanvasText/, s);
+  for (const s of ['.vaga.cheia', '.doc-barra span']) {
+    const r = regraForcada(a, s);
+    assert.match(r, /background-color:\s*Highlight/, s);
+  }
+  assert.match(regraForcada(a, '.vaga'), /forced-color-adjust:\s*none/);
+  assert.match(regraForcada(a, '.doc-barra span'), /forced-color-adjust:\s*none/);
+});
+
+test('DESIGN.md descreve o modo de alto contraste', () => {
+  assert.match(design, /forced-colors/);
+});

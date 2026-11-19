@@ -41,6 +41,7 @@
   import { criarAviso, duracaoMovimento, DUR_FAST, DUR_BASE } from '../lib/aviso.js';
   import { aplicarReprocessarComOCR } from '../lib/reprocessar.js';
   import { rotuloNaoLidos, avisoCopiaNaoLidos, tituloNaoLidos } from '../lib/naoLidos.js';
+  import { rolagem } from '../lib/rolagem.js';
   import { formatarHora, filtrarItens, alvoFoco, escolherAcao, criarMovimentoFila } from '../lib/fila.js';
 
   export let items = [];
@@ -142,6 +143,8 @@
   // o queue:update chega; sem isto o foco cai no body.
   let tituloEl;
   let listaEl;
+  let listaRolada = false;
+  const marcarLista = (e) => (listaRolada = e.acima);
   let focoPendente = null;
 
   function guardarFoco(id, evento) {
@@ -276,7 +279,7 @@
 </script>
 
 <div class="list-card">
-  <div class="list-header">
+  <div class="list-header" class:rolado={listaRolada}>
     <div class="header-left">
       <Icone icone={List} />
       <h2 title="Fila de Processamento" tabindex="-1" bind:this={tituloEl}>Fila de Processamento</h2>
@@ -318,7 +321,7 @@
     </div>
   {/if}
 
-  <div class="items-container">
+  <div class="items-container" use:rolagem={marcarLista}>
     {#if items.length > 0 && filteredItems.length === 0}
       <div class="empty-state">
         <p role="status">Nenhum item corresponde ao filtro</p>
@@ -576,7 +579,7 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    color: var(--warning);
+    color: var(--warning-strong);
     font-size: var(--fs-meta);
     font-weight: 500;
     white-space: nowrap;
@@ -602,6 +605,14 @@
     padding: 8px 12px;
     border-bottom: 1px solid var(--border);
     background-color: var(--surface);
+    /* Acima da área rolável, para a sombra cair sobre a lista. */
+    position: relative;
+    z-index: 1;
+    transition: box-shadow var(--dur-fast) var(--ease-out);
+  }
+
+  .list-header.rolado {
+    box-shadow: var(--shadow-sm);
   }
 
   .header-left {
@@ -631,7 +642,7 @@
     border-radius: 4px;
     font-size: var(--fs-meta);
     font-weight: 500;
-    color: var(--warning);
+    color: var(--warning-strong);
     background-color: var(--warning-soft);
     border: 1px solid var(--warning-line);
     white-space: nowrap;
@@ -891,8 +902,8 @@
   }
 
   .meta-badge.success {
-    background-color: var(--success-soft);
-    color: var(--success);
+    color: var(--success-strong);
+    border: 1px solid currentColor;
   }
 
   .meta-badge.processing {
@@ -905,7 +916,7 @@
   /* A mensagem cede espaço antes dos contadores. */
   .progress-message {
     flex: 0 100 auto;
-    color: var(--accent);
+    color: var(--accent-text);
   }
 
   @container (max-width: 480px) {
@@ -927,7 +938,7 @@
   }
 
   .paused-message {
-    color: var(--warning);
+    color: var(--warning-strong);
   }
 
   .pending-message {
@@ -940,7 +951,7 @@
   }
 
   .error-message {
-    color: var(--error);
+    color: var(--error-strong);
   }
 
   .sr-only {
@@ -973,6 +984,19 @@
     transform: scaleX(var(--p));
     transform-origin: left center;
     transition: transform var(--dur-base) var(--ease-out);
+  }
+
+  /* Alto contraste do Windows: o fundo vira Canvas e a barra sumiria. */
+  @media (forced-colors: active) {
+    .progress-bar-container {
+      height: 3px;
+      border-top: 1px solid CanvasText;
+    }
+
+    .progress-bar {
+      forced-color-adjust: none;
+      background-color: Highlight;
+    }
   }
 
   /* Quatro botões de 22px (reprocessar, copiar, abrir, remover) sem invadir os contadores. */

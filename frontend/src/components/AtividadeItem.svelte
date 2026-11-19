@@ -232,23 +232,23 @@
   }
 
   .chip.ocr {
-    color: var(--processing);
+    color: var(--accent-text);
     border-color: currentColor;
   }
 
   .chip.ok {
-    color: var(--success);
+    color: var(--success-strong);
     border-color: currentColor;
   }
 
   .chip.erro {
-    color: var(--error);
+    color: var(--error-strong);
     border-color: currentColor;
     background-color: var(--error-soft);
   }
 
   .chip.aviso {
-    color: var(--warning);
+    color: var(--warning-strong);
     border-color: var(--warning-line);
     background-color: var(--warning-soft);
   }
@@ -267,7 +267,7 @@
     border-radius: 4px;
     border: 1px solid var(--warning-line);
     background-color: var(--warning-soft);
-    color: var(--warning);
+    color: var(--warning-strong);
     font: inherit;
     font-weight: 500;
     cursor: pointer;
@@ -343,7 +343,7 @@
 
   .doc-ocr {
     flex-shrink: 0;
-    color: var(--processing);
+    color: var(--accent-text);
     font-weight: 600;
   }
 
@@ -354,13 +354,13 @@
   }
 
   .doc-erro.aviso {
-    color: var(--warning);
+    color: var(--warning-strong);
   }
 
   .doc-erro {
     flex: 0 1 50%;
     min-width: 0;
-    color: var(--error);
+    color: var(--error-strong);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -386,6 +386,32 @@
 
   .doc.concluido .doc-barra span {
     background-color: var(--success);
+  }
+
+  /* Alto contraste do Windows: trilhos contornados, preenchimento em Highlight. */
+  @media (forced-colors: active) {
+    .vaga {
+      forced-color-adjust: none;
+      border: 1px solid CanvasText;
+      background-color: Canvas;
+    }
+
+    .vaga.cheia,
+    .medidor.ocr .vaga.cheia {
+      background-color: Highlight;
+      border-color: Highlight;
+    }
+
+    .doc-barra {
+      border: 1px solid CanvasText;
+      height: 6px;
+    }
+
+    .doc-barra span,
+    .doc.concluido .doc-barra span {
+      forced-color-adjust: none;
+      background-color: Highlight;
+    }
   }
 
   .doc-paginas {

@@ -24,6 +24,7 @@
   --accent-strong-hover: #004A99;
   --success-strong: #75B798;
   --error-strong: #EA868F;
+  --warning-strong: #F59E0B;
   --accent-text: #6EA8FE;
   --overlay: rgba(18, 18, 18, 0.92);
   --track: rgba(255, 255, 255, 0.06);
@@ -68,6 +69,7 @@
   --warning: #D97706;
   --success-strong: #1E7E34;
   --error-strong: #B02A37;
+  --warning-strong: #9A5B00;
   --accent-text: #0056B3;
   --overlay: rgba(248, 249, 250, 0.92);
   --track: rgba(0, 0, 0, 0.06);
@@ -116,10 +118,10 @@ body {
   outline-offset: 1px;
 }
 
-/* Custom Scrollbar for premium look */
+/* Polegar de 4px visíveis numa faixa de 8px: a borda transparente aumenta o alvo. */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -127,10 +129,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 3px;
+  background-color: var(--border-strong);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-secondary);
+  background-color: var(--text-secondary);
 }
