@@ -39,6 +39,7 @@
   --success-faint: color-mix(in srgb, var(--success) 8%, transparent);
   --success-soft: color-mix(in srgb, var(--success) 15%, transparent);
   --error-soft: color-mix(in srgb, var(--error) 10%, transparent);
+  --error-line: color-mix(in srgb, var(--error) 30%, transparent);
   --warning-soft: color-mix(in srgb, var(--warning) 12%, transparent);
   --warning-line: color-mix(in srgb, var(--warning) 30%, transparent);
 

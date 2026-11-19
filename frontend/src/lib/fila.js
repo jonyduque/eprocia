@@ -15,6 +15,31 @@ export function formatarHora(timestamp) {
   return FORMATO_HORA.format(data);
 }
 
+const FORMATO_CURTO = new Intl.NumberFormat('pt-BR', { notation: 'compact' });
+const FORMATO_EXATO = new Intl.NumberFormat('pt-BR');
+
+export function abreviarContagem(n) {
+  return FORMATO_CURTO.format(n || 0);
+}
+
+export function nomeExibido(nome) {
+  return (nome ?? '').replace(/\.zip$/i, '');
+}
+
+// Dica dos contadores da linha: os números exatos que o selo abrevia.
+export function dicaContadores(item) {
+  const n = (v) => FORMATO_EXATO.format(v || 0);
+  if (item.status === 'processing') {
+    return `Documentos: ${n(item.processed_docs)} de ${n(item.total_docs)}; páginas: ${n(item.processed_pages)} de ${n(item.total_pages)}`;
+  }
+  const qtd = (v, um, varios) => `${n(v)} ${v === 1 ? um : varios}`;
+  let dica = `${qtd(item.docs_count, 'documento', 'documentos')}, ${qtd(item.pages_count, 'página', 'páginas')}`;
+  if (item.estimated_tokens > 0) {
+    dica += `, ~${n(item.estimated_tokens)} tokens (estimativa local: 1 token a cada 4 caracteres)`;
+  }
+  return dica;
+}
+
 export function filtrarItens(items, filtro) {
   const q = (filtro ?? '').toLowerCase();
   if (!q) return items;

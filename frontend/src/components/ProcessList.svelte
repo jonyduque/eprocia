@@ -6,11 +6,14 @@
   import CircleAlert from 'lucide-svelte/icons/circle-alert';
   import CircleCheck from 'lucide-svelte/icons/circle-check';
   import CirclePause from 'lucide-svelte/icons/circle-pause';
-  import CircleQuestionMark from 'lucide-svelte/icons/circle-question-mark';
   import CircleSlash from 'lucide-svelte/icons/circle-slash';
   import Clock from 'lucide-svelte/icons/clock';
+  import Coins from 'lucide-svelte/icons/coins';
   import Copy from 'lucide-svelte/icons/copy';
+  import FileText from 'lucide-svelte/icons/file-text';
+  import Files from 'lucide-svelte/icons/files';
   import FolderOpen from 'lucide-svelte/icons/folder-open';
+  import Info from 'lucide-svelte/icons/info';
   import List from 'lucide-svelte/icons/list';
   import ListX from 'lucide-svelte/icons/list-x';
   import LoaderCircle from 'lucide-svelte/icons/loader-circle';
@@ -52,7 +55,10 @@
     escolherAcao,
     criarMovimentoFila,
     contarConcluidos,
-    textoConfirmarLimpeza
+    textoConfirmarLimpeza,
+    abreviarContagem,
+    nomeExibido,
+    dicaContadores
   } from '../lib/fila.js';
 
   export let items = [];
@@ -114,8 +120,6 @@
 
   const mov = criarMovimentoFila();
   $: mov.atualizar(items, filterText);
-
-  const formatoTokens = new Intl.NumberFormat('pt-BR');
 
   let detalhesAbertos = {};
   function alternarDetalhes(id) {
@@ -498,16 +502,19 @@
               title={expansivel ? (atividadeAberta[item.id] ? 'Ocultar a atividade dos documentos' : 'Ver a atividade dos documentos') : undefined}
               on:click={() => { if (expansivel) alternarAtividade(item); }}
             >
-              <span class="file-name" title={item.path}>{item.name}</span>
+              <span class="file-name" title={item.path}>{nomeExibido(item.name)}</span>
               <span class="details-row">
                 <span class="timestamp">{formatarHora(item.timestamp)}</span>
                 {#if estado === 'sucesso'}
                   {#if copiadoId === item.id}
                     <span class="copiado-texto" in:fade={{ duration: duracaoMovimento(DUR_FAST) }}>Copiado</span>
                   {:else}
-                  <span class="meta-badge success">
-                    {item.docs_count} docs | {item.pages_count} pág{#if item.estimated_tokens > 0}
-                      | <span title="Estimativa local: 1 token a cada 4 caracteres">~{formatoTokens.format(item.estimated_tokens)} tokens</span>{/if}
+                  <span class="meta-badge success" title={dicaContadores(item)}>
+                    <span class="contador"><Icone icone={Files} tamanho={12} />{abreviarContagem(item.docs_count)}<span class="sr-only">documentos</span></span>
+                    <span class="contador"><Icone icone={FileText} tamanho={12} />{abreviarContagem(item.pages_count)}<span class="sr-only">páginas</span></span>
+                    {#if item.estimated_tokens > 0}
+                      <span class="contador tokens"><Icone icone={Coins} tamanho={12} />~{abreviarContagem(item.estimated_tokens)}<span class="sr-only">tokens estimados</span></span>
+                    {/if}
                   </span>
                   {/if}
                   {#if item.unread_docs > 0}
@@ -517,10 +524,15 @@
                     </span>
                   {/if}
                 {:else if estado === 'processando'}
-                  <span class="progress-message">{item.message || 'Processando...'}</span>
-                  <span class="meta-badge processing">
-                    Docs: {item.processed_docs || 0}/{item.total_docs || 0} | Págs: {item.processed_pages || 0}/{item.total_pages || 0}
-                  </span>
+                  <!-- A mensagem do pipeline repete os contadores: só vale antes deles. -->
+                  {#if !item.total_docs}
+                    <span class="progress-message">{item.message || 'Processando...'}</span>
+                  {:else}
+                    <span class="meta-badge processing" title={dicaContadores(item)}>
+                      <span class="contador"><Icone icone={Files} tamanho={12} />{abreviarContagem(item.processed_docs)}/{abreviarContagem(item.total_docs)}<span class="sr-only">documentos</span></span>
+                      <span class="contador"><Icone icone={FileText} tamanho={12} />{abreviarContagem(item.processed_pages)}/{abreviarContagem(item.total_pages)}<span class="sr-only">páginas</span></span>
+                    </span>
+                  {/if}
                 {:else if estado === 'pausado'}
                   <span class="paused-message">Pausado: começa quando a fila for retomada</span>
                 {:else if estado === 'aguardando'}
@@ -638,7 +650,7 @@
                       aria-controls="erro-detalhe-{item.id}"
                       title={detalhesAbertos[item.id] ? 'Ocultar detalhes do erro' : 'Ver detalhes do erro'}
                     >
-                      <Icone icone={CircleQuestionMark} tamanho={14} />
+                      <Icone icone={Info} tamanho={14} />
                     </button>
                   {/if}
                   <button
@@ -708,6 +720,7 @@
 
 <style>
   .details-row > .nao-lidos {
+    order: -2;
     flex: none;
     overflow: visible;
     text-overflow: clip;
@@ -1015,6 +1028,14 @@
     transition: background-color var(--dur-fast) var(--ease-out),
                 border-color var(--dur-fast) var(--ease-out);
     isolation: isolate;
+    /* O arrasto do divisor muda a largura a cada quadro: só as linhas visíveis
+       refazem o layout. A contenção de pintura recorta o que sai da linha. */
+    content-visibility: auto;
+    contain-intrinsic-size: auto 36px;
+  }
+
+  .item-row.has-progress {
+    border-color: var(--accent-line);
   }
 
   /* Realce único do fim (sucesso ou erro) nesta sessão: só opacidade, atrás do conteúdo. */
@@ -1057,6 +1078,12 @@
     border-color: var(--border-strong);
   }
 
+  /* A falha se destaca pela borda; o único vermelho cheio é o ícone de estado. */
+  .item-row.error,
+  .item-row.error:hover {
+    border-color: var(--error-line);
+  }
+
   .status-col {
     width: 20px;
     display: flex;
@@ -1092,9 +1119,10 @@
     border-radius: 3px;
   }
 
+  /* Para dentro: a linha (content-visibility) recorta o que passa da borda. */
   .info-btn:focus-visible {
     outline: 2px solid var(--focus-ring);
-    outline-offset: 1px;
+    outline-offset: -2px;
   }
 
   .chevron {
@@ -1112,8 +1140,9 @@
     color: var(--accent);
   }
 
+  /* O nome (número do processo) tem prioridade: os detalhes encolhem antes. */
   .file-name {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-width: 96px;
     font-size: var(--fs-base);
     font-weight: 500;
@@ -1124,12 +1153,21 @@
   }
 
   /* Mensagem e contadores à direita do nome, na mesma faixa. */
+  /* Base 0: os detalhes só ganham o que sobra depois do nome inteiro. O que não
+     cabe quebra para uma segunda linha recortada e some inteiro, em vez de
+     aparecer fatiado; row-reverse preenche da direita, então o horário
+     (order 9) sai primeiro e os contadores e o "não lidos" ficam por último. */
   .details-row {
-    flex: 0 1 auto;
+    flex: 1 1 0;
     display: flex;
+    flex-direction: row-reverse;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
+    align-content: flex-start;
+    justify-content: flex-start;
+    height: 18px;
+    line-height: 18px;
+    gap: 0 8px;
     font-size: var(--fs-meta);
     color: var(--text-secondary);
     min-width: 0;
@@ -1146,6 +1184,35 @@
   .timestamp {
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
+    order: 9;
+  }
+
+  /* Primeiro item de toda linha: sem ele, um selo que não cabe ficaria
+     sozinho na linha visível, fatiado. A margem anula o gap que ele cria; a
+     altura impede que a primeira linha fique com 0px e a segunda apareça. */
+  .details-row::before {
+    content: '';
+    order: -10;
+    margin-left: -8px;
+    height: 18px;
+  }
+
+  .details-row > .meta-badge,
+  .details-row > .copiado-texto {
+    order: -1;
+    flex: none;
+  }
+
+  /* Mensagens cedem espaço antes dos contadores e truncam com reticências;
+     abaixo de 48px saem inteiras. O teto max-content mantém o horário junto. */
+  .details-row > .progress-message,
+  .details-row > .paused-message,
+  .details-row > .pending-message,
+  .details-row > .cancelled-message,
+  .details-row > .error-message {
+    flex: 1 1 0;
+    min-width: 48px;
+    max-width: max-content;
   }
 
   .meta-badge {
@@ -1153,7 +1220,22 @@
     border-radius: 3px;
     font-size: var(--fs-meta);
     font-weight: 600;
-    flex: 0 1 auto;
+    /* 16px + borda de 1px: a mesma faixa de 18px da linha de detalhes. */
+    line-height: 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .contador {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .contador :global(svg) {
+    flex-shrink: 0;
   }
 
   .meta-badge.success {
@@ -1168,14 +1250,19 @@
     font-weight: 500;
   }
 
-  /* A mensagem cede espaço antes dos contadores. */
   .progress-message {
-    flex: 0 100 auto;
     color: var(--accent-text);
   }
 
   @container (max-width: 480px) {
     .progress-message {
+      display: none;
+    }
+  }
+
+  /* Tokens saem antes de documentos e páginas; o valor segue na dica. */
+  @container (max-width: 560px) {
+    .contador.tokens {
       display: none;
     }
   }
@@ -1198,7 +1285,6 @@
 
   .pending-message {
     color: var(--text-secondary);
-    font-style: italic;
   }
 
   .cancelled-message {
@@ -1313,11 +1399,10 @@
     background-color: var(--error-soft);
   }
 
-  .btn-detalhes {
+  /* Fechado, segue os outros botões da linha; vermelho só aberto. */
+  .btn-detalhes[aria-expanded='true'],
+  .btn-detalhes[aria-expanded='true']:hover {
     color: var(--error);
-  }
-
-  .btn-detalhes[aria-expanded='true'] {
     background-color: var(--error-soft);
   }
 
