@@ -109,7 +109,37 @@ body {
   user-select: none;
   overflow: hidden;
   height: 100vh;
-  transition: background-color var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
+}
+
+/* Troca de tema (DESIGN.md §7): um instantâneo da janela inteira funde o antes
+   e o depois; as superfícies não animam fundo nem borda por conta própria. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--dur-base);
+  animation-timing-function: var(--ease-out);
+}
+
+/* O instantâneo fica por cima da página: sem isto, engoliria os cliques. */
+::view-transition {
+  pointer-events: none;
+}
+
+/* Durante a troca, nenhuma transição própria: o instantâneo é a única. */
+:root.trocando-tema * {
+  transition: none !important;
+}
+
+/* Botões (DESIGN.md §7, tabela de estados): a mesma transição em todos, sem
+   especificidade, para cada componente só dizer as cores. */
+:where(button) {
+  transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+/* Pressionado: fundo --border, por sombra interna porque o :hover de cada
+   componente tem mais especificidade que esta folha. Botões de fundo cheio e a
+   linha expansível da fila ficam de fora. */
+button:not(:disabled, .info-btn, .btn-primary, .primario, .perigo, .btn-close):active {
+  box-shadow: inset 0 0 0 100vmax var(--border);
 }
 
 /* Foco visível único; especificidade zero para não brigar com os componentes. */

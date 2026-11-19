@@ -415,7 +415,6 @@
     border-radius: 4px;
     cursor: pointer;
     border: none;
-    transition: background-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
     flex-shrink: 0; /* Keep buttons from shrinking */
   }
 
@@ -431,10 +430,6 @@
   /* Com 1px o anel encosta no fundo do botão, da mesma cor (--accent-strong). */
   .btn-primary:focus-visible {
     outline-offset: 2px;
-  }
-
-  .btn-primary:active {
-    transform: scale(0.98);
   }
 
   /* Switch / Toggle styling */

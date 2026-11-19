@@ -2,7 +2,6 @@
   import Icone from './components/Icone.svelte';
   import Check from 'lucide-svelte/icons/check';
   import ChevronLeft from 'lucide-svelte/icons/chevron-left';
-  import ChevronRight from 'lucide-svelte/icons/chevron-right';
   import CirclePause from 'lucide-svelte/icons/circle-pause';
   import Copy from 'lucide-svelte/icons/copy';
   import FileArchive from 'lucide-svelte/icons/file-archive';
@@ -61,7 +60,8 @@
     lerPreferencia,
     lerSalvo,
     proximoTema,
-    temaEfetivo
+    temaEfetivo,
+    trocarTema
   } from './lib/tema.js';
 
   const versao = __APP_VERSION__;
@@ -118,7 +118,10 @@
   }
 
   function mudouTemaDoSistema(e) {
-    sistemaEscuro = e.matches;
+    trocarTema(document, async () => {
+      sistemaEscuro = e.matches;
+      await tick();
+    }, duracaoMovimento(DUR_BASE));
   }
 
   onMount(async () => {
@@ -300,10 +303,15 @@
     if (r.gravarConfig) gravarTemaNoBackend(r.tema);
   }
 
+  // Tudo dentro do retorno: com cliques seguidos, cada troca parte do tema
+  // que a anterior já aplicou.
   function toggleTheme() {
-    temaPref = proximoTema(temaPref);
-    gravarSalvo(armazenamento(), temaPref);
-    gravarTemaNoBackend(temaPref);
+    trocarTema(document, async () => {
+      temaPref = proximoTema(temaPref);
+      gravarSalvo(armazenamento(), temaPref);
+      gravarTemaNoBackend(temaPref);
+      await tick();
+    }, duracaoMovimento(DUR_BASE));
   }
 
   // O Wails não emite evento de maximizar; o resize da janela cobre o botão,
@@ -459,7 +467,7 @@
 
       <!-- Theme Switcher -->
       <button
-        class="titlebar-btn"
+        class="titlebar-btn btn-tema"
         on:click={toggleTheme}
         title="Tema: {NOME_TEMA[temaPref]} (clique para {NOME_TEMA[proximoTema(temaPref)]})"
         aria-label="Tema: {NOME_TEMA[temaPref]}. Mudar para {NOME_TEMA[proximoTema(temaPref)]}"
@@ -473,14 +481,16 @@
         {/if}
       </button>
 
+      <span class="titlebar-divisor" aria-hidden="true"></span>
+
       <!-- Minimize Window -->
-      <button class="titlebar-btn" on:click={WindowMinimise} title="Minimizar" aria-label="Minimizar">
+      <button class="titlebar-btn btn-janela" on:click={WindowMinimise} title="Minimizar" aria-label="Minimizar">
         <Icone icone={Minus} tamanho={14} />
       </button>
 
       <!-- Maximize/Restore Window -->
       <button
-        class="titlebar-btn"
+        class="titlebar-btn btn-janela"
         on:click={alternarMaximizar}
         title={maximizada ? 'Restaurar' : 'Maximizar'}
         aria-label={maximizada ? 'Restaurar' : 'Maximizar'}
@@ -493,7 +503,7 @@
       </button>
 
       <!-- Close Window (Hides to Tray) -->
-      <button class="titlebar-btn btn-close" on:click={handleCloseWindow} title="Fechar (Minimiza para a bandeja)" aria-label="Fechar (minimiza para a bandeja)">
+      <button class="titlebar-btn btn-janela btn-close" on:click={handleCloseWindow} title="Fechar (Minimiza para a bandeja)" aria-label="Fechar (minimiza para a bandeja)">
         <Icone icone={X} tamanho={14} />
       </button>
     </div>
@@ -526,11 +536,7 @@
           aria-expanded={!sidebarCollapsed}
           aria-controls="sidebar"
         >
-          {#if sidebarCollapsed}
-            <Icone icone={ChevronRight} />
-          {:else}
-            <Icone icone={ChevronLeft} />
-          {/if}
+          <span class="chevron-painel"><Icone icone={ChevronLeft} /></span>
         </button>
       </div>
 
@@ -758,10 +764,10 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 12px;
+    /* Sem padding à direita: o Fechar encosta no canto, como no Windows 11. */
+    padding: 0 0 0 12px;
     flex-shrink: 0;
     user-select: none;
-    transition: background-color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
   }
 
   .brand-title {
@@ -795,7 +801,8 @@
   .titlebar-actions {
     display: flex;
     align-items: center;
-    gap: 4px;
+    align-self: stretch;
+    gap: 0;
   }
 
   .titlebar-btn {
@@ -803,13 +810,28 @@
     border: none;
     color: var(--text-secondary);
     cursor: pointer;
-    border-radius: 4px;
-    width: 28px;
-    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+  }
+
+  .btn-tema {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+  }
+
+  .titlebar-divisor {
+    width: 1px;
+    height: 16px;
+    margin: 0 8px;
+    background-color: var(--border);
+  }
+
+  /* Minimizar, maximizar e fechar: faixas da altura da barra, coladas entre si. */
+  .btn-janela {
+    width: 44px;
+    height: 100%;
   }
 
   .titlebar-btn:hover {
@@ -887,7 +909,7 @@
     position: relative;
     flex-shrink: 0;
     overflow: visible; /* Needed for resize handle to overlap */
-    transition: width var(--dur-fast) var(--ease-out), background-color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
+    transition: width var(--dur-fast) var(--ease-out);
   }
 
   /* A largura acompanha o ponteiro 1:1; a transição só vale para recolher e teclado. */
@@ -902,10 +924,12 @@
   }
 
   /* Rótulo "Configurações" à esquerda e botão de recolher à direita. */
+  /* flex-end: o chevron fica a 12px da borda direita na largura toda e, na
+     coluna de 48px, já centrado; nada salta enquanto a largura anima. */
   .sidebar-header-toggle {
     position: relative;
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     gap: 8px;
     padding: 8px 12px;
@@ -915,16 +939,12 @@
     width: 100%;
   }
 
-  .sidebar.collapsed .sidebar-header-toggle {
-    justify-content: center;
-    padding: 8px 0;
-  }
-
   .painel-titulo {
     display: flex;
     align-items: center;
     gap: 6px;
     min-width: 0;
+    margin-right: auto;
     color: var(--text-secondary);
     transition: opacity var(--dur-fast) var(--ease-out) var(--dur-fast);
   }
@@ -964,6 +984,15 @@
   .btn-toggle-sidebar:hover {
     color: var(--text-primary);
     background-color: var(--surface-hover);
+  }
+
+  .chevron-painel {
+    display: flex;
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+
+  .sidebar.collapsed .chevron-painel {
+    transform: rotate(180deg);
   }
 
   /* 12px: a mesma guia vertical da barra de título, do rodapé e da lista. */
@@ -1069,7 +1098,6 @@
     justify-content: center;
     color: var(--text-secondary);
     cursor: pointer;
-    transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
   }
 
   .collapsed-indicator:hover {
@@ -1129,7 +1157,6 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
   }
 
   .collapsed-tool-btn:hover {
@@ -1157,7 +1184,6 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    transition: border-color var(--dur-base) var(--ease-out);
   }
 
   .manual-card .card-header {
@@ -1190,7 +1216,6 @@
     justify-content: center;
     gap: 8px;
     cursor: pointer;
-    transition: border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
   }
 
   .manual-select-btn:hover {
@@ -1218,7 +1243,6 @@
     color: var(--text-secondary);
     flex-shrink: 0;
     user-select: none;
-    transition: background-color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
   }
 
   .status-item {
@@ -1260,7 +1284,6 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
   }
 
   .monitor-btn:hover {
@@ -1280,7 +1303,6 @@
     text-decoration: underline;
     cursor: pointer;
     white-space: nowrap;
-    transition: background-color var(--dur-fast) var(--ease-out);
   }
 
   .status-link:hover {

@@ -728,7 +728,6 @@
     overflow: hidden;
     container-type: inline-size;
     box-shadow: var(--shadow-sm);
-    transition: background-color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
   }
 
   .list-header {
@@ -878,7 +877,6 @@
     border-radius: 4px;
     cursor: pointer;
     white-space: nowrap;
-    transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
   }
 
   .btn-confirmar:hover {
@@ -984,7 +982,6 @@
     justify-content: center;
     gap: 8px;
     cursor: pointer;
-    transition: border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
   }
 
   .manual-select-btn:hover {
@@ -1238,7 +1235,6 @@
     justify-content: center;
     padding: 4px;
     border-radius: 4px;
-    transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
   }
 
   .btn-action:hover {

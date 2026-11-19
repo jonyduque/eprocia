@@ -86,7 +86,6 @@
     border-radius: 4px;
     cursor: pointer;
     white-space: nowrap;
-    transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
   }
 
   .primario {
