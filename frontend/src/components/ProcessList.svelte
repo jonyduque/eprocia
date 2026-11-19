@@ -20,6 +20,7 @@
   import Pause from 'lucide-svelte/icons/pause';
   import Play from 'lucide-svelte/icons/play';
   import RotateCcw from 'lucide-svelte/icons/rotate-ccw';
+  import Search from 'lucide-svelte/icons/search';
   import Trash2 from 'lucide-svelte/icons/trash-2';
   import Upload from 'lucide-svelte/icons/upload';
   import X from 'lucide-svelte/icons/x';
@@ -388,13 +389,16 @@
       {/if}
     </div>
     <div class="header-actions">
-      <input
-        type="search"
-        placeholder="Filtrar..."
-        aria-label="Filtrar fila por nome ou mensagem"
-        bind:value={filterText}
-        class="search-input"
-      />
+      <span class="busca">
+        <span class="busca-icone"><Icone icone={Search} tamanho={12} /></span>
+        <input
+          type="search"
+          placeholder="Filtrar..."
+          aria-label="Filtrar fila por nome ou mensagem"
+          bind:value={filterText}
+          class="search-input"
+        />
+      </span>
       {#if items.length > 0}
         {#if isPaused}
           <button class="btn-pause resume" on:click={handleResume} title="Retomar processamento da fila" aria-label="Retomar">
@@ -828,8 +832,25 @@
     flex-shrink: 0;
   }
 
+  /* O campo continua quem encolhe; a lupa fica sobre o padding esquerdo. */
+  .busca {
+    position: relative;
+    display: flex;
+    min-width: 0;
+  }
+
+  .busca-icone {
+    position: absolute;
+    left: 7px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    color: var(--text-secondary);
+    pointer-events: none;
+  }
+
   .search-input {
-    padding: 4px 8px;
+    padding: 4px 8px 4px 24px;
     border: 1px solid var(--border-strong);
     border-radius: 4px;
     background-color: var(--surface);

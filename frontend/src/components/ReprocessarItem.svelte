@@ -5,6 +5,10 @@
   import { duracaoMovimento, DUR_FAST } from '../lib/aviso.js';
   import { OPCOES_OCR, OPCOES_LIMPEZA } from '../lib/atividade.js';
   import Segmentado from './Segmentado.svelte';
+  import Icone from './Icone.svelte';
+  import RotateCcw from 'lucide-svelte/icons/rotate-ccw';
+  import ScanText from 'lucide-svelte/icons/scan-text';
+  import Sparkles from 'lucide-svelte/icons/sparkles';
 
   export let id = '';
   // Valores iniciais: os da última execução do item, ou os da config atual.
@@ -42,14 +46,17 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <form class="painel-reprocessar" in:fly={{ y: -4, duration: duracaoMovimento(DUR_FAST), easing: cubicOut }} {id} aria-label="Reprocessar com outras configurações" on:submit|preventDefault={confirmar} on:keydown={tecla}>
   <div class="campo">
-    <Segmentado nome="{id}-ocr" legenda="OCR" discreto opcoes={OPCOES_OCR} bind:valor={ocr} bind:this={primeiroCampo} />
+    <Segmentado nome="{id}-ocr" legenda="OCR" icone={ScanText} discreto opcoes={OPCOES_OCR} bind:valor={ocr} bind:this={primeiroCampo} />
   </div>
   <div class="campo">
-    <Segmentado nome="{id}-limpeza" legenda="Higienização" discreto opcoes={OPCOES_LIMPEZA} bind:valor={limpeza} />
+    <Segmentado nome="{id}-limpeza" legenda="Higienização" icone={Sparkles} discreto opcoes={OPCOES_LIMPEZA} bind:valor={limpeza} />
   </div>
   <div class="botoes">
     <button type="button" class="secundario" on:click={aoCancelar}>Cancelar</button>
-    <button type="submit" class="primario" disabled={enviando}>Reprocessar</button>
+    <button type="submit" class="primario" disabled={enviando}>
+      <Icone icone={RotateCcw} tamanho={12} />
+      Reprocessar
+    </button>
   </div>
   <p class="nota">Vale só para este arquivo. O TXT anterior será substituído.</p>
 </form>
@@ -92,6 +99,9 @@
   }
 
   .primario {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     border: none;
     background-color: var(--accent-strong);
     color: var(--on-accent);

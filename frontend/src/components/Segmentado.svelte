@@ -1,4 +1,5 @@
 <script>
+  import Icone from './Icone.svelte';
   // Escolha entre poucas opções curtas e ordenadas (OPCOES_OCR, OPCOES_LIMPEZA).
   // Rádios nativos dão setas, Home/End e "2 de 4" ao leitor de tela sem ARIA manual.
   export let id = '';
@@ -9,6 +10,8 @@
   export let idAjuda = '';
   // Legenda menor, em --text-secondary (painel Reprocessar da linha).
   export let discreto = false;
+  // Ícone da configuração (DESIGN.md §4), à esquerda da legenda.
+  export let icone = null;
   // Opção sob o ponteiro (null fora da faixa), para a ajuda descrever antes de gravar.
   export let previa = null;
   export let aoMudar = () => {};
@@ -21,7 +24,9 @@
 </script>
 
 <fieldset {id} class="segmentado" class:discreto aria-describedby={idAjuda || undefined}>
-  <legend>{legenda}<slot name="legenda" /></legend>
+  <legend>
+    {#if icone}<span class="icone-legenda"><Icone {icone} tamanho={discreto ? 12 : 14} /></span>{/if}{legenda}<slot name="legenda" />
+  </legend>
   <div class="faixa" style:--n={opcoes.length} bind:this={faixa}>
     {#each opcoes as o (o.valor)}
       <label
@@ -61,6 +66,13 @@
     font-size: var(--fs-base);
     font-weight: 500;
     color: var(--text-primary);
+  }
+
+  .icone-legenda {
+    display: inline-flex;
+    vertical-align: -2px;
+    margin-right: 6px;
+    color: var(--text-secondary);
   }
 
   .discreto legend {

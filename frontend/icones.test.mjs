@@ -98,3 +98,102 @@ test('DESIGN.md documenta lucide-svelte, traço 1.75 e os estados', () => {
     assert.match(sec, new RegExp(ic), `${ic} fora do DESIGN`);
   }
 });
+
+// F-VI-04: o mesmo ícone identifica a mesma configuração em todo lugar.
+const atividade = ler('src', 'components', 'AtividadeItem.svelte');
+const reprocessar = ler('src', 'components', 'ReprocessarItem.svelte');
+const segmentado = ler('src', 'components', 'Segmentado.svelte');
+
+function importa(f, nome, arquivo) {
+  assert.match(f, new RegExp(`import ${nome} from 'lucide-svelte/icons/${arquivo}'`), `${nome} sem import`);
+}
+
+test('rótulos do painel com o ícone da configuração em 14px', () => {
+  const s = arquivos.Settings;
+  const rotulos = [
+    ['watchdog-toggle', 'FolderSearch', 'folder-search'],
+    ['autostart-toggle', 'Power', 'power'],
+    ['omitir-tipos', 'EyeOff', 'eye-off']
+  ];
+  for (const [id, ic, arq] of rotulos) {
+    importa(s, ic, arq);
+    const i = s.indexOf(`<label for="${id}"`);
+    assert.ok(i >= 0, id);
+    const label = s.slice(i, s.indexOf('</label>', i));
+    assert.match(label, new RegExp(`<Icone icone=\\{${ic}\\} tamanho=\\{14\\}`), `${ic} fora do rótulo ${id}`);
+  }
+  importa(s, 'Folder', 'folder');
+  const i = s.indexOf('id="rotulo-pasta"');
+  assert.match(s.slice(i, s.indexOf('</span>', s.indexOf('<Salvo', i))), /<Icone icone=\{Folder\} tamanho=\{14\}/);
+  importa(s, 'ScanText', 'scan-text');
+  importa(s, 'Sparkles', 'sparkles');
+  assert.match(s.match(/<Segmentado\s+id="ocr-mode"[^>]*>/)[0], /icone=\{ScanText\}/);
+  assert.match(s.match(/<Segmentado\s+id="cleaning-level"[^>]*>/)[0], /icone=\{Sparkles\}/);
+  assert.match(estiloDe(s), /\.icone-rotulo\s*\{[^}]*color:\s*var\(--text-secondary\)/);
+});
+
+test('Segmentado mostra o ícone opcional na legenda', () => {
+  assert.match(segmentado, /export let icone = null/);
+  const legenda = segmentado.slice(segmentado.indexOf('<legend'), segmentado.indexOf('</legend>'));
+  assert.match(legenda, /\{#if icone\}[\s\S]*<Icone \{icone\}/);
+});
+
+test('carregamento do painel usa LoaderCircle, não spinner de borda', () => {
+  const s = arquivos.Settings;
+  importa(s, 'LoaderCircle', 'loader-circle');
+  const i = s.indexOf('class="loading-state"');
+  assert.match(s.slice(i, s.indexOf('</div>', i)), /class="spinner"[^>]*aria-hidden="true"[^>]*>\s*<Icone icone=\{LoaderCircle\}/);
+  assert.doesNotMatch(estiloDe(s), /border-top-color/);
+});
+
+test('filtro da fila com Search 12px e espaço à esquerda', () => {
+  const l = arquivos.ProcessList;
+  importa(l, 'Search', 'search');
+  const i = l.indexOf('class="search-input"');
+  const antes = l.slice(l.lastIndexOf('<span class="busca"', i), i);
+  assert.match(antes, /<Icone icone=\{Search\} tamanho=\{12\}/);
+  assert.match(estiloDe(l), /\.search-input\s*\{[^}]*padding:\s*4px 8px 4px 24px/);
+});
+
+test('botões de texto da linha levam ícone', () => {
+  importa(reprocessar, 'RotateCcw', 'rotate-ccw');
+  assert.match(reprocessar, /<button type="submit"[^>]*>\s*<Icone icone=\{RotateCcw\} tamanho=\{12\}/);
+  assert.match(reprocessar, /legenda="OCR"[^>]*icone=\{ScanText\}/);
+  assert.match(reprocessar, /legenda="Higienização"[^>]*icone=\{Sparkles\}/);
+  importa(atividade, 'Eye', 'eye');
+  importa(atividade, 'EyeOff', 'eye-off');
+  importa(atividade, 'RotateCcw', 'rotate-ccw');
+  const alt = atividade.slice(atividade.indexOf('class="alternar"'), atividade.indexOf('</button>', atividade.indexOf('class="alternar"')));
+  assert.match(alt, /<Icone icone=\{mostrarConcluidos \? EyeOff : Eye\} tamanho=\{12\}/);
+  assert.match(atividade, /class="btn-ocr"[^>]*>\s*<Icone icone=\{RotateCcw\} tamanho=\{12\}/);
+  assert.doesNotMatch(atividade, /OCR ·/);
+  const ocr = atividade.slice(atividade.indexOf('class="doc-ocr'), atividade.indexOf('pág.', atividade.indexOf('class="doc-ocr')));
+  assert.match(ocr, /<Icone icone=\{ScanText\} tamanho=\{12\}/);
+  assert.match(ocr, /class="sr-only">OCR/);
+});
+
+test('ícones dos cabeçalhos de seção do App em 14px', () => {
+  const m = marcacao(arquivos.App);
+  for (const [classe, titulo] of [['painel-titulo', 'Configurações'], ['card-header', 'Importação Manual']]) {
+    const i = m.indexOf(`class="${classe}"`);
+    assert.ok(i >= 0, `${classe} ausente`);
+    const bloco = m.slice(i, m.indexOf('</h2>', i));
+    assert.ok(bloco.includes(`<h2>${titulo}`), `${titulo} fora de ${classe}`);
+    assert.match(bloco, /<Icone icone=\{\w+\} tamanho=\{14\} \/>/, `ícone de ${titulo} fora de 14px`);
+  }
+  const i = design.indexOf('## 4. Ícones');
+  const sec = design.slice(i, design.indexOf('\n## ', i + 5));
+  assert.match(sec, /`14px`[^\n]*cabeçalho de seção/);
+});
+
+test('DESIGN.md registra o mapa de configurações', () => {
+  const i = design.indexOf('## 4. Ícones');
+  const sec = design.slice(i, design.indexOf('\n## ', i + 5));
+  for (const ic of ['FolderSearch', 'Folder`', 'ScanText', 'Sparkles', 'EyeOff', 'Power', 'Search', 'RotateCcw', 'Eye`']) {
+    assert.ok(sec.includes(ic), `${ic} fora do DESIGN §4`);
+  }
+});
+
+function estiloDe(f) {
+  return f.slice(f.indexOf('<style>'));
+}

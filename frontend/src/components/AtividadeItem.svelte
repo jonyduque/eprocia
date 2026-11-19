@@ -3,7 +3,10 @@
   import CircleAlert from 'lucide-svelte/icons/circle-alert';
   import CircleCheck from 'lucide-svelte/icons/circle-check';
   import Clock from 'lucide-svelte/icons/clock';
+  import Eye from 'lucide-svelte/icons/eye';
+  import EyeOff from 'lucide-svelte/icons/eye-off';
   import FileText from 'lucide-svelte/icons/file-text';
+  import RotateCcw from 'lucide-svelte/icons/rotate-ccw';
   import ScanText from 'lucide-svelte/icons/scan-text';
   import { flip } from 'svelte/animate';
   import { fade, fly } from 'svelte/transition';
@@ -98,6 +101,7 @@
           aria-pressed={mostrarConcluidos}
           on:click={() => (mostrarConcluidos = !mostrarConcluidos)}
         >
+          <Icone icone={mostrarConcluidos ? EyeOff : Eye} tamanho={12} />
           {mostrarConcluidos ? 'Ocultar concluídos' : 'Mostrar concluídos'}
         </button>
       {/if}
@@ -106,7 +110,10 @@
     {#if resumo.semOCR > 0 && !emAndamento}
       <div class="acao-ocr">
         <span>{resumo.semOCR === 1 ? 'Um documento digitalizado ficou sem OCR.' : `${resumo.semOCR} documentos digitalizados ficaram sem OCR.`}</span>
-        <button type="button" class="btn-ocr" on:click={aoReprocessarComOCR}>Reprocessar com OCR</button>
+        <button type="button" class="btn-ocr" on:click={aoReprocessarComOCR}>
+          <Icone icone={RotateCcw} tamanho={12} />
+          Reprocessar com OCR
+        </button>
       </div>
     {/if}
 
@@ -142,7 +149,7 @@
               </span>
               <span class="doc-nome">{d.nome}</span>
               {#if d.ocr > 0}
-                <span class="doc-ocr font-tabular">OCR · {d.ocr} pág.</span>
+                <span class="doc-ocr font-tabular"><Icone icone={ScanText} tamanho={12} /><span class="sr-only">OCR:</span>{d.ocr} pág.</span>
               {/if}
               {#if ROTULO_LEITURA[d.leitura]}
                 <span class="doc-leitura">{ROTULO_LEITURA[d.leitura]}</span>
@@ -285,6 +292,9 @@
   }
 
   .btn-ocr {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     min-height: 24px;
     padding: 3px 10px;
     border-radius: 4px;
@@ -306,6 +316,9 @@
   }
 
   .alternar {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     margin-left: auto;
     background: transparent;
     border: none;
@@ -384,6 +397,9 @@
   }
 
   .doc-ocr {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
     flex-shrink: 0;
     color: var(--accent-text);
     font-weight: 600;

@@ -1,9 +1,15 @@
 <script>
   import Icone from './Icone.svelte';
   import CirclePause from 'lucide-svelte/icons/circle-pause';
+  import EyeOff from 'lucide-svelte/icons/eye-off';
+  import Folder from 'lucide-svelte/icons/folder';
   import FolderOpen from 'lucide-svelte/icons/folder-open';
   import FolderSearch from 'lucide-svelte/icons/folder-search';
   import FolderX from 'lucide-svelte/icons/folder-x';
+  import LoaderCircle from 'lucide-svelte/icons/loader-circle';
+  import Power from 'lucide-svelte/icons/power';
+  import ScanText from 'lucide-svelte/icons/scan-text';
+  import Sparkles from 'lucide-svelte/icons/sparkles';
   import Salvo from './Salvo.svelte';
   import Segmentado from './Segmentado.svelte';
   import { onDestroy, tick } from 'svelte';
@@ -146,7 +152,7 @@
 <div class="settings-card">
   {#if loading}
     <div class="loading-state">
-      <div class="spinner"></div>
+      <span class="spinner" aria-hidden="true"><Icone icone={LoaderCircle} tamanho={20} cor="var(--accent)" /></span>
       <span>Carregando configurações...</span>
     </div>
   {:else}
@@ -156,6 +162,7 @@
       <div class="form-group">
         <div class="toggle-group">
           <label for="watchdog-toggle">
+            <span class="icone-rotulo"><Icone icone={FolderSearch} tamanho={14} /></span>
             Monitorar a pasta
             <Salvo campo="watchdog" {confirmado} />
           </label>
@@ -183,6 +190,7 @@
 
       <div class="form-group">
         <span class="rotulo-campo" id="rotulo-pasta">
+          <span class="icone-rotulo"><Icone icone={Folder} tamanho={14} /></span>
           Pasta monitorada
           <Salvo campo="pasta" {confirmado} />
         </span>
@@ -214,6 +222,7 @@
       <div class="form-group">
         <Segmentado
           id="ocr-mode"
+          icone={ScanText}
           legenda="Processamento de Imagens (OCR)"
           idAjuda="ajuda-ocr"
           opcoes={OPCOES_OCR}
@@ -229,6 +238,7 @@
       <div class="form-group">
         <Segmentado
           id="cleaning-level"
+          icone={Sparkles}
           legenda="Higienização de texto"
           idAjuda="ajuda-limpeza"
           opcoes={OPCOES_LIMPEZA}
@@ -242,7 +252,8 @@
       </div>
 
       <div class="form-group">
-        <label for="omitir-tipos">
+        <label for="omitir-tipos" class="rotulo-campo">
+          <span class="icone-rotulo"><Icone icone={EyeOff} tamanho={14} /></span>
           Omitir documentos dos tipos
           <Salvo campo="omitir" {confirmado} />
         </label>
@@ -265,6 +276,7 @@
 
       <div class="form-group toggle-group">
         <label for="autostart-toggle">
+          <span class="icone-rotulo"><Icone icone={Power} tamanho={14} /></span>
           Iniciar com o Windows
           <Salvo campo="autostart" {confirmado} />
         </label>
@@ -330,10 +342,17 @@
   .rotulo-campo {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     font-size: var(--fs-base);
     font-weight: 500;
     color: var(--text-primary);
+  }
+
+  /* Ícone da configuração (DESIGN.md §4), o mesmo no painel e na linha. */
+  .icone-rotulo {
+    display: inline-flex;
+    flex-shrink: 0;
+    color: var(--text-secondary);
   }
 
   .estado-monitor {
@@ -347,6 +366,9 @@
   }
 
   .toggle-group label:not(.switch) {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     cursor: pointer;
     min-width: 0;
   }
@@ -543,11 +565,7 @@
   }
 
   .spinner {
-    width: 20px;
-    height: 20px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
+    display: inline-flex;
     animation: spin var(--dur-spin) linear infinite;
   }
 

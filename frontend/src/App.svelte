@@ -565,7 +565,7 @@
       <div class="sidebar-header-toggle">
         <!-- Montado também recolhido: some com fade, como o conteúdo. -->
         <div class="painel-titulo">
-          <Icone icone={SettingsIcon} tamanho={12} />
+          <Icone icone={SettingsIcon} tamanho={14} />
           <h2>Configurações</h2>
         </div>
         <button
@@ -589,7 +589,7 @@
         <!-- Manual Process Card -->
         <div class="manual-card">
           <div class="card-header">
-            <Icone icone={FilePlusCorner} tamanho={12} />
+            <Icone icone={FilePlusCorner} tamanho={14} />
             <h2>Importação Manual</h2>
           </div>
 
