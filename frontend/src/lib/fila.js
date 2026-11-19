@@ -141,3 +141,64 @@ export function textoConfirmarLimpeza(items) {
   if (andamento > 0) return `Cancelar ${andamento} em andamento e remover ${itens}?`;
   return `Remover ${itens} da lista?`;
 }
+
+// Foco itinerante (F-AC-15): a lista é uma parada de Tab só. Cada linha tem
+// suas paradas na ordem da tela; espelha os botões de ProcessList.svelte.
+export function paradasItem(item, expansivel) {
+  const p = expansivel ? ['info'] : [];
+  if (item.status === 'processing' || item.status === 'pending') return [...p, 'cancelar'];
+  if (item.status === 'success' && item.output_path) return [...p, 'reprocessar', 'copiar', 'abrir', 'remover'];
+  if (item.status === 'error') p.push('detalhes');
+  return [...p, 'reprocessar', 'remover'];
+}
+
+function naLinha(linha, chave, coluna) {
+  const i = linha.paradas.indexOf(chave);
+  if (i >= 0) return { id: linha.id, chave };
+  return { id: linha.id, chave: linha.paradas[Math.min(coluna, linha.paradas.length - 1)] };
+}
+
+// grade: [{ id, paradas }] na ordem da lista; atual: { id, chave }.
+// Devolve a próxima parada, a mesma nas pontas, ou null se a tecla não é de navegação.
+export function proximaParada(grade, atual, tecla) {
+  const l = atual ? grade.findIndex((g) => g.id === atual.id) : -1;
+  if (l < 0) return null;
+  const c = Math.max(0, grade[l].paradas.indexOf(atual.chave));
+  const ultima = grade.length - 1;
+  switch (tecla) {
+    case 'ArrowUp':
+      return naLinha(grade[Math.max(0, l - 1)], atual.chave, c);
+    case 'ArrowDown':
+      return naLinha(grade[Math.min(ultima, l + 1)], atual.chave, c);
+    case 'ArrowLeft':
+      return { id: atual.id, chave: grade[l].paradas[Math.max(0, c - 1)] };
+    case 'ArrowRight':
+      return { id: atual.id, chave: grade[l].paradas[Math.min(grade[l].paradas.length - 1, c + 1)] };
+    case 'Home':
+      return { id: grade[0].id, chave: grade[0].paradas[0] };
+    case 'End':
+      return { id: grade[ultima].id, chave: grade[ultima].paradas[0] };
+    default:
+      return null;
+  }
+}
+
+// A parada com tabindex 0: a última focada, enquanto a linha e a ação existirem.
+export function resolverParada(grade, ativa) {
+  if (grade.length === 0) return null;
+  const linha = ativa ? grade.find((g) => g.id === ativa.id) : null;
+  if (!linha) return { id: grade[0].id, chave: grade[0].paradas[0] };
+  return naLinha(linha, ativa.chave, 0);
+}
+
+// Delete segue os botões (F-AC-12): o X do pendente cancela, a lixeira do
+// terminado remove; o item em andamento só cancela pelo botão, sem atalho.
+export function acaoDelete(status) {
+  if (status === 'pending') return 'cancelar';
+  if (CONCLUIDO.has(status)) return 'remover';
+  return null;
+}
+
+export function copiavel(item) {
+  return item.status === 'success' && !!item.output_path;
+}

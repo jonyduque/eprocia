@@ -61,7 +61,12 @@
     abreviarContagem,
     nomeExibido,
     dicaContadores,
-    rotuloAcao
+    rotuloAcao,
+    paradasItem,
+    proximaParada,
+    resolverParada,
+    acaoDelete,
+    copiavel
   } from '../lib/fila.js';
 
   export let items = [];
@@ -346,6 +351,77 @@
 
   $: concluidos = contarConcluidos(items);
 
+  // Foco itinerante (DESIGN.md §5.1): só a última parada focada tem tabindex 0.
+  // Ids como texto: é o que volta de data-id.
+  let filtroEl;
+  let paradaFocada = null;
+  $: grade = filteredItems.map((i) => ({
+    id: String(i.id),
+    paradas: paradasItem(i, temAtividade(estadoItem(i.status, isPaused)))
+  }));
+  $: paradaAtiva = resolverParada(grade, paradaFocada);
+
+  function tabParada(id, chave, ativa) {
+    return ativa && ativa.id === String(id) && ativa.chave === chave ? 0 : -1;
+  }
+
+  function paradaDe(alvo) {
+    const chave = alvo?.dataset?.parada;
+    const linha = chave ? alvo.closest('.item-row[data-id]') : null;
+    return linha ? { id: linha.dataset.id, chave } : null;
+  }
+
+  function focoNaLista(e) {
+    const p = paradaDe(e.target);
+    if (p) paradaFocada = p;
+  }
+
+  function teclaLista(e) {
+    // Teclas dentro dos painéis da linha (atividade, reprocessar) ficam com eles.
+    const atual = paradaDe(e.target);
+    if (!atual || e.altKey || e.metaKey) return;
+    const item = filteredItems.find((i) => String(i.id) === atual.id);
+    if (!item) return;
+    if (e.ctrlKey) {
+      if (e.key.toLowerCase() === 'c' && !e.shiftKey && copiavel(item)) {
+        e.preventDefault();
+        handleCopy(item);
+      }
+      return;
+    }
+    if (e.key === 'Delete') {
+      const acao = acaoDelete(item.status);
+      const botao = acao ? linhaDe(item.id)?.querySelector(`.actions-col button[data-acao="${acao}"]`) : null;
+      if (!botao) return;
+      e.preventDefault();
+      const ev = { currentTarget: botao };
+      if (acao === 'cancelar') handleCancel(item.id, ev);
+      else handleRemove(item.id, ev);
+      return;
+    }
+    if (e.shiftKey) return;
+    const prox = proximaParada(grade, atual, e.key);
+    if (!prox) return;
+    e.preventDefault();
+    linhaDe(prox.id)?.querySelector(`[data-parada="${prox.chave}"]`)?.focus();
+  }
+
+  function teclaJanela(e) {
+    if (e.ctrlKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'f' && filtroEl) {
+      e.preventDefault();
+      filtroEl.focus();
+      filtroEl.select();
+    }
+  }
+
+  function teclaFiltro(e) {
+    if (e.key === 'Escape' && filterText) {
+      e.preventDefault();
+      e.stopPropagation();
+      filterText = '';
+    }
+  }
+
   async function handleLimparConcluidos(evento) {
     guardarFoco(null, evento);
     try {
@@ -402,6 +478,8 @@
   }
 </script>
 
+<svelte:window on:keydown={teclaJanela} />
+
 <div class="list-card">
   <div class="list-header" class:rolado={listaRolada}>
     <div class="header-left">
@@ -422,6 +500,8 @@
           placeholder="Filtrar..."
           aria-label="Filtrar fila por nome ou mensagem"
           bind:value={filterText}
+          bind:this={filtroEl}
+          on:keydown={teclaFiltro}
           class="search-input"
         />
       </span>
@@ -484,7 +564,8 @@
         <p class="sub-text">ou arraste os ZIPs para a janela</p>
       </div>
     {:else}
-      <div class="items-list" role="list" bind:this={listaEl}>
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <div class="items-list" role="list" bind:this={listaEl} on:keydown={teclaLista} on:focusin={focoNaLista}>
         {#each filteredItems as item (item.id)}
           {@const estado = estadoItem(item.status, isPaused)}
           {@const expansivel = temAtividade(estado)}
@@ -528,6 +609,8 @@
               type={expansivel ? 'button' : undefined}
               class="info-col"
               class:info-btn={expansivel}
+              data-parada={expansivel ? 'info' : undefined}
+              tabindex={expansivel ? tabParada(item.id, 'info', paradaAtiva) : undefined}
               aria-expanded={expansivel ? !!atividadeAberta[item.id] : undefined}
               aria-controls={expansivel ? `atividade-${item.id}` : undefined}
               title={expansivel ? (atividadeAberta[item.id] ? 'Ocultar a atividade dos documentos' : 'Ver a atividade dos documentos') : undefined}
@@ -602,6 +685,8 @@
                 <button
                   class="btn-action btn-cancel"
                   data-acao="cancelar"
+                  data-parada="cancelar"
+                  tabindex={tabParada(item.id, 'cancelar', paradaAtiva)}
                   on:click={(e) => handleCancel(item.id, e)}
                   use:dica={'Cancelar processamento ativo'}
                   aria-label={rotuloAcao('Cancelar', item.name)}
@@ -612,6 +697,8 @@
                 <button
                   class="btn-action btn-cancel"
                   data-acao="cancelar"
+                  data-parada="cancelar"
+                  tabindex={tabParada(item.id, 'cancelar', paradaAtiva)}
                   on:click={(e) => handleCancel(item.id, e)}
                   use:dica={'Cancelar'}
                   aria-label={rotuloAcao('Cancelar', item.name)}
@@ -623,6 +710,8 @@
                   <button
                     class="btn-action"
                     data-acao="reprocessar"
+                    data-parada="reprocessar"
+                    tabindex={tabParada(item.id, 'reprocessar', paradaAtiva)}
                     on:click={(e) => alternarReprocessar(item.id, e)}
                     use:dica={'Reprocessar com outras configurações'}
                     aria-label={rotuloAcao('Reprocessar', item.name)}
@@ -634,6 +723,8 @@
                   <button
                     class="btn-action"
                     data-acao="copiar"
+                    data-parada="copiar"
+                    tabindex={tabParada(item.id, 'copiar', paradaAtiva)}
                     class:copiado={copiadoId === item.id}
                     on:click={() => handleCopy(item)}
                     use:dica={copiadoId === item.id ? 'Copiado!' : 'Copiar o TXT para colar na IA'}
@@ -652,6 +743,8 @@
                   <button
                     class="btn-action"
                     data-acao="abrir"
+                    data-parada="abrir"
+                    tabindex={tabParada(item.id, 'abrir', paradaAtiva)}
                     on:click={() => handleOpenDir(item.output_path)}
                     use:dica={'Abrir pasta contendo o TXT'}
                     aria-label={rotuloAcao('Abrir pasta contendo o TXT', item.name)}
@@ -661,6 +754,8 @@
                   <button
                     class="btn-action btn-remove"
                     data-acao="remover"
+                    data-parada="remover"
+                    tabindex={tabParada(item.id, 'remover', paradaAtiva)}
                     on:click={(e) => handleRemove(item.id, e)}
                     use:dica={'Remover da lista'}
                     aria-label={rotuloAcao('Remover da lista', item.name)}
@@ -676,6 +771,8 @@
                       type="button"
                       class="btn-action btn-detalhes"
                       data-acao="detalhes"
+                      data-parada="detalhes"
+                      tabindex={tabParada(item.id, 'detalhes', paradaAtiva)}
                       on:click={() => alternarDetalhes(item.id)}
                       aria-label={rotuloAcao('Ver detalhes do erro', item.name)}
                       aria-expanded={!!detalhesAbertos[item.id]}
@@ -688,6 +785,8 @@
                   <button
                     class="btn-action"
                     data-acao="reprocessar"
+                    data-parada="reprocessar"
+                    tabindex={tabParada(item.id, 'reprocessar', paradaAtiva)}
                     on:click={(e) => alternarReprocessar(item.id, e)}
                     use:dica={'Reprocessar com outras configurações'}
                     aria-label={rotuloAcao('Reprocessar', item.name)}
@@ -699,6 +798,8 @@
                   <button
                     class="btn-action btn-remove"
                     data-acao="remover"
+                    data-parada="remover"
+                    tabindex={tabParada(item.id, 'remover', paradaAtiva)}
                     on:click={(e) => handleRemove(item.id, e)}
                     use:dica={'Remover da lista'}
                     aria-label={rotuloAcao('Remover da lista', item.name)}

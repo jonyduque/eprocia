@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { formatarHora, filtrarItens, alvoFoco, escolherAcao, textoConfirmarLimpeza, contarConcluidos, rotuloAcao } from './src/lib/fila.js';
+import { formatarHora, filtrarItens, alvoFoco, escolherAcao, textoConfirmarLimpeza, contarConcluidos, rotuloAcao, paradasItem, proximaParada, resolverParada, acaoDelete, copiavel } from './src/lib/fila.js';
 import { alvoAoFecharReprocessar } from './src/lib/reprocessar.js';
 
 const raiz = dirname(fileURLToPath(import.meta.url));
@@ -317,4 +317,93 @@ test('erro e detalhe de cada documento aparecem inteiros, com quebra e selecion�
   assert.match(css, /user-select:\s*text/);
   assert.doesNotMatch(css, /text-overflow/);
   assert.match(regra(estilo(ativ), '.doc'), /flex-wrap:\s*wrap/);
+});
+
+// F-AC-15: foco itinerante na fila (uma parada de Tab para a lista inteira).
+test('paradasItem segue a ordem dos botões de cada linha', () => {
+  assert.deepEqual(paradasItem({ status: 'pending' }, false), ['cancelar']);
+  assert.deepEqual(paradasItem({ status: 'processing' }, true), ['info', 'cancelar']);
+  assert.deepEqual(paradasItem({ status: 'success', output_path: 'a.txt' }, true), ['info', 'reprocessar', 'copiar', 'abrir', 'remover']);
+  assert.deepEqual(paradasItem({ status: 'success' }, true), ['info', 'reprocessar', 'remover']);
+  assert.deepEqual(paradasItem({ status: 'error' }, true), ['info', 'detalhes', 'reprocessar', 'remover']);
+  assert.deepEqual(paradasItem({ status: 'cancelled' }, true), ['info', 'reprocessar', 'remover']);
+});
+
+const grade = [
+  { id: 'a', paradas: ['info', 'reprocessar', 'copiar', 'abrir', 'remover'] },
+  { id: 'b', paradas: ['cancelar'] },
+  { id: 'c', paradas: ['info', 'detalhes', 'reprocessar', 'remover'] },
+];
+
+test('proximaParada: setas verticais mudam de linha mantendo a ação quando ela existe', () => {
+  assert.deepEqual(proximaParada(grade, { id: 'a', chave: 'remover' }, 'ArrowDown'), { id: 'b', chave: 'cancelar' });
+  assert.deepEqual(proximaParada(grade, { id: 'a', chave: 'reprocessar' }, 'ArrowDown'), { id: 'b', chave: 'cancelar' });
+  assert.deepEqual(proximaParada(grade, { id: 'c', chave: 'reprocessar' }, 'ArrowUp'), { id: 'b', chave: 'cancelar' });
+  assert.deepEqual(proximaParada(grade, { id: 'b', chave: 'cancelar' }, 'ArrowDown'), { id: 'c', chave: 'info' });
+  assert.deepEqual(proximaParada(grade, { id: 'c', chave: 'info' }, 'ArrowUp'), { id: 'b', chave: 'cancelar' });
+  // A mesma ação na linha de destino tem prioridade sobre a posição.
+  assert.deepEqual(proximaParada([grade[0], grade[2]], { id: 'a', chave: 'remover' }, 'ArrowDown'), { id: 'c', chave: 'remover' });
+});
+
+test('proximaParada: nas pontas a seta não sai da lista', () => {
+  assert.deepEqual(proximaParada(grade, { id: 'a', chave: 'info' }, 'ArrowUp'), { id: 'a', chave: 'info' });
+  assert.deepEqual(proximaParada(grade, { id: 'c', chave: 'info' }, 'ArrowDown'), { id: 'c', chave: 'info' });
+  assert.deepEqual(proximaParada(grade, { id: 'a', chave: 'info' }, 'ArrowLeft'), { id: 'a', chave: 'info' });
+  assert.deepEqual(proximaParada(grade, { id: 'a', chave: 'remover' }, 'ArrowRight'), { id: 'a', chave: 'remover' });
+});
+
+test('proximaParada: setas horizontais andam entre as ações da linha', () => {
+  assert.deepEqual(proximaParada(grade, { id: 'a', chave: 'info' }, 'ArrowRight'), { id: 'a', chave: 'reprocessar' });
+  assert.deepEqual(proximaParada(grade, { id: 'a', chave: 'copiar' }, 'ArrowLeft'), { id: 'a', chave: 'reprocessar' });
+});
+
+test('proximaParada: Home e End vão à primeira e à última linha', () => {
+  assert.deepEqual(proximaParada(grade, { id: 'b', chave: 'cancelar' }, 'Home'), { id: 'a', chave: 'info' });
+  assert.deepEqual(proximaParada(grade, { id: 'a', chave: 'copiar' }, 'End'), { id: 'c', chave: 'info' });
+});
+
+test('proximaParada ignora outras teclas e posição desconhecida', () => {
+  assert.equal(proximaParada(grade, { id: 'a', chave: 'info' }, 'Enter'), null);
+  assert.equal(proximaParada(grade, { id: 'x', chave: 'info' }, 'ArrowDown'), null);
+  assert.equal(proximaParada([], null, 'ArrowDown'), null);
+});
+
+test('resolverParada: a ativa sobrevive enquanto existir; senão cai na primeira', () => {
+  assert.deepEqual(resolverParada(grade, { id: 'c', chave: 'remover' }), { id: 'c', chave: 'remover' });
+  assert.deepEqual(resolverParada(grade, { id: 'b', chave: 'remover' }), { id: 'b', chave: 'cancelar' });
+  assert.deepEqual(resolverParada(grade, { id: 'x', chave: 'info' }), { id: 'a', chave: 'info' });
+  assert.deepEqual(resolverParada(grade, null), { id: 'a', chave: 'info' });
+  assert.equal(resolverParada([], null), null);
+});
+
+test('acaoDelete cancela o pendente e remove o terminado; o em andamento fica', () => {
+  assert.equal(acaoDelete('pending'), 'cancelar');
+  assert.equal(acaoDelete('success'), 'remover');
+  assert.equal(acaoDelete('error'), 'remover');
+  assert.equal(acaoDelete('cancelled'), 'remover');
+  assert.equal(acaoDelete('processing'), null);
+});
+
+test('copiavel: só o concluído com TXT', () => {
+  assert.equal(copiavel({ status: 'success', output_path: 'a.txt' }), true);
+  assert.equal(copiavel({ status: 'success' }), false);
+  assert.equal(copiavel({ status: 'error', output_path: 'a.txt' }), false);
+});
+
+test('a lista usa foco itinerante: uma parada de Tab e teclas no contêiner', () => {
+  const lst = tag(lista, 'class="items-list"');
+  assert.match(lst, /on:keydown=\{teclaLista\}/);
+  assert.match(lst, /on:focusin=\{focoNaLista\}/);
+  const tabs = lista.match(/\n\s+data-parada=["{]/g) ?? [];
+  assert.equal(tabs.length, 10, 'info e as 9 ações levam data-parada');
+  const comTab = lista.match(/tabParada\(item\.id, '/g) ?? [];
+  assert.equal(comTab.length, tabs.length, 'toda parada tem tabindex itinerante');
+  assert.match(lista, /<svelte:window on:keydown=\{teclaJanela\}/);
+  assert.match(funcao(lista, 'teclaJanela'), /ctrlKey[\s\S]*'f'[\s\S]*filtroEl\.focus\(\)/);
+  assert.match(tag(lista, 'type="search"'), /on:keydown=\{teclaFiltro\}/);
+  assert.match(funcao(lista, 'teclaFiltro'), /Escape[\s\S]*filterText = ''/);
+  const tl = funcao(lista, 'teclaLista');
+  assert.match(tl, /proximaParada\(/);
+  assert.match(tl, /acaoDelete\(/);
+  assert.match(tl, /handleCopy\(/);
 });
