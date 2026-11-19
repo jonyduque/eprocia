@@ -168,9 +168,8 @@
       OnFileDrop((x, y, paths) => {
         const { zips, ignorados } = separarZips(paths);
         soltura.recebido(zips.length);
-        if (zips.length > 0) anuncio = textoAceitos(zips.length);
         if (zips.length > 0) {
-          AddFilesToQueue(zips).catch((err) => {
+          AddFilesToQueue(zips).then(() => anunciar(textoAceitos(zips.length))).catch((err) => {
             console.error('Erro ao adicionar à fila:', err);
             aviso.mostrar('Erro ao adicionar à fila: ' + (err?.message ?? err), 'error');
           });
@@ -225,13 +224,21 @@
   }
   let anuncio = '';
 
+  // Esvazia antes de escrever: o mesmo texto duas vezes seguidas é anunciado de novo.
+  async function anunciar(texto) {
+    if (!texto) return;
+    anuncio = '';
+    await tick();
+    anuncio = texto;
+  }
+
   async function salvarRapido(mudanca, texto) {
     if (!config) return;
     const novo = { ...config, ...mudanca };
     try {
       await SaveConfig(novo);
       config = novo;
-      anuncio = texto;
+      await anunciar(texto);
     } catch (err) {
       const msg = String(err?.message ?? err);
       // "configurações salvas, mas..." já se explica sozinha.

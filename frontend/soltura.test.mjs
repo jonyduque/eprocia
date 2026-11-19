@@ -115,7 +115,9 @@ test('App usa o controlador de soltura, sem clientX/clientY, e anuncia o aceito'
   assert.doesNotMatch(app, /clientX === 0|clientY === 0/);
   assert.match(app, /criarSoltura\(/);
   assert.match(app, /soltura\.recebido\(/);
-  assert.match(app, /anuncio = textoAceitos\(/);
+  // anuncia só depois que a fila aceitou, esvaziando antes (mesmo texto repetido)
+  assert.match(app, /AddFilesToQueue\(zips\)\.then\(\(\) => anunciar\(textoAceitos\(/);
+  assert.match(app, /anuncio = '';\s*await tick\(\);/);
   assert.match(app, /lucide-svelte\/icons\/check'/);
   assert.match(app, /\{#if soltura?Estado\}|\{#if estadoSoltura\}/);
 });
