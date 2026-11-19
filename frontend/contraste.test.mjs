@@ -12,6 +12,7 @@ const ler = (...p) => readFileSync(join(raiz, ...p), 'utf8');
 const app = ler('src', 'App.svelte');
 const settings = ler('src', 'components', 'Settings.svelte');
 const lista = ler('src', 'components', 'ProcessList.svelte');
+const avisoComp = ler('src', 'components', 'Aviso.svelte');
 const css = ler('src', 'assets', 'css', 'style.css');
 
 function estilo(texto) {
@@ -85,11 +86,13 @@ test('botão primário usa o azul forte', () => {
   assert.match(regra(s, '.btn-primary:hover'), /background-color:\s*var\(--accent-strong-hover\)/);
 });
 
-test('toasts com texto colorido sobre superfície neutra', () => {
-  const s = estilo(settings);
-  assert.match(regra(s, '.toast-status'), /background-color:\s*var\(--surface\)/);
-  const ok = regra(s, '.toast-status.success');
-  const erro = regra(s, '.toast-status.error');
+test('avisos com texto colorido sobre superfície neutra', () => {
+  const s = estilo(avisoComp);
+  assert.match(regra(s, '.aviso'), /background-color:\s*var\(--surface\)/);
+  const ok = regra(s, '.aviso.sucesso');
+  const erro = regra(s, '.aviso.erro');
+  // Atenção: texto neutro, o âmbar fica no ícone e na borda.
+  assert.match(regra(s, '.aviso.atencao'), /color:\s*var\(--text-primary\)/);
   assert.match(ok, /color:\s*var\(--success-strong\)/);
   assert.match(erro, /color:\s*var\(--error-strong\)/);
   for (const r of [ok, erro]) {

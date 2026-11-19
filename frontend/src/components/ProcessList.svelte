@@ -32,6 +32,7 @@
   } from '../wailsjs/go/main/App.js';
   import AtividadeItem from './AtividadeItem.svelte';
   import ReprocessarItem from './ReprocessarItem.svelte';
+  import Aviso from './Aviso.svelte';
   import { onDestroy, tick } from 'svelte';
   import { fly, fade } from 'svelte/transition';
   import { flip } from 'svelte/animate';
@@ -133,7 +134,7 @@
       atividadesBuscadas = resto;
     } catch (err) {
       console.error('Erro ao reprocessar:', err);
-      avisoCopia.mostrar('Erro ao reprocessar: ' + (err?.message ?? err), 'error');
+      avisoAcao.mostrar('Erro ao reprocessar: ' + (err?.message ?? err), 'error');
     }
   }
 
@@ -193,21 +194,18 @@
       await OpenDirectory(path);
     } catch (err) {
       console.error('Erro ao abrir pasta:', err);
+      avisoAcao.mostrar('Erro ao abrir a pasta: ' + (err?.message ?? err), 'error');
     }
   }
 
   let copiadoId = null;
   let copiadoTimer;
-  let erroCopia = '';
-  let tipoAviso = 'error';
-
-  const avisoCopia = criarAviso((a) => {
-    erroCopia = a ? a.texto : '';
-    if (a) tipoAviso = a.tipo;
-  });
+  // Falhas das ações da fila e o alerta de não lidos ao copiar.
+  let avisoAtual = null;
+  const avisoAcao = criarAviso((a) => { avisoAtual = a; });
 
   onDestroy(() => {
-    avisoCopia.limpar();
+    avisoAcao.limpar();
     clearTimeout(copiadoTimer);
   });
 
@@ -218,10 +216,10 @@
       clearTimeout(copiadoTimer);
       copiadoTimer = setTimeout(() => { copiadoId = null; }, 1500);
       const alerta = avisoCopiaNaoLidos(item.unread_docs);
-      if (alerta) avisoCopia.mostrar(alerta, 'aviso');
+      if (alerta) avisoAcao.mostrar(alerta, 'aviso');
     } catch (err) {
       console.error('Erro ao copiar o TXT:', err);
-      avisoCopia.mostrar('Erro ao copiar o TXT: ' + (err?.message ?? err), 'error');
+      avisoAcao.mostrar('Erro ao copiar o TXT: ' + (err?.message ?? err), 'error');
     }
   }
 
@@ -230,6 +228,7 @@
       await PauseQueue();
     } catch (err) {
       console.error('Erro ao pausar:', err);
+      avisoAcao.mostrar('Erro ao pausar a fila: ' + (err?.message ?? err), 'error');
     }
   }
 
@@ -238,6 +237,7 @@
       await ResumeQueue();
     } catch (err) {
       console.error('Erro ao retomar:', err);
+      avisoAcao.mostrar('Erro ao retomar a fila: ' + (err?.message ?? err), 'error');
     }
   }
 
@@ -248,6 +248,7 @@
     } catch (err) {
       focoPendente = null;
       console.error('Erro ao cancelar:', err);
+      avisoAcao.mostrar('Erro ao cancelar: ' + (err?.message ?? err), 'error');
     }
   }
 
@@ -258,6 +259,7 @@
     } catch (err) {
       focoPendente = null;
       console.error('Erro ao remover:', err);
+      avisoAcao.mostrar('Erro ao remover: ' + (err?.message ?? err), 'error');
     }
   }
 
@@ -268,6 +270,7 @@
     } catch (err) {
       focoPendente = null;
       console.error('Erro ao limpar fila:', err);
+      avisoAcao.mostrar('Erro ao limpar a fila: ' + (err?.message ?? err), 'error');
     }
   }
 </script>
@@ -559,46 +562,10 @@
     {/if}
   </div>
 
-  <!-- Sempre montada: o leitor de tela só anuncia mudanças numa região que
-       já existia antes da mensagem. -->
-  <div class="aviso-regiao" role="alert" aria-atomic="true">
-    {#if erroCopia}
-      <div
-        class="aviso-erro"
-        class:aviso-atencao={tipoAviso === 'aviso'}
-        in:fly={{ y: 8, duration: duracaoMovimento(DUR_BASE), easing: cubicOut }}
-        out:fade={{ duration: duracaoMovimento(DUR_FAST) }}
-      >
-        <span class="aviso-texto">{erroCopia}</span>
-        <button class="aviso-fechar" on:click={avisoCopia.fechar} aria-label="Fechar aviso" title="Fechar aviso">
-          <Icone icone={X} tamanho={12} />
-        </button>
-      </div>
-    {/if}
-  </div>
+  <Aviso aviso={avisoAtual} aoFechar={avisoAcao.fechar} />
 </div>
 
 <style>
-  .aviso-erro {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 8px 12px;
-    font-size: var(--fs-meta);
-    font-weight: 500;
-    color: var(--error-strong);
-    background-color: var(--surface);
-    border-top: 1px solid currentColor;
-  }
-  .aviso-erro.aviso-atencao {
-    color: var(--warning);
-    background-color: var(--warning-soft);
-    border-top-color: var(--warning-line);
-  }
-  .aviso-erro.aviso-atencao .aviso-fechar:hover {
-    background-color: var(--warning-line);
-  }
   .details-row > .nao-lidos {
     flex: none;
     overflow: visible;
@@ -612,32 +579,6 @@
     font-size: var(--fs-meta);
     font-weight: 500;
     white-space: nowrap;
-  }
-  .aviso-texto {
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-  .aviso-fechar {
-    flex: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    border: none;
-    border-radius: 4px;
-    background: transparent;
-    color: inherit;
-    cursor: pointer;
-    transition: background-color var(--dur-fast) var(--ease-out);
-  }
-  .aviso-fechar:hover {
-    background-color: var(--error-soft);
-  }
-  .aviso-fechar:focus-visible {
-    outline: 2px solid currentColor;
-    outline-offset: 1px;
   }
   .list-card {
     background-color: var(--surface);

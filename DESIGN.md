@@ -102,11 +102,17 @@ Fila pausada: pausar só impede o próximo item de começar. O item em curso man
 - Interruptores: rótulo à esquerda, switch à direita, linha de `32px`.
 - Selects com opções curtas (ex.: Nenhuma, Básica, Agressiva); a explicação da opção escolhida vai num `.help-text` de `11px` abaixo do select.
 - Caminho da pasta monitorada com reticências e o caminho completo no `title`.
-- Toast de status no rodapé do painel: entra com `fly` (`y: 8`, `--dur-base`, `cubicOut`) e sai com `fade` (`--dur-fast`), ambos zerados em `prefers-reduced-motion`; o de sucesso dura 3 s e cada mensagem nova reinicia o prazo (um único timer, cancelado no desmonte); o de erro não some sozinho e tem botão fechar (ícone `x`, `aria-label="Fechar aviso"`). As durações em JS ficam em `src/lib/aviso.js`.
+- Alteração salva: um `Check` de `12px` em `--success` entra com `fade` (`--dur-fast`) ao lado do rótulo do controle alterado e some em 1,5 s; salvar de novo refaz o sinal (`criarConfirmacao` em `src/lib/aviso.js`, componente `Salvo.svelte`). A confirmação é anunciada numa região `role="status"` `.sr-only`; não há toast de sucesso no painel.
+- Erros do painel (salvar, escolher pasta, selecionar ZIP) vão para o aviso no pé do painel, fora da área rolável, sem cobrir controle. Com o painel recolhido, vão para o aviso flutuante.
 
 ### 5.4 Barra de Status (Footer)
 - Indicador se o Watchdog está ativo (ex: "Monitorando: C:/Users/..."). Ocupa o espaço livre e trunca o caminho com reticências, com o caminho completo no `title`, inclusive no estado pausado.
 - À direita, sem quebrar linha: contador ("1 item na fila", "N itens na fila") e a versão do app, lida de `info.productVersion` do `wails.json` no build. A barra de título mostra só a marca.
+
+### 5.5 Avisos
+- Um componente só, `src/components/Aviso.svelte`, em três pontos: pé do painel, pé da lista (falhas das ações da fila e alerta de não lidos ao copiar) e flutuante acima da barra de status (mudanças rápidas, ZIP solto inválido), este com `--shadow-sm`.
+- Três tipos, distintos pela forma e não só pela cor: sucesso (`CircleCheck`, texto `--success-strong`), erro (`CircleAlert`, texto `--error-strong`) e atenção (`CircleAlert` em `--warning`, texto `--text-primary` sobre `--warning-soft`). Ícone de `12px`, texto e botão fechar (`x`, `aria-label="Fechar aviso"`).
+- Entra com `fly` (`y: 8`, `--dur-base`, `cubicOut`) e sai com `fade` (`--dur-fast`), zerados em `prefers-reduced-motion`. Sucesso e atenção duram 3 s e cada mensagem nova reinicia o prazo (um único timer, cancelado no desmonte); erro não some sozinho. Toda ação que falha avisa aqui; nada de `alert()` nativo.
 
 ## 6. Layout e Espaçamento (Grades)
 - **Padding padrão:** `8px` (em vez dos tradicionais 16px ou 24px).

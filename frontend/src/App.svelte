@@ -36,13 +36,13 @@
   } from './wailsjs/go/main/App.js';
   import Settings from './components/Settings.svelte';
   import ProcessList from './components/ProcessList.svelte';
+  import Aviso from './components/Aviso.svelte';
   import { contarAtivos, rotuloFila } from './lib/estado.js';
   import { criarFilaPorQuadro } from './lib/quadro.js';
-  import { fade, fly } from 'svelte/transition';
+  import { fade } from 'svelte/transition';
   import { LARGURA_MIN_PAINEL, criarArrasto, larguraMaxPainel, limitarPainel, teclaDivisor } from './lib/divisor.js';
-  import { DUR_BASE, DUR_FAST, criarAviso, duracaoMovimento } from './lib/aviso.js';
+  import { DUR_FAST, avisoSoltura, criarAviso, duracaoMovimento, separarZips } from './lib/aviso.js';
   import { OPCOES_LIMPEZA, OPCOES_OCR, nivelOpcao, proximaOpcao, rotuloOpcao } from './lib/atividade.js';
-  import { cubicOut } from 'svelte/easing';
   import { gravarPainel, lerPainel } from './lib/painel.js';
   import {
     CONSULTA_ESCURO,
@@ -156,14 +156,15 @@
     try {
       OnFileDrop((x, y, paths) => {
         dragActive = false; // Reset visual overlay
-        if (paths && paths.length > 0) {
-          const zipPaths = paths.filter(path => path.toLowerCase().endsWith('.zip'));
-          if (zipPaths.length > 0) {
-            AddFilesToQueue(zipPaths);
-          } else {
-            alert('Por favor, arraste apenas arquivos ZIP do eproc.');
-          }
+        const { zips, ignorados } = separarZips(paths);
+        if (zips.length > 0) {
+          AddFilesToQueue(zips).catch((err) => {
+            console.error('Erro ao adicionar à fila:', err);
+            aviso.mostrar('Erro ao adicionar à fila: ' + (err?.message ?? err), 'error');
+          });
         }
+        const r = avisoSoltura(zips.length, ignorados);
+        if (r) aviso.mostrar(r.texto, r.tipo);
       }, false); // useDropTarget = false for global drop
     } catch (err) {
       console.warn('Wails OnFileDrop not available:', err);
@@ -173,6 +174,7 @@
   onDestroy(() => {
     stopResizing();
     aviso.limpar();
+    avisoPainel.limpar();
     consultaTema.removeEventListener('change', mudouTemaDoSistema);
     filaQuadro.cancelar();
 
@@ -200,6 +202,14 @@
   // formulário pode estar recolhido.
   let avisoRapido = null;
   const aviso = criarAviso((a) => { avisoRapido = a; });
+
+  // Pé do painel, fora da área rolável: erros do Settings e da importação
+  // manual. Com o painel recolhido o pé some, e o aviso vai para o flutuante.
+  let avisoPe = null;
+  const avisoPainel = criarAviso((a) => { avisoPe = a; });
+  function avisarPainel(texto, tipo) {
+    (sidebarCollapsed ? aviso : avisoPainel).mostrar(texto, tipo);
+  }
   let anuncio = '';
 
   async function salvarRapido(mudanca, texto) {
@@ -309,6 +319,7 @@
       }
     } catch (err) {
       console.error('Erro ao selecionar arquivos:', err);
+      avisarPainel('Erro ao selecionar arquivos: ' + (err?.message ?? err), 'error');
     }
   }
 
@@ -496,7 +507,7 @@
       <!-- Escondido, não desmontado: o Settings mantém o aviso e a config. -->
       <div class="sidebar-content" inert={sidebarCollapsed}>
         <!-- Settings Component -->
-        <Settings bind:config {erroConfig} aoFalharSalvar={refreshConfig} />
+        <Settings bind:config {erroConfig} aoFalharSalvar={refreshConfig} avisar={avisarPainel} />
 
         <!-- Manual Process Card -->
         <div class="manual-card">
@@ -514,6 +525,10 @@
             <span>Selecionar arquivos ZIP...</span>
           </button>
         </div>
+      </div>
+
+      <div class="painel-aviso">
+        <Aviso aviso={avisoPe} aoFechar={avisoPainel.fechar} />
       </div>
 
       {#if sidebarCollapsed}
@@ -639,19 +654,8 @@
   <!-- Sempre montadas: o leitor de tela só anuncia mudanças numa região que
        já existia antes da mensagem. -->
   <div class="sr-only" role="status" aria-live="polite">{anuncio}</div>
-  <div class="aviso-rapido-regiao" role="alert" aria-atomic="true">
-    {#if avisoRapido}
-      <div
-        class="aviso-rapido"
-        in:fly={{ y: 8, duration: duracaoMovimento(DUR_BASE), easing: cubicOut }}
-        out:fade={{ duration: duracaoMovimento(DUR_FAST) }}
-      >
-        <span class="aviso-rapido-texto">{avisoRapido.texto}</span>
-        <button class="aviso-rapido-fechar" on:click={aviso.fechar} aria-label="Fechar aviso" title="Fechar aviso">
-          <Icone icone={X} tamanho={12} />
-        </button>
-      </div>
-    {/if}
+  <div class="aviso-flutuante">
+    <Aviso aviso={avisoRapido} aoFechar={aviso.fechar} flutuante />
   </div>
 </div>
 
@@ -899,6 +903,14 @@
     overflow-y: auto;
     transition: opacity var(--dur-fast) var(--ease-out) var(--dur-fast);
   }
+  .painel-aviso {
+    flex-shrink: 0;
+  }
+
+  .sidebar.collapsed .painel-aviso {
+    display: none;
+  }
+
   .sidebar.collapsed .sidebar-content {
     position: absolute;
     top: 38px;
@@ -1187,51 +1199,14 @@
     transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
   }
 
-  .aviso-rapido-regiao {
+  .aviso-flutuante {
     position: absolute;
     left: 50%;
     bottom: 34px;
     transform: translateX(-50%);
     z-index: 900;
+    width: max-content;
     max-width: min(480px, calc(100% - 32px));
-  }
-
-  .aviso-rapido {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    font-size: var(--fs-meta);
-    font-weight: 500;
-    color: var(--error-strong);
-    background-color: var(--surface);
-    border: 1px solid currentColor;
-    border-radius: 4px;
-    box-shadow: var(--shadow-overlay);
-  }
-
-  .aviso-rapido-texto {
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .aviso-rapido-fechar {
-    flex: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    border: none;
-    border-radius: 4px;
-    background: transparent;
-    color: inherit;
-    cursor: pointer;
-  }
-
-  .aviso-rapido-fechar:hover {
-    background-color: var(--error-soft);
   }
 
   .status-dot.active {

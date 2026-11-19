@@ -57,14 +57,21 @@ test('sucesso depois de erro volta a sumir em 3 s; erro depois de sucesso cancel
   assert.deepEqual(atual, { texto: 'falhou', tipo: 'error' });
 });
 
-test('toast de configuração em regiões vivas permanentes: status para sucesso, alert para erro', () => {
-  assert.match(settings, /role="status"[^>]*aria-live="polite"/);
-  assert.match(settings, /role="alert"/);
-  const iStatus = settings.indexOf('role="status"');
-  const iIf = settings.indexOf('{#if statusMessage');
-  assert.ok(iStatus >= 0 && iIf > iStatus, 'a região viva precisa existir antes do {#if}, para o leitor de tela detectar a mudança');
-  assert.match(settings, /aria-label="Fechar aviso"/);
-  assert.match(settings, /on:click=\{aviso\.fechar\}/);
+test('aviso em regiões vivas permanentes: status para sucesso, alert para erro e atenção', () => {
+  const aviso = ler('Aviso.svelte');
+  assert.match(aviso, /role="status" aria-live="polite"/);
+  assert.match(aviso, /role="alert"/);
+  for (const papel of ['role="status"', 'role="alert"']) {
+    const iRegiao = aviso.indexOf(papel);
+    const iIf = aviso.indexOf('{#if aviso', iRegiao);
+    assert.ok(iRegiao >= 0 && iIf > iRegiao, 'a região viva precisa existir antes do {#if}, para o leitor de tela detectar a mudança');
+    const antes = aviso.slice(0, iRegiao);
+    assert.equal((antes.match(/\{#if\b/g) || []).length, (antes.match(/\{\/if\}/g) || []).length, 'a região viva não pode estar dentro de um {#if}');
+  }
+  assert.match(aviso, /aria-label="Fechar aviso"/);
+  assert.match(aviso, /on:click=\{aoFechar\}/);
+  // A confirmação de Settings também é anunciada, sem toast.
+  assert.match(settings, /class="sr-only" role="status" aria-live="polite"/);
 });
 
 test('barra de progresso exposta como progressbar com valores', () => {

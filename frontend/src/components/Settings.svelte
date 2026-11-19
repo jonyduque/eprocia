@@ -2,11 +2,9 @@
   import Icone from './Icone.svelte';
   import SettingsIcon from 'lucide-svelte/icons/settings';
   import Trash2 from 'lucide-svelte/icons/trash-2';
-  import X from 'lucide-svelte/icons/x';
-  import { onDestroy } from 'svelte';
-  import { fly, fade } from 'svelte/transition';
-  import { cubicOut } from 'svelte/easing';
-  import { criarAviso, duracaoMovimento, DUR_FAST, DUR_BASE } from '../lib/aviso.js';
+  import Salvo from './Salvo.svelte';
+  import { onDestroy, tick } from 'svelte';
+  import { criarConfirmacao } from '../lib/aviso.js';
   import { SaveConfig, SelectDirectory } from '../wailsjs/go/main/App.js';
 
   // O App lê a config uma vez e a compartilha por bind; null enquanto carrega.
@@ -15,6 +13,9 @@
   // Chamado quando SaveConfig falha: o App relê a config gravada, para o
   // rodapé e o formulário não exibirem valores que não foram salvos.
   export let aoFalharSalvar = () => {};
+  // Erros vão para o aviso do pé do painel (App), fora da área rolável, para
+  // não cobrir os controles; o sucesso é o Check ao lado do controle.
+  export let avisar = () => {};
 
   const PADRAO = {
     monitored_path: '',
@@ -59,16 +60,13 @@
   async function handleSalvarOmitir() {
     config.omitir_tipos = normalizarTipos(omitirTexto);
     omitirTexto = config.omitir_tipos.join(', ');
-    await handleSave();
+    await handleSave('omitir');
   }
-
-  let statusMessage = '';
-  let statusType = ''; // 'success' or 'error'
 
   // Sem a config salva, o formulário segue editável com os padrões.
   $: if (!config && erroConfig) {
     config = { ...PADRAO };
-    showStatus(erroConfig, 'error');
+    avisar(erroConfig, 'error');
   }
   $: loading = !config;
 
@@ -77,43 +75,54 @@
       const selected = await SelectDirectory();
       if (selected) {
         config.monitored_path = selected;
-        await handleSave();
+        await handleSave('pasta');
       }
     } catch (err) {
-      showStatus('Erro ao selecionar pasta: ' + (err?.message ?? err), 'error');
+      avisar('Erro ao selecionar pasta: ' + (err?.message ?? err), 'error');
     }
   }
 
   async function handleClearDirectory() {
     config.monitored_path = '';
-    await handleSave();
+    await handleSave('pasta');
   }
 
-  async function handleSave() {
+  async function handleSave(campo) {
     try {
       await SaveConfig(config);
-      showStatus('Configurações salvas com sucesso!', 'success');
       config = config;
+      confirmacao.mostrar(campo);
+      anunciar(ROTULO_CAMPO[campo] + ': salvo');
     } catch (err) {
       // Falha parcial ("configurações salvas, mas...") já se explica sozinha.
       const msg = String(err?.message ?? err);
       const parcial = /^configurações salvas/i.test(msg);
-      showStatus(parcial ? msg[0].toUpperCase() + msg.slice(1) : 'Erro ao salvar configurações: ' + msg, 'error');
+      avisar(parcial ? msg[0].toUpperCase() + msg.slice(1) : 'Erro ao salvar configurações: ' + msg, 'error');
       await aoFalharSalvar();
       // O campo de tipos relê a config gravada, não o texto que não foi salvo.
       omitirCarregado = false;
     }
   }
 
-  const aviso = criarAviso((a) => {
-    statusMessage = a ? a.texto : '';
-    statusType = a ? a.tipo : '';
-  });
+  const ROTULO_CAMPO = {
+    watchdog: 'Monitoramento',
+    pasta: 'Pasta monitorada',
+    ocr: 'OCR',
+    limpeza: 'Higienização',
+    omitir: 'Tipos omitidos',
+    autostart: 'Iniciar com o Windows'
+  };
 
-  onDestroy(aviso.limpar);
+  let confirmado = null;
+  const confirmacao = criarConfirmacao((c) => { confirmado = c; });
+  onDestroy(confirmacao.limpar);
 
-  function showStatus(msg, type) {
-    aviso.mostrar(msg, type);
+  // Esvazia antes para que o mesmo texto seja anunciado de novo.
+  let anuncio = '';
+  async function anunciar(texto) {
+    anuncio = '';
+    await tick();
+    anuncio = texto;
   }
 </script>
 
@@ -132,13 +141,16 @@
     <div class="settings-form">
 
       <div class="form-group toggle-group">
-        <label for="watchdog-toggle">Monitoramento ativo</label>
+        <label for="watchdog-toggle">
+          Monitoramento ativo
+          <Salvo campo="watchdog" {confirmado} />
+        </label>
         <label class="switch">
           <input
             id="watchdog-toggle"
             type="checkbox"
             bind:checked={config.watchdog_enabled}
-            on:change={handleSave}
+            on:change={() => handleSave('watchdog')}
           />
           <span class="slider" aria-hidden="true"></span>
         </label>
@@ -146,7 +158,10 @@
 
       <!-- Monitored Path Section -->
       <div class="form-group">
-        <label for="monitored-path">Pasta Monitorada</label>
+        <label for="monitored-path">
+          Pasta Monitorada
+          <Salvo campo="pasta" {confirmado} />
+        </label>
         <div class="path-input-group">
           <input
             id="monitored-path"
@@ -169,11 +184,14 @@
 
       <!-- OCR Settings Dropdown -->
       <div class="form-group">
-        <label for="ocr-mode">Processamento de Imagens (OCR)</label>
+        <label for="ocr-mode">
+          Processamento de Imagens (OCR)
+          <Salvo campo="ocr" {confirmado} />
+        </label>
         <select
           id="ocr-mode"
           bind:value={config.ocr_mode}
-          on:change={handleSave}
+          on:change={() => handleSave('ocr')}
         >
           <option value="none">Desativado</option>
           <option value="fast">Rápido</option>
@@ -185,11 +203,14 @@
 
       <!-- Cleaning Level -->
       <div class="form-group">
-        <label for="cleaning-level">Higienização de texto</label>
+        <label for="cleaning-level">
+          Higienização de texto
+          <Salvo campo="limpeza" {confirmado} />
+        </label>
         <select
           id="cleaning-level"
           bind:value={config.cleaning_level}
-          on:change={handleSave}
+          on:change={() => handleSave('limpeza')}
         >
           <option value="none">Nenhuma</option>
           <option value="basic">Básica</option>
@@ -201,7 +222,10 @@
 
       <!-- Tipos de documento omitidos -->
       <div class="form-group">
-        <label for="omitir-tipos">Omitir documentos dos tipos</label>
+        <label for="omitir-tipos">
+          Omitir documentos dos tipos
+          <Salvo campo="omitir" {confirmado} />
+        </label>
         <input
           id="omitir-tipos"
           type="text"
@@ -216,13 +240,16 @@
 
       <!-- Auto Start Toggle -->
       <div class="form-group toggle-group">
-        <label for="autostart-toggle">Iniciar com o Windows</label>
+        <label for="autostart-toggle">
+          Iniciar com o Windows
+          <Salvo campo="autostart" {confirmado} />
+        </label>
         <label class="switch">
           <input
             id="autostart-toggle"
             type="checkbox"
             bind:checked={config.auto_start}
-            on:change={handleSave}
+            on:change={() => handleSave('autostart')}
           />
           <span class="slider" aria-hidden="true"></span>
         </label>
@@ -230,33 +257,9 @@
     </div>
   {/if}
 
-  <!-- Regiões vivas sempre montadas: o leitor de tela só anuncia mudanças
-       dentro de uma região que já existia antes da mensagem. -->
-  <div class="toast-regiao" role="status" aria-live="polite" aria-atomic="true">
-    {#if statusMessage && statusType !== 'error'}
-      <div
-        class="toast-status {statusType}"
-        in:fly={{ y: 8, duration: duracaoMovimento(DUR_BASE), easing: cubicOut }}
-        out:fade={{ duration: duracaoMovimento(DUR_FAST) }}
-      >
-        <span>{statusMessage}</span>
-      </div>
-    {/if}
-  </div>
-  <div class="toast-regiao" role="alert" aria-atomic="true">
-    {#if statusMessage && statusType === 'error'}
-      <div
-        class="toast-status error"
-        in:fly={{ y: 8, duration: duracaoMovimento(DUR_BASE), easing: cubicOut }}
-        out:fade={{ duration: duracaoMovimento(DUR_FAST) }}
-      >
-        <span class="toast-texto">{statusMessage}</span>
-        <button class="toast-fechar" on:click={aviso.fechar} aria-label="Fechar aviso" title="Fechar aviso">
-          <Icone icone={X} tamanho={12} />
-        </button>
-      </div>
-    {/if}
-  </div>
+  <!-- Sempre montada: o leitor de tela só anuncia mudanças numa região que
+       já existia antes da mensagem. -->
+  <div class="sr-only" role="status" aria-live="polite">{anuncio}</div>
 </div>
 
 <style>
@@ -266,8 +269,6 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    position: relative;
-    overflow: hidden;
   }
 
   .card-header {
@@ -454,58 +455,17 @@
     transform: translateX(16px);
   }
 
-  /* Toast Notification */
-  .toast-regiao {
+
+  .sr-only {
     position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-  }
-
-  .toast-status {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 8px;
-    text-align: center;
-    font-size: var(--fs-meta);
-    font-weight: 500;
-    background-color: var(--surface);
-    border-top: 1px solid currentColor;
-  }
-
-  .toast-status.success {
-    color: var(--success-strong);
-  }
-
-  .toast-status.error {
-    color: var(--error-strong);
-  }
-
-  .toast-texto {
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .toast-fechar {
-    flex: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
+    width: 1px;
+    height: 1px;
     padding: 0;
-    border: none;
-    border-radius: 4px;
-    background: transparent;
-    color: inherit;
-    cursor: pointer;
-    transition: background-color var(--dur-fast) var(--ease-out);
-  }
-
-  .toast-fechar:hover {
-    background-color: var(--error-soft);
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .loading-state {
