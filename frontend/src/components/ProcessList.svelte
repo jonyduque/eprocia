@@ -376,6 +376,12 @@
     <div class="header-left">
       <Icone icone={List} />
       <h2 title="Fila de Processamento" tabindex="-1" bind:this={tituloEl}>Fila de Processamento</h2>
+      {#if aviso}
+        <span class="queue-chip" title={aviso} transition:fade={{ duration: duracaoMovimento(DUR_FAST) }}>
+          <Icone icone={CirclePause} tamanho={12} />
+          <span class="queue-chip-text">{aviso}</span>
+        </span>
+      {/if}
     </div>
     <div class="header-actions">
       <input
@@ -428,15 +434,6 @@
     </div>
   {/if}
 
-  {#if aviso}
-    <div class="queue-notice">
-      <span class="queue-chip" title={aviso}>
-        <Icone icone={CirclePause} tamanho={12} />
-        <span class="queue-chip-text">{aviso}</span>
-      </span>
-    </div>
-  {/if}
-
   <div class="items-container" use:rolagem={marcarLista}>
     {#if items.length > 0 && filteredItems.length === 0}
       <div class="empty-state" in:fade={{ duration: duracaoMovimento(DUR_FAST), delay: duracaoMovimento(DUR_FAST) }}>
@@ -460,6 +457,7 @@
           <div
             class="item-row {item.status}"
             class:has-progress={estado === 'processando'}
+            class:realce={mov.terminou(item.id)}
             data-id={item.id}
             in:fly|global={{ y: 8, duration: mov.novo(item.id) ? duracaoMovimento(DUR_BASE) : 0, easing: cubicOut }}
             out:fade|global={{ duration: mov.removido(item.id) ? duracaoMovimento(DUR_FAST) : 0 }}
@@ -467,19 +465,23 @@
           >
             <!-- Status Icon -->
             <div class="status-col">
-              {#if estado === 'processando'}
-                <span class="spinner-small" aria-hidden="true"><Icone icone={LoaderCircle} cor="var(--accent)" /></span>
-              {:else if estado === 'pausado'}
-                <Icone icone={CirclePause} cor="var(--warning)" />
-              {:else if estado === 'aguardando'}
-                <Icone icone={Clock} cor="var(--text-secondary)" />
-              {:else if estado === 'sucesso'}
-                <Icone icone={CircleCheck} cor="var(--success)" />
-              {:else if estado === 'erro'}
-                <Icone icone={CircleAlert} cor="var(--error)" />
-              {:else if estado === 'cancelado'}
-                <Icone icone={CircleSlash} cor="var(--text-secondary)" />
-              {/if}
+              {#key estado}
+                <span class="icone-estado" in:scale={{ start: 0.6, duration: duracaoMovimento(DUR_FAST), easing: cubicOut }}>
+                  {#if estado === 'processando'}
+                    <span class="spinner-small" aria-hidden="true"><Icone icone={LoaderCircle} cor="var(--accent)" /></span>
+                  {:else if estado === 'pausado'}
+                    <Icone icone={CirclePause} cor="var(--warning)" />
+                  {:else if estado === 'aguardando'}
+                    <Icone icone={Clock} cor="var(--text-secondary)" />
+                  {:else if estado === 'sucesso'}
+                    <Icone icone={CircleCheck} cor="var(--success)" />
+                  {:else if estado === 'erro'}
+                    <Icone icone={CircleAlert} cor="var(--error)" />
+                  {:else if estado === 'cancelado'}
+                    <Icone icone={CircleSlash} cor="var(--text-secondary)" />
+                  {/if}
+                </span>
+              {/key}
               <span class="sr-only">{ROTULO_ESTADO[estado] ?? ''}</span>
             </div>
 
@@ -545,6 +547,7 @@
                 aria-valuemax="100"
                 aria-valuenow={Math.round((item.progress || 0) * 100)}
                 aria-label="Progresso de {item.name}"
+                out:fade={{ duration: duracaoMovimento(DUR_BASE) }}
               >
                 <div class="progress-bar" style:--p={item.progress || 0}></div>
               </div>
@@ -666,7 +669,7 @@
               <div
                 class="erro-detalhe"
                 id="erro-detalhe-{item.id}"
-                in:fade={{ duration: duracaoMovimento(DUR_FAST) }}
+                in:fly={{ y: -4, duration: duracaoMovimento(DUR_FAST), easing: cubicOut }}
               >
                 <p class="erro-detalhe-texto">{item.message || 'Erro no processamento'}</p>
                 <p class="erro-detalhe-caminho">Arquivo: {item.path}</p>
@@ -767,6 +770,7 @@
     min-width: 0;
   }
 
+  /* Na linha do cabeçalho: aparecer ou sumir não mexe na lista. Encolhe antes do título. */
   .queue-chip {
     display: inline-flex;
     align-items: center;
@@ -780,6 +784,7 @@
     border: 1px solid var(--warning-line);
     white-space: nowrap;
     min-width: 0;
+    flex-shrink: 10;
     overflow: hidden;
   }
 
@@ -1009,6 +1014,42 @@
     background-color: var(--surface);
     transition: background-color var(--dur-fast) var(--ease-out),
                 border-color var(--dur-fast) var(--ease-out);
+    isolation: isolate;
+  }
+
+  /* Realce único do fim (sucesso ou erro) nesta sessão: só opacidade, atrás do conteúdo. */
+  .item-row::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    /* Raio da linha (4px) menos a borda de 1px. */
+    border-radius: 3px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .item-row.realce::after {
+    animation: realce var(--dur-realce) var(--ease-out);
+  }
+
+  .item-row.realce.success::after {
+    background-color: var(--success-soft);
+  }
+
+  .item-row.realce.error::after {
+    background-color: var(--error-soft);
+  }
+
+  @keyframes realce {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .item-row.realce::after {
+      animation: none;
+    }
   }
 
   .item-row:hover {
@@ -1022,6 +1063,10 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+  }
+
+  .icone-estado {
+    display: inline-flex;
   }
 
   .info-col {

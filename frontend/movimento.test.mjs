@@ -385,7 +385,7 @@ test('documentos da atividade deslizam com flip, que desliga em listas longas, e
   assert.match(linha, /animate:flip=\{\{ duration: LIMITE_FLIP_DOCS < visiveis\.length \? 0 : duracaoMovimento\(DUR_FAST\), easing: cubicOut \}\}/);
   assert.match(linha, /out:fade=\{\{ duration: duracaoMovimento\(DUR_FAST\) \}\}/);
   assert.match(at, /import \{ flip \} from 'svelte\/animate'/);
-  assert.match(at, /import \{ fade \} from 'svelte\/transition'/);
+  assert.match(at, /import \{ fade(, fly)? \} from 'svelte\/transition'/);
   assert.match(at, /import \{ cubicOut \} from 'svelte\/easing'/);
   assert.match(at, /\{#each visiveis as d \(d\.i\)\}\s*<li class="doc /, 'li é o único filho do each');
   // Recolhido, o painel cabe no limite mesmo com muitos núcleos: o flip só desliga com os concluídos à mostra.
@@ -395,4 +395,95 @@ test('documentos da atividade deslizam com flip, que desliga em listas longas, e
 test('DESIGN.md descreve o movimento do painel de atividade', () => {
   const sec = design.slice(design.indexOf('## 7. Movimento'));
   assert.match(sec, /Documentos do painel de atividade/);
+});
+
+// --- F-AN-05 (2026-11-10) --------------------------------------------------
+
+test('chip de fila pausada mora na linha do cabeçalho e entra/sai com fade', () => {
+  const ini = lista.indexOf('<div class="list-header"');
+  const cab = lista.slice(ini, lista.indexOf('{#if confirmandoLimpeza}', ini));
+  assert.match(cab, /\{#if aviso\}\s*<span class="queue-chip" title=\{aviso\} transition:fade=\{\{ duration: duracaoMovimento\(DUR_FAST\) \}\}>/);
+  assert.doesNotMatch(lista, /<div class="queue-notice">/, 'faixa própria empurrava a lista');
+  const chip = regra(estilo(lista), '.queue-chip');
+  assert.match(chip, /min-width:\s*0/);
+  assert.match(chip, /flex-shrink:\s*\d+/);
+});
+
+test('indicador "N ativos" entra e sai com fade', () => {
+  assert.match(tag(app, 'class="pulse-indicator"'), /transition:fade=\{\{ duration: duracaoMovimento\(DUR_FAST\) \}\}/);
+});
+
+// --- F-AN-08 ---------------------------------------------------------------
+
+test('painéis dentro da linha entram com fly curto e saem na hora', () => {
+  const at = ler('src', 'components', 'AtividadeItem.svelte');
+  const rep = ler('src', 'components', 'ReprocessarItem.svelte');
+  for (const [nome, f, marca] of [
+    ['AtividadeItem', at, 'class="painel-atividade"'],
+    ['ReprocessarItem', rep, 'class="painel-reprocessar"'],
+    ['ProcessList', lista, 'class="erro-detalhe"'],
+  ]) {
+    const t = tag(f, marca);
+    assert.match(t, /in:fly=\{\{ y: -4, duration: duracaoMovimento\(DUR_FAST\), easing: cubicOut \}\}/, nome);
+    assert.doesNotMatch(t, /(?:out|transition):/, `${nome}: saída deve ser instantânea`);
+    assert.match(f, /import \{[^}]*\bfly\b[^}]*\} from 'svelte\/transition'/, nome);
+    assert.match(f, /import \{ cubicOut \} from 'svelte\/easing'/, nome);
+  }
+  const sec = design.slice(design.indexOf('## 7. Movimento'));
+  assert.match(sec, /Painéis dentro da linha/);
+});
+
+// --- F-AN-11 ---------------------------------------------------------------
+
+test('terminou marca só o item que concluiu ou falhou nesta sessão', () => {
+  const mov = criarMovimentoFila();
+  const it = (id, status) => ({ id, name: `${id}.zip`, status });
+  mov.atualizar([it('velho', 'success'), it('a', 'processing'), it('b', 'pending')]);
+  assert.equal(mov.terminou('velho'), false, 'já concluído ao abrir não realça');
+  mov.atualizar([it('velho', 'success'), it('a', 'success'), it('b', 'processing')]);
+  assert.equal(mov.terminou('a'), true);
+  assert.equal(mov.terminou('b'), false);
+  mov.atualizar([it('velho', 'success'), it('a', 'success'), it('b', 'error')]);
+  assert.equal(mov.terminou('a'), true, 'continua marcado: a animação roda uma vez só');
+  assert.equal(mov.terminou('b'), true, 'erro também realça');
+  mov.atualizar([it('velho', 'success'), it('a', 'pending'), it('b', 'error')]);
+  assert.equal(mov.terminou('a'), false, 'reprocessar tira a marca, para realçar de novo no fim');
+  mov.atualizar([it('velho', 'success'), it('a', 'cancelled')]);
+  assert.equal(mov.terminou('a'), false, 'cancelado não realça');
+  assert.equal(mov.terminou('b'), false, 'item removido sai do conjunto');
+  mov.atualizar([it('velho', 'success'), it('a', 'cancelled')], 'zip');
+  assert.equal(mov.terminou('velho'), false);
+});
+
+test('fim do item: ícone troca com scale, barra sai com fade e a linha tem realce único', () => {
+  const i = lista.indexOf('<div class="status-col">');
+  const col = lista.slice(i, lista.indexOf('</div>\n\n', i));
+  assert.match(col, /\{#key estado\}\s*<span class="icone-estado" in:scale=\{\{ start: 0\.6, duration: duracaoMovimento\(DUR_FAST\), easing: cubicOut \}\}>/);
+  assert.match(tag(lista, 'class="progress-bar-container"'), /out:fade=\{\{ duration: duracaoMovimento\(DUR_BASE\) \}\}/);
+  assert.match(tag(lista, 'class="item-row {item.status}"'), /class:realce=\{mov\.terminou\(item\.id\)\}/);
+
+  const s = estilo(lista);
+  assert.match(regra(s, '.item-row'), /isolation:\s*isolate/, 'realce fica atrás do conteúdo');
+  const depois = regra(s, '.item-row::after');
+  assert.match(depois, /opacity:\s*0/);
+  assert.match(depois, /pointer-events:\s*none/);
+  assert.match(depois, /z-index:\s*-1/);
+  assert.match(regra(s, '.item-row.realce::after'), /animation:\s*realce var\(--dur-realce\) var\(--ease-out\)/);
+  assert.match(regra(s, '.item-row.realce.success::after'), /background-color:\s*var\(--success-soft\)/);
+  assert.match(regra(s, '.item-row.realce.error::after'), /background-color:\s*var\(--error-soft\)/);
+  const ik = s.indexOf('@keyframes realce');
+  assert.ok(ik >= 0);
+  const kf = bloco(s, ik);
+  assert.match(kf, /from\s*\{\s*opacity:\s*1;?\s*\}/);
+  assert.match(kf, /to\s*\{\s*opacity:\s*0;?\s*\}/);
+  const m = s.indexOf(REDUZIDO);
+  assert.ok(m >= 0, 'ProcessList sem regra de reduced-motion');
+  assert.match(bloco(s, m), /\.item-row\.realce::after\s*\{[^}]*animation:\s*none/);
+
+  assert.match(css, /--dur-realce:\s*600ms/);
+  const r = css.indexOf(REDUZIDO);
+  assert.match(css.slice(r, css.indexOf('\n}\n', r)), /--dur-realce:\s*0ms/);
+  const sec = design.slice(design.indexOf('## 7. Movimento'));
+  assert.match(sec, /--dur-realce/);
+  assert.match(sec, /terminou/);
 });

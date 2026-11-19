@@ -1,5 +1,8 @@
 <script>
   import { onMount } from 'svelte';
+  import { fly } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
+  import { duracaoMovimento, DUR_FAST } from '../lib/aviso.js';
   import { OPCOES_OCR, OPCOES_LIMPEZA } from '../lib/atividade.js';
   import Segmentado from './Segmentado.svelte';
 
@@ -37,7 +40,7 @@
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<form class="painel-reprocessar" {id} aria-label="Reprocessar com outras configurações" on:submit|preventDefault={confirmar} on:keydown={tecla}>
+<form class="painel-reprocessar" in:fly={{ y: -4, duration: duracaoMovimento(DUR_FAST), easing: cubicOut }} {id} aria-label="Reprocessar com outras configurações" on:submit|preventDefault={confirmar} on:keydown={tecla}>
   <div class="campo">
     <Segmentado nome="{id}-ocr" legenda="OCR" discreto opcoes={OPCOES_OCR} bind:valor={ocr} bind:this={primeiroCampo} />
   </div>

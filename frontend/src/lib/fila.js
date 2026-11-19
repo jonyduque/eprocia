@@ -54,12 +54,18 @@ export function escolherAcao(disponiveis, preferida) {
 
 // As transições das linhas leem isto quando começam, depois do $: que chama
 // atualizar: só o que chegou pelo queue:update entra animado, só o que saiu
-// da fila sai com fade, e o filtro não move nada.
+// da fila sai com fade, e o filtro não move nada. terminou(id) fica verdadeiro
+// enquanto o item segue concluído ou com erro depois de mudar de estado nesta
+// sessão: a classe do realce não sai, e a animação roda uma vez só.
+const REALCE = new Set(['success', 'error']);
+
 export function criarMovimentoFila() {
   let presentes = new Set();
   let novos = new Set();
   let filtro = '';
   let filtrou = false;
+  let estados = new Map();
+  const terminados = new Set();
 
   return {
     atualizar(items, textoFiltro = '') {
@@ -69,8 +75,20 @@ export function criarMovimentoFila() {
       presentes = ids;
       filtrou = textoFiltro !== filtro;
       filtro = textoFiltro;
+      const proximos = new Map();
+      for (const item of items) {
+        const antes = estados.get(item.id);
+        if (antes !== undefined && antes !== item.status) {
+          if (REALCE.has(item.status)) terminados.add(item.id);
+          else terminados.delete(item.id);
+        }
+        proximos.set(item.id, item.status);
+      }
+      for (const id of terminados) if (!proximos.has(id)) terminados.delete(id);
+      estados = proximos;
     },
     novo: (id) => novos.has(id),
+    terminou: (id) => terminados.has(id),
     removido: (id) => !presentes.has(id),
     porFiltro: () => filtrou,
   };

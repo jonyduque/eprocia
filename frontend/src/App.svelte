@@ -459,7 +459,7 @@
     <div class="titlebar-actions" style="--wails-draggable: no-drag">
       <!-- Active Processes Indicator -->
       {#if processingCount > 0}
-        <div class="pulse-indicator">
+        <div class="pulse-indicator" transition:fade={{ duration: duracaoMovimento(DUR_FAST) }}>
           <span class="pulse-dot"></span>
           <span>{processingCount} ativo{processingCount > 1 ? 's' : ''}</span>
         </div>

@@ -134,7 +134,7 @@ test('ProcessList tem uma única região status, sempre montada, e chip/filtro s
   const i = lista.indexOf('<div class="sr-only" role="status" aria-live="polite">{anuncio}</div>');
   assert.ok(i >= 0, 'região .sr-only com {anuncio}');
   assert.ok(foraDeIf(lista.slice(lista.indexOf('</script>')), lista.slice(lista.indexOf('</script>')).indexOf('{anuncio}</div>')));
-  assert.match(lista, /<span class="queue-chip" title=\{aviso\}>/);
+  assert.match(lista, /<span class="queue-chip" title=\{aviso\}[^>]*>/);
   assert.match(lista, /<p>Nenhum item corresponde ao filtro<\/p>/);
 });
 

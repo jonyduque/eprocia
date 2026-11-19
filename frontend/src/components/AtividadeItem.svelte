@@ -6,7 +6,7 @@
   import FileText from 'lucide-svelte/icons/file-text';
   import ScanText from 'lucide-svelte/icons/scan-text';
   import { flip } from 'svelte/animate';
-  import { fade } from 'svelte/transition';
+  import { fade, fly } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { prepararDocs, segmentos, naoLido, LIMITE_AGUARDANDO, LIMITE_FLIP_DOCS } from '../lib/atividade.js';
   import { duracaoMovimento, DUR_FAST } from '../lib/aviso.js';
@@ -44,7 +44,7 @@
   }
 </script>
 
-<div class="painel-atividade" {id} role="region" aria-label="Atividade dos documentos">
+<div class="painel-atividade" in:fly={{ y: -4, duration: duracaoMovimento(DUR_FAST), easing: cubicOut }} {id} role="region" aria-label="Atividade dos documentos">
   {#if !atividade}
     <p class="vazio">Carregando a atividade...</p>
   {:else if atividade === 'nenhuma'}

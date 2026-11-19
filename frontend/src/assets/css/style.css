@@ -48,6 +48,8 @@
   /* Laços contínuos (spinner e pulso de atividade). */
   --dur-spin: 800ms;
   --dur-pulse: 1500ms;
+  /* Realce único da linha que terminou (sucesso ou erro). */
+  --dur-realce: 600ms;
 
   --font-sans: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   /* Escala tipográfica (DESIGN.md §3). */
@@ -82,6 +84,7 @@
   :root {
     --dur-fast: 0ms;
     --dur-base: 0ms;
+    --dur-realce: 0ms;
     /* O spinner é o sinal de atividade: gira devagar em vez de parar. */
     --dur-spin: 2400ms;
   }
