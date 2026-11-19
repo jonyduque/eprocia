@@ -499,15 +499,15 @@ func fontesLegiveis(page pdf.Page) bool {
 	return true
 }
 
-// textoPosicionalSeguro roda extrairNativo com o pânico confinado, para que
-// extrairNativoSeguro ainda possa voltar ao GetTextByRow.
-func textoPosicionalSeguro(page pdf.Page) (text string, m metricasPagina, err error) {
+// textoPosicionalSeguro roda extrairNativoContando com o pânico confinado, para
+// que extrairNativoSeguro ainda possa voltar ao GetTextByRow.
+func textoPosicionalSeguro(page pdf.Page) (text string, m metricasPagina, opsTexto int, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			text, m, err = "", metricasPagina{}, fmt.Errorf("pânico no extrator posicional: %v", r)
+			text, m, opsTexto, err = "", metricasPagina{}, 0, fmt.Errorf("pânico no extrator posicional: %v", r)
 		}
 	}()
-	return extrairNativo(page)
+	return extrairNativoContando(page)
 }
 
 // ExtractNativeText extracts plain text from a pdf.Page with extrairTextoPosicional,
@@ -520,7 +520,8 @@ func ExtractNativeText(page pdf.Page) (text string, err error) {
 }
 
 // extrairNativoSeguro é ExtractNativeText mais as métricas da estrutura da
-// página. As métricas não são válidas quando o texto veio do GetTextByRow
+// página. Página sem operação de mostrar texto não vai ao GetTextByRow. As
+// métricas não são válidas quando o texto veio do GetTextByRow
 // (então formsIgnorados ainda vem da passada, que não falhou), quando a
 // extração posicional falhou ou deu erro (tudo zerado) e quando a página
 // não tem MediaBox legível.
@@ -539,8 +540,10 @@ func extrairNativoSeguro(page pdf.Page) (text string, m metricasPagina, err erro
 		return "", metricasPagina{}, err
 	}
 
-	text, m, errPos := textoPosicionalSeguro(page)
-	if errPos == nil && strings.TrimSpace(text) != "" {
+	text, m, opsTexto, errPos := textoPosicionalSeguro(page)
+	if errPos == nil && (strings.TrimSpace(text) != "" || opsTexto == 0) {
+		// Sem nenhum Tj/TJ/'/" (página escaneada ou vetorial), o GetTextByRow,
+		// que trata os mesmos operadores, também não acharia nada.
 		return text, m, nil
 	}
 	if errPos != nil {
