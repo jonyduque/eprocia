@@ -94,7 +94,8 @@ Fila pausada: pausar só impede o próximo item de começar. O item em curso man
 
 ### 5.2 Drag & Drop Zone
 - Uma área sutil no topo ou o fundo da própria lista.
-- Quando um arquivo é arrastado sobre a janela, uma borda azul pontilhada aparece com o texto: "Solte o ZIP para processar".
+- Quando um arquivo é arrastado sobre a janela, uma borda azul pontilhada aparece com o texto: "Solte o ZIP para processar". Só arrastos de arquivos (`dataTransfer.types` com `Files`) ligam o overlay; texto ou link arrastado não. A saída da janela é contada por `dragenter`/`dragleave` (`frontend/src/lib/soltura.js`), não pela posição do ponteiro.
+- Ao aceitar ZIPs, a caixa troca o ícone por `Check` e o texto por "N arquivo(s) adicionado(s)" por `--dur-base` e sai com o fade; o mesmo texto vai para a região `role="status"`. Sem ZIP aceito, o overlay fecha na hora e o aviso flutuante explica.
 
 ### 5.3 Painel de Configurações
 - Precisa ficar legível a 280px de largura sem cortar palavra.

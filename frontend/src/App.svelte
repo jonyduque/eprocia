@@ -1,5 +1,6 @@
 <script>
   import Icone from './components/Icone.svelte';
+  import Check from 'lucide-svelte/icons/check';
   import ChevronLeft from 'lucide-svelte/icons/chevron-left';
   import ChevronRight from 'lucide-svelte/icons/chevron-right';
   import Copy from 'lucide-svelte/icons/copy';
@@ -42,9 +43,10 @@
   import { criarFilaPorQuadro } from './lib/quadro.js';
   import { fade } from 'svelte/transition';
   import { LARGURA_MIN_PAINEL, criarArrasto, larguraMaxPainel, limitarPainel, teclaDivisor } from './lib/divisor.js';
-  import { DUR_FAST, avisoSoltura, criarAviso, duracaoMovimento, separarZips } from './lib/aviso.js';
+  import { DUR_BASE, DUR_FAST, avisoSoltura, criarAviso, duracaoMovimento, separarZips } from './lib/aviso.js';
   import { OPCOES_LIMPEZA, OPCOES_OCR, nivelOpcao, proximaOpcao, rotuloOpcao } from './lib/atividade.js';
   import { gravarPainel, lerPainel } from './lib/painel.js';
+  import { criarSoltura, textoAceitos } from './lib/soltura.js';
   import {
     CONSULTA_ESCURO,
     NOME_TEMA,
@@ -86,8 +88,9 @@
   $: maxPainel = larguraMaxPainel(larguraJanela);
   $: larguraPainel = limitarPainel(sidebarWidth, larguraJanela);
 
-  // Drag and Drop State
-  let dragActive = false;
+  // Overlay de soltar: só para arquivos, e confirma o que foi aceito.
+  let estadoSoltura = null;
+  const soltura = criarSoltura((e) => { estadoSoltura = e; }, globalThis, DUR_BASE);
 
   // Unsubscribe handlers
   let unsubscribers = [];
@@ -156,8 +159,9 @@
     // Register Native Drag and Drop for the whole window (global target)
     try {
       OnFileDrop((x, y, paths) => {
-        dragActive = false; // Reset visual overlay
         const { zips, ignorados } = separarZips(paths);
+        soltura.recebido(zips.length);
+        if (zips.length > 0) anuncio = textoAceitos(zips.length);
         if (zips.length > 0) {
           AddFilesToQueue(zips).catch((err) => {
             console.error('Erro ao adicionar à fila:', err);
@@ -176,6 +180,7 @@
     stopResizing();
     aviso.limpar();
     avisoPainel.limpar();
+    soltura.limpar();
     consultaTema.removeEventListener('change', mudouTemaDoSistema);
     filaQuadro.cancelar();
 
@@ -378,22 +383,22 @@
     gravarPainel(armazenamento(), { largura: sidebarWidth, recolhido: sidebarCollapsed });
   }
 
-  // Web Drag and Drop handlers (to show visual overlay when dragging over the window)
+  // preventDefault só em arrasto de arquivos; texto arrastado segue o padrão.
+  function handleDragEnter(e) {
+    if (soltura.entrar(e.dataTransfer)) e.preventDefault();
+  }
+
   function handleDragOver(e) {
-    e.preventDefault();
-    dragActive = true;
+    if (estadoSoltura) e.preventDefault();
   }
 
   function handleDragLeave(e) {
-    e.preventDefault();
-    if (e.clientX === 0 || e.clientY === 0) {
-      dragActive = false;
-    }
+    soltura.sair(e.dataTransfer);
   }
 
   function handleWindowDrop(e) {
-    // Let the event bubble naturally so WebView2/Wails captures it.
-    dragActive = false;
+    // Sem stopPropagation: o WebView2/Wails precisa do evento para o OnFileDrop.
+    soltura.soltar(e.dataTransfer);
   }
 </script>
 
@@ -401,18 +406,23 @@
   bind:innerWidth={larguraJanela}
   on:resize={atualizarMaximizada}
   on:dragover={handleDragOver}
-  on:dragenter={handleDragOver}
+  on:dragenter={handleDragEnter}
   on:dragleave={handleDragLeave}
   on:drop={handleWindowDrop}
 />
 
 <div class="app-container">
   <!-- Full Window Drag & Drop Overlay -->
-  {#if dragActive}
+  {#if estadoSoltura}
     <div class="drag-overlay" transition:fade={{ duration: duracaoMovimento(DUR_FAST) }}>
       <div class="overlay-box">
-        <Icone icone={FileArchive} tamanho={48} cor="var(--accent)" />
-        <p>Solte o arquivo ZIP em qualquer lugar para processar</p>
+        {#if estadoSoltura.fase === 'aceito'}
+          <Icone icone={Check} tamanho={48} cor="var(--accent)" />
+          <p>{estadoSoltura.texto}</p>
+        {:else}
+          <Icone icone={FileArchive} tamanho={48} cor="var(--accent)" />
+          <p>Solte o arquivo ZIP em qualquer lugar para processar</p>
+        {/if}
       </div>
     </div>
   {/if}
