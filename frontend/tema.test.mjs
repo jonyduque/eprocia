@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TEMAS, proximoTema, temaEfetivo, lerPreferencia } from './src/lib/tema.js';
+import { OPCOES_OCR, OPCOES_LIMPEZA } from './src/lib/atividade.js';
 
 const raiz = dirname(fileURLToPath(import.meta.url));
 const ler = (...p) => readFileSync(join(raiz, ...p), 'utf8');
@@ -125,8 +126,10 @@ test('interruptores com rótulo à esquerda e linha de 32px', () => {
   }
 });
 
-test('opções curtas com texto de ajuda abaixo do select', () => {
-  const opcoes = [...settings.matchAll(/<option value="[^"]+">([^<]+)<\/option>/g)].map((m) => m[1]);
+test('opções curtas com texto de ajuda abaixo do controle segmentado', () => {
+  assert.match(settings, /opcoes=\{OPCOES_OCR\}/);
+  assert.match(settings, /opcoes=\{OPCOES_LIMPEZA\}/);
+  const opcoes = [...OPCOES_OCR, ...OPCOES_LIMPEZA].map((o) => o.rotulo);
   assert.ok(opcoes.length >= 8);
   for (const o of opcoes) assert.ok(o.length <= 12, `opção longa: ${o}`);
   for (const o of ['Nenhuma', 'Básica', 'Padrão', 'Máxima']) assert.ok(opcoes.includes(o), o);

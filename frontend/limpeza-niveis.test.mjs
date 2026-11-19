@@ -1,15 +1,17 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { OPCOES_LIMPEZA } from './src/lib/atividade.js';
 
 const settings = readFileSync(new URL('./src/components/Settings.svelte', import.meta.url), 'utf8');
 const app = readFileSync(new URL('./src/App.svelte', import.meta.url), 'utf8');
 const lista = readFileSync(new URL('./src/components/ProcessList.svelte', import.meta.url), 'utf8');
 
 describe('higienização em Settings.svelte', () => {
-  const select = settings.match(/<select\s+id="cleaning-level"[\s\S]*?<\/select>/)?.[0] ?? '';
-  it('select tem as 4 opções na ordem', () => {
-    const opcoes = [...select.matchAll(/<option value="(\w+)">([^<]+)<\/option>/g)].map((m) => [m[1], m[2]]);
+  const controle = settings.match(/<Segmentado\s+id="cleaning-level"[\s\S]*?<\/Segmentado>/)?.[0] ?? '';
+  it('controle segmentado tem as 4 opções na ordem', () => {
+    assert.match(controle, /opcoes=\{OPCOES_LIMPEZA\}/);
+    const opcoes = OPCOES_LIMPEZA.map((o) => [o.valor, o.rotulo]);
     assert.deepEqual(opcoes, [['none', 'Nenhuma'], ['basic', 'Básica'], ['standard', 'Padrão'], ['aggressive', 'Máxima']]);
   });
   it('padrão é standard', () => {

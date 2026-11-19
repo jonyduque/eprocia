@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { OPCOES_OCR, OPCOES_LIMPEZA } from '../lib/atividade.js';
+  import Segmentado from './Segmentado.svelte';
 
   export let id = '';
   // Valores iniciais: os da última execução do item, ou os da config atual.
@@ -15,7 +16,7 @@
   let enviando = false;
   let primeiroCampo;
 
-  onMount(() => primeiroCampo?.focus());
+  onMount(() => primeiroCampo?.focar());
 
   async function confirmar() {
     if (enviando) return;
@@ -37,22 +38,12 @@
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <form class="painel-reprocessar" {id} aria-label="Reprocessar com outras configurações" on:submit|preventDefault={confirmar} on:keydown={tecla}>
-  <label>
-    <span>OCR</span>
-    <select bind:value={ocr} bind:this={primeiroCampo}>
-      {#each OPCOES_OCR as o}
-        <option value={o.valor}>{o.rotulo}</option>
-      {/each}
-    </select>
-  </label>
-  <label>
-    <span>Higienização</span>
-    <select bind:value={limpeza}>
-      {#each OPCOES_LIMPEZA as o}
-        <option value={o.valor}>{o.rotulo}</option>
-      {/each}
-    </select>
-  </label>
+  <div class="campo">
+    <Segmentado nome="{id}-ocr" legenda="OCR" discreto opcoes={OPCOES_OCR} bind:valor={ocr} bind:this={primeiroCampo} />
+  </div>
+  <div class="campo">
+    <Segmentado nome="{id}-limpeza" legenda="Higienização" discreto opcoes={OPCOES_LIMPEZA} bind:valor={limpeza} />
+  </div>
   <div class="botoes">
     <button type="button" class="secundario" on:click={aoCancelar}>Cancelar</button>
     <button type="submit" class="primario" disabled={enviando}>Reprocessar</button>
@@ -75,24 +66,10 @@
     font-size: var(--fs-meta);
   }
 
-  label {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    color: var(--text-secondary);
-    min-width: 120px;
-    flex: 1 1 120px;
-  }
-
-  select {
-    padding: 4px 8px;
-    border: 1px solid var(--border-strong);
-    border-radius: 4px;
-    background-color: var(--surface);
-    color: var(--text-primary);
-    font: inherit;
-    font-size: var(--fs-base);
-    cursor: pointer;
+  /* 4 segmentos de rótulo inteiro pedem uns 220px; abaixo disso quebra a linha. */
+  .campo {
+    min-width: 0;
+    flex: 1 1 220px;
   }
 
   .botoes {

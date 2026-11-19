@@ -2,7 +2,7 @@
 // opções de OCR e higienização usadas no painel recolhido e no reprocessamento.
 
 export const OPCOES_OCR = [
-  { valor: 'none', rotulo: 'Desativado' },
+  { valor: 'none', rotulo: 'Nenhum' },
   { valor: 'fast', rotulo: 'Rápido' },
   { valor: 'normal', rotulo: 'Normal' },
   { valor: 'best', rotulo: 'Preciso' }

@@ -2,8 +2,10 @@
   import Icone from './Icone.svelte';
   import Trash2 from 'lucide-svelte/icons/trash-2';
   import Salvo from './Salvo.svelte';
+  import Segmentado from './Segmentado.svelte';
   import { onDestroy, tick } from 'svelte';
   import { criarConfirmacao } from '../lib/aviso.js';
+  import { OPCOES_OCR, OPCOES_LIMPEZA } from '../lib/atividade.js';
   import { SaveConfig, SelectDirectory } from '../wailsjs/go/main/App.js';
 
   // O App lê a config uma vez e a compartilha por bind; null enquanto carrega.
@@ -38,6 +40,10 @@
     standard: 'Remove cabeçalhos, rodapés e duplicatas; resume assinaturas',
     aggressive: 'Padrão + ruído de OCR e parágrafos contínuos'
   };
+
+  // Opção sob o ponteiro em cada controle: a ajuda a descreve antes de gravar.
+  let previaOcr = null;
+  let previaLimpeza = null;
 
   // Códigos de tipo (EXTR, COMP...) em maiúsculas, sem espaços nem repetição.
   function normalizarTipos(texto) {
@@ -183,41 +189,33 @@
       <h3 class="rotulo-grupo">Processamento</h3>
 
       <div class="form-group">
-        <label for="ocr-mode">
-          Processamento de Imagens (OCR)
-          <Salvo campo="ocr" {confirmado} />
-        </label>
-        <select
+        <Segmentado
           id="ocr-mode"
-          aria-describedby="ajuda-ocr"
-          bind:value={config.ocr_mode}
-          on:change={() => handleSave('ocr')}
+          legenda="Processamento de Imagens (OCR)"
+          idAjuda="ajuda-ocr"
+          opcoes={OPCOES_OCR}
+          bind:valor={config.ocr_mode}
+          bind:previa={previaOcr}
+          aoMudar={() => handleSave('ocr')}
         >
-          <option value="none">Desativado</option>
-          <option value="fast">Rápido</option>
-          <option value="normal">Normal</option>
-          <option value="best">Preciso</option>
-        </select>
-        <p class="help-text" id="ajuda-ocr">{AJUDA_OCR[config.ocr_mode] ?? ''}</p>
+          <svelte:fragment slot="legenda"><Salvo campo="ocr" {confirmado} /></svelte:fragment>
+        </Segmentado>
+        <p class="help-text" id="ajuda-ocr">{AJUDA_OCR[previaOcr ?? config.ocr_mode] ?? ''}</p>
       </div>
 
       <div class="form-group">
-        <label for="cleaning-level">
-          Higienização de texto
-          <Salvo campo="limpeza" {confirmado} />
-        </label>
-        <select
+        <Segmentado
           id="cleaning-level"
-          aria-describedby="ajuda-limpeza"
-          bind:value={config.cleaning_level}
-          on:change={() => handleSave('limpeza')}
+          legenda="Higienização de texto"
+          idAjuda="ajuda-limpeza"
+          opcoes={OPCOES_LIMPEZA}
+          bind:valor={config.cleaning_level}
+          bind:previa={previaLimpeza}
+          aoMudar={() => handleSave('limpeza')}
         >
-          <option value="none">Nenhuma</option>
-          <option value="basic">Básica</option>
-          <option value="standard">Padrão</option>
-          <option value="aggressive">Máxima</option>
-        </select>
-        <p class="help-text" id="ajuda-limpeza">{AJUDA_LIMPEZA[config.cleaning_level] ?? ''}</p>
+          <svelte:fragment slot="legenda"><Salvo campo="limpeza" {confirmado} /></svelte:fragment>
+        </Segmentado>
+        <p class="help-text" id="ajuda-limpeza">{AJUDA_LIMPEZA[previaLimpeza ?? config.cleaning_level] ?? ''}</p>
       </div>
 
       <div class="form-group">
@@ -345,19 +343,6 @@
   input[type="text"].inactive {
     color: var(--text-secondary);
     font-style: italic;
-  }
-
-  select {
-    padding: 6px 10px;
-    border: 1px solid var(--border-strong);
-    border-radius: 4px;
-    background-color: var(--bg-main);
-    color: var(--text-primary);
-    font-size: var(--fs-base);
-    cursor: pointer;
-    font-family: inherit;
-    width: 100%;
-    min-width: 0;
   }
 
   button {

@@ -120,7 +120,7 @@ test('trilho do interruptor e bordas de campos usam --border-strong', () => {
   const s = estilo(settings);
   assert.match(regra(s, '.slider'), /background-color:\s*var\(--border-strong\)/);
   assert.match(regra(s, 'input[type="text"]'), /border:\s*1px solid var\(--border-strong\)/);
-  assert.match(regra(s, 'select'), /border:\s*1px solid var\(--border-strong\)/);
+  assert.match(regra(estilo(ler('src', 'components', 'Segmentado.svelte')), '.faixa'), /border:\s*1px solid var\(--border-strong\)/);
   assert.match(regra(estilo(lista), '.search-input'), /border:\s*1px solid var\(--border-strong\)/);
 });
 
