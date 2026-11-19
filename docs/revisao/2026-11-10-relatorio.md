@@ -112,7 +112,58 @@ Status: pendente
 - **Veredito:** rebaixado
 - **Justificativa do cético:** Confirmei `-png -r 150` em internal/ocr/tesseract.go:242 e o sufixo `.png` na linha 436, e medi de novo com os binários de %TEMP%\eprocIA_bin sobre o esc12.pdf (6 rodadas, 12 páginas): PNG 4,4-5,2 s, PGM 0,80-0,94 s, PPM 1,2-1,9 s; o tesseract devolveu texto idêntico (`cmp`) com `--dpi 150` nos modos fast e normal. A economia medida é de ~0,33 s por página (não 0,5 s), o que dá ~11% no fast mas ~7% no modo padrão do app (`normal`, ~4,4 s/página em config.go:41), e o temporário cresce de 52 KB para 2,2 MB por página com todas as páginas do bloco renderizadas antes do tesseract: ganho real de custo P, mas gravidade média.
 
-Status: pendente
+Status: feito. Commit `e67cdd3985c690933e9a1867c68d9bbababf8fd4`.
+
+Benchstat (-count=10):
+
+```
+                                  │    antes     │               depois                │
+                                  │    sec/op    │   sec/op     vs base                │
+Sintetico/ocr=none-12               80.68m ±  6%   80.62m ± 2%        ~ (p=0.481 n=10)
+ParsePDF/nativo-12                  1.128m ±  6%   1.134m ± 9%        ~ (p=0.481 n=10)
+ParsePDF/escaneado-12               229.4µ ± 12%   232.0µ ± 9%        ~ (p=0.971 n=10)
+ParsePDF/vetorial-12                15.09m ± 12%   15.15m ± 9%        ~ (p=0.912 n=10)
+ParsePDF/contents-array-12          242.5µ ±  3%   246.4µ ± 6%        ~ (p=0.143 n=10)
+Sintetico/ocr=fast-12                2.355 ±  2%    2.133 ± 1%   -9.44% (p=0.000 n=10)
+Sintetico/escaneado24/ocr=fast-12    6.381 ±  1%    5.664 ± 1%  -11.23% (p=0.000 n=10)
+geomean                             19.69m         19.18m        -2.58%
+
+                                  │ gc-pausa-sec/op │ gc-pausa-sec/op  vs base                │
+Sintetico/ocr=none-12                 5.410m ±  13%     5.582m ±  29%       ~ (p=0.393 n=10)
+Sintetico/ocr=fast-12                 7.409m ±  22%     7.068m ±  27%       ~ (p=0.853 n=10)
+Sintetico/escaneado24/ocr=fast-12     1.099m ± 649%     1.216m ± 123%       ~ (p=0.837 n=7+9)
+
+                                  │  pico-mem-B   │  pico-mem-B    vs base               │
+Sintetico/ocr=none-12               23.14Mi ± 18%   23.24Mi ±  1%       ~ (p=1.000 n=10)
+Sintetico/ocr=fast-12               23.22Mi ± 17%   22.97Mi ± 17%       ~ (p=0.171 n=10)
+Sintetico/escaneado24/ocr=fast-12   71.35Mi ±  6%   67.48Mi ±  5%       ~ (p=0.059 n=10)
+
+                                  │   procs/op   │  procs/op   vs base                 │
+Sintetico/ocr=none-12               0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+Sintetico/ocr=fast-12               10.00 ± 0%     10.00 ± 0%       ~ (p=1.000 n=10) ¹
+Sintetico/escaneado24/ocr=fast-12   16.00 ± 0%     16.00 ± 0%       ~ (p=1.000 n=10) ¹
+
+                                  │     B/op     │     B/op      vs base               │
+Sintetico/ocr=none-12               21.92Mi ± 0%   21.91Mi ± 0%       ~ (p=0.165 n=10)
+ParsePDF/nativo-12                  318.8Ki ± 0%   318.8Ki ± 0%       ~ (p=0.671 n=10)
+ParsePDF/escaneado-12               59.82Ki ± 0%   59.82Ki ± 0%       ~ (p=0.983 n=10)
+ParsePDF/vetorial-12                2.585Mi ± 0%   2.585Mi ± 0%       ~ (p=0.436 n=10)
+ParsePDF/contents-array-12          71.20Ki ± 0%   71.20Ki ± 0%       ~ (p=0.326 n=10)
+Sintetico/ocr=fast-12               23.99Mi ± 1%   24.02Mi ± 1%       ~ (p=0.481 n=10)
+Sintetico/escaneado24/ocr=fast-12   4.986Mi ± 1%   4.983Mi ± 2%       ~ (p=0.684 n=10)
+
+                                  │  allocs/op  │  allocs/op   vs base                 │
+Sintetico/ocr=none-12               423.8k ± 0%   423.8k ± 0%       ~ (p=0.912 n=10)
+ParsePDF/nativo-12                  2.748k ± 0%   2.748k ± 0%       ~ (p=1.000 n=10) ¹
+ParsePDF/escaneado-12               404.0 ± 0%    404.0 ± 0%       ~ (p=1.000 n=10) ¹
+ParsePDF/vetorial-12                156.8k ± 0%   156.8k ± 0%       ~ (p=0.912 n=10)
+ParsePDF/contents-array-12          531.0 ± 0%    531.0 ± 0%       ~ (p=1.000 n=10) ¹
+Sintetico/ocr=fast-12               430.6k ± 0%   430.6k ± 0%       ~ (p=0.912 n=10)
+Sintetico/escaneado24/ocr=fast-12   17.67k ± 0%   17.68k ± 0%       ~ (p=0.481 n=10)
+¹ all samples are equal
+```
+
+Capturas: não se aplica (correção de backend).
 
 ### F-AC-02 — Texto colorido de 11px abaixo de 4,5:1 na fila e no painel de atividade
 
@@ -169,7 +220,63 @@ Status: pendente
 - **Veredito:** mantido
 - **Justificativa do cético:** Confirmei as três chamadas de `linhasBasicas` por página (formatter.go:88, 140 e 275) e o Map+Fields+Join por linha (higienizacao.go:49-58); no meu benchmark cada passada custa 63-108 ms e 97.000 alocações por 1000 páginas, contra 384-444 ms do formatador no nível padrão, e o caminho rápido do protótipo fica em 27-31 ms com 1.000 alocações e saída igual. O ganho relativo alegado (~-40% do formatador) se confirma; em valor absoluto são ~0,2 s por 1000 páginas, sem efeito em ZIP dominado por OCR.
 
-Status: pendente
+Status: feito. Commit `a424513bf8aa7c374bc11a2c72bc0b727773de19`.
+
+Benchstat (-count=10):
+
+```
+pkg: eprocia/internal/etl
+                                         base          novo
+sec/op
+GenerateConsolidatedOutput/standard-12    347.3m ± 12%  182.8m ± 22%  -47.38% (p=0.000 n=10)
+GenerateConsolidatedOutput/aggressive-12  506.7m ± 14%  315.0m ± 27%  -37.83% (p=0.000 n=10)
+B/op
+GenerateConsolidatedOutput/standard-12    66.20Mi ± 0%  37.92Mi ± 0%  -42.72% (p=0.000 n=10)
+GenerateConsolidatedOutput/aggressive-12  67.04Mi ± 0%  38.73Mi ± 0%  -42.23% (p=0.000 n=10)
+allocs/op
+GenerateConsolidatedOutput/standard-12    393.0k ± 0%   139.3k ± 0%   -64.56% (p=0.000 n=10)
+GenerateConsolidatedOutput/aggressive-12  398.7k ± 0%   145.1k ± 0%   -63.62% (p=0.000 n=10)
+
+pkg: eprocia/scripts/bench
+sec/op
+Sintetico/ocr=none-12              151.1m ± 10%  125.6m ± 15%  -16.86% (p=0.001 n=10)
+ParsePDF/nativo-12                 1.225m ± 12%  1.184m ± 16%  ~ (p=0.853 n=10)
+ParsePDF/escaneado-12              292.4µ ± 31%  296.8µ ± 11%  ~ (p=0.393 n=10)
+ParsePDF/vetorial-12               26.96m ± 23%  24.88m ± 30%  ~ (p=0.353 n=10)
+ParsePDF/contents-array-12         252.0µ ± 21%  255.6µ ± 12%  ~ (p=0.853 n=10)
+Sintetico/ocr=fast-12              2.431 ± 8%    2.452 ± 4%    ~ (p=0.971 n=10)
+Sintetico/escaneado24/ocr=fast-12  6.380 ± 7%    6.353 ± 9%    ~ (p=0.739 n=10)
+B/op
+Sintetico/ocr=none-12              29.10Mi ± 0%  25.53Mi ± 0%  -12.25% (p=0.000 n=10)
+ParsePDF/nativo-12                 318.8Ki ± 0%  318.8Ki ± 0%  ~ (p=0.288 n=10)
+ParsePDF/escaneado-12              78.64Ki ± 0%  78.64Ki ± 0%  ~ (p=0.396 n=10)
+ParsePDF/vetorial-12               4.388Mi ± 0%  4.388Mi ± 0%  ~ (p=0.247 n=10)
+ParsePDF/contents-array-12         71.19Ki ± 0%  71.20Ki ± 0%  +0.00% (p=0.029 n=10)
+Sintetico/ocr=fast-12              31.18Mi ± 0%  27.68Mi ± 0%  -11.23% (p=0.000 n=10)
+Sintetico/escaneado24/ocr=fast-12  5.665Mi ± 2%  5.315Mi ± 2%  -6.17% (p=0.000 n=10)
+allocs/op
+Sintetico/ocr=none-12              656.1k ± 0%  633.0k ± 0%  -3.52% (p=0.000 n=10)
+ParsePDF/nativo-12                 2.748k ± 0%  2.748k ± 0%  ~ (p=1.000 n=10)
+ParsePDF/escaneado-12              503.0 ± 0%   503.0 ± 0%   ~ (p=1.000 n=10)
+ParsePDF/vetorial-12               261.2k ± 0%  261.2k ± 0%  ~ (p=0.725 n=10)
+ParsePDF/contents-array-12         531.0 ± 0%   531.0 ± 0%   ~ (p=1.000 n=10)
+Sintetico/ocr=fast-12              663.0k ± 0%  639.8k ± 0%  -3.50% (p=0.000 n=10)
+Sintetico/escaneado24/ocr=fast-12  22.14k ± 0%  20.06k ± 0%  -9.37% (p=0.000 n=10)
+gc-pausa-sec/op
+Sintetico/ocr=none-12              5.902m ± 49%  6.974m ± 24%  ~ (p=0.796 n=10)
+Sintetico/ocr=fast-12              9.232m ± 32%  7.367m ± 27%  ~ (p=0.075 n=10)
+Sintetico/escaneado24/ocr=fast-12  1.648m ± 66%  1.878m ± 41%  ~ (p=0.931 n=9)
+pico-mem-B
+Sintetico/ocr=none-12              23.36Mi ± 16%  23.11Mi ± 1%  ~ (p=0.265 n=10)
+Sintetico/ocr=fast-12              23.14Mi ± 16%  23.10Mi ± 1%  ~ (p=0.434 n=10)
+Sintetico/escaneado24/ocr=fast-12  69.14Mi ± 3%   70.98Mi ± 5%  ~ (p=0.867 n=10)
+procs/op
+Sintetico/ocr=none-12              0.000 ± 0%  0.000 ± 0%  ~ (p=1.000 n=10)
+Sintetico/ocr=fast-12              10.00 ± 0%  10.00 ± 0%  ~ (p=1.000 n=10)
+Sintetico/escaneado24/ocr=fast-12  16.00 ± 0%  16.00 ± 0%  ~ (p=1.000 n=10)
+```
+
+Capturas: não se aplica (correção de backend).
 
 ### F-AC-04 — Foco cai no body ao fechar ou confirmar o painel Reprocessar
 
@@ -443,7 +550,55 @@ Status: pendente
 - **Veredito:** mantido
 - **Justificativa do cético:** Confirmei em pdf_parser.go:608-625 que o texto posicional vazio sem erro cai em `GetTextByRow`, que trata os mesmos operadores de mostrar texto (Tj, TJ, ', ") que `extrairTextoPosicional` (page.go:712-749 da dslipak v0.0.2), então a segunda passada não acha nada novo. Reproduzi: em vetorial.pdf `GetTextByRow` custa 9,2-10 ms e 104.376 alocações dos 24-36 ms de `ExtractNativeText`, em escaneado.pdf 20-23 us de 50-56 us, e no perfil do revisor soma 1,09 s de 11,91 s (9,15%); o ganho real é pequeno (páginas vetoriais são raras e seguem para o OCR), como a gravidade baixa já diz.
 
-Status: pendente
+Status: feito. Commit `c605d582b042704ed65dd9316cf6501154168069`.
+
+Benchstat (-count=10):
+
+```
+Rodada principal (-count=10, base b03266d vs árvore atual):
+sec/op
+Sintetico/ocr=none-12              96.10m ±  7%   75.38m ± 6%  -21.57% (p=0.000 n=10)
+ParsePDF/nativo-12                 1.129m ±  3%   1.148m ± 5%        ~ (p=0.123 n=10)
+ParsePDF/escaneado-12              294.7µ ± 11%   233.5µ ± 2%  -20.77% (p=0.000 n=10)
+ParsePDF/vetorial-12               25.43m ±  6%   14.71m ± 2%  -42.13% (p=0.000 n=10)
+ParsePDF/contents-array-12         250.3µ ±  3%   251.3µ ± 3%        ~ (p=0.853 n=10)
+Sintetico/ocr=fast-12               2.292 ±  2%    2.291 ± 3%        ~ (p=0.684 n=10)
+Sintetico/escaneado24/ocr=fast-12   6.322 ±  1%    6.314 ± 1%        ~ (p=0.739 n=10)
+gc-pausa-sec/op
+Sintetico/ocr=none-12              4.884m ±  19%  4.991m ±  13%        ~ (p=0.579 n=10)
+Sintetico/ocr=fast-12              5.334m ±  39%  7.404m ±  36%  +38.81% (p=0.029 n=10)
+Sintetico/escaneado24/ocr=fast-12 1497.0µ ± 106%  820.7µ ± 199%        ~ (p=0.328 n=8)
+pico-mem-B
+Sintetico/ocr=none-12              27.49Mi ± 16%  23.36Mi ± 0%  -15.01% (p=0.015 n=10)
+Sintetico/ocr=fast-12              23.11Mi ±  0%  23.36Mi ± 0%   +1.08% (p=0.000 n=10)
+Sintetico/escaneado24/ocr=fast-12  71.11Mi ±  0%  71.36Mi ± 0%   +0.35% (p=0.000 n=10)
+procs/op: 0 / 10 / 16 iguais (~ p=1.000)
+B/op
+Sintetico/ocr=none-12              25.56Mi ± 0%  21.90Mi ± 0%  -14.32% (p=0.000 n=10)
+ParsePDF/nativo-12                 318.8Ki ± 0%  318.8Ki ± 0%        ~ (p=0.446 n=10)
+ParsePDF/escaneado-12              78.65Ki ± 0%  59.83Ki ± 0%  -23.93% (p=0.000 n=10)
+ParsePDF/vetorial-12               4.388Mi ± 0%  2.585Mi ± 0%  -41.11% (p=0.000 n=10)
+ParsePDF/contents-array-12         71.21Ki ± 0%  71.21Ki ± 0%        ~ (p=0.131 n=10)
+Sintetico/ocr=fast-12              27.49Mi ± 1%  23.87Mi ± 0%  -13.16% (p=0.000 n=10)
+Sintetico/escaneado24/ocr=fast-12  5.356Mi ± 3%  4.892Mi ± 3%   -8.66% (p=0.000 n=10)
+allocs/op
+Sintetico/ocr=none-12               632.8k ± 0%   423.7k ± 0%  -33.05% (p=0.000 n=10)
+ParsePDF/nativo-12                  2.748k ± 0%   2.748k ± 0%        ~ (p=1.000 n=10)
+ParsePDF/escaneado-12                503.0 ± 0%    404.0 ± 0%  -19.68% (p=0.000 n=10)
+ParsePDF/vetorial-12                261.2k ± 0%   156.8k ± 0%  -39.97% (p=0.000 n=10)
+ParsePDF/contents-array-12           531.0 ± 0%    531.0 ± 0%        ~ (p=1.000 n=10)
+Sintetico/ocr=fast-12               638.1k ± 0%   429.0k ± 0%  -32.77% (p=0.000 n=10)
+Sintetico/escaneado24/ocr=fast-12   20.07k ± 0%   17.67k ± 0%  -11.97% (p=0.000 n=10)
+
+Nova rodada só de Sintetico/ocr=fast (-count=10):
+sec/op           2.341 ± 2%     2.310 ± 1%         ~ (p=0.165 n=10)
+gc-pausa-sec/op  6.491m ± 18%   4.972m ± 40%  -23.40% (p=0.043 n=10)
+pico-mem-B       23.36Mi ± 17%  23.11Mi ± 0%       ~ (p=0.449 n=10)
+B/op             27.47Mi ± 1%   23.88Mi ± 1%  -13.08% (p=0.000 n=10)
+allocs/op        638.1k ± 0%    429.0k ± 0%   -32.78% (p=0.000 n=10)
+```
+
+Capturas: não se aplica (correção de backend).
 
 ### F-DF-02 — Todas as linhas da fila entram no layout a cada quadro do arrasto do divisor; não há content-visibility nem janela
 
@@ -580,7 +735,90 @@ Status: pendente
 - **Justificativa do cético:** As regex sem pré-filtro existem (formatter.go:73 e 177, higienizacao.go:322 e 359-362) e reproduzi `filtrosPorLinha` 92-130 ms contra 36-45 ms com pré-filtro e `paginaCertificado` 102-140 ms, mas isso só vale no nível Máxima: no padrão, `pageMarkerRegex || linhaSoSimbolos` custa 34-45 ms e o pré-filtro 30-40 ms (ganho dentro do ruído), restando só o `normalizeEdgeLine`. Além disso dois pré-filtros propostos mudam a regra, ao contrário do que o achado afirma: `len(l) <= 4` deixa de pegar `"ﬁﬁ"` (6 bytes, `linhaLetraSolta` = true hoje) e `ContainsAny(l, "$%")` passa a casar `"$ 100 pagos"`, que `valorEdgeRegex` não casa.
 - **Nota da síntese:** Atenção do cético: dois dos pré-filtros propostos mudam a regra (`len(l) <= 4` e `ContainsAny(l, "$%")`). A correção precisa de pré-filtros estritamente equivalentes, com caso de teste para cada contraexemplo citado na justificativa.
 
-Status: pendente
+Status: feito. Commit `b03266dbc672ef6e8ee0f34abe1fe88b39c6c94d`.
+
+Benchstat (-count=10):
+
+```
+goos: windows
+goarch: amd64
+pkg: eprocia/internal/etl
+cpu: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz
+                                         │  antes.txt  │              depois.txt              │
+                                         │   sec/op    │    sec/op     vs base                │
+GenerateConsolidatedOutput/standard-12     181.1m ± 4%   113.6m ± 11%  -37.28% (p=0.000 n=10)
+GenerateConsolidatedOutput/aggressive-12   314.5m ± 7%   151.5m ±  3%  -51.84% (p=0.000 n=10)
+geomean                                    238.7m        131.2m        -45.04%
+
+                                         │  antes.txt   │             depois.txt              │
+                                         │     B/op     │     B/op      vs base               │
+GenerateConsolidatedOutput/standard-12     37.89Mi ± 0%   37.97Mi ± 0%  +0.21% (p=0.000 n=10)
+GenerateConsolidatedOutput/aggressive-12   38.72Mi ± 0%   38.81Mi ± 0%  +0.22% (p=0.001 n=10)
+geomean                                    38.30Mi        38.39Mi       +0.22%
+
+                                         │  antes.txt  │             depois.txt             │
+                                         │  allocs/op  │  allocs/op   vs base               │
+GenerateConsolidatedOutput/standard-12     139.3k ± 0%   139.2k ± 0%  -0.02% (p=0.000 n=10)
+GenerateConsolidatedOutput/aggressive-12   145.1k ± 0%   145.1k ± 0%       ~ (p=0.342 n=10)
+geomean                                    142.1k        142.1k       -0.01%
+
+pkg: eprocia/scripts/bench
+                                  │   antes.txt   │              depois.txt              │
+                                  │    sec/op     │    sec/op     vs base                │
+Sintetico/ocr=none-12               126.98m ±  7%   96.03m ±  4%  -24.37% (p=0.000 n=10)
+ParsePDF/nativo-12                   1.111m ±  7%   1.108m ±  4%        ~ (p=0.971 n=10)
+ParsePDF/escaneado-12                272.3µ ± 12%   277.6µ ±  3%        ~ (p=0.143 n=10)
+ParsePDF/vetorial-12                 24.79m ±  8%   25.25m ±  4%        ~ (p=0.063 n=10)
+ParsePDF/contents-array-12           239.6µ ± 11%   251.6µ ± 12%        ~ (p=0.280 n=10)
+Sintetico/ocr=fast-12                 2.411 ±  3%    2.365 ±  2%        ~ (p=0.247 n=10)
+Sintetico/escaneado24/ocr=fast-12     6.294 ±  1%    6.377 ±  1%        ~ (p=0.075 n=10)
+geomean                              23.05m         22.40m         -2.83%
+
+                                  │  antes.txt   │             depois.txt              │
+                                  │     B/op     │     B/op      vs base               │
+Sintetico/ocr=none-12               25.57Mi ± 0%   25.56Mi ± 0%       ~ (p=0.912 n=10)
+ParsePDF/nativo-12                  318.8Ki ± 0%   318.8Ki ± 0%       ~ (p=0.171 n=10)
+ParsePDF/escaneado-12               78.64Ki ± 0%   78.64Ki ± 0%       ~ (p=0.617 n=10)
+ParsePDF/vetorial-12                4.388Mi ± 0%   4.388Mi ± 0%  +0.00% (p=0.035 n=10)
+ParsePDF/contents-array-12          71.20Ki ± 0%   71.20Ki ± 0%       ~ (p=0.241 n=10)
+Sintetico/ocr=fast-12               27.58Mi ± 1%   27.61Mi ± 1%       ~ (p=0.631 n=10)
+Sintetico/escaneado24/ocr=fast-12   5.443Mi ± 3%   5.365Mi ± 3%       ~ (p=0.393 n=10)
+geomean                             1.610Mi        1.607Mi       -0.19%
+
+                                  │  antes.txt  │  depois.txt                          │
+                                  │  allocs/op  │  allocs/op   vs base                 │
+Sintetico/ocr=none-12               633.0k ± 0%   632.9k ± 0%  -0.01% (p=0.000 n=10)
+ParsePDF/nativo-12                  2.748k ± 0%   2.748k ± 0%       ~ (p=1.000 n=10) ¹
+ParsePDF/escaneado-12                503.0 ± 0%    503.0 ± 0%       ~ (p=1.000 n=10) ¹
+ParsePDF/vetorial-12                261.2k ± 0%   261.2k ± 0%       ~ (p=1.000 n=10)
+ParsePDF/contents-array-12           531.0 ± 0%    531.0 ± 0%       ~ (p=1.000 n=10) ¹
+Sintetico/ocr=fast-12               639.8k ± 0%   639.7k ± 0%       ~ (p=0.579 n=10)
+Sintetico/escaneado24/ocr=fast-12   20.07k ± 0%   20.06k ± 0%       ~ (p=0.912 n=10)
+geomean                             20.57k        20.57k       -0.01%
+¹ all samples are equal
+
+                                  │    antes.txt    │                depois.txt                 │
+                                  │ gc-pausa-sec/op │ gc-pausa-sec/op  vs base                  │
+Sintetico/ocr=none-12                 5.618m ±  32%      6.260m ± 21%        ~ (p=0.315 n=10)
+Sintetico/ocr=fast-12                 7.628m ±  36%      6.867m ± 23%        ~ (p=0.853 n=10)
+Sintetico/escaneado24/ocr=fast-12     2.113m ± 115%      1.429m ± 87%        ~ (p=0.274 n=10+8)
+geomean                               4.490m             3.946m        -12.13%
+
+                                  │  antes.txt   │              depois.txt               │
+                                  │  pico-mem-B  │  pico-mem-B    vs base                │
+Sintetico/ocr=none-12               23.36Mi ± 1%   23.11Mi ±  1%        ~ (p=0.488 n=10)
+Sintetico/ocr=fast-12               23.22Mi ± 1%   19.35Mi ± 21%  -16.65% (p=0.030 n=10)
+Sintetico/escaneado24/ocr=fast-12   71.23Mi ± 5%   67.11Mi ±  6%        ~ (p=0.195 n=10)
+geomean                             33.81Mi        31.08Mi         -8.07%
+
+                                  │  antes.txt   │             depois.txt              │
+                                  │   procs/op   │  procs/op   vs base                 │
+Sintetico/ocr=none-12               0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+Sintetico/ocr=fast-12               10.00 ± 0%     10.00 ± 0%       ~ (p=1.000 n=10) ¹
+Sintetico/escaneado24/ocr=fast-12   16.00 ± 0%     16.00 ± 0%       ~ (p=1.000 n=10) ¹
+```
+
+Capturas: não se aplica (correção de backend).
 
 ### F-AC-13 — Omitir tipos: campo de texto livre que exige lembrar os códigos e aceita qualquer coisa sem aviso
 
@@ -760,6 +998,21 @@ Status: pendente
 - **Justificativa do cético:** Confirmado que cancelar, remover, abrir pasta (ProcessList.svelte:395-453, 483-490) e a lixeira de Settings.svelte:163 têm só title, que não há role="list" e que o erro por documento fica cortado em .doc-erro com o texto inteiro apenas no title (AtividadeItem.svelte:96, 296-303). Porém o title já serve de nome acessível para o leitor de tela, então a afirmação de botões sem nome é exagerada; sobra descumprimento da convenção de aria-label do DESIGN.md:20 e falta de dica no foco por teclado: baixa.
 
 Status: pendente
+
+## Revisão final da branch
+
+go vet ./... passou (exit 0). go test ./... -count=1 passou (exit 0). Nenhum .zip, .pdf ou .txt de saída foi commitado entre 05e7e7f e HEAD. As mensagens novas de log e de teste estão em pt-BR. Encontrei 4 pontos, nenhum bloqueante:
+
+1. frontend/package.json.md5:1 - o commit B-EF-01 (e67cdd3) levou ruído do `wails build`: o hash mudou e o package.json não. O CLAUDE.md manda reverter esse ruído.
+2. internal/etl/formatter.go:128 - `repeatedEdgeLines(pages []string)` virou código morto em produção. O GenerateConsolidatedOutput agora usa `repeatedEdgeLinesDe`, e o único chamador restante é teste (formatter_test.go:335, higienizacao_test.go:371).
+3. internal/etl/pdf_parser.go:543 - mudança de comportamento do B-EF-03, provável, não confirmada:
+   - Antes, uma página de /Contents único sem texto nativo caía no GetTextByRow, que zerava as métricas (`valida=false`).
+   - Agora, com `opsTexto==0`, ela volta com as métricas válidas, e a `regraNova` (motivoImagemDescoberta) pode mandar ao OCR uma página que antes não ia. Exemplo: imagem com fDesc >= 0,30 mas com 100 px ou menos de lado, que o `HasImages` não conta.
+   - Se esse OCR falhar, a página fica com o texto nativo vazio mais o `ocr_aviso`, sem `ocr_erro`.
+   - Raro, mas é uma interação nova com as regras de OCR para páginas com texto nativo (as das métricas da página).
+4. internal/ocr/prazo_test.go:50 - sobrou o nome "p-1.png" depois da troca para PGM no B-EF-01. É inofensivo (o teste não lê o arquivo), mas está desatualizado.
+
+As outras mudanças não têm diferença de comportamento que eu tenha achado: linhaLimpa/linhasBasicas, temValorEdge, marcadorPagina, tituloCertificado/campoCertificado, o corte de runas em linhaLetraSolta e o cálculo das linhas uma vez só em prepararLinhas (H7, bordas repetidas e limpeza).
 
 ## Capturas
 
