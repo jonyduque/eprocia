@@ -271,7 +271,13 @@ func prepararFerramentas(mode string) (ferramentas, error) {
 	return f, nil
 }
 
-// renderizar grava em dir as páginas primeira..ultima como p-<n>.png.
+// dpiRender é a resolução das imagens do pdftoppm. O PGM não guarda a
+// resolução, então o tesseract a recebe por --dpi.
+const dpiRender = "150"
+
+// renderizar grava em dir as páginas primeira..ultima como p-<n>.pgm. O PGM
+// sai sem compressão: o PNG gastava cerca de 0,5 s por página só para
+// codificar o que o tesseract decodifica em seguida.
 func (f ferramentas) renderizar(ctx context.Context, pdfPath, dir string, primeira, ultima int) error {
 	log.Printf("[OCR] Executando pdftoppm para as páginas %d a %d do PDF %s...", primeira, ultima, pdfPath)
 	prazo := prazoDe(prazoRenderBase, prazoRenderPorPagina, ultima-primeira+1)
@@ -279,8 +285,8 @@ func (f ferramentas) renderizar(ctx context.Context, pdfPath, dir string, primei
 		cmd := exec.CommandContext(ctx, f.pdftoppm,
 			"-f", strconv.Itoa(primeira),
 			"-l", strconv.Itoa(ultima),
-			"-png",
-			"-r", "150",
+			"-gray",
+			"-r", dpiRender,
 			pdfPath,
 			filepath.Join(dir, "p"),
 		)
@@ -405,7 +411,7 @@ func (f ferramentas) reconhecer(ctx context.Context, dir, entrada string, pagina
 	}
 
 	log.Printf("[OCR] Executando tesseract no idioma 'por'...")
-	texto, err := rodar("-l", "por")
+	texto, err := rodar("--dpi", dpiRender, "-l", "por")
 	if err != nil && (errors.Is(err, ErrPrazo) || ctx.Err() != nil) {
 		// O fallback esgotaria o prazo de novo, ou já não tem para quem voltar.
 		log.Printf("[OCR] Tesseract em português interrompido: %v", err)
@@ -413,7 +419,7 @@ func (f ferramentas) reconhecer(ctx context.Context, dir, entrada string, pagina
 	}
 	if err != nil {
 		log.Printf("[OCR] Tesseract em português falhou: %v. Tentando inglês como fallback...", err)
-		texto, err = rodar()
+		texto, err = rodar("--dpi", dpiRender)
 		if err != nil {
 			log.Printf("[OCR] Tesseract fallback (inglês) falhou: %v", err)
 			return "", fmt.Errorf("falha no tesseract embutido: %w", err)
@@ -476,7 +482,7 @@ func ocrPaginas(ctx context.Context, pdfPath string, paginas []int, mode string,
 	}
 
 	// O pdftoppm completa o número com zeros conforme o total de páginas do
-	// PDF (p-1.png, p-01.png...), então o nome é lido de volta do diretório.
+	// PDF (p-1.pgm, p-01.pgm...), então o nome é lido de volta do diretório.
 	entradas, err := os.ReadDir(tempDir)
 	if err != nil {
 		return nil, fmt.Errorf("falha ao ler a pasta temporária do OCR: %w", err)
@@ -484,7 +490,7 @@ func ocrPaginas(ctx context.Context, pdfPath string, paginas []int, mode string,
 	porPagina := make(map[int]string, len(entradas))
 	for _, e := range entradas {
 		num, ok := strings.CutPrefix(e.Name(), "p-")
-		if num, ok2 := strings.CutSuffix(num, ".png"); ok && ok2 {
+		if num, ok2 := strings.CutSuffix(num, ".pgm"); ok && ok2 {
 			if n, err := strconv.Atoi(num); err == nil {
 				porPagina[n] = e.Name()
 			}
