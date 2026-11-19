@@ -943,6 +943,8 @@
   }
   .painel-aviso {
     flex-shrink: 0;
+    /* o Aviso já traz 8px de margem lateral: +4px fecham a guia de 12px */
+    padding: 0 4px;
   }
 
   .sidebar.collapsed .painel-aviso {
