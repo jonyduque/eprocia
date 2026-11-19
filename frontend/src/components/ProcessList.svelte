@@ -45,7 +45,8 @@
   import { cubicOut } from 'svelte/easing';
   import { estadoItem, avisoFila } from '../lib/estado.js';
   import { criarAviso, duracaoMovimento, DUR_FAST, DUR_BASE } from '../lib/aviso.js';
-  import { aplicarReprocessarComOCR } from '../lib/reprocessar.js';
+  import { aplicarReprocessarComOCR, alvoAoFecharReprocessar } from '../lib/reprocessar.js';
+  import { dica } from '../lib/dica.js';
   import { rotuloNaoLidos, avisoCopiaNaoLidos, tituloNaoLidos } from '../lib/naoLidos.js';
   import { rolagem } from '../lib/rolagem.js';
   import { marcosFila, anuncioCopia, anuncioPausa, anuncioFiltro } from '../lib/anuncios.js';
@@ -59,7 +60,8 @@
     textoConfirmarLimpeza,
     abreviarContagem,
     nomeExibido,
-    dicaContadores
+    dicaContadores,
+    rotuloAcao
   } from '../lib/fila.js';
 
   export let items = [];
@@ -161,13 +163,18 @@
   let ocrSugerido = {};
   // Muda a cada clique em "Reprocessar com OCR": remonta o formulário.
   let geracaoReprocessar = {};
-  function alternarReprocessar(id) {
-    reprocessarAberto = { ...reprocessarAberto, [id]: !reprocessarAberto[id] };
+  // Botão que abriu o formulário (o da linha ou o do painel de atividade):
+  // fica aqui, e não no formulário, para sobreviver à remontagem pelo {#key}.
+  let origemReprocessar = {};
+  function alternarReprocessar(id, evento) {
+    const abrir = !reprocessarAberto[id];
+    reprocessarAberto = { ...reprocessarAberto, [id]: abrir };
     const { [id]: _, ...resto } = ocrSugerido;
     ocrSugerido = resto;
+    origemReprocessar = { ...origemReprocessar, [id]: abrir ? evento?.currentTarget ?? null : null };
   }
 
-  function reprocessarComOCR(id) {
+  function reprocessarComOCR(id, evento) {
     const r = aplicarReprocessarComOCR({
       aberto: !!reprocessarAberto[id],
       ocr: ocrSugerido[id] ?? '',
@@ -176,12 +183,31 @@
     ocrSugerido = { ...ocrSugerido, [id]: r.ocr };
     geracaoReprocessar = { ...geracaoReprocessar, [id]: r.geracao };
     reprocessarAberto = { ...reprocessarAberto, [id]: r.aberto };
+    origemReprocessar = { ...origemReprocessar, [id]: evento?.currentTarget ?? null };
+  }
+
+  function botaoReprocessarDa(id) {
+    return linhaDe(id)?.querySelector('.actions-col button[data-acao="reprocessar"]') ?? null;
+  }
+
+  // Cancelar e Esc: o formulário desmonta com o foco dentro; sem isto ele cai no body.
+  async function fecharReprocessar(id) {
+    const origem = origemReprocessar[id];
+    alternarReprocessar(id);
+    await tick();
+    (alvoAoFecharReprocessar(origem, botaoReprocessarDa(id)) ?? tituloEl)?.focus();
   }
 
   async function confirmarReprocessar(item, ocr, limpeza) {
     try {
       await ReprocessQueueItem(item.id, ocr, limpeza);
+      // O item volta para a fila e a linha troca Reprocessar por Cancelar quando
+      // o queue:update chegar: o foco espera no Reprocessar e depois vai ao Cancelar.
+      const botao = botaoReprocessarDa(item.id);
+      botao?.focus();
+      guardarFoco(item.id, { currentTarget: botao }, 'cancelar');
       reprocessarAberto = { ...reprocessarAberto, [item.id]: false };
+      origemReprocessar = { ...origemReprocessar, [item.id]: null };
       const { [item.id]: _, ...resto } = atividadesBuscadas;
       atividadesBuscadas = resto;
     } catch (err) {
@@ -198,12 +224,12 @@
   const marcarLista = (e) => (listaRolada = e.acima);
   let focoPendente = null;
 
-  function guardarFoco(id, evento) {
+  function guardarFoco(id, evento, preferida) {
     const botao = evento?.currentTarget ?? null;
     focoPendente = {
       id,
       botao,
-      acao: botao?.dataset?.acao ?? null,
+      acao: preferida ?? botao?.dataset?.acao ?? null,
       idsAntes: filteredItems.map((i) => i.id),
     };
   }
@@ -458,12 +484,13 @@
         <p class="sub-text">ou arraste os ZIPs para a janela</p>
       </div>
     {:else}
-      <div class="items-list" bind:this={listaEl}>
+      <div class="items-list" role="list" bind:this={listaEl}>
         {#each filteredItems as item (item.id)}
           {@const estado = estadoItem(item.status, isPaused)}
           {@const expansivel = temAtividade(estado)}
           <div
             class="item-row {item.status}"
+            role="listitem"
             class:has-progress={estado === 'processando'}
             class:realce={mov.terminou(item.id)}
             data-id={item.id}
@@ -576,8 +603,8 @@
                   class="btn-action btn-cancel"
                   data-acao="cancelar"
                   on:click={(e) => handleCancel(item.id, e)}
-                  title="Cancelar processamento ativo"
-                  aria-label="Cancelar"
+                  use:dica={'Cancelar processamento ativo'}
+                  aria-label={rotuloAcao('Cancelar', item.name)}
                 >
                   <Icone icone={X} tamanho={14} />
                 </button>
@@ -586,8 +613,8 @@
                   class="btn-action btn-cancel"
                   data-acao="cancelar"
                   on:click={(e) => handleCancel(item.id, e)}
-                  title="Cancelar"
-                  aria-label="Cancelar"
+                  use:dica={'Cancelar'}
+                  aria-label={rotuloAcao('Cancelar', item.name)}
                 >
                   <Icone icone={X} tamanho={14} />
                 </button>
@@ -596,9 +623,9 @@
                   <button
                     class="btn-action"
                     data-acao="reprocessar"
-                    on:click={() => alternarReprocessar(item.id)}
-                    title="Reprocessar com outras configurações"
-                    aria-label="Reprocessar"
+                    on:click={(e) => alternarReprocessar(item.id, e)}
+                    use:dica={'Reprocessar com outras configurações'}
+                    aria-label={rotuloAcao('Reprocessar', item.name)}
                     aria-expanded={!!reprocessarAberto[item.id]}
                     aria-controls="reprocessar-{item.id}"
                   >
@@ -609,8 +636,8 @@
                     data-acao="copiar"
                     class:copiado={copiadoId === item.id}
                     on:click={() => handleCopy(item)}
-                    title={copiadoId === item.id ? 'Copiado!' : 'Copiar o TXT para colar na IA'}
-                    aria-label="Copiar o TXT"
+                    use:dica={copiadoId === item.id ? 'Copiado!' : 'Copiar o TXT para colar na IA'}
+                    aria-label={rotuloAcao('Copiar o TXT', item.name)}
                   >
                     {#key copiadoId === item.id}
                       <span class="icone-copiar" in:scale={{ start: 0.6, duration: duracaoMovimento(DUR_FAST), easing: cubicOut }}>
@@ -626,7 +653,8 @@
                     class="btn-action"
                     data-acao="abrir"
                     on:click={() => handleOpenDir(item.output_path)}
-                    title="Abrir pasta contendo o TXT"
+                    use:dica={'Abrir pasta contendo o TXT'}
+                    aria-label={rotuloAcao('Abrir pasta contendo o TXT', item.name)}
                   >
                     <Icone icone={FolderOpen} tamanho={14} />
                   </button>
@@ -634,8 +662,8 @@
                     class="btn-action btn-remove"
                     data-acao="remover"
                     on:click={(e) => handleRemove(item.id, e)}
-                    title="Remover da lista"
-                    aria-label="Remover da lista"
+                    use:dica={'Remover da lista'}
+                    aria-label={rotuloAcao('Remover da lista', item.name)}
                   >
                     <Icone icone={Trash2} tamanho={14} />
                   </button>
@@ -649,10 +677,10 @@
                       class="btn-action btn-detalhes"
                       data-acao="detalhes"
                       on:click={() => alternarDetalhes(item.id)}
-                      aria-label="Ver detalhes do erro"
+                      aria-label={rotuloAcao('Ver detalhes do erro', item.name)}
                       aria-expanded={!!detalhesAbertos[item.id]}
                       aria-controls="erro-detalhe-{item.id}"
-                      title={detalhesAbertos[item.id] ? 'Ocultar detalhes do erro' : 'Ver detalhes do erro'}
+                      use:dica={detalhesAbertos[item.id] ? 'Ocultar detalhes do erro' : 'Ver detalhes do erro'}
                     >
                       <Icone icone={Info} tamanho={14} />
                     </button>
@@ -660,9 +688,9 @@
                   <button
                     class="btn-action"
                     data-acao="reprocessar"
-                    on:click={() => alternarReprocessar(item.id)}
-                    title="Reprocessar com outras configurações"
-                    aria-label="Reprocessar"
+                    on:click={(e) => alternarReprocessar(item.id, e)}
+                    use:dica={'Reprocessar com outras configurações'}
+                    aria-label={rotuloAcao('Reprocessar', item.name)}
                     aria-expanded={!!reprocessarAberto[item.id]}
                     aria-controls="reprocessar-{item.id}"
                   >
@@ -672,8 +700,8 @@
                     class="btn-action btn-remove"
                     data-acao="remover"
                     on:click={(e) => handleRemove(item.id, e)}
-                    title="Remover da lista"
-                    aria-label="Remover da lista"
+                    use:dica={'Remover da lista'}
+                    aria-label={rotuloAcao('Remover da lista', item.name)}
                   >
                     <Icone icone={Trash2} tamanho={14} />
                   </button>
@@ -697,7 +725,7 @@
                 id="atividade-{item.id}"
                 atividade={atividadeDe(item.id, atividades, atividadesBuscadas)}
                 emAndamento={estado === 'processando'}
-                aoReprocessarComOCR={() => reprocessarComOCR(item.id)}
+                aoReprocessarComOCR={(e) => reprocessarComOCR(item.id, e)}
               />
             {/if}
 
@@ -708,7 +736,7 @@
                   ocrInicial={ocrSugerido[item.id] || item.ocr_mode || config?.ocr_mode || 'normal'}
                   limpezaInicial={item.cleaning_level || config?.cleaning_level || 'standard'}
                   aoConfirmar={(ocr, limpeza) => confirmarReprocessar(item, ocr, limpeza)}
-                  aoCancelar={() => alternarReprocessar(item.id)}
+                  aoCancelar={() => fecharReprocessar(item.id)}
                 />
               {/key}
             {/if}
@@ -1465,5 +1493,35 @@
 
   @keyframes spin {
     to { transform: rotate(360deg); }
+  }
+
+  /* Dica dos botões de ícone (src/lib/dica.js): popover na camada superior,
+     fora do overflow: hidden do cartão. Sem pointer-events para não roubar o hover. */
+  :global(.dica) {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    max-width: 280px;
+    padding: 3px 6px;
+    font-size: var(--fs-meta);
+    line-height: 1.3;
+    color: var(--text-primary);
+    background-color: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    box-shadow: var(--shadow-sm);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease-out);
+  }
+
+  :global(.dica.visivel) {
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :global(.dica) {
+      transition: none;
+    }
   }
 </style>

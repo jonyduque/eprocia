@@ -26,6 +26,13 @@ export function nomeExibido(nome) {
   return (nome ?? '').replace(/\.zip$/i, '');
 }
 
+// Nome acessível de um botão de ícone da linha: a ação seguida do arquivo, para
+// o leitor de tela não ouvir N botões "Remover da lista" iguais.
+export function rotuloAcao(acao, nome) {
+  const n = nomeExibido(nome);
+  return n ? `${acao}: ${n}` : acao;
+}
+
 // Dica dos contadores da linha: os números exatos que o selo abrevia.
 export function dicaContadores(item) {
   const n = (v) => FORMATO_EXATO.format(v || 0);

@@ -7,7 +7,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { formatarHora, filtrarItens, alvoFoco, escolherAcao, textoConfirmarLimpeza, contarConcluidos } from './src/lib/fila.js';
+import { formatarHora, filtrarItens, alvoFoco, escolherAcao, textoConfirmarLimpeza, contarConcluidos, rotuloAcao } from './src/lib/fila.js';
+import { alvoAoFecharReprocessar } from './src/lib/reprocessar.js';
 
 const raiz = dirname(fileURLToPath(import.meta.url));
 const ler = (...p) => readFileSync(join(raiz, 'src', ...p), 'utf8').replace(/\r\n/g, '\n');
@@ -194,15 +195,15 @@ test('o X do item que aguarda só cancela e diz isso; a linha cancelada oferece 
   const i = lista.indexOf("{:else if item.status === 'pending'}");
   assert.ok(i >= 0);
   const botao = lista.slice(i, lista.indexOf('</button>', i));
-  assert.match(botao, /title="Cancelar"/);
-  assert.match(botao, /aria-label="Cancelar"/);
+  assert.match(botao, /use:dica=\{'Cancelar'\}/);
+  assert.match(botao, /aria-label=\{rotuloAcao\('Cancelar', item\.name\)\}/);
   assert.match(botao, /handleCancel\(item\.id, e\)/);
   const j = lista.indexOf("{#if item.status === 'processing'}");
-  assert.match(lista.slice(j, lista.indexOf('</button>', j)), /aria-label="Cancelar"/);
+  assert.match(lista.slice(j, lista.indexOf('</button>', j)), /aria-label=\{rotuloAcao\('Cancelar', item\.name\)\}/);
   const k = lista.indexOf('<!-- Error or Cancelled -->');
   const resto = lista.slice(k, lista.indexOf('</div>', k));
   assert.match(resto, /data-acao="reprocessar"/);
-  assert.match(resto, /data-acao="remover"[\s\S]*aria-label="Remover da lista"/);
+  assert.match(resto, /data-acao="remover"[\s\S]*aria-label=\{rotuloAcao\('Remover da lista', item\.name\)\}/);
 });
 
 // --- F-AC-10 ---------------------------------------------------------------
@@ -214,7 +215,7 @@ test('detalhe do erro é um botão com aria-label e aria-expanded', () => {
   const botao = lista.slice(lista.lastIndexOf('<', i), lista.indexOf('</button>', i));
   assert.match(botao, /^<button/);
   assert.match(botao, /type="button"/);
-  assert.match(botao, /aria-label="Ver detalhes do erro"/);
+  assert.match(botao, /aria-label=\{rotuloAcao\('Ver detalhes do erro', item\.name\)\}/);
   assert.match(botao, /aria-expanded=/);
   assert.match(botao, /aria-controls=/);
 });
@@ -242,4 +243,78 @@ test('indicador da barra recolhida é botão com o estado no nome e aria-pressed
   assert.match(ind, /on:click=\{alternarMonitoramento\}/);
   assert.match(app, /<div class="sr-only" role="status" aria-live="polite">\{anuncio\}<\/div>/);
   assert.match(app, /\.sr-only\s*\{[^}]*clip/);
+});
+
+// --- F-AC-04 ---------------------------------------------------------------
+
+test('alvoAoFecharReprocessar volta a quem abriu, senão ao botão da linha', () => {
+  const linha = { isConnected: true, nome: 'linha' };
+  const painel = { isConnected: true, nome: 'painel' };
+  assert.equal(alvoAoFecharReprocessar(painel, linha), painel);
+  assert.equal(alvoAoFecharReprocessar({ isConnected: false }, linha), linha);
+  assert.equal(alvoAoFecharReprocessar(null, linha), linha);
+  assert.equal(alvoAoFecharReprocessar(null, null), null);
+});
+
+test('Reprocessar guarda quem abriu (linha ou painel) e devolve o foco ao fechar ou confirmar', () => {
+  // Botão da linha e "Reprocessar com OCR" do painel passam o evento.
+  const botoes = [...lista.matchAll(/data-acao="reprocessar"\n[\s\S]*?on:click=\{([^}]*)\}/g)].map((m) => m[1]);
+  assert.equal(botoes.length, 2);
+  for (const b of botoes) assert.match(b, /\(e\) => alternarReprocessar\(item\.id, e\)/);
+  assert.match(lista, /aoReprocessarComOCR=\{\(e\) => reprocessarComOCR\(item\.id, e\)\}/);
+  assert.match(funcao(lista, 'reprocessarComOCR'), /origemReprocessar = \{ \.\.\.origemReprocessar, \[id\]: evento\?\.currentTarget/);
+  assert.match(funcao(lista, 'alternarReprocessar'), /origemReprocessar/);
+  // Cancelar e Esc (ReprocessarItem chama aoCancelar nos dois) fecham pelo mesmo caminho.
+  assert.match(lista, /aoCancelar=\{\(\) => fecharReprocessar\(item\.id\)\}/);
+  const fechar = funcao(lista, 'fecharReprocessar');
+  assert.match(fechar, /await tick\(\)[\s\S]*alvoAoFecharReprocessar\(origem, botaoReprocessarDa\(id\)\)[\s\S]*\.focus\(\)/);
+  // Confirmar: o item volta para a fila e a linha troca de botões; o foco vai ao Cancelar.
+  const conf = funcao(lista, 'confirmarReprocessar');
+  assert.match(conf, /guardarFoco\(item\.id, \{ currentTarget: botao \}, 'cancelar'\)/);
+  assert.match(funcao(lista, 'guardarFoco'), /acao: preferida \?\? botao\?\.dataset\?\.acao \?\? null/);
+  const rep = ler('components', 'ReprocessarItem.svelte');
+  assert.match(rep, /e\.key === 'Escape'[\s\S]*aoCancelar\(\)/);
+  assert.match(rep, /class="secundario" on:click=\{aoCancelar\}/);
+});
+
+// --- F-AC-16 ---------------------------------------------------------------
+
+test('rotuloAcao põe o nome do arquivo no nome acessível', () => {
+  assert.equal(rotuloAcao('Remover da lista', '5000000-12.2026.zip'), 'Remover da lista: 5000000-12.2026');
+  assert.equal(rotuloAcao('Cancelar', ''), 'Cancelar');
+  assert.equal(rotuloAcao('Cancelar', undefined), 'Cancelar');
+});
+
+test('botões de ícone da linha têm aria-label com o arquivo e dica própria, sem title', () => {
+  const ini = lista.indexOf('<div class="actions-col">');
+  const fim = lista.indexOf('{#if item.status === \'error\' && detalhesAbertos[item.id]}');
+  const trecho = lista.slice(ini, fim);
+  // A tag termina num > sozinho na linha (o => do on:click não conta).
+  const botoes = trecho.match(/<button\b[\s\S]*?\n\s*>/g) ?? [];
+  assert.equal(botoes.length, 9, 'cancelar x2, reprocessar x2, copiar, abrir, remover x2, detalhes');
+  for (const b of botoes) {
+    assert.match(b, /aria-label=\{rotuloAcao\(/, b);
+    assert.match(b, /item\.name\)\}/, b);
+    assert.match(b, /use:dica=\{/, b);
+    assert.doesNotMatch(b, /\btitle=/, b);
+  }
+  assert.match(lista, /import \{ dica \} from '\.\.\/lib\/dica\.js'/);
+});
+
+test('a fila é uma lista: role list e listitem', () => {
+  assert.match(tag(lista, 'class="items-list"'), /role="list"/);
+  assert.match(tag(lista, 'class="item-row {item.status}"'), /role="listitem"/);
+});
+
+test('erro e detalhe de cada documento aparecem inteiros, com quebra e selecionáveis', () => {
+  const ativ = ler('components', 'AtividadeItem.svelte');
+  const li = tag(ativ, 'class="doc {d.mais');
+  assert.doesNotMatch(li, /d\.erro\}`|d\.detalhe\}`/, 'erro e detalhe não ficam só no title');
+  assert.match(ativ, /<span class="doc-erro"[^>]*>\{d\.erro\}\{#if naoLido\(d\) && d\.detalhe\}<span class="doc-detalhe">\{d\.detalhe\}<\/span>\{\/if\}<\/span>/);
+  const css = regra(estilo(ativ), '.doc-erro');
+  assert.match(css, /white-space:\s*normal/);
+  assert.match(css, /overflow-wrap:\s*anywhere/);
+  assert.match(css, /user-select:\s*text/);
+  assert.doesNotMatch(css, /text-overflow/);
+  assert.match(regra(estilo(ativ), '.doc'), /flex-wrap:\s*wrap/);
 });

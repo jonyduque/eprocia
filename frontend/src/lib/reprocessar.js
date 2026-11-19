@@ -9,3 +9,11 @@ export const ESTADO_REPROCESSAR_INICIAL = Object.freeze({ aberto: false, ocr: ''
 export function aplicarReprocessarComOCR(estado) {
   return { aberto: true, ocr: 'normal', geracao: (estado?.geracao ?? 0) + 1 };
 }
+
+// Ao fechar o formulário com o foco dentro dele: volta ao botão que o abriu
+// (o da linha ou o "Reprocessar com OCR" do painel de atividade), se ainda
+// estiver na página; senão, ao Reprocessar da linha.
+export function alvoAoFecharReprocessar(origem, botaoLinha) {
+  if (origem?.isConnected) return origem;
+  return botaoLinha ?? null;
+}

@@ -120,7 +120,7 @@
     {#if visiveis.length > 0}
       <ul class="docs">
         {#each visiveis as d (d.i)}
-          <li class="doc {d.mais ? 'mais' : d.estado}" class:nao-lido={naoLido(d)} title={d.mais ? undefined : naoLido(d) && d.detalhe ? `${d.nome}\n${d.detalhe}` : d.erro ? `${d.nome}\n${d.erro}` : d.nome} animate:flip={{ duration: LIMITE_FLIP_DOCS < visiveis.length ? 0 : duracaoMovimento(DUR_FAST), easing: cubicOut }} out:fade={{ duration: duracaoMovimento(DUR_FAST) }}>
+          <li class="doc {d.mais ? 'mais' : d.estado}" class:nao-lido={naoLido(d)} title={d.mais ? undefined : d.nome} animate:flip={{ duration: LIMITE_FLIP_DOCS < visiveis.length ? 0 : duracaoMovimento(DUR_FAST), easing: cubicOut }} out:fade={{ duration: duracaoMovimento(DUR_FAST) }}>
             {#if d.mais}
               <button
                 type="button"
@@ -155,7 +155,7 @@
                 <span class="doc-leitura">{ROTULO_LEITURA[d.leitura]}</span>
               {/if}
               {#if d.estado === 'erro'}
-                <span class="doc-erro" class:aviso={naoLido(d)}>{d.erro}</span>
+                <span class="doc-erro" class:aviso={naoLido(d)}>{d.erro}{#if naoLido(d) && d.detalhe}<span class="doc-detalhe">{d.detalhe}</span>{/if}</span>
               {:else}
                 <span class="doc-barra" aria-hidden="true"><span style:--p={pct(d) / 100}></span></span>
                 <span class="doc-paginas font-tabular">{d.feitas}/{d.paginas}</span>
@@ -346,8 +346,9 @@
 
   .doc {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
+    gap: 2px 6px;
     min-height: 20px;
     padding: 0 4px;
     border-radius: 3px;
@@ -415,13 +416,22 @@
     color: var(--warning-strong);
   }
 
+  /* Linha própria abaixo do nome, inteira e selecionável: o title não chega ao teclado. */
   .doc-erro {
-    flex: 0 1 50%;
+    flex: 1 1 100%;
     min-width: 0;
+    padding-left: 18px;
     color: var(--error-strong);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: text;
+  }
+
+  .doc-detalhe {
+    display: block;
+    color: var(--text-secondary);
   }
 
   .doc-barra {
