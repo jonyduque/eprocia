@@ -1,14 +1,14 @@
 # Processar PDF avulso (fora de ZIP)
 
-Data: 2026-11-18. Base lida: worktree `revisao-2026-11-10` (main com a v0.4.2). Revisada por um revisor sem contexto em 2026-11-18 (aprovada com ajustes, todos aplicados ou respondidos na seção 11). Decisões do dono p1 a p3 (2026-11-19) e e1 a e5 (2026-11-20) aplicadas (seção 10); não há pontos em aberto.
+Data: 2026-11-18. Base lida: worktree `revisao-2026-11-10` (main com a v0.4.2). Revisada por um revisor sem contexto em 2026-11-18 (aprovada com ajustes, todos aplicados ou respondidos na seção 11). Decisões do dono p1 a p3 (2026-11-19) e e1 a e5 (2026-11-20) aplicadas (seção 10). Ajustada em 2026-11-20 depois de uma segunda revisão sem contexto, conferida no código da `main` com a rodada 2026-11-10 já juntada (seção 11); fica um ponto para o dono confirmar (seção 12).
 
 Pedido do dono: "a possibilidade de processar arquivos PDF diretamente, sem ser em pastas zip."
 
-**Prazo:** com p1 a p3 respondidas, o bloco 3 da rodada de correção em curso já pode escrever os textos de F4 (arrastar e soltar) e F5 (F-AC-08, botão do vazio) com "ZIP ou PDF" e o filtro das duas extensões (seção 7). As decisões e1 a e5 só mexem no nome e na pasta do TXT, não nesses textos.
+**Rodada de correção:** já juntada à `main` (PR #13). F3, F4 e F5 estão feitas; os textos do arraste, da recusa e do botão do vazio mudam a partir do código atual (seções 2.3 e 7).
 
 ## 1. Problema e comportamento esperado
 
-Hoje só entram ZIPs: o arraste filtra `.zip` no frontend (`App.svelte:160`, com `alert` para o resto), os diálogos filtram `*.zip` (`app.go:356-386`), o watchdog só reage a `.zip` (`watchdog.go:155`, `pendentes.go:30`) e o pipeline começa por `ReadZipFiles` (`pipeline.go:300`). Quem baixou do Eproc só a petição inicial, uma sentença ou um laudo, ou recebeu um PDF por e-mail, precisa zipar o arquivo à mão para usar o eprocIA.
+Hoje só entram ZIPs: o arraste filtra `.zip` no frontend (`App.svelte:189`, por `separarZips` em `frontend/src/lib/aviso.js:68`, com a recusa de `avisoSoltura` no componente de aviso), os diálogos filtram `*.zip` (`app.go:389-420`), o watchdog só reage a `.zip` (`watchdog.go:155`, `pendentes.go:30`) e o pipeline começa por `ReadZipFiles` (`pipeline.go:300`). Quem baixou do Eproc só a petição inicial, uma sentença ou um laudo, ou recebeu um PDF por e-mail, precisa zipar o arquivo à mão para usar o eprocIA.
 
 Comportamento esperado:
 
@@ -39,31 +39,37 @@ Comportamento esperado:
 - `GravarSemSobrescrever(base string, conteudo) (caminho string, err error)`: abre `base` com `O_CREATE|O_EXCL`; se o nome existir, tenta `<nome>_2.txt`, `<nome>_3.txt`, até `_999` (depois disso, erro "não há nome livre para o TXT"). O `O_EXCL` torna a escolha e a criação uma operação só, sem janela entre conferir e gravar. A gravação de um nome já criado segue a regra atual (direta, `pipeline.go:738`).
 - Regra de convivência com o ZIP homônimo (e5): a base de PDF é tratada como ocupada também quando existe `<nome>.zip` na mesma pasta, ainda que `<nome>.txt` não exista, para não tomar o nome que o ZIP vai usar.
 - `DaEntrada(entrada, saida string) bool`: a saída está na pasta esperada e se chama `<nome>.txt` ou `<nome>_N.txt` (N inteiro de 2 a 999). Substitui a igualdade exata com `Caminho(Path)` que a spec do histórico previa.
+- `SaidaDoItem(kind, path string, paths []string, saida string) bool`: a regra única de "esta saída pertence a este item", usada por `lerSaidaParaCopiar`, pelo reprocessamento (e1) e pela validação do histórico. ZIP: `saida` igual a `Base(path)` (sem diferença de caixa). PDF com um caminho: `DaEntrada(path, saida)`. PDF com vários: a mesma conferência de `DaEntrada`, mas contra a base `NomeLote(paths)` (pasta do primeiro PDF na ordem por evento e nome do lote), porque o TXT não tem o nome do primeiro PDF (e2). `saida` vazia devolve falso.
 - O ZIP mantém o comportamento atual: grava `<nome>.txt` e sobrescreve o próprio TXT.
+- **Este pacote é entregue por esta spec** (com `Base`, `NomeLote`, `GravarSemSobrescrever`, `DaEntrada` e `SaidaDoItem`); a spec do histórico depende dele e não o conta na estimativa. Se o histórico for implementado antes, a tarefa do pacote `saida` desta spec vai na frente.
 
 **`internal/etl/entrada.go` (novo; `zip_reader.go` fica como está):** `LerEntrada(caminhos []string) ([]models.ProcessFile, io.Closer, error)`. Um caminho `.zip` (sem diferença de caixa) chama `ReadZipFiles`; uma lista só de `.pdf` devolve um `ProcessFile` com `Avulso: true` por PDF e um `Closer` vazio; mistura, lista vazia ou outra extensão devolvem "tipo de arquivo não suportado". Não confere a assinatura `%PDF`: um PDF em envelope PKCS#7 não começa com ela e o `abrirPDF` (`abertura.go`) já o encaminha ao Poppler; um arquivo que não é PDF vira documento `ilegivel` pelo caminho normal.
 
 **`internal/etl/pipeline.go`:**
 
-- `ProcessZipComAtividade` mantém o nome e passa a receber o item (ou a lista de caminhos dele), trocando `ReadZipFiles(zipPath)` por `LerEntrada(caminhos)`. `rc.RegisterDecompressor` só se aplica quando a entrada é ZIP (o `Closer` é o `*zip.ReadCloser` nesse caso).
+- `ProcessZipComAtividade` mantém o nome e passa a receber `Entrada{Kind string; Caminhos []string; SaidaAnterior string}` no lugar do `zipPath`, trocando `ReadZipFiles(zipPath)` por `LerEntrada(Caminhos)`. O campo `processar` da fila (`queue.go:85`, chamado em `queue.go:549`), que hoje recebe só o caminho, passa a receber a mesma `Entrada`; os fakes dos testes da fila mudam junto. `rc.RegisterDecompressor` só se aplica quando a entrada é ZIP (o `Closer` é o `*zip.ReadCloser` nesse caso).
 - `extrairPDF` usa `f.Abrir()` e `f.Tamanho` em vez de `ZipFileRef.Open` e `UncompressedSize64`. O caminho do HTML (`pipeline.go:683`) também passa a usar `f.Abrir()`, para não sobrarem dois jeitos de abrir. A conferência de "entrada maior que o tamanho declarado" vale também para o avulso, com a frase "o arquivo mudou durante a leitura" (o usuário pode estar salvando por cima).
 - A omissão de tipos (`tipoOmitido`, `pipeline.go:251-256`, aplicada em `:346-348`) é pulada quando `f.Avulso`.
-- A mensagem "no PDF or HTML documents found in ZIP" continua só para ZIP.
-- A gravação usa `saida`: ZIP em `Base`, como hoje; item de PDF em `GravarSemSobrescrever(NomeLote(...))`, salvo no reprocessamento (e1: o reprocessamento grava por cima do `OutputPath` que o próprio item gerou, se ele ainda existir; se não existir, escolhe nome livre de novo).
+- A mensagem "no PDF or HTML documents found in ZIP" continua só para ZIP. O marcador de falha ao abrir um documento, hoje "[ERRO ao extrair PDF do ZIP: ...]" (`pipeline.go:638`), vira "[ERRO ao abrir PDF: ...]" quando `f.Avulso` (o texto depois dos dois-pontos continua vindo de `textoErroSaida`).
+- A gravação usa `saida`: ZIP em `Base`, como hoje; item de PDF em `GravarSemSobrescrever(NomeLote(...))`, salvo no reprocessamento (e1): se `Entrada.SaidaAnterior` não for vazia, passar em `saida.SaidaDoItem` e o arquivo ainda existir, a gravação vai direto nela (como a do ZIP, `pipeline.go:738`); senão, escolhe nome livre de novo.
+- **Relógio do formatter:** a linha "Data de Consolidação" usa `time.Now()` direto (`formatter.go:468`). Passa a ler uma variável do pacote (`agoraFormatter = time.Now`), trocada nos testes, para o teste de equivalência comparar byte a byte.
 
 **`internal/etl/queue.go`:**
 
-- `AddFiles` valida a extensão no Go (hoje só o frontend filtra, e o binding `AddFilesToQueue` aceita qualquer caminho vindo do WebView): aceita `.zip` e `.pdf`, sem diferença de caixa; o resto é descartado com log. Cada `.zip` vira um item; **todos os `.pdf` da mesma chamada viram um item só** (uma chamada é um soltar ou uma seleção; o watchdog chama com um caminho por vez). A deduplicação por `Path` continua igual para ZIP; um PDF que já está num item `pending`/`processing` sai do item novo, e um item novo que fique sem PDF não é criado.
-- `QueueItem` ganha `Kind string` (`json:"kind"`, `"zip"` ou `"pdf"`) e `Paths []string` (`json:"paths,omitempty"`, os PDFs do item, na ordem por evento; vazio para ZIP). `Path` continua sendo o ZIP ou, no item de PDF, o primeiro PDF da ordem, para os usos atuais (log, título, deduplicação). `Name` do item de PDF é o nome do TXT sem extensão, com " (N PDFs)" quando N > 1. Os dois campos são copiados em `copiarItem` (`queue.go:232-254`). Se o histórico existir, `Restaurar` deriva `Kind` do `Path` e guarda `Paths`.
+- `AddFiles` valida a extensão no Go (hoje só o frontend filtra, e o binding `AddFilesToQueue` aceita qualquer caminho vindo do WebView): aceita `.zip` e `.pdf`, sem diferença de caixa; o resto é descartado com log. Cada `.zip` vira um item; **todos os `.pdf` da mesma chamada viram um item só** (uma chamada é um soltar ou uma seleção; o watchdog chama com um caminho por vez). A deduplicação por `Path` continua igual para ZIP; um PDF que já está num item `pending`/`processing` sai do item novo, e um item novo que fique sem PDF não é criado. O retorno de `AddFiles` (e de `AddFilesToQueue`) continua sendo o número de **arquivos** que entraram, não de itens: três PDFs juntos num item devolvem 3, e o anúncio `textoAceitos` (`frontend/src/lib/soltura.js:13`, chamado em `App.svelte:195`) segue dizendo "3 arquivos adicionados".
+- `QueueItem` ganha `Kind string` (`json:"kind"`, `"zip"` ou `"pdf"`) e `Paths []string` (`json:"paths,omitempty"`, os PDFs do item, na ordem por evento; vazio para ZIP). `Path` continua sendo o ZIP ou, no item de PDF, o primeiro PDF da ordem, para os usos atuais (log, título, deduplicação). Os dois campos são copiados em `copiarItem` (`queue.go:236-258`). Se o histórico existir, `Restaurar` deriva `Kind` do `Path` e guarda `Paths`.
+- `Name` do item de PDF: no `AddFiles`, é a base provisória (`NomeLote` sem pasta e sem extensão), com " (N PDFs)" quando N > 1. Como o `_N` só se decide na gravação, ao terminar com sucesso o item troca `Name` pelo nome do `OutputPath` sem extensão (mais " (N PDFs)"), antes do broadcast final: a linha nunca diz "processo" com o TXT em `processo_2.txt`.
+- `QueueItem` ganha o campo não exportado `saidaAnterior string`. `Reprocessar` o preenche com `OutputPath` **antes** de zerar `OutputPath` (`queue.go:287`), e `processItem` o passa ao pipeline em `Entrada.SaidaAnterior` (e1). `Restaurar` (histórico) o preenche com o `output_path` gravado, para o reprocessamento de um item restaurado também gravar por cima. Para ZIP o campo é ignorado (a saída do ZIP é sempre `Base`).
 - `Reprocessar` de um item de PDF relê todos os `Paths`; se algum não existir mais, devolve "arquivo de origem não encontrado: <nome do PDF>" e não muda a fila.
 
-**`app.go`:** `SelectFiles` (novo) com os filtros "ZIP do Eproc e PDF (*.zip;*.pdf)", "Somente ZIP (*.zip)" e "Somente PDF (*.pdf)", com seleção múltipla. `SelectZipFiles` e `SelectZipFile` ficam como estão; a limpeza dos bindings legados não faz parte deste recurso. `lerSaidaParaCopiar` passa a aceitar a saída de item com sucesso só se `saida.DaEntrada(Path, OutputPath)` (no item de PDF de vários arquivos, conferido contra `NomeLote(Paths)`).
+**`app.go`:** `SelectFiles` (novo) com os filtros "ZIP do Eproc e PDF (*.zip;*.pdf)", "Somente ZIP (*.zip)" e "Somente PDF (*.pdf)", com seleção múltipla. `SelectZipFiles` e `SelectZipFile` ficam como estão; a limpeza dos bindings legados não faz parte deste recurso. `lerSaidaParaCopiar` (`app.go:361-377`) passa a aceitar a saída de item com sucesso só se `saida.SaidaDoItem(Kind, Path, Paths, OutputPath)`, a mesma função que o histórico usa ao carregar.
 
 **`internal/watchdog`:**
 
-- `watchLoop` e `pendingZips` aceitam `.pdf` quando `Config.MonitorarPDF` estiver ligado. `pendingZips` passa a receber a lista de extensões e usa `saida`. Para ZIP, a regra continua: convertido se houver `<nome>.txt` igual ou mais novo. Para PDF: convertido se houver `<nome>_N.txt` igual ou mais novo, ou `<nome>.txt` igual ou mais novo quando não houver `<nome>.zip` ao lado (com o ZIP homônimo, `<nome>.txt` é do ZIP). Ignora nomes que começam com `eprocia_pdf_` (os temporários do pipeline, caso alguém monitore `%TEMP%`).
+- `watchLoop` (`watchdog.go:155`) e `pendingZips` aceitam `.pdf` quando `Config.MonitorarPDF` estiver ligado. `pendingZips` passa a receber a lista de extensões e usa `saida`. Para ZIP, a regra continua: convertido se houver `<nome>.txt` igual ou mais novo. Para PDF: convertido se houver `<nome>_N.txt` igual ou mais novo, ou `<nome>.txt` igual ou mais novo quando não houver `<nome>.zip` ao lado (com o ZIP homônimo, `<nome>.txt` é do ZIP). Ignora nomes que começam com `eprocia_pdf_` (os temporários do pipeline, caso alguém monitore `%TEMP%`). Essa regra fica numa função só (`jaConvertido(caminho, mod)`), usada pela varredura e pelo evento ao vivo.
+- **Evento ao vivo de PDF já convertido:** o `watchLoop` dispara `handleNewFile` a cada Create, Write e Rename (`watchdog.go:154-160`), sem deduplicar por caminho, e a fila só deduplica contra `pending`/`processing`. Para ZIP isso só reprocessa e sobrescreve o mesmo TXT; para PDF, pela regra de nunca sobrescrever (p1), cada evento que chegasse depois do fim do item (Write tardio do navegador ou do antivírus) geraria `processo_2.txt`, `_3`... Por isso `handleNewFile` (`watchdog.go:176-219`), depois de o tamanho estabilizar e antes de chamar o callback, descarta o PDF para o qual `jaConvertido` é verdadeiro (há TXT dele igual ou mais novo que o PDF). ZIP não muda. Um PDF alterado depois de convertido (mais novo que o TXT) entra de novo e ganha o próximo `_N` livre (p1 ao pé da letra; ver seção 12).
 - Cada PDF novo detectado vira um item próprio, com seu TXT, sem juntar PDFs que cheguem perto um do outro (e4).
-- O `Watcher` recebe a lista de extensões em `Start`; mudar a opção em Configurações reinicia o watcher, como já acontece ao trocar de pasta.
+- O `Watcher` recebe a lista de extensões em `Start`. Hoje `Start` com a mesma pasta não faz nada (`watchdog.go:46-49`); passa a comparar pasta **e** extensões, e só é no-op se as duas forem iguais. Assim, mudar a opção em Configurações (o `SaveConfig` já chama `Start`, `app.go:293`) reinicia o watcher, como já acontece ao trocar de pasta.
 
 ### 2.2 Bindings
 
@@ -71,9 +77,10 @@ Comportamento esperado:
 
 ### 2.3 Frontend
 
-- `App.svelte:157-167` (`OnFileDrop`): aceita `.zip` e `.pdf` e manda todos os aceitos numa chamada só de `AddFilesToQueue` (é o que faz o Go juntar os PDFs num item); texto da recusa pelo componente de aviso de F3.
-- `App.svelte:306` e o botão do painel: chamar `SelectFiles`; rótulo "Selecionar arquivos...".
-- `ProcessList.svelte`: ícone por `kind` (`Icone.svelte` ganha o de documento, se ainda não tiver); nome com a contagem de PDFs; texto do vazio (`ProcessList.svelte:327`) "Arraste arquivos ZIP do Eproc ou PDF em qualquer lugar...".
+- `frontend/src/lib/aviso.js`: `separarZips` (`:68`) vira `separarEntradas(caminhos)`, que devolve `{ aceitos, ignorados }` com `.zip` e `.pdf` sem diferença de caixa; `avisoSoltura` (`:75`) troca "Só arquivos ZIP do eproc são aceitos" por "Arraste arquivos ZIP do Eproc ou PDF" (e a forma de atenção, "N arquivos ignorados: só ZIP do Eproc ou PDF"). A lógica fica em `src/lib`, com teste em `frontend/avisos.test.mjs`, que já cobre `separarZips` e `avisoSoltura`.
+- `App.svelte:187-206` (`OnFileDrop`): usa `separarEntradas` e manda todos os aceitos numa chamada só de `AddFilesToQueue` (é o que faz o Go juntar os PDFs num item); `textoJaNaFila` recebe o número de aceitos.
+- `App.svelte:380-390` (`triggerManualSelect`, que hoje chama `SelectZipFiles` em `:382`) e o botão do painel (`App.svelte:599`): chamar `SelectFiles`; rótulo "Selecionar arquivos...".
+- `ProcessList.svelte`: ícone por `kind` (`Icone.svelte` ganha o de documento, se ainda não tiver); nome com a contagem de PDFs; botão e texto do vazio (`ProcessList.svelte:560-564`, hoje "Selecionar arquivos ZIP..." e "ou arraste os ZIPs para a janela") passam a "Selecionar arquivos..." e "ou arraste ZIPs do Eproc ou PDFs para a janela".
 - `Settings.svelte`: interruptor "Também converter PDFs novos nesta pasta" sob a pasta monitorada, desligado por padrão, com a frase "Cada PDF que aparecer na pasta ganha um TXT ao lado, inclusive boletos e outros PDFs que não são de processo".
 - `DESIGN.md` e `PRD.md`: RF01 passa a dizer "ZIP do Eproc ou PDF avulso (vários PDFs de uma vez viram um TXT, por evento)"; RF02 ganha "e, se a opção estiver ligada, PDFs novos"; §5 passo 5 cita a regra do `_2`.
 
@@ -97,18 +104,18 @@ Nenhuma mudança. Associar `.pdf` ao eprocIA no Explorer fica fora do escopo: o 
 - **PDF digitalizado com OCR desligado:** mesmo comportamento atual ("[página digitalizada: o OCR está desativado]", não lido, faixa "Reprocessar com OCR").
 - **Tipo omitido nas configurações:** ignorado para o avulso (seção 1); o PDF é lido.
 - **PDF corrompido ou com outra coisa dentro e extensão `.pdf`:** documento ilegível; o item termina com 1 não lido.
-- **Arquivo de 0 bytes, movido ou apagado entre o arraste e o processamento:** num item de um PDF, erro do item ("arquivo vazio" ou "arquivo não encontrado"), sem TXT. Num item de vários PDFs, aquele documento fica não lido com a frase fixa e os outros seguem; se todos falharem, erro do item, sem TXT.
+- **Arquivo de 0 bytes, movido ou apagado entre o arraste e o processamento:** num item de um PDF, erro do item ("arquivo vazio" ou "arquivo não encontrado"), sem TXT; quem decide é `LerEntrada`, com `os.Stat` antes de montar a lista. Num item de vários PDFs, `LerEntrada` mantém o documento na lista e ele termina pelo caminho de hoje de um PDF que não abre: `Leitura` = `ilegivel` ("arquivo ilegível", por `classificarErro`), pelo mesmo marcador que um PDF quebrado dentro do ZIP recebe hoje. Arquivo ausente: `extrairPDF` falha no worker, marcador "[ERRO ao abrir PDF: falha de leitura ou gravação em disco]" (`textoErroSaida` sobre o `*fs.PathError`). Arquivo de 0 bytes: os dois leitores o recusam em `abrirPDF`, marcador "[ERRO ao analisar PDF: <texto de abrirPDF>]" (`pipeline.go:627`), sem caminho. Os outros documentos seguem; se todos falharem, erro do item, sem TXT.
 - **Nome do TXT ocupado:** `_2`, `_3`... (p1). Esgotado o `_999`, erro do item "não há nome livre para o TXT".
-- **PDF com o mesmo nome de um ZIP na mesma pasta:** o ZIP fica com `<nome>.txt` e o PDF vai para `<nome>_2.txt` (e5), seja qual for a ordem em que chegam. Limitação: se o PDF for convertido numa pasta onde o ZIP homônimo ainda não existe, ele fica com `<nome>.txt`, e um ZIP de mesmo nome que chegue depois sobrescreve esse TXT (o ZIP mantém o comportamento atual) e pode ser pulado pela varredura de abertura do monitoramento, que acha `<nome>.txt` mais novo. O caso exige baixar a peça avulsa antes do processo inteiro, com o mesmo nome; fica registrado.
+- **PDF com o mesmo nome de um ZIP na mesma pasta:** quando o ZIP já existe na pasta, o ZIP fica com `<nome>.txt` e o PDF vai para `<nome>_2.txt` (e5). Limitação: se o PDF for convertido numa pasta onde o ZIP homônimo ainda não existe, ele fica com `<nome>.txt`, e um ZIP de mesmo nome que chegue depois sobrescreve esse TXT (o ZIP mantém o comportamento atual) e pode ser pulado pela varredura de abertura do monitoramento, que acha `<nome>.txt` mais novo. O caso exige baixar a peça avulsa antes do processo inteiro, com o mesmo nome; fica registrado.
 - **Dois PDFs de pastas diferentes com o mesmo nome no mesmo soltar:** viram dois `<documento>` com o mesmo nome no TXT, como duas entradas de mesmo caminho num ZIP (as chaves do mapa `eventos` já levam o índice).
 - **Arquivo apagado ou trocado entre a pré-contagem e o worker** (o PDF é lido duas vezes, como dentro do ZIP): a segunda leitura falha ou vem com tamanho diferente; o documento termina com "falha de leitura ou gravação em disco" (`textoErroSaida`). Alternativa a avaliar no plano: para o avulso, manter a `fontePDF` da pré-contagem até o worker, como já se faz no caso Poppler (`manterSoDisco`), e ler o arquivo uma vez só. **Essa alternativa só vale com um temporário próprio ou com os bytes em memória; nunca com o caminho do usuário em `fontePDF.caminho`**, pelo risco da seção 2.1.
-- **PDF aberto em outro programa:** o Acrobat abre com compartilhamento de leitura, e `os.Open` funciona. Um programa que trava o arquivo com exclusividade faz o documento terminar como não lido (ou o item em erro, se for o único) com "o arquivo está em uso por outro programa".
+- **PDF aberto em outro programa:** o Acrobat abre com compartilhamento de leitura, e `os.Open` funciona. Um programa que trava o arquivo com exclusividade faz `os.Open` falhar com violação de compartilhamento, um `*fs.PathError`, que `textoErroSaida` (`abertura.go:181`) já transforma em "falha de leitura ou gravação em disco". Vale a frase atual, sem caso novo: o documento termina como não lido com `Leitura` = `ilegivel` e essa frase no marcador (ou, num item de um PDF só, o item termina em erro com ela).
 - **Usuário apagando o PDF durante o processamento:** enquanto o handle está aberto, o Windows pode recusar apagar ou renomear o arquivo (conferir o modo de compartilhamento do `os.Open` na versão do Go do `go.mod`); por isso a extração fecha o handle assim que termina de copiar (já é o padrão de `extrairPDF`, com `defer Close`).
 - **O original nunca é alterado nem apagado,** inclusive com panic, cancelamento, prazo do OCR estourado e caminho do Poppler.
 - **PDF muito grande** (centenas de MB): vai para temporário em `%TEMP%`, como dentro do ZIP; o disco precisa do espaço da cópia.
 - **PDF na nuvem** (OneDrive com arquivos sob demanda): a leitura dispara o download; pode demorar, sem tratamento especial.
 - **Extensão em maiúsculas (`.PDF`):** aceita.
-- **Pasta monitorada com a opção ligada:** navegadores baixam como `.crdownload` ou `.part` e renomeiam no fim; o watchdog já trata o Rename e espera o tamanho estabilizar. PDFs que não são de processo (boletos, contracheques) também são convertidos e ganham um TXT ao lado, com OCR rodando à toa: por isso a opção nasce desligada e a frase do interruptor avisa. Com a opção desligada, nada muda em relação a hoje.
+- **Pasta monitorada com a opção ligada:** navegadores baixam como `.crdownload` ou `.part` e renomeiam no fim; o watchdog já trata o Rename e espera o tamanho estabilizar. Eventos atrasados do mesmo PDF (Write do navegador ou do antivírus depois do fim do item) não geram outro TXT: `handleNewFile` descarta o PDF que já tem TXT igual ou mais novo (seção 2.1). Um PDF editado e salvo na pasta depois de convertido ganha um TXT novo com o próximo `_N` (seção 12). PDFs que não são de processo (boletos, contracheques) também são convertidos e ganham um TXT ao lado, com OCR rodando à toa: por isso a opção nasce desligada e a frase do interruptor avisa. Com a opção desligada, nada muda em relação a hoje.
 - **`falhas.json`** (`watchdog.Falhas`) funciona por caminho e vale para PDF sem mudança.
 
 ## 5. Segurança e privacidade
@@ -124,12 +131,11 @@ Nenhum.
 
 ## 7. Conflito com a rodada de correção
 
-Grupos conforme `docs/revisao/2026-11-18-plano-correcao.md` no commit 05e7e7f:
+A rodada 2026-11-10 (plano `docs/revisao/2026-11-18-plano-correcao.md`) já está na `main` (PR #13). O que ela mudou e este recurso aproveita:
 
-- **F4** (F-AN-01, bloco 3): reescreve o arrastar e soltar (overlay só para arquivos e confirmação do aceito) no mesmo trecho que este recurso muda (`App.svelte:155-169` e `369-389`). Com p1 a p3 respondidas, F4 já pode aceitar `.zip` e `.pdf` e mandar os aceitos numa chamada só.
-- **F3** (F-AC-07, bloco 2, já feita): tirou o `alert()` que respondia ao arraste de não-ZIP; a mensagem de recusa vai pelo componente de aviso.
-- **F5** (F-AC-08, F-AC-03, F-AC-09, bloco 3): F-AC-08 cria o botão do vazio e a frase curta; F5 fixa o vocabulário. Recomendação: F5 já escrever "Selecionar arquivos..." e "ZIP do Eproc ou PDF", para não refazer os textos.
-- **F17** (F-VI-04, inventário de ícones, bloco 4): o ícone de PDF entra no mesmo inventário.
+- **F3** e **F4**: o `alert()` saiu; o arraste usa `separarZips` e `avisoSoltura` (`frontend/src/lib/aviso.js:68-81`), o overlay de `soltura.js` e o anúncio `textoAceitos`. A mudança deste recurso é em `src/lib` (seção 2.3), com teste, sem mexer de novo no overlay.
+- **F5** (F-AC-08): o botão do vazio existe (`ProcessList.svelte:560-564`), ainda com "Selecionar arquivos ZIP..."; este recurso troca o texto (seção 2.3).
+- **F17** (F-VI-04, inventário de ícones): o ícone de PDF entra no mesmo inventário (`frontend/icones.test.mjs`).
 
 O backend (seção 2.1) não conflita e pode ser feito antes ou em paralelo.
 
@@ -147,19 +153,25 @@ O backend (seção 2.1) não conflita e pode ser feito antes ou em paralelo.
 - **`LerEntrada`:** extensão não suportada; mistura de ZIP e PDF na mesma lista recusada; arquivo inexistente; 0 bytes; item de vários PDFs com um inexistente (esse documento não lido, os outros lidos) e com todos inexistentes (erro do item).
 - **HTML:** os testes atuais de HTML dentro de ZIP continuam passando com `f.Abrir()`.
 - **arquivo trocado entre a pré-contagem e o worker:** o documento termina com a frase fixa, sem caminho no TXT.
-- **queue:** `AddFiles` recusa `.txt`, `.exe`, `.docx` e aceita `.pdf` e `.PDF`; uma chamada com dois ZIPs e três PDFs cria três itens (dois ZIPs e um de PDFs com três `Paths`); um PDF já em item pendente sai do item novo; `Kind` e `Paths` preenchidos e presentes na cópia que vai ao frontend.
+- **queue:** `AddFiles` recusa `.txt`, `.exe`, `.docx` e aceita `.pdf` e `.PDF`; uma chamada com dois ZIPs e três PDFs cria três itens (dois ZIPs e um de PDFs com três `Paths`) e devolve 5 (arquivos, não itens); um PDF já em item pendente sai do item novo; `Kind` e `Paths` preenchidos e presentes na cópia que vai ao frontend.
+- **nome da linha:** item de um PDF cujo `processo.txt` já existe termina com `OutputPath` em `processo_2.txt` e `Name` "processo_2"; item de três PDFs termina com `Name` "<nome do TXT> (3 PDFs)"; o broadcast final já leva o nome trocado.
+- **saída anterior (e1):** `Reprocessar` passa ao `processar` falso uma `Entrada` com `SaidaAnterior` igual ao `OutputPath` de antes (e `OutputPath` do item zerado na cópia enviada); item restaurado do histórico com `output_path` gravado passa o mesmo valor; `SaidaAnterior` que não passa em `SaidaDoItem` (outra pasta, outro nome) é ignorada e a gravação escolhe nome livre.
+- **`SaidaDoItem`:** ZIP aceita só `Base(path)`; PDF único aceita `<nome>.txt` e `<nome>_3.txt`; item de três PDFs com número CNJ comum aceita `<CNJ>.txt` e `<CNJ>_2.txt` na pasta do primeiro PDF por evento e recusa `<nome do primeiro PDF>.txt`; saída vazia recusada.
+- **marcador do avulso:** documento ausente num item de vários PDFs termina com `Leitura` `ilegivel`, marcador "[ERRO ao abrir PDF: falha de leitura ou gravação em disco]" e nenhum caminho no TXT; documento de 0 bytes termina `ilegivel` com "[ERRO ao analisar PDF: ...]"; o mesmo PDF ausente dentro de ZIP continua com "[ERRO ao extrair PDF do ZIP: ...]".
+- **arquivo travado:** PDF aberto com compartilhamento exclusivo (`windows.CreateFile` com `dwShareMode` 0, no teste) num item de vários PDFs termina `ilegivel` com "falha de leitura ou gravação em disco"; sozinho, o item termina em erro com a mesma frase e nenhum caminho.
+- **relógio:** com `agoraFormatter` fixo, dois `GenerateConsolidatedOutput` iguais produzem bytes iguais.
 
-`internal/watchdog`: com `MonitorarPDF` desligado, PDF novo não dispara; ligado, dispara um item por PDF; a varredura respeita a saída do PDF (`<nome>_N.txt`) e não a confunde com o TXT do ZIP homônimo; `eprocia_pdf_*.pdf` ignorado; dois PDFs que chegam com segundos de diferença geram dois itens e dois TXTs (e4); mudar a opção reinicia o watcher.
+`internal/watchdog`: com `MonitorarPDF` desligado, PDF novo não dispara; ligado, dispara um item por PDF; a varredura respeita a saída do PDF (`<nome>_N.txt`) e não a confunde com o TXT do ZIP homônimo; `eprocia_pdf_*.pdf` ignorado; dois PDFs que chegam com segundos de diferença geram dois itens e dois TXTs (e4); dois Write do mesmo PDF depois de o item terminar (TXT mais novo que o PDF) não chamam o callback de novo, e um ZIP nas mesmas condições continua chamando; um PDF salvo de novo depois do TXT (mtime mais novo) chama o callback; `Start` com a mesma pasta e as mesmas extensões não reinicia (o `fsnotify.Watcher` é o mesmo), e com a mesma pasta e extensões diferentes reinicia (a varredura inicial roda de novo).
 
 `internal/config`: `monitorar_pdf` ausente carrega `false`.
 
-Frontend: teste por regex de que `OnFileDrop` aceita `.pdf` e chama `AddFilesToQueue` uma vez por soltar; textos do vazio e da recusa; ícone por `kind`; nome com "(N PDFs)"; interruptor de `monitorar_pdf` em Settings. Capturas da fila com ZIP, PDF e item de vários PDFs lado a lado.
+Frontend: `avisos.test.mjs` para `separarEntradas` (`.zip`, `.ZIP`, `.pdf`, `.PDF` aceitos; `.txt` e `.docx` ignorados) e para os textos novos de `avisoSoltura`; teste por regex de que `OnFileDrop` usa `separarEntradas` e chama `AddFilesToQueue` uma vez por soltar, e de que nada chama `SelectZipFiles` no `App.svelte`; textos do vazio e da recusa; ícone por `kind`; nome com "(N PDFs)"; interruptor de `monitorar_pdf` em Settings. Capturas da fila com ZIP, PDF e item de vários PDFs lado a lado.
 
 Manual: dez PDFs reais soltos, um a um e todos de uma vez (nativo, digitalizado, protegido), comparados com o TXT do ZIP do mesmo processo (a sessão principal faz, com os ZIPs reais fora do repositório).
 
 ## 9. Estimativa
 
-Médio. Go: cerca de 280 linhas de código e 520 de teste (o grosso é o teste de equivalência, o de preservação do original e as regras de nome do pacote `saida`), já com o item de vários PDFs (p3) e o monitoramento de PDF (p2). Frontend: cerca de 60 linhas. Dois a três dias de agente com revisão; as decisões e1 a e5 de 2026-11-20 confirmaram as recomendações e não mudam a estimativa. Antes: um a dois dias; o aumento vem do item de vários PDFs, da regra do `_2` e do interruptor do watchdog, que passou a entrar.
+Médio. Go: cerca de 320 linhas de código e 600 de teste (o grosso é o teste de equivalência, o de preservação do original e as regras de nome do pacote `saida`), já com o item de vários PDFs (p3) e o monitoramento de PDF (p2). Frontend: cerca de 80 linhas. Dois a três dias de agente com revisão; as decisões e1 a e5 de 2026-11-20 confirmaram as recomendações e não mudam a estimativa. Antes: um a dois dias; o aumento vem do item de vários PDFs, da regra do `_2` e do interruptor do watchdog, que passou a entrar. A segunda revisão (2026-11-20) somou cerca de 40 linhas de código e 80 de teste (saída anterior no reprocessamento, `SaidaDoItem`, descarte do evento ao vivo de PDF já convertido, `Start` com extensões, relógio do formatter, troca do `Name`) e 20 de frontend; cabe nos mesmos dois a três dias. O pacote `internal/saida` conta só nesta estimativa (a do histórico depende dele).
 
 ## 10. Decisões do dono
 
@@ -182,3 +194,25 @@ De 2026-11-20:
 Todos os achados foram aceitos: P1 (omissão de tipos não vale para o avulso, com teste), P2 (a alternativa só vale com temporário próprio ou memória), P3 (F-VI-04 é F17; urgência levada ao topo da spec e à sessão principal), P4 (HTML também usa `f.Abrir()`), P5 (sem renomear `ProcessZipComAtividade` e sem remover `SelectZipFile`), P6 (`TMP` e `TEMP`), P7 e P8 (`Kind` em `copiarItem`). Nenhuma recusa.
 
 O motivo de P7 (o nome `processo.pdf.txt` se disfarçaria de PDF no Explorer) deixou de se aplicar: o dono escolheu `processo.txt` com a regra do `_2`.
+
+**Segunda revisão sem contexto (2026-11-20),** conferida no código da `main` com a rodada 2026-11-10 juntada. Todos os achados foram conferidos e aceitos:
+
+- P1 (`Reprocessar` zera `OutputPath` em `queue.go:287` e o pipeline só recebe o caminho): campo `saidaAnterior` e `Entrada.SaidaAnterior` (seção 2.1, pipeline e queue), também para item restaurado do histórico; testes na seção 8.
+- P2 (eventos atrasados do watchdog gerariam `_2`, `_3`): `handleNewFile` descarta PDF já convertido pela mesma regra da varredura (seções 2.1 e 4; teste na seção 8). O caso do PDF alterado depois de convertido virou ponto para o dono (seção 12), porque reaproveitar o TXT anterior estenderia e1.
+- P3: "seja qual for a ordem" trocado por "quando o ZIP já existe na pasta" (seção 4).
+- P4: vale a frase atual de `textoErroSaida` para o arquivo travado; documento ausente ou vazio num item de vários PDFs termina `ilegivel`, com marcador próprio do avulso (seções 2.1 e 4; testes na seção 8).
+- P5: `Start` compara pasta e extensões (seção 2.1, watchdog).
+- P6: relógio do formatter injetável (seção 2.1, pipeline).
+- P7: `Name` trocado pelo nome real do TXT ao terminar; `AddFiles` devolve arquivos, não itens (seção 2.1, queue).
+- P8: referências atualizadas; o "Prazo" do topo e a seção 7 reescritos para a rodada já juntada.
+- H1 (cruzado com o histórico): `saida.SaidaDoItem`, usada por `lerSaidaParaCopiar` e pelo histórico.
+- H6 (cruzado): `internal/saida` é entregue e estimado aqui (seções 2.1 e 9).
+
+## 12. Pontos para o dono confirmar
+
+- **q1. PDF da pasta monitorada editado depois de convertido.** Com `MonitorarPDF` ligado, um PDF que o usuário salva de novo na pasta (anotações, assinatura) fica mais novo que o TXT e entra de novo na fila. Pela p1, o TXT novo não sobrescreve nada e vai para o próximo `_N`; cada salvamento gera um TXT a mais. Opções:
+  1. Manter a p1 ao pé da letra: TXT novo com o próximo `_N` a cada salvamento (é o que a spec faz hoje).
+  2. Tratar como reprocessamento (estender e1): se a fila tem um item de sucesso de um PDF só com o mesmo `Path`, o TXT dele é substituído; sem item na fila (programa reaberto), vale a opção 1.
+  3. Ignorar o PDF que já tem algum TXT, mesmo mais antigo: um PDF editado só é convertido de novo pelo arraste ou pelo Reprocessar.
+
+  Recomendada: 2, que evita a pilha de `_N` sem sobrescrever TXT de outro item. Custo: cerca de 15 linhas e 2 testes na fila. Até a resposta, vale a 1.

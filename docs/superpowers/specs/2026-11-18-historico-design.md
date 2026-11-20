@@ -1,6 +1,6 @@
 # Histórico da fila ao reabrir o eprocIA
 
-Data: 2026-11-18. Base lida: worktree `revisao-2026-11-10` (main com a v0.4.2). Revisada por um revisor sem contexto em 2026-11-18 (aprovada com ajustes, todos aplicados ou respondidos na seção 11). Decisões do dono h1 a h4 (2026-11-19) e e6 (2026-11-20) aplicadas (seção 10); não há pontos em aberto.
+Data: 2026-11-18. Base lida: worktree `revisao-2026-11-10` (main com a v0.4.2). Revisada por um revisor sem contexto em 2026-11-18 (aprovada com ajustes, todos aplicados ou respondidos na seção 11). Decisões do dono h1 a h4 (2026-11-19) e e6 (2026-11-20) aplicadas (seção 10). Ajustada em 2026-11-20 depois de uma segunda revisão sem contexto, conferida no código da `main` com a rodada 2026-11-10 já juntada (seção 11); não há pontos em aberto.
 
 Pedido do dono: "Quando o usuário reabrir o programa, quero que mostre o histórico de documentos de quando fechou."
 
@@ -24,7 +24,7 @@ Comportamento esperado:
 
 ### 2.1 Go
 
-**Regra do caminho de saída num pacote folha.** A regra "entrada para `.txt`" (hoje `pipeline.go:736`, e a do PDF avulso se ele entrar) sai de `internal/etl` para um pacote folha, `internal/saida`, importado por `etl`, `watchdog` e `historico`. Assim `historico` não importa `etl` e não há ciclo de import. Com a decisão p1 do PDF avulso (spec `2026-11-18-pdf-avulso-design.md`), o TXT de um PDF pode ser `<nome>_2.txt`; por isso a validação usa `saida.DaEntrada(entrada, saida)` (pasta certa e nome `<nome>.txt` ou `<nome>_N.txt`), não a igualdade com um caminho único.
+**Regra do caminho de saída num pacote folha.** A regra "entrada para `.txt`" (hoje `pipeline.go:736`, e a do PDF avulso se ele entrar) sai de `internal/etl` para um pacote folha, `internal/saida`, importado por `etl`, `watchdog` e `historico`. Assim `historico` não importa `etl` e não há ciclo de import. Com a decisão p1 do PDF avulso (spec `2026-11-18-pdf-avulso-design.md`), o TXT de um PDF pode ser `<nome>_2.txt`; e o TXT de um item de vários PDFs tem o nome do processo, não o do primeiro PDF (e2). Por isso a validação usa `saida.SaidaDoItem(kind, path, paths, saida)`, a mesma função de `lerSaidaParaCopiar` (ZIP: `<nome>.txt`; PDF único: `<nome>.txt` ou `<nome>_N.txt`; vários PDFs: conferido contra `NomeLote(paths)`), não a igualdade com um caminho único. **O pacote `internal/saida` é entregue pela spec do PDF avulso** e não entra na estimativa desta; se o histórico for implementado antes, a tarefa do pacote `saida` daquela spec vai na frente.
 
 **Pacote novo `internal/historico`** (`historico.go`, `historico_test.go`), que não importa `etl`:
 
@@ -32,32 +32,32 @@ Comportamento esperado:
 - `Carregar(arquivo string) ([]Item, error)`: lê, valida, aplica o teto de itens e devolve do mais novo para o mais antigo. Arquivo ausente devolve lista vazia sem erro. JSON corrompido: renomeia para `historico.json.corrompido-AAAAMMDD-HHMMSS`, registra no log e devolve lista vazia (nunca impede a abertura). Versão de formato maior que a conhecida: ignora o arquivo e não o sobrescreve até o usuário mexer na fila (um downgrade não apaga o histórico de uma versão nova).
 - `Gravador`: dono único da escrita. Tem um mutex que serializa escrita e rename, um timer de debounce de 1 s e um estado `fechado`.
   - `Agendar(itens)`: guarda a última lista e (re)arma o timer. Ignorado se `fechado`.
-  - `GravarAgora(itens)`: para o timer e grava na hora, sob o mutex.
+  - `GravarAgora(itens)`: para o timer e grava na hora, sob o mutex. A lista que fica no arquivo é a da última escrita concluída sob o mutex; como `Agendar` e `GravarAgora` concorrentes não têm ordem definida, o contrato é: o arquivo é sempre um JSON válido igual a uma das listas recebidas e, depois de uma chamada final sem concorrência (`GravarAgora`, ou `Agendar` seguido do debounce), igual à lista dela.
   - `Fechar(itensFinais)`: sob o mutex, para o timer, marca `fechado` e faz a escrita final. Depois disso nenhum `Agendar` ou `GravarAgora` grava. Usado pelo Shutdown, pelo desligar do histórico (h3, com `itensFinais` nil, que apaga o arquivo) e pela troca de versão do autoupdate.
   - `Reabrir()`: desfaz o `fechado` (só a reversão do autoupdate usa).
   - A escrita usa `os.CreateTemp` na pasta do histórico e renomeia por cima (`os.Rename` no Windows substitui o destino). Se o rename falhar (antivírus segurando o arquivo), tenta de novo uma vez após 200 ms; falhando, registra no log, apaga o temporário e segue.
 - `Podar(itens, teto)`: aplica o teto de 500 itens (seção 3.3).
-- Validação ao carregar, item a item (o inválido é descartado, o resto fica): `Path` (e cada um de `Paths`, no item de vários PDFs) absoluto com extensão aceita pela fila; `OutputPath` vazio ou com `saida.DaEntrada` verdadeiro; status num conjunto conhecido. É defesa em profundidade, não barreira: quem edita o JSON também escolhe o `Path` (e quem escreve em `%APPDATA%` já roda como o usuário). O ganho é que um arquivo estragado ou montado à mão não faz `CopyOutput` (`app.go`, `lerSaidaParaCopiar`, que confia em itens com status `success`) ler um `.txt` sem relação com a entrada do item.
+- Validação ao carregar, item a item (o inválido é descartado, o resto fica): `Path` (e cada um de `Paths`, no item de vários PDFs) absoluto com extensão aceita pela fila; `OutputPath` vazio ou com `saida.SaidaDoItem(Kind, Path, Paths, OutputPath)` verdadeiro (`Kind` derivado do `Path` quando ausente); status num conjunto conhecido. É defesa em profundidade, não barreira: quem edita o JSON também escolhe o `Path` (e quem escreve em `%APPDATA%` já roda como o usuário). O ganho é que um arquivo estragado ou montado à mão não faz `CopyOutput` (`app.go`, `lerSaidaParaCopiar`, que confia em itens com status `success`) ler um `.txt` sem relação com a entrada do item.
 
 **`internal/etl/queue.go`:**
 
 - `QueueItem` ganha `FinishedAt int64` (`json:"finished_at"`) e três campos só de exibição ou de controle, não persistidos: `OutputMissing bool` (`"output_missing"`), `SourceMissing bool` (`"source_missing"`) e `Restaurado bool` (`"restaurado"`, item que veio do histórico e ainda não foi processado nesta sessão). `copiarItem` copia os quatro.
-- `FinishedAt` é preenchido em todo caminho que encerra um item: sucesso, erro e cancelamento em `processItem`; o `recover` de panic (`queue.go:435-449`); a falha ao carregar a config (`queue.go:497-508`); e o `CancelItem` de item `pending` (`queue.go:352-355`), que não passa por `processItem`.
-- Status novo `"interrupted"`. Não entra em `startProcessing` (que só pega `pending`).
+- `FinishedAt` é preenchido em todo caminho que encerra um item: sucesso, erro e cancelamento em `processItem`; o `recover` de panic (`queue.go:455-470`); a falha ao carregar a config (`queue.go:517-529`); e o `CancelItem` de item `pending` (`queue.go:356-359`), que não passa por `processItem`.
+- Status novo `"interrupted"`. Não entra em `startProcessing` (que só pega `pending`). `LimparConcluidos` (`queue.go:402-415`, que hoje tira `success`, `error` e `cancelled`) passa a tirar também `interrupted`: é um item parado, que o usuário pode querer limpar junto com os concluídos; o `title` do botão (`ProcessList.svelte:521`, "Remover da lista os concluídos, com erro e cancelados") ganha "e interrompidos".
 - A conversão `historico.Item` para `QueueItem` fica em `etl` (`queue_historico.go`): `Queue.Restaurar(itens []historico.Item)`, chamada uma vez, antes do watcher, e só com o histórico ligado. Monta os `QueueItem` com IDs novos (uuid) e `Restaurado: true`, converte `pending` e `processing` em `interrupted` (h1) e emite um único broadcast. Não inicia processamento. (O status `paused` nunca é atribuído a um item hoje, só aparece no comentário de `queue.go:24`, então não entra na conversão.)
-- **Lista gravada (h2, e6):** a que vai ao gravador é a dos itens da sessão atual (os que não têm `Restaurado`), se houver ao menos um; se não houver, a dos restaurados que restam. Assim uma sessão sem processamento (abrir e fechar, ou a troca de versão do autoupdate) não apaga a anterior, e a primeira entrada nova da sessão faz os itens da sessão anterior saírem do arquivo (continuam na tela até o programa fechar). Um item restaurado que volta à fila ("Processar de novo", "Reprocessar", ou a varredura do watchdog pela reutilização abaixo) perde `Restaurado` e passa a ser da sessão atual.
-- `Queue.SetGravador(g *historico.Gravador)` (ou uma interface pequena com `Agendar`, para os testes). O `broadcast` (`queue.go:572`), que já copia a lista sob `q.mu`, chama `g.Agendar` com a lista gravada **antes** do retorno antecipado por `wailsCtx == nil` (`queue.go:578`), para que a gravação não dependa do contexto do Wails. Progresso (`queue:item`, `emitirProgresso`) não grava: só mudanças de estado. Sem gravador (histórico desligado), nada muda.
-- `AddFiles`: hoje só deduplica contra `pending`/`processing` (`queue.go:179`). Passa a reaproveitar a linha `"interrupted"` com o mesmo `Path` (vira `pending`, mantém a posição), para que a varredura inicial do watchdog não crie uma segunda linha do mesmo processo (h1).
-- `Reprocessar` (`queue.go:258`) já aceita qualquer estado fora de `pending` e `processing` (`queue.go:272`), então `interrupted` passa sem mudança. A única mudança é conferir se a entrada existe antes de pôr na fila (erro "arquivo de origem não encontrado").
+- **Lista gravada (h2, e6):** a `Queue` guarda um sinal `sessaoComEntrada bool`, falso ao abrir, que vira verdadeiro na primeira entrada nova da sessão (item criado por `AddFiles`, linha `interrupted` reaproveitada, ou `Reprocessar`/"Processar de novo" de qualquer item) e nunca volta a falso. Com o sinal falso, a lista que vai ao gravador é a dos restaurados que restam; com ele verdadeiro, só a dos itens sem `Restaurado`, mesmo que vazia (se o usuário remover todos os itens da sessão, o arquivo fica com a lista vazia e a sessão anterior não volta). Contar os itens presentes não serviria: remover os itens novos faria a sessão anterior reaparecer no arquivo. Assim uma sessão sem processamento (abrir e fechar, ou a troca de versão do autoupdate) não apaga a anterior, e a primeira entrada nova da sessão faz os itens da sessão anterior saírem do arquivo (continuam na tela até o programa fechar). Um item restaurado que volta à fila ("Processar de novo", "Reprocessar", ou a varredura do watchdog pela reutilização abaixo) perde `Restaurado` e passa a ser da sessão atual.
+- `Queue.SetGravador(g *historico.Gravador)` (ou uma interface pequena com `Agendar`, para os testes). O `broadcast` (`queue.go:593`), que já copia a lista sob `q.mu`, chama `g.Agendar` com a lista gravada **antes** do retorno antecipado por `wailsCtx == nil` (`queue.go:599`), para que a gravação não dependa do contexto do Wails. Progresso (`queue:item`, `emitirProgresso`) não grava: só mudanças de estado. Sem gravador (histórico desligado), nada muda.
+- `AddFiles`: hoje só deduplica contra `pending`/`processing` (`queue.go:181`). Passa a reaproveitar a linha `"interrupted"` da mesma entrada (vira `pending`, mantém a posição, perde `Restaurado`), para que a varredura inicial do watchdog não crie uma segunda linha do mesmo processo (h1). "Mesma entrada" é: ZIP com o mesmo `Path`; item de PDF com o mesmo conjunto de `Paths` (sem diferença de caixa). A linha reaproveitada é zerada como `Reprocessar` faz hoje (`queue.go:280-291`): `Message` "Na fila...", `Progress`, `Error`, `OutputPath`, contadores e `UnreadDocs` zerados, `Timestamp` novo e `FinishedAt` zerado; o `ajuste` fica nil (vale a config global, como num arquivo novo), e `saidaAnterior` (spec do PDF) recebe o `OutputPath` de antes. Um PDF solto que é só um dos `Paths` de um item de vários PDFs interrompido não reaproveita a linha: cria um item novo; o item de vários PDFs só volta por "Processar de novo". Como o watchdog chama com um caminho por vez, a reutilização automática vale para ZIP e para item de um PDF só.
+- `Reprocessar` (`queue.go:262`) já aceita qualquer estado fora de `pending` e `processing` (`queue.go:276`), então `interrupted` passa sem mudança. A única mudança é conferir se a entrada existe antes de pôr na fila (erro "arquivo de origem não encontrado").
 - Cancelamento por encerramento: `processItem` distingue o cancelamento por Shutdown (`q.encerrada`) do cancelamento pelo usuário. O item cancelado por encerramento vai para `interrupted`, nunca para `cancelled`.
 - `Shutdown` (`queue.go:114`): depois de esperar o item em curso (ou estourar o prazo de 5 s), chama `g.Fechar` com a lista gravada, os itens ainda `pending`/`processing` marcados como `interrupted`. Como o gravador fica fechado, nem o broadcast tardio do `processItem` que segue rodando após o prazo (`queue.go:133`) nem um timer pendente regravam por cima. `Shutdown` só volta depois dessa escrita.
 
 **`app.go`:**
 
-- `startup`: logo após a config e antes de `a.watcher.Start` (`app.go:80`), se `GuardarHistorico` estiver ligado, carrega `historico.json` (mesma pasta de `config.json` e `falhas.json`, via `config.GetConfigPath`), cria o `Gravador` e chama `queue.Restaurar`. A ordem importa: se o watcher começar antes, a varredura dos pendentes entra antes do histórico e a reutilização da linha interrompida não acontece. O filtro `ignorar` de `pendingZips` não muda: o interrompido volta pela varredura (h1).
+- `startup`: logo após a config e antes de `a.watcher.Start` (`app.go:90`), se `GuardarHistorico` estiver ligado, carrega `historico.json` (mesma pasta de `config.json` e `falhas.json`, via `config.GetConfigPath`), cria o `Gravador` e chama `queue.Restaurar`. A ordem importa: se o watcher começar antes, a varredura dos pendentes entra antes do histórico e a reutilização da linha interrompida não acontece. O filtro `ignorar` de `pendingZips` não muda: o interrompido volta pela varredura (h1).
 - Em seguida, numa goroutine, confere a existência de `Path` (e de `Paths`) e `OutputPath` de cada item restaurado (`os.Stat`) e emite um broadcast com `OutputMissing`/`SourceMissing`. Fica fora do caminho de abertura porque um item numa pasta de rede fora do ar pode levar segundos por `Stat`.
 - `CopyOutput`: se a leitura falhar com `fs.ErrNotExist`, marca `OutputMissing` no item, faz broadcast e devolve "O TXT não está mais em <pasta>; ele pode ter sido movido ou apagado".
-- `OpenDirectory` (`app.go:301-308`): hoje, com o `Stat` falhando, chama `explorer.exe` com o próprio caminho inexistente, e o Explorer abre em Documentos ou dá erro. Passa a usar `filepath.Dir(path)` quando o arquivo não existe, e a pasta só se ela existir. (Vale com o histórico ligado ou não.)
+- `OpenDirectory` (`app.go:334-342`): hoje, com o `Stat` falhando, chama `explorer.exe` com o próprio caminho inexistente, e o Explorer abre em Documentos ou dá erro. Passa a usar `filepath.Dir(path)` quando o arquivo não existe, e a pasta só se ela existir. (Vale com o histórico ligado ou não.)
 - Interruptor no `SaveConfig` (h3): desligar chama `g.Fechar(nil)`, que apaga o arquivo sob a trava, e solta o gravador da fila (os itens na tela ficam até fechar). Ligar cria um gravador novo e grava na hora a lista atual (todos os itens da sessão; não há restaurados, porque nada foi restaurado com o histórico desligado).
 
 **`internal/models/models.go` e `internal/config/config.go`:** `Config` ganha `GuardarHistorico bool` (`json:"guardar_historico"`, padrão `false`), com o padrão em `DefaultConfig` e no overlay de `LoadFromFile`.
@@ -69,14 +69,14 @@ Nenhum método novo é obrigatório. `QueueItem` ganha campos e `Config` ganha `
 ### 2.3 Frontend
 
 - `frontend/src/lib/fila.js`: `formatarQuando(timestamp, agora)` substitui `formatarHora` na linha (hoje, ontem, dd/mm, e dd/mm/aaaa se de outro ano). Usa `finished_at` quando houver, senão `timestamp`.
-- `frontend/src/components/ProcessList.svelte`: estado `interrupted` (ícone, rótulo "Interrompido", ação "Processar de novo", que chama `ReprocessQueueItem` com a config atual); `output_missing` desativa "Copiar TXT" e mostra "TXT não encontrado"; `source_missing` desativa "Reprocessar" com `title` explicando. Os itens restaurados ficam na mesma lista, sem seção à parte (h4).
+- `frontend/src/components/ProcessList.svelte`: estado `interrupted` (ícone, rótulo "Interrompido", ação "Processar de novo", que chama `ReprocessQueueItem` com a config atual; sai com "Limpar concluídos"); `output_missing` desativa "Copiar TXT" e mostra "TXT não encontrado"; `source_missing` desativa "Reprocessar" com `title` explicando. Os itens restaurados ficam na mesma lista, sem seção à parte (h4).
 - `frontend/src/components/AtividadeItem.svelte`: mensagem fixa quando não há instantâneo de atividade de um item restaurado.
 - `frontend/src/components/Settings.svelte`: interruptor "Guardar a lista da última sessão", desligado por padrão, com a frase "Ao reabrir, a lista mostra os processos da última sessão. Os nomes dos arquivos ficam guardados neste computador até a sessão seguinte em que algo for processado."
 - `DESIGN.md`: data na linha, estado Interrompido, o interruptor e a regra de que o monitoramento processa o que achou sem saída.
 
 ### 2.4 Instalador
 
-`install.ps1 -Uninstall -Purge` já apaga `%APPDATA%\eprocIA` inteiro (`install.ps1:520-524`), o que leva o `historico.json` junto. Só a ajuda do parâmetro `-Purge` passa a citar "histórico da fila". O NSIS não apaga dados do usuário hoje e não muda.
+`install.ps1 -Uninstall -Purge` já apaga `%APPDATA%\eprocIA` inteiro (`install.ps1:521-525`), o que leva o `historico.json` junto. Só a ajuda do parâmetro `-Purge` passa a citar "histórico da fila". O NSIS não apaga dados do usuário hoje e não muda.
 
 ### 2.5 Documentação
 
@@ -152,14 +152,14 @@ Nenhum. Tudo é local; nada trafega pela rede.
 
 ## 7. Conflito com a rodada de correção
 
-Grupos conforme `docs/revisao/2026-11-18-plano-correcao.md` no commit 05e7e7f:
+A rodada 2026-11-10 (plano `docs/revisao/2026-11-18-plano-correcao.md`) já está na `main` (PR #13). O que ela deixou e este recurso aproveita:
 
-- **F9** (F-AC-06 "Limpar concluídos" com binding novo e "Limpar tudo" com confirmação; F-AC-12 semântica de remover e cancelar; F-AN-04 saída com fade): mexe em `Clear`, `RemoveItem` e nas ações da linha, as mesmas que o histórico usa. "Limpar concluídos" apaga do histórico também; com o gravador ligado ao broadcast isso sai de graça, desde que o binding novo termine com broadcast.
-- **F12** (F-VI-09 largura do nome na linha, P6): a data mais longa ("ontem 14:32", "12/11 14:32") compete com o nome e com o rótulo de não lidos.
-- **F10** (F-AC-16, nomes dos botões da linha) e **F11** (F-AC-15, teclado e Delete): o estado `interrupted` entra nas mesmas regras de foco e de nomes.
+- **F9** (F-AC-06, F-AC-12): `LimparConcluidos` (`queue.go:402-415`) e o binding `ClearFinishedQueue` (`app.go:500`) já existem, e "Limpar tudo" já pede confirmação em linha (`ProcessList.svelte:531-547`). Não há binding novo: este recurso só acrescenta `interrupted` ao que `LimparConcluidos` tira (seção 2.1), e a gravação sai do broadcast que ele já faz.
+- **F12** (F-VI-09, largura do nome na linha): a data mais longa ("ontem 14:32", "12/11 14:32") compete com o nome e com o rótulo de não lidos; conferir nas capturas com a lista estreita.
+- **F10** (F-AC-16) e **F11** (F-AC-15): o estado `interrupted` segue as mesmas regras de foco e de nomes dos botões da linha.
 - **F16** (F-DF-04, painel de atividade): a mensagem de "sem detalhes" de item restaurado entra no mesmo componente.
 
-Recomendação: implementar a parte visual depois da rodada, sobre a ProcessList já corrigida. O backend (`internal/saida`, `internal/historico`, `Restaurar`, gravador, `OpenDirectory`) não conflita e pode ser feito antes.
+A parte visual parte da ProcessList já corrigida. O backend (`internal/historico`, `Restaurar`, gravador, `OpenDirectory`) não conflita; `internal/saida` vem da spec do PDF avulso.
 
 ## 8. Testes que provam cada comportamento
 
@@ -168,9 +168,9 @@ Recomendação: implementar a parte visual depois da rodada, sobre a ProcessList
 - ida e volta: gravar e carregar devolvem os mesmos itens, na mesma ordem, inclusive `kind` e `paths`;
 - arquivo ausente devolve vazio sem erro; JSON corrompido devolve vazio e deixa o `.corrompido-*` ao lado; `versao` 2 é ignorada e o arquivo não é sobrescrito;
 - teto de 500 itens: os mais antigos saem;
-- item com `OutputPath` que não passa em `saida.DaEntrada` é descartado; `OutputPath` `<nome>_2.txt` é aceito; `Path` relativo ou com extensão estranha é descartado;
+- item com `OutputPath` que não passa em `saida.SaidaDoItem` é descartado; `OutputPath` `<nome>_2.txt` de PDF é aceito; ida e volta de um item de três PDFs cujo TXT tem o número CNJ comum (`<CNJ>.txt`, pasta do primeiro PDF por evento) mantém o item; `Path` relativo ou com extensão estranha é descartado;
 - gravação atômica: com o rename falhando, o `historico.json` original fica intacto e nenhum temporário sobra;
-- concorrência: `Agendar` em rajada e `GravarAgora` ao mesmo tempo (com `-race`) produzem um arquivo válido, igual à última lista;
+- concorrência: `Agendar` em rajada e `GravarAgora` ao mesmo tempo, em goroutines (com `-race`): lido a qualquer momento durante a rajada, o arquivo é um JSON válido igual a uma das listas enviadas; depois de juntar as goroutines, um `GravarAgora(L)` final deixa o arquivo igual a `L`, e um `Agendar(M)` final, passado o debounce, igual a `M`;
 - `Fechar` com timer pendente: o timer não grava depois; `Agendar` e `GravarAgora` depois de `Fechar` não gravam;
 - `Fechar(nil)` (desligar) com timer pendente: o arquivo é apagado e não é recriado.
 
@@ -180,8 +180,9 @@ Recomendação: implementar a parte visual depois da rodada, sobre a ProcessList
 - `Shutdown` com item processando grava o item como `interrupted`, nunca como `cancelled`;
 - broadcast do `processItem` que termina depois do prazo do `Shutdown` não regrava;
 - `Restaurar` com itens `pending`/`processing` os converte em `interrupted`, marca todos como `Restaurado` e não inicia processamento;
-- lista gravada: sem item novo, grava os restaurados restantes (remover um restaurado o tira do arquivo); com um item novo, grava só os da sessão; um restaurado que volta a processar passa a ser da sessão;
-- `AddFiles` do mesmo `Path` de um item `interrupted` reaproveita a linha (e tira `Restaurado`); de um item `success` cria linha nova;
+- lista gravada: sem item novo, grava os restaurados restantes (remover um restaurado o tira do arquivo); com um item novo, grava só os da sessão; um restaurado que volta a processar passa a ser da sessão; depois de um item novo, remover todos os itens da sessão grava a lista vazia (os restaurados não voltam ao arquivo);
+- `AddFiles` do mesmo `Path` de um item `interrupted` reaproveita a linha (e tira `Restaurado`), com `OutputPath`, `Error`, contadores, `UnreadDocs` e `FinishedAt` zerados e sem `ajuste` (o `processar` falso recebe a config global); de um item `success` cria linha nova; um dos PDFs de um item de vários PDFs `interrupted` cria item novo e deixa a linha interrompida como está; os mesmos `Paths` juntos reaproveitam a linha;
+- `LimparConcluidos` tira `interrupted` junto com `success`, `error` e `cancelled`, e deixa `pending` e `processing`;
 - `Reprocessar` de `interrupted` com ZIP ausente devolve erro e não muda a fila;
 - `FinishedAt` é preenchido em sucesso, erro, cancelamento, panic, falha ao carregar a config e `CancelItem` de pendente.
 
@@ -193,13 +194,13 @@ Recomendação: implementar a parte visual depois da rodada, sobre a ProcessList
 - ligar o interruptor grava a lista atual; desligar apaga o arquivo;
 - `CopyOutput` de item restaurado cujo TXT sumiu marca `OutputMissing` e devolve a mensagem;
 - `OpenDirectory` com TXT ausente abre a pasta (comando falso registra o argumento);
-- `lerSaidaParaCopiar` recusa um `OutputPath` que não passa em `saida.DaEntrada`.
+- `lerSaidaParaCopiar` recusa um `OutputPath` que não passa em `saida.SaidaDoItem` e aceita a saída `<CNJ>.txt` de um item de três PDFs.
 
 Frontend: `fila.test.mjs` para `formatarQuando` (hoje, ontem, outro dia do mesmo ano, outro ano, virada de meia-noite, timestamp inválido); teste por regex da ProcessList (`interrupted` tem rótulo, ícone e ação; `output_missing` desativa copiar) e de Settings (interruptor de `guardar_historico`). Captura visual (`eprocia-visual`): itens de hoje e da sessão anterior em outro dia, um interrompido e um com TXT ausente, nos dois temas e com a lista estreita.
 
 ## 9. Estimativa
 
-Médio. Go: cerca de 290 linhas de código e 440 de teste (pacote `saida`, pacote `historico` com o gravador, mudanças na fila, a regra da lista gravada, o interruptor, o startup e `OpenDirectory`). Frontend: cerca de 120 linhas e 80 de teste. Uma tarefa de backend e uma de frontend, mais capturas. Dois a três dias de agente com revisão (e6 confirmou a recomendação e não muda a estimativa; sem mudança: sai a poda por dias e o filtro estrito da h1, entram a regra da sessão e o interruptor).
+Médio. Go: cerca de 280 linhas de código e 420 de teste (pacote `historico` com o gravador, mudanças na fila, a regra da lista gravada com o sinal da sessão, a reutilização da linha interrompida, o interruptor, o startup e `OpenDirectory`; o pacote `saida` saiu daqui e conta na spec do PDF avulso, e o que a segunda revisão acrescentou cabe no que ele liberou). Frontend: cerca de 120 linhas e 80 de teste. Uma tarefa de backend e uma de frontend, mais capturas. Dois a três dias de agente com revisão (e6 confirmou a recomendação e não muda a estimativa; sem mudança: sai a poda por dias e o filtro estrito da h1, entram a regra da sessão e o interruptor).
 
 ## 10. Decisões do dono
 
@@ -217,3 +218,13 @@ De 2026-11-20:
 ## 11. Resposta à revisão
 
 Todos os achados foram aceitos: H1 (pacote folha `internal/saida`, conversão em `etl`), H2 (`Gravador.Fechar`), H3 (mutex e `os.CreateTemp`), H4 (`OpenDirectory` com `filepath.Dir`), H5 (h1 reescrita, com a opção estrita; o dono escolheu a não estrita), H6 (grupos renumerados conforme o plano em 05e7e7f), H7, H8, H9, H10, H11 (justificativa reescrita como defesa em profundidade) e H12. Nenhuma recusa.
+
+**Segunda revisão sem contexto (2026-11-20),** conferida no código da `main` com a rodada 2026-11-10 juntada. Todos os achados foram conferidos e aceitos:
+
+- H1 (item de vários PDFs sumiria ao carregar, porque `DaEntrada(Path, OutputPath)` compara com o primeiro PDF): validação por `saida.SaidaDoItem`, a mesma de `lerSaidaParaCopiar` (seção 2.1); teste de ida e volta com item de três PDFs (seção 8).
+- H2: `LimparConcluidos` tira `interrupted` (seções 2.1 e 2.3; teste na seção 8).
+- H3: a linha reaproveitada é zerada como no `Reprocessar`; item de vários PDFs só reaproveita com o mesmo conjunto de `Paths` (seção 2.1; testes na seção 8).
+- H4: sinal `sessaoComEntrada` no lugar de contar itens presentes (seção 2.1; teste na seção 8).
+- H5: contrato do gravador sob concorrência definido (seção 2.1) e teste reescrito (seção 8).
+- H6: `internal/saida` é entregue e estimado pela spec do PDF avulso (seções 2.1 e 9).
+- P8 (referências): `app.go`, `queue.go` e `install.ps1` conferidos no código atual; a seção 7 foi reescrita para a rodada já juntada (F9 não precisa de binding novo).
