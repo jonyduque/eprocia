@@ -233,6 +233,9 @@ type passadaPagina struct {
 	// formsIgnorados conta os Forms não interpretados, por motivo. Form em
 	// camada opcional (/OC) não entra: é regra, não falha.
 	formsIgnorados [numMotivosForm]int
+	// opsTexto conta as operações de mostrar texto vistas, Forms incluídos,
+	// mesmo as que não viraram trecho.
+	opsTexto int
 }
 
 // estadoForm é a parte do interpretador que um Form salva antes e restaura
@@ -257,6 +260,7 @@ type interpretador struct {
 	formsVistos    int
 	bytesForms     int // descomprimidos, somados sobre os Forms lidos
 	formsIgnorados [numMotivosForm]int
+	opsTexto       int
 }
 
 // fonteDe devolve a fonte do escopo de recursos atual, carregada uma vez.
@@ -290,6 +294,7 @@ func (it *interpretador) proximaLinha() { it.td(0, -it.leading) }
 // de texto pela largura do trecho (real ou estimada). Dentro de um Form, o
 // texto de um trecho /OC não é registrado.
 func (it *interpretador) mostrar(s string, espacoTJ bool) {
+	it.opsTexto++
 	texto := it.fonte.enc.Decode(s)
 	m := it.tm.vezes(it.ctm)
 	tamanho := it.tfs * math.Hypot(m[2], m[3])
@@ -568,7 +573,7 @@ func interpretarPagina(page pdf.Page) (passadaPagina, error) {
 		pdf.Interpret(strm, it.operador)
 	}
 
-	p := passadaPagina{formsIgnorados: it.formsIgnorados, imagens: it.imagens}
+	p := passadaPagina{formsIgnorados: it.formsIgnorados, imagens: it.imagens, opsTexto: it.opsTexto}
 	p.mediaBox, p.temMediaBox = mediaBoxSeguro(page)
 	type chave struct {
 		texto string
@@ -609,9 +614,16 @@ func extrairTextoPosicional(page pdf.Page) (string, error) {
 // extrairNativo é extrairTextoPosicional mais as métricas da estrutura da
 // página, tiradas da mesma passada. Pede ao chamador as mesmas garantias.
 func extrairNativo(page pdf.Page) (string, metricasPagina, error) {
+	texto, m, _, err := extrairNativoContando(page)
+	return texto, m, err
+}
+
+// extrairNativoContando é extrairNativo mais quantas operações de mostrar
+// texto a passada viu.
+func extrairNativoContando(page pdf.Page) (string, metricasPagina, int, error) {
 	p, err := interpretarPagina(page)
 	if err != nil {
-		return "", metricasPagina{}, err
+		return "", metricasPagina{}, 0, err
 	}
 	m := p.metricas()
 	topo := math.Inf(1) // sem imagem útil ou sem página válida, nenhuma linha conta
@@ -620,7 +632,7 @@ func extrairNativo(page pdf.Page) (string, metricasPagina, error) {
 	}
 	texto, n := montarEContar(p.trechos, topo)
 	m.linhasAcima = n
-	return texto, m, nil
+	return texto, m, p.opsTexto, nil
 }
 
 // montarLinhas agrupa os trechos por Y, do maior para o menor, e junta cada

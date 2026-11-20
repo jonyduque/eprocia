@@ -24,6 +24,7 @@
   --accent-strong-hover: #004A99;
   --success-strong: #75B798;
   --error-strong: #EA868F;
+  --warning-strong: #F59E0B;
   --accent-text: #6EA8FE;
   --overlay: rgba(18, 18, 18, 0.92);
   --track: rgba(255, 255, 255, 0.06);
@@ -38,6 +39,7 @@
   --success-faint: color-mix(in srgb, var(--success) 8%, transparent);
   --success-soft: color-mix(in srgb, var(--success) 15%, transparent);
   --error-soft: color-mix(in srgb, var(--error) 10%, transparent);
+  --error-line: color-mix(in srgb, var(--error) 30%, transparent);
   --warning-soft: color-mix(in srgb, var(--warning) 12%, transparent);
   --warning-line: color-mix(in srgb, var(--warning) 30%, transparent);
 
@@ -47,6 +49,8 @@
   /* Laços contínuos (spinner e pulso de atividade). */
   --dur-spin: 800ms;
   --dur-pulse: 1500ms;
+  /* Realce único da linha que terminou (sucesso ou erro). */
+  --dur-realce: 600ms;
 
   --font-sans: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   /* Escala tipográfica (DESIGN.md §3). */
@@ -68,6 +72,7 @@
   --warning: #D97706;
   --success-strong: #1E7E34;
   --error-strong: #B02A37;
+  --warning-strong: #9A5B00;
   --accent-text: #0056B3;
   --overlay: rgba(248, 249, 250, 0.92);
   --track: rgba(0, 0, 0, 0.06);
@@ -80,6 +85,7 @@
   :root {
     --dur-fast: 0ms;
     --dur-base: 0ms;
+    --dur-realce: 0ms;
     /* O spinner é o sinal de atividade: gira devagar em vez de parar. */
     --dur-spin: 2400ms;
   }
@@ -107,7 +113,44 @@ body {
   user-select: none;
   overflow: hidden;
   height: 100vh;
-  transition: background-color var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
+}
+
+/* Troca de tema (DESIGN.md §7): um instantâneo da janela inteira funde o antes
+   e o depois; as superfícies não animam fundo nem borda por conta própria. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--dur-base);
+  animation-timing-function: var(--ease-out);
+}
+
+/* O instantâneo fica por cima da página: sem isto, engoliria os cliques. */
+::view-transition {
+  pointer-events: none;
+}
+
+/* Durante a troca, nenhuma transição própria: o instantâneo é a única. */
+:root.trocando-tema * {
+  transition: none !important;
+}
+
+/* Janela na bandeja (F-AN-10): spinner, pulso e o que mais girar ficam parados. */
+:root.oculta *,
+:root.oculta *::before,
+:root.oculta *::after {
+  animation-play-state: paused !important;
+}
+
+/* Botões (DESIGN.md §7, tabela de estados): a mesma transição em todos, sem
+   especificidade, para cada componente só dizer as cores. */
+:where(button) {
+  transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+/* Pressionado: fundo --border, por sombra interna porque o :hover de cada
+   componente tem mais especificidade que esta folha. Botões de fundo cheio e a
+   linha expansível da fila ficam de fora. */
+button:not(:disabled, .info-btn, .btn-primary, .primario, .perigo, .btn-close):active {
+  box-shadow: inset 0 0 0 100vmax var(--border);
 }
 
 /* Foco visível único; especificidade zero para não brigar com os componentes. */
@@ -116,10 +159,10 @@ body {
   outline-offset: 1px;
 }
 
-/* Custom Scrollbar for premium look */
+/* Polegar de 4px visíveis numa faixa de 8px: a borda transparente aumenta o alvo. */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -127,10 +170,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 3px;
+  background-color: var(--border-strong);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-secondary);
+  background-color: var(--text-secondary);
 }

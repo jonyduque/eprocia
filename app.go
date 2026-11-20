@@ -41,7 +41,16 @@ type App struct {
 	// saindo é marcado por Quit: daí em diante OnBeforeClose deixa sair e
 	// nada espera animação.
 	saindo atomic.Bool
+	// emitir é trocado nos testes; o padrão é runtime.EventsEmit.
+	emitir func(evento string, dados ...any)
+	// oculta acompanha a janela na bandeja para JanelaVisivel.
+	oculta atomic.Bool
 }
+
+// eventoVisibilidade avisa o frontend que a janela sumiu na bandeja (false)
+// ou voltou (true). Oculta, a WebView2 segue renderizando: o frontend para as
+// animações e segura a fila até reabrir.
+const eventoVisibilidade = "janela:visivel"
 
 // NewApp creates a new App application struct
 func NewApp() *App {
@@ -58,7 +67,7 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	a.animador.Store(janela.NovoAnimador(janela.Nativa(func() { runtime.WindowHide(ctx) })))
+	a.animador.Store(janela.NovoAnimador(janela.Nativa(a.ocultarJanela)))
 	a.pipeline = etl.NewPipeline()
 	a.queue = etl.NewQueue(a.pipeline)
 	a.queue.SetContext(ctx)
@@ -176,6 +185,30 @@ func (a *App) Show() {
 	if a.ctx != nil {
 		runtime.WindowShow(a.ctx)
 	}
+	a.avisarVisibilidade(true)
+}
+
+// ocultarJanela é o ocultar de fato, no fim da animação ou sem ela.
+func (a *App) ocultarJanela() {
+	if a.ctx != nil {
+		runtime.WindowHide(a.ctx)
+	}
+	a.avisarVisibilidade(false)
+}
+
+// iniciarOculta registra que a janela abre já na bandeja (--tray).
+func (a *App) iniciarOculta(oculta bool) { a.oculta.Store(oculta) }
+
+// JanelaVisivel diz ao frontend, ao montar, se a janela está à vista.
+func (a *App) JanelaVisivel() bool { return !a.oculta.Load() }
+
+func (a *App) avisarVisibilidade(visivel bool) {
+	a.oculta.Store(!visivel)
+	if a.emitir != nil {
+		a.emitir(eventoVisibilidade, visivel)
+	} else if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, eventoVisibilidade, visivel)
+	}
 }
 
 // Hide manda a janela para a bandeja com a animação de saída (botão X,
@@ -186,8 +219,8 @@ func (a *App) Hide() {
 	}
 	if an := a.animador.Load(); an != nil {
 		an.Ocultar()
-	} else if a.ctx != nil {
-		runtime.WindowHide(a.ctx)
+	} else {
+		a.ocultarJanela()
 	}
 }
 
@@ -384,11 +417,13 @@ func (a *App) SelectZipFiles() ([]string, error) {
 	})
 }
 
-// AddFilesToQueue adds files manually to the processing queue.
-func (a *App) AddFilesToQueue(filePaths []string) {
+// AddFilesToQueue adds files manually to the processing queue and returns how
+// many actually entered (a path already pending or processing is dropped).
+func (a *App) AddFilesToQueue(filePaths []string) int {
 	if a.queue != nil {
-		a.queue.AddFiles(filePaths)
+		return a.queue.AddFiles(filePaths)
 	}
+	return 0
 }
 
 // GetQueue returns the current list of items in the queue.
@@ -457,6 +492,14 @@ func (a *App) GetQueueActivity(id string) *etl.InstantaneoAtividade {
 func (a *App) ClearQueue() {
 	if a.queue != nil {
 		a.queue.Clear()
+	}
+}
+
+// ClearFinishedQueue remove da lista os itens concluídos, com erro ou
+// cancelados, sem tocar no que está em andamento ou aguardando.
+func (a *App) ClearFinishedQueue() {
+	if a.queue != nil {
+		a.queue.LimparConcluidos()
 	}
 }
 

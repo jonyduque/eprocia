@@ -67,3 +67,13 @@ Decisões registradas, sem ação pedida:
 - `ParsePDF/escaneado` ficou 23% mais lento (304 para 375 microssegundos, 456 para 503 alocações): é a medição de estrutura numa página que depois vai ao OCR, que leva segundos. Os outros benchmarks não mudaram (comparação intercalada de 25 rodadas).
 - A falha do OCR numa página que só foi ao OCR pelas regras novas não grava `ocr_erro` (ver a spec, seção da junção): a página conta como lida, leva `ocr_aviso` e sai no `.txt` com a linha de aviso de falha do OCR antes do texto nativo (pedido do dono em 2026-11-16).
 - O pedido de aviso ao usuário só existe para a falha do OCR. Os outros motivos de documento não lido (senha, arquivo ilegível, OCR desligado, nenhum texto) seguem com `consulte o PDF original`, sem pedir ao modelo que avise o usuário.
+
+## Residuais da revisão da branch revisao/2026-11-10 (2026-11-19)
+
+Três achados baixos da revisão final da branch, deixados fora do PR. Os ids `RB` são desta seção. (O quarto achado da revisão, o anúncio de "arquivo adicionado" para um ZIP já na fila, foi corrigido na própria branch.)
+
+| Id | Onde | Cenário | Conserto proposto |
+|---|---|---|---|
+| RB1 | `frontend/src/components/ProcessList.svelte:96-102` (mesmo padrão em `App.svelte:273-278` e `Settings.svelte:130-134`) | `anunciar()` não é serializado: duas chamadas no mesmo ciclo zeram, esperam `tick()` e escrevem em sequência, e só a última vai ao DOM. Com o filtro ativo, chega um ZIP que corresponde ao filtro no mesmo `queue:update` em que outro item conclui: `registrarMarcos` escreve "X: concluído, N documentos" e `registrarFiltro` escreve "2 itens correspondem ao filtro" logo depois, e o leitor de tela só ouve o segundo. O mesmo vale para Ctrl+C durante a conclusão de um item. | Juntar as mensagens do mesmo tick numa fila (concatenar com ". " antes de escrever). |
+| RB2 | `frontend/src/lib/atividade.js:36-40` e `:49` | `ordenarDocs` ficou sem uso em produção depois do F-DF-04 (o `AtividadeItem` usa `prepararDocs`); só os testes o usam, como oráculo de ordem. `resumoAtividade` (usado por `anuncios.js`) repete o laço de `prepararDocs`, e as duas contagens podem divergir numa mudança futura. | Mover `ordenarDocs` para o teste, ou documentar que ele é o oráculo; fazer `prepararDocs` e `marcosFila` usarem um contador comum. |
+| RB3 | `.claude/review.json:105` | A chave `alto_contraste` não é lida por nenhum script: `scripts/visual/capturar.mjs` repete a lista no código (`ALTO_CONTRASTE`). Quem acrescentar um estado em `review.json`, como o arquivo de configuração sugere, não ganha captura nenhuma. | `capturar.mjs` ler a lista do `review.json`, ou a chave sair. |

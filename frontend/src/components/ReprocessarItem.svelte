@@ -1,6 +1,14 @@
 <script>
   import { onMount } from 'svelte';
+  import { fly } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
+  import { duracaoMovimento, DUR_FAST } from '../lib/aviso.js';
   import { OPCOES_OCR, OPCOES_LIMPEZA } from '../lib/atividade.js';
+  import Segmentado from './Segmentado.svelte';
+  import Icone from './Icone.svelte';
+  import RotateCcw from 'lucide-svelte/icons/rotate-ccw';
+  import ScanText from 'lucide-svelte/icons/scan-text';
+  import Sparkles from 'lucide-svelte/icons/sparkles';
 
   export let id = '';
   // Valores iniciais: os da última execução do item, ou os da config atual.
@@ -15,7 +23,7 @@
   let enviando = false;
   let primeiroCampo;
 
-  onMount(() => primeiroCampo?.focus());
+  onMount(() => primeiroCampo?.focar());
 
   async function confirmar() {
     if (enviando) return;
@@ -36,26 +44,19 @@
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<form class="painel-reprocessar" {id} aria-label="Reprocessar com outras configurações" on:submit|preventDefault={confirmar} on:keydown={tecla}>
-  <label>
-    <span>OCR</span>
-    <select bind:value={ocr} bind:this={primeiroCampo}>
-      {#each OPCOES_OCR as o}
-        <option value={o.valor}>{o.rotulo}</option>
-      {/each}
-    </select>
-  </label>
-  <label>
-    <span>Higienização</span>
-    <select bind:value={limpeza}>
-      {#each OPCOES_LIMPEZA as o}
-        <option value={o.valor}>{o.rotulo}</option>
-      {/each}
-    </select>
-  </label>
+<form class="painel-reprocessar" in:fly={{ y: -4, duration: duracaoMovimento(DUR_FAST), easing: cubicOut }} {id} aria-label="Reprocessar com outras configurações" on:submit|preventDefault={confirmar} on:keydown={tecla}>
+  <div class="campo">
+    <Segmentado nome="{id}-ocr" legenda="OCR" icone={ScanText} discreto opcoes={OPCOES_OCR} bind:valor={ocr} bind:this={primeiroCampo} />
+  </div>
+  <div class="campo">
+    <Segmentado nome="{id}-limpeza" legenda="Higienização" icone={Sparkles} discreto opcoes={OPCOES_LIMPEZA} bind:valor={limpeza} />
+  </div>
   <div class="botoes">
     <button type="button" class="secundario" on:click={aoCancelar}>Cancelar</button>
-    <button type="submit" class="primario" disabled={enviando}>Reprocessar</button>
+    <button type="submit" class="primario" disabled={enviando}>
+      <Icone icone={RotateCcw} tamanho={12} />
+      Reprocessar
+    </button>
   </div>
   <p class="nota">Vale só para este arquivo. O TXT anterior será substituído.</p>
 </form>
@@ -75,24 +76,10 @@
     font-size: var(--fs-meta);
   }
 
-  label {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    color: var(--text-secondary);
-    min-width: 120px;
-    flex: 1 1 120px;
-  }
-
-  select {
-    padding: 4px 8px;
-    border: 1px solid var(--border-strong);
-    border-radius: 4px;
-    background-color: var(--surface);
-    color: var(--text-primary);
-    font: inherit;
-    font-size: var(--fs-base);
-    cursor: pointer;
+  /* 4 segmentos de rótulo inteiro pedem uns 220px; abaixo disso quebra a linha. */
+  .campo {
+    min-width: 0;
+    flex: 1 1 220px;
   }
 
   .botoes {
@@ -109,10 +96,12 @@
     border-radius: 4px;
     cursor: pointer;
     white-space: nowrap;
-    transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
   }
 
   .primario {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     border: none;
     background-color: var(--accent-strong);
     color: var(--on-accent);
@@ -120,6 +109,11 @@
 
   .primario:hover {
     background-color: var(--accent-strong-hover);
+  }
+
+  /* Com 1px o anel encosta no fundo do botão, da mesma cor (--accent-strong). */
+  .primario:focus-visible {
+    outline-offset: 2px;
   }
 
   .primario:disabled {

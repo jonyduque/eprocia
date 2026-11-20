@@ -332,7 +332,7 @@ func TestRepeatedEdgeLines(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := repeatedEdgeLines(tc.pages)
+			got := repeatedEdgeLinesDe(linhasDe(tc.pages))
 			if len(got) != len(tc.want) {
 				t.Fatalf("esperava %d linhas, obteve %d: %v", len(tc.want), len(got), got)
 			}
@@ -885,4 +885,14 @@ func TestGenerateConsolidatedOutput_OmitidoForaDasDuplicatas(t *testing.T) {
 	if !strings.Contains(out, "texto repetido ficticio") {
 		t.Errorf("o documento comum deve manter o texto:\n%s", out)
 	}
+}
+
+// linhasDe converte páginas em linhas básicas, como GenerateConsolidatedOutput
+// faz antes de chamar repeatedEdgeLinesDe.
+func linhasDe(pages []string) [][]string {
+	linhas := make([][]string, len(pages))
+	for i, p := range pages {
+		linhas[i] = linhasBasicas(p)
+	}
+	return linhas
 }

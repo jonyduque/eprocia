@@ -64,3 +64,30 @@ export function temaEfetivo(preferencia, sistemaEscuro) {
 }
 
 export const NOME_TEMA = { system: 'sistema', light: 'claro', dark: 'escuro' };
+
+// Troca de tema numa transição só (DESIGN.md §7): o WebView fotografa a janela
+// e funde o antes e o depois em --dur-base, em vez de cada superfície animar
+// fundo e borda no seu ritmo. A classe trocando-tema desliga as transições de
+// hover enquanto isso, para nenhuma cor chegar atrasada ao quadro novo. Sem
+// movimento ou sem a API, aplica direto.
+export async function trocarTema(doc, aplicar, duracao) {
+  let aplicado = false;
+  const umaVez = () => {
+    if (aplicado) return undefined;
+    aplicado = true;
+    return aplicar();
+  };
+  if (duracao > 0 && typeof doc?.startViewTransition === 'function') {
+    const classes = doc.documentElement?.classList;
+    classes?.add('trocando-tema');
+    try {
+      const t = doc.startViewTransition(umaVez);
+      Promise.resolve(t.finished).catch(() => {}).finally(() => classes?.remove('trocando-tema'));
+      await t.updateCallbackDone;
+    } catch (err) {
+      classes?.remove('trocando-tema');
+      console.error('Erro na transição de tema:', err);
+    }
+  }
+  await umaVez();
+}

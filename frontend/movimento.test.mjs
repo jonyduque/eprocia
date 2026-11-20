@@ -3,7 +3,7 @@
 // Rodar com: node --test frontend/movimento.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { criarArrasto } from './src/lib/divisor.js';
@@ -19,7 +19,27 @@ const design = ler('..', 'DESIGN.md');
 
 function estilo(texto) {
   const i = texto.indexOf('<style>');
+  if (i < 0) return '';
   return texto.slice(i, texto.indexOf('</style>', i));
+}
+
+// Todo .svelte de src (fora dos bindings gerados), para que um componente novo
+// já nasça sob as regras de movimento.
+const componentes = readdirSync(join(raiz, 'src'), { recursive: true })
+  .map((p) => String(p).split('\\').join('/'))
+  .filter((p) => p.endsWith('.svelte') && !p.startsWith('wailsjs/'))
+  .sort()
+  .map((p) => [p, ler('src', ...p.split('/'))]);
+
+// Corpo de um bloco CSS a partir de uma posição, respeitando chaves aninhadas.
+function bloco(texto, ini) {
+  const abre = texto.indexOf('{', ini);
+  let prof = 0;
+  for (let j = abre; j < texto.length; j++) {
+    if (texto[j] === '{') prof++;
+    else if (texto[j] === '}' && --prof === 0) return texto.slice(abre + 1, j);
+  }
+  return texto.slice(abre + 1);
 }
 
 function tag(texto, marca) {
@@ -114,7 +134,38 @@ test('alça captura 8px e desenha uma linha de 2px', () => {
 
 // --- F-AN-03 ---------------------------------------------------------------
 
-const folhas = { 'App.svelte': estilo(app), 'ProcessList.svelte': estilo(lista), 'Settings.svelte': estilo(settings), 'style.css': css };
+const folhas = { ...Object.fromEntries(componentes.map(([nome, t]) => [nome, estilo(t)])), 'style.css': css };
+
+test('regras de movimento cobrem todos os componentes', () => {
+  const nomes = componentes.map(([n]) => n);
+  for (const n of ['App.svelte', 'components/ProcessList.svelte', 'components/Settings.svelte', 'components/AtividadeItem.svelte', 'components/ReprocessarItem.svelte']) {
+    assert.ok(nomes.includes(n), `${n} fora da varredura`);
+  }
+});
+
+const REDUZIDO = '@media (prefers-reduced-motion: reduce)';
+
+test('animação infinita fora do spin só mexe em transform/opacity e para em reduced-motion', () => {
+  for (const [nome, comComentarios] of Object.entries(folhas)) {
+    const folha = comComentarios.replace(/\/\*[\s\S]*?\*\//g, '');
+    let reduzidos = '';
+    for (let i = folha.indexOf(REDUZIDO); i >= 0; i = folha.indexOf(REDUZIDO, i + 1)) reduzidos += bloco(folha, i) + '\n';
+    for (const m of folha.matchAll(/([^{};]+)\{[^{}]*animation:\s*([\w-]+)[^;]*\binfinite\b/g)) {
+      const anim = m[2];
+      if (anim === 'spin') continue;
+      const ik = folha.indexOf(`@keyframes ${anim}`);
+      assert.ok(ik >= 0, `${nome}: @keyframes ${anim} ausente`);
+      for (const p of bloco(folha, ik).matchAll(/([a-z-]+)\s*:/g)) {
+        assert.ok(['transform', 'opacity'].includes(p[1]), `${nome}: @keyframes ${anim} anima ${p[1]}`);
+      }
+      const sel = m[1].trim().split(',').at(-1).trim();
+      const ok = [...reduzidos.matchAll(/([^{}]+)\{([^}]*)\}/g)].some(
+        ([, s, decl]) => s.split(',').map((x) => x.trim()).includes(sel) && /animation:\s*none/.test(decl),
+      );
+      assert.ok(ok, `${nome}: ${sel} sem animation: none em reduced-motion`);
+    }
+  }
+});
 
 test('transições e animações usam tokens, sem durações nem curvas soltas', () => {
   for (const [nome, folha] of Object.entries(folhas)) {
@@ -170,10 +221,15 @@ test('hover da linha não desloca', () => {
   }
 });
 
+const USO_SVELTE = /(?:transition|in|out|animate):(?:fly|fade|scale|slide|flip)(?:\|(?:global|local))?=\{\{[^}]*\}\}/g;
+
 test('transições do Svelte passam por duracaoMovimento', () => {
-  for (const [nome, f] of [['App', app], ['ProcessList', lista], ['Settings', settings]]) {
-    const usos = f.match(/(?:transition|in|out):(?:fly|fade)(?:\|global)?=\{\{[^}]*\}\}/g) || [];
-    for (const u of usos) assert.match(u, /duration:\s*(?:[^,?]*\?\s*)?duracaoMovimento\(DUR_(FAST|BASE)\)/, `${nome}: ${u}`);
+  for (const errado of ['in:scale={{ duration: 200 }}', 'out:slide={{ duration: 200 }}', 'animate:flip={{ duration: 150 }}']) {
+    assert.equal(errado.match(USO_SVELTE)?.length, 1, `regex não reconhece ${errado}`);
+  }
+  for (const [nome, f] of componentes) {
+    const usos = f.match(USO_SVELTE) || [];
+    for (const u of usos) assert.match(u, /duration:\s*(?:[^,?]*\?\s*(?:0\s*:\s*)?)?duracaoMovimento\(DUR_(FAST|BASE)\)/, `${nome}: ${u}`);
   }
 });
 
@@ -232,11 +288,25 @@ test('linha da fila: só entrada com fly, saída com fade e flip, controlados po
   const linha = tag(lista, 'class="item-row {item.status}"');
   assert.doesNotMatch(linha, /transition:fly/);
   assert.match(linha, /in:fly\|global=\{\{ y: 8, duration: mov\.novo\(item\.id\) \? duracaoMovimento\(DUR_BASE\) : 0, easing: cubicOut \}\}/);
-  assert.match(linha, /out:fade=\{\{ duration: mov\.removido\(item\.id\) \? duracaoMovimento\(DUR_FAST\) : 0 \}\}/);
+  assert.match(linha, /out:fade\|global=\{\{ duration: mov\.removido\(item\.id\) \? duracaoMovimento\(DUR_FAST\) : 0 \}\}/);
   assert.match(linha, /animate:flip=\{\{ duration: mov\.porFiltro\(\) \? 0 : duracaoMovimento\(DUR_FAST\), easing: cubicOut \}\}/);
   assert.match(lista, /import \{ flip \} from 'svelte\/animate'/);
   assert.match(lista, /const mov = criarMovimentoFila\(\)/);
   assert.match(lista, /\$: mov\.atualizar\(items, filterText\)/);
+});
+
+// F-AN-04 (2026-11-10): Limpar tudo e remover o último item saem com o mesmo
+// fade de um item só; o vazio entra depois, por cima da lista que sai.
+test('estado vazio entra com fade atrasado e cobre a lista que ainda sai', () => {
+  const vazios = [...lista.matchAll(/<div class="empty-state"[^>]*>/g)].map((m) => m[0]);
+  assert.equal(vazios.length, 2);
+  for (const v of vazios) {
+    assert.match(v, /in:fade=\{\{ duration: duracaoMovimento\(DUR_FAST\), delay: duracaoMovimento\(DUR_FAST\) \}\}/);
+  }
+  const s = estilo(lista);
+  assert.match(s, /\.items-container\s*\{[^}]*position:\s*relative/);
+  assert.match(s, /\.empty-state\s*\{[^}]*position:\s*absolute/);
+  assert.match(s, /\.empty-state\s*\{[^}]*min-height:\s*100%/);
 });
 
 // --- F-AN-06 ---------------------------------------------------------------
@@ -259,12 +329,19 @@ test('conteúdo do painel fica montado, inerte e some com fade ao recolher', () 
   assert.match(tag(app, 'class="sidebar"'), /style:--largura-painel="\{larguraPainel\}px"/);
 });
 
-test('cabeçalho do painel só com o botão e ferramentas recolhidas entram depois da largura', () => {
-  // F-VI-10: o título "Painel de Controle" saiu; nada no cabeçalho aparece ou some de repente.
+test('rótulo do cabeçalho fica montado e some com fade; ferramentas recolhidas entram depois da largura', () => {
+  // F-VI-10/F-VI-07: só o rótulo "Configurações" e o botão; nada aparece ou some de repente.
   const ini = app.indexOf('<div class="sidebar-header-toggle">');
   const cab = app.slice(ini, app.indexOf('<button', ini));
   assert.doesNotMatch(cab, /\{#if/);
-  assert.doesNotMatch(cab, /<span/);
+  assert.match(cab, /class="painel-titulo"/);
+  const s = estilo(app);
+  assert.match(regra(s, '.painel-titulo'), /transition:\s*opacity var\(--dur-fast\) var\(--ease-out\) var\(--dur-fast\)/, 'ao expandir, aparece depois da largura');
+  const fechado = regra(s, '.sidebar.collapsed .painel-titulo');
+  assert.match(fechado, /position:\s*absolute/, 'não empurra o chevron da coluna de 48px');
+  assert.match(fechado, /opacity:\s*0/);
+  assert.match(fechado, /visibility:\s*hidden/);
+  assert.match(fechado, /transition:\s*opacity var\(--dur-fast\) var\(--ease-out\), visibility var\(--dur-fast\) linear/);
   assert.match(tag(app, 'class="collapsed-tools"'), /in:fade=\{\{ duration: duracaoMovimento\(DUR_FAST\), delay: duracaoMovimento\(DUR_FAST\) \}\}/);
 });
 
@@ -273,4 +350,140 @@ test('DESIGN.md descreve o movimento da fila e do painel recolhível', () => {
   assert.match(sec, /animate:flip/);
   assert.match(sec, /filtro/);
   assert.match(sec, /Recolher\/expandir o painel/);
+});
+
+// --- F-DF-01 ---------------------------------------------------------------
+
+test('barras de progresso animam transform, não width', () => {
+  const at = ler('src', 'components', 'AtividadeItem.svelte');
+  for (const [nome, f, sel, marca, valor] of [
+    ['ProcessList', lista, '.progress-bar', 'class="progress-bar"', /style:--p=\{item\.progress \|\| 0\}/],
+    ['AtividadeItem', at, '.doc-barra span', 'class="doc-barra"', /style:--p=\{pct\(d\) \/ 100\}/],
+  ]) {
+    const r = regra(estilo(f), sel);
+    assert.doesNotMatch(r, /transition:\s*width/, `${nome}: width anima no layout`);
+    assert.match(r, /width:\s*100%/, nome);
+    assert.match(r, /transform:\s*scaleX\(var\(--p\)\)/, nome);
+    assert.match(r, /transform-origin:\s*left center/, nome);
+    assert.match(r, /transition:\s*transform var\(--dur-base\) var\(--ease-out\)/, nome);
+    const i = f.indexOf(marca);
+    assert.ok(i >= 0, `${nome}: ${marca} ausente`);
+    const linha = f.slice(i, f.indexOf('\n', i));
+    assert.match(linha, valor, `${nome}: --p ausente`);
+    assert.doesNotMatch(linha, /style="width/, `${nome}: largura inline`);
+  }
+  assert.match(design.slice(design.indexOf('## 7. Movimento')), /scaleX/);
+});
+
+// --- F-AN-09 ---------------------------------------------------------------
+
+import { LIMITE_FLIP_DOCS, LIMITE_AGUARDANDO } from './src/lib/atividade.js';
+
+test('documentos da atividade deslizam com flip, que desliga em listas longas, e saem com fade', () => {
+  const at = ler('src', 'components', 'AtividadeItem.svelte');
+  const linha = tag(at, 'class="doc ');
+  assert.match(linha, /animate:flip=\{\{ duration: LIMITE_FLIP_DOCS < visiveis\.length \? 0 : duracaoMovimento\(DUR_FAST\), easing: cubicOut \}\}/);
+  assert.match(linha, /out:fade=\{\{ duration: duracaoMovimento\(DUR_FAST\) \}\}/);
+  assert.match(at, /import \{ flip \} from 'svelte\/animate'/);
+  assert.match(at, /import \{ fade(, fly)? \} from 'svelte\/transition'/);
+  assert.match(at, /import \{ cubicOut \} from 'svelte\/easing'/);
+  assert.match(at, /\{#each visiveis as d \(d\.i\)\}\s*<li class="doc /, 'li é o único filho do each');
+  // Recolhido, o painel cabe no limite mesmo com muitos núcleos: o flip só desliga com os concluídos à mostra.
+  assert.ok(LIMITE_FLIP_DOCS >= LIMITE_AGUARDANDO + 32);
+});
+
+test('DESIGN.md descreve o movimento do painel de atividade', () => {
+  const sec = design.slice(design.indexOf('## 7. Movimento'));
+  assert.match(sec, /Documentos do painel de atividade/);
+});
+
+// --- F-AN-05 (2026-11-10) --------------------------------------------------
+
+test('chip de fila pausada mora na linha do cabeçalho e entra/sai com fade', () => {
+  const ini = lista.indexOf('<div class="list-header"');
+  const cab = lista.slice(ini, lista.indexOf('{#if confirmandoLimpeza}', ini));
+  assert.match(cab, /\{#if aviso\}\s*<span class="queue-chip" title=\{aviso\} transition:fade=\{\{ duration: duracaoMovimento\(DUR_FAST\) \}\}>/);
+  assert.doesNotMatch(lista, /<div class="queue-notice">/, 'faixa própria empurrava a lista');
+  const chip = regra(estilo(lista), '.queue-chip');
+  assert.match(chip, /min-width:\s*0/);
+  assert.match(chip, /flex-shrink:\s*\d+/);
+});
+
+test('indicador "N ativos" entra e sai com fade', () => {
+  assert.match(tag(app, 'class="pulse-indicator"'), /transition:fade=\{\{ duration: duracaoMovimento\(DUR_FAST\) \}\}/);
+});
+
+// --- F-AN-08 ---------------------------------------------------------------
+
+test('painéis dentro da linha entram com fly curto e saem na hora', () => {
+  const at = ler('src', 'components', 'AtividadeItem.svelte');
+  const rep = ler('src', 'components', 'ReprocessarItem.svelte');
+  for (const [nome, f, marca] of [
+    ['AtividadeItem', at, 'class="painel-atividade"'],
+    ['ReprocessarItem', rep, 'class="painel-reprocessar"'],
+    ['ProcessList', lista, 'class="erro-detalhe"'],
+  ]) {
+    const t = tag(f, marca);
+    assert.match(t, /in:fly=\{\{ y: -4, duration: duracaoMovimento\(DUR_FAST\), easing: cubicOut \}\}/, nome);
+    assert.doesNotMatch(t, /(?:out|transition):/, `${nome}: saída deve ser instantânea`);
+    assert.match(f, /import \{[^}]*\bfly\b[^}]*\} from 'svelte\/transition'/, nome);
+    assert.match(f, /import \{ cubicOut \} from 'svelte\/easing'/, nome);
+  }
+  const sec = design.slice(design.indexOf('## 7. Movimento'));
+  assert.match(sec, /Painéis dentro da linha/);
+});
+
+// --- F-AN-11 ---------------------------------------------------------------
+
+test('terminou marca só o item que concluiu ou falhou nesta sessão', () => {
+  const mov = criarMovimentoFila();
+  const it = (id, status) => ({ id, name: `${id}.zip`, status });
+  mov.atualizar([it('velho', 'success'), it('a', 'processing'), it('b', 'pending')]);
+  assert.equal(mov.terminou('velho'), false, 'já concluído ao abrir não realça');
+  mov.atualizar([it('velho', 'success'), it('a', 'success'), it('b', 'processing')]);
+  assert.equal(mov.terminou('a'), true);
+  assert.equal(mov.terminou('b'), false);
+  mov.atualizar([it('velho', 'success'), it('a', 'success'), it('b', 'error')]);
+  assert.equal(mov.terminou('a'), true, 'continua marcado: a animação roda uma vez só');
+  assert.equal(mov.terminou('b'), true, 'erro também realça');
+  mov.atualizar([it('velho', 'success'), it('a', 'pending'), it('b', 'error')]);
+  assert.equal(mov.terminou('a'), false, 'reprocessar tira a marca, para realçar de novo no fim');
+  mov.atualizar([it('velho', 'success'), it('a', 'cancelled')]);
+  assert.equal(mov.terminou('a'), false, 'cancelado não realça');
+  assert.equal(mov.terminou('b'), false, 'item removido sai do conjunto');
+  mov.atualizar([it('velho', 'success'), it('a', 'cancelled')], 'zip');
+  assert.equal(mov.terminou('velho'), false);
+});
+
+test('fim do item: ícone troca com scale, barra sai com fade e a linha tem realce único', () => {
+  const i = lista.indexOf('<div class="status-col">');
+  const col = lista.slice(i, lista.indexOf('</div>\n\n', i));
+  assert.match(col, /\{#key estado\}\s*<span class="icone-estado" in:scale=\{\{ start: 0\.6, duration: duracaoMovimento\(DUR_FAST\), easing: cubicOut \}\}>/);
+  assert.match(tag(lista, 'class="progress-bar-container"'), /out:fade=\{\{ duration: duracaoMovimento\(DUR_BASE\) \}\}/);
+  assert.match(tag(lista, 'class="item-row {item.status}"'), /class:realce=\{mov\.terminou\(item\.id\)\}/);
+
+  const s = estilo(lista);
+  assert.match(regra(s, '.item-row'), /isolation:\s*isolate/, 'realce fica atrás do conteúdo');
+  const depois = regra(s, '.item-row::after');
+  assert.match(depois, /opacity:\s*0/);
+  assert.match(depois, /pointer-events:\s*none/);
+  assert.match(depois, /z-index:\s*-1/);
+  assert.match(regra(s, '.item-row.realce::after'), /animation:\s*realce var\(--dur-realce\) var\(--ease-out\)/);
+  assert.match(regra(s, '.item-row.realce.success::after'), /background-color:\s*var\(--success-soft\)/);
+  assert.match(regra(s, '.item-row.realce.error::after'), /background-color:\s*var\(--error-soft\)/);
+  const ik = s.indexOf('@keyframes realce');
+  assert.ok(ik >= 0);
+  const kf = bloco(s, ik);
+  assert.match(kf, /from\s*\{\s*opacity:\s*1;?\s*\}/);
+  assert.match(kf, /to\s*\{\s*opacity:\s*0;?\s*\}/);
+  const m = s.indexOf(REDUZIDO);
+  assert.ok(m >= 0, 'ProcessList sem regra de reduced-motion');
+  assert.match(bloco(s, m), /\.item-row\.realce::after\s*\{[^}]*animation:\s*none/);
+
+  assert.match(css, /--dur-realce:\s*600ms/);
+  const r = css.indexOf(REDUZIDO);
+  assert.match(css.slice(r, css.indexOf('\n}\n', r)), /--dur-realce:\s*0ms/);
+  const sec = design.slice(design.indexOf('## 7. Movimento'));
+  assert.match(sec, /--dur-realce/);
+  assert.match(sec, /terminou/);
 });

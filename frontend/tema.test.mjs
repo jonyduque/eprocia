@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TEMAS, proximoTema, temaEfetivo, lerPreferencia } from './src/lib/tema.js';
+import { OPCOES_OCR, OPCOES_LIMPEZA } from './src/lib/atividade.js';
 
 const raiz = dirname(fileURLToPath(import.meta.url));
 const ler = (...p) => readFileSync(join(raiz, ...p), 'utf8');
@@ -125,8 +126,10 @@ test('interruptores com rótulo à esquerda e linha de 32px', () => {
   }
 });
 
-test('opções curtas com texto de ajuda abaixo do select', () => {
-  const opcoes = [...settings.matchAll(/<option value="[^"]+">([^<]+)<\/option>/g)].map((m) => m[1]);
+test('opções curtas com texto de ajuda abaixo do controle segmentado', () => {
+  assert.match(settings, /opcoes=\{OPCOES_OCR\}/);
+  assert.match(settings, /opcoes=\{OPCOES_LIMPEZA\}/);
+  const opcoes = [...OPCOES_OCR, ...OPCOES_LIMPEZA].map((o) => o.rotulo);
   assert.ok(opcoes.length >= 8);
   for (const o of opcoes) assert.ok(o.length <= 12, `opção longa: ${o}`);
   for (const o of ['Nenhuma', 'Básica', 'Padrão', 'Máxima']) assert.ok(opcoes.includes(o), o);
@@ -135,9 +138,12 @@ test('opções curtas com texto de ajuda abaixo do select', () => {
   assert.match(regra(estilo(settings), '.help-text'), /font-size:\s*var\(--fs-meta\)/);
 });
 
+// F-AC-03: o caminho é texto (não campo), com reticências no meio pela ação
+// reticenciasMeio e text-overflow como reserva.
 test('pasta monitorada com title e reticências', () => {
-  const i = settings.indexOf('id="monitored-path"');
-  const input = settings.slice(settings.lastIndexOf('<input', i), settings.indexOf('/>', i));
-  assert.match(input, /title=\{/);
-  assert.match(regra(estilo(settings), 'input[type="text"]'), /text-overflow:\s*ellipsis/);
+  const i = settings.indexOf('use:reticenciasMeio=');
+  const caminho = settings.slice(settings.lastIndexOf('<span', i), settings.indexOf('>', i));
+  assert.match(caminho, /id="monitored-path"/);
+  assert.match(caminho, /title=\{/);
+  assert.match(regra(estilo(settings), '.caminho'), /text-overflow:\s*ellipsis/);
 });

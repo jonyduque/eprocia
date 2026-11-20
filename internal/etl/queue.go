@@ -167,11 +167,13 @@ func (q *Queue) avisarFimLocked(item *QueueItem) func() {
 	return func() { fn(copia) }
 }
 
-// AddFiles adds multiple zip files to the queue.
-func (q *Queue) AddFiles(paths []string) {
+// AddFiles adds multiple zip files to the queue and returns how many actually
+// entered (duplicates of pending/processing items are dropped).
+func (q *Queue) AddFiles(paths []string) int {
 	log.Printf("[Queue] AddFiles chamada com caminhos: %v", paths)
 	q.mu.Lock()
 	hasPending := false
+	adicionados := 0
 	for _, path := range paths {
 		// Avoid duplicate files currently in queue (not processed yet or currently processing)
 		duplicated := false
@@ -199,6 +201,7 @@ func (q *Queue) AddFiles(paths []string) {
 		// Prepend to show newest on top
 		q.items = append([]*QueueItem{item}, q.items...)
 		hasPending = true
+		adicionados++
 		log.Printf("[Queue] Arquivo adicionado à fila: %s (Status: %s)", item.Name, item.Status)
 	}
 	q.mu.Unlock()
@@ -211,6 +214,7 @@ func (q *Queue) AddFiles(paths []string) {
 	} else {
 		log.Printf("[Queue] Nenhum item novo pendente na fila.")
 	}
+	return adicionados
 }
 
 // GetItems returns a copy of all queue items.
@@ -389,6 +393,23 @@ func (q *Queue) Clear() {
 		}
 	}
 	q.items = make([]*QueueItem, 0)
+	q.mu.Unlock()
+	q.broadcast()
+}
+
+// LimparConcluidos tira da lista os itens com sucesso, erro ou cancelados; o
+// item em processamento e os que aguardam continuam como estão.
+func (q *Queue) LimparConcluidos() {
+	q.mu.Lock()
+	restantes := q.items[:0:0]
+	for _, item := range q.items {
+		switch item.Status {
+		case "success", "error", "cancelled":
+		default:
+			restantes = append(restantes, item)
+		}
+	}
+	q.items = restantes
 	q.mu.Unlock()
 	q.broadcast()
 }

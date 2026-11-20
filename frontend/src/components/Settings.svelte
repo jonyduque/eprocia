@@ -1,12 +1,21 @@
 <script>
   import Icone from './Icone.svelte';
-  import SettingsIcon from 'lucide-svelte/icons/settings';
-  import Trash2 from 'lucide-svelte/icons/trash-2';
-  import X from 'lucide-svelte/icons/x';
-  import { onDestroy } from 'svelte';
-  import { fly, fade } from 'svelte/transition';
-  import { cubicOut } from 'svelte/easing';
-  import { criarAviso, duracaoMovimento, DUR_FAST, DUR_BASE } from '../lib/aviso.js';
+  import CirclePause from 'lucide-svelte/icons/circle-pause';
+  import EyeOff from 'lucide-svelte/icons/eye-off';
+  import Folder from 'lucide-svelte/icons/folder';
+  import FolderOpen from 'lucide-svelte/icons/folder-open';
+  import FolderSearch from 'lucide-svelte/icons/folder-search';
+  import FolderX from 'lucide-svelte/icons/folder-x';
+  import LoaderCircle from 'lucide-svelte/icons/loader-circle';
+  import Power from 'lucide-svelte/icons/power';
+  import ScanText from 'lucide-svelte/icons/scan-text';
+  import Sparkles from 'lucide-svelte/icons/sparkles';
+  import Salvo from './Salvo.svelte';
+  import Segmentado from './Segmentado.svelte';
+  import { onDestroy, tick } from 'svelte';
+  import { criarConfirmacao } from '../lib/aviso.js';
+  import { OPCOES_OCR, OPCOES_LIMPEZA, descricaoOpcao } from '../lib/atividade.js';
+  import { ROTULO_MONITORAMENTO, estadoMonitoramento, reticenciasMeio } from '../lib/monitoramento.js';
   import { SaveConfig, SelectDirectory } from '../wailsjs/go/main/App.js';
 
   // O App lê a config uma vez e a compartilha por bind; null enquanto carrega.
@@ -15,6 +24,9 @@
   // Chamado quando SaveConfig falha: o App relê a config gravada, para o
   // rodapé e o formulário não exibirem valores que não foram salvos.
   export let aoFalharSalvar = () => {};
+  // Erros vão para o aviso do pé do painel (App), fora da área rolável, para
+  // não cobrir os controles; o sucesso é o Check ao lado do controle.
+  export let avisar = () => {};
 
   const PADRAO = {
     monitored_path: '',
@@ -25,19 +37,9 @@
     omitir_tipos: []
   };
 
-  const AJUDA_OCR = {
-    none: 'Páginas só com imagem ficam sem texto.',
-    fast: 'Modelo leve: mais rápido, menos preciso.',
-    normal: 'Equilíbrio entre velocidade e precisão.',
-    best: 'Modelo mais preciso, porém mais lento.'
-  };
-
-  const AJUDA_LIMPEZA = {
-    none: 'Texto como extraído',
-    basic: 'Remove espaços e linhas vazias',
-    standard: 'Remove cabeçalhos, rodapés e duplicatas; resume assinaturas',
-    aggressive: 'Padrão + ruído de OCR e parágrafos contínuos'
-  };
+  // Opção sob o ponteiro em cada controle: a ajuda a descreve antes de gravar.
+  let previaOcr = null;
+  let previaLimpeza = null;
 
   // Códigos de tipo (EXTR, COMP...) em maiúsculas, sem espaços nem repetição.
   function normalizarTipos(texto) {
@@ -59,170 +61,218 @@
   async function handleSalvarOmitir() {
     config.omitir_tipos = normalizarTipos(omitirTexto);
     omitirTexto = config.omitir_tipos.join(', ');
-    await handleSave();
+    await handleSave('omitir');
   }
-
-  let statusMessage = '';
-  let statusType = ''; // 'success' or 'error'
 
   // Sem a config salva, o formulário segue editável com os padrões.
   $: if (!config && erroConfig) {
     config = { ...PADRAO };
-    showStatus(erroConfig, 'error');
+    avisar(erroConfig, 'error');
   }
   $: loading = !config;
 
+  const ICONE_MONITORAMENTO = { monitorando: FolderSearch, pausado: CirclePause, sem_pasta: FolderX };
+  $: estado = estadoMonitoramento(config);
+  $: semPasta = estado === 'sem_pasta';
+
+  // Escolher a primeira pasta liga o monitoramento, como no rodapé; trocar de
+  // pasta mantém o estado do interruptor.
   async function handleSelectDirectory() {
     try {
       const selected = await SelectDirectory();
       if (selected) {
+        if (!config.monitored_path) config.watchdog_enabled = true;
         config.monitored_path = selected;
-        await handleSave();
+        await handleSave('pasta');
       }
     } catch (err) {
-      showStatus('Erro ao selecionar pasta: ' + (err?.message ?? err), 'error');
+      avisar('Erro ao selecionar pasta: ' + (err?.message ?? err), 'error');
     }
   }
 
-  async function handleClearDirectory() {
-    config.monitored_path = '';
-    await handleSave();
+  async function handleToggleWatchdog(e) {
+    config.watchdog_enabled = e.currentTarget.checked;
+    await handleSave('watchdog');
   }
 
-  async function handleSave() {
+  async function handleSave(campo) {
     try {
       await SaveConfig(config);
-      showStatus('Configurações salvas com sucesso!', 'success');
       config = config;
+      confirmacao.mostrar(campo);
+      anunciar(ROTULO_CAMPO[campo] + ': salvo');
     } catch (err) {
       // Falha parcial ("configurações salvas, mas...") já se explica sozinha.
       const msg = String(err?.message ?? err);
       const parcial = /^configurações salvas/i.test(msg);
-      showStatus(parcial ? msg[0].toUpperCase() + msg.slice(1) : 'Erro ao salvar configurações: ' + msg, 'error');
+      avisar(parcial ? msg[0].toUpperCase() + msg.slice(1) : 'Erro ao salvar configurações: ' + msg, 'error');
       await aoFalharSalvar();
       // O campo de tipos relê a config gravada, não o texto que não foi salvo.
       omitirCarregado = false;
     }
   }
 
-  const aviso = criarAviso((a) => {
-    statusMessage = a ? a.texto : '';
-    statusType = a ? a.tipo : '';
-  });
+  const ROTULO_CAMPO = {
+    watchdog: 'Monitoramento',
+    pasta: 'Pasta monitorada',
+    ocr: 'OCR',
+    limpeza: 'Higienização',
+    omitir: 'Tipos omitidos',
+    autostart: 'Iniciar com o Windows'
+  };
 
-  onDestroy(aviso.limpar);
+  let confirmado = null;
+  const confirmacao = criarConfirmacao((c) => { confirmado = c; });
+  onDestroy(confirmacao.limpar);
 
-  function showStatus(msg, type) {
-    aviso.mostrar(msg, type);
+  // Esvazia antes para que o mesmo texto seja anunciado de novo.
+  let anuncio = '';
+  async function anunciar(texto) {
+    anuncio = '';
+    await tick();
+    anuncio = texto;
   }
 </script>
 
+<!-- O título "Configurações" fica na faixa do botão de recolher (App). -->
 <div class="settings-card">
-  <div class="card-header">
-    <Icone icone={SettingsIcon} tamanho={12} />
-    <h2>Configurações</h2>
-  </div>
-
   {#if loading}
     <div class="loading-state">
-      <div class="spinner"></div>
+      <span class="spinner" aria-hidden="true"><Icone icone={LoaderCircle} tamanho={20} cor="var(--accent)" /></span>
       <span>Carregando configurações...</span>
     </div>
   {:else}
-    <div class="settings-form">
+    <div class="grupo">
+      <h3 class="rotulo-grupo">Monitoramento</h3>
 
-      <div class="form-group toggle-group">
-        <label for="watchdog-toggle">Monitoramento ativo</label>
-        <label class="switch">
-          <input
-            id="watchdog-toggle"
-            type="checkbox"
-            bind:checked={config.watchdog_enabled}
-            on:change={handleSave}
-          />
-          <span class="slider" aria-hidden="true"></span>
-        </label>
+      <div class="form-group">
+        <div class="toggle-group">
+          <label for="watchdog-toggle">
+            <span class="icone-rotulo"><Icone icone={FolderSearch} tamanho={14} /></span>
+            Monitorar a pasta
+            <Salvo campo="watchdog" {confirmado} />
+          </label>
+          <label class="switch">
+            <input
+              id="watchdog-toggle"
+              type="checkbox"
+              role="switch"
+              checked={estado === 'monitorando'}
+              disabled={semPasta}
+              aria-describedby={semPasta ? 'ajuda-monitoramento' : undefined}
+              on:change={handleToggleWatchdog}
+            />
+            <span class="slider" aria-hidden="true"></span>
+          </label>
+        </div>
+        <p class="help-text estado-monitor" class:pausado={estado === 'pausado'}>
+          <Icone icone={ICONE_MONITORAMENTO[estado]} tamanho={12} />
+          <span>{ROTULO_MONITORAMENTO[estado]}</span>
+        </p>
+        {#if semPasta}
+          <p class="help-text" id="ajuda-monitoramento">Escolha uma pasta para monitorar</p>
+        {/if}
       </div>
 
-      <!-- Monitored Path Section -->
       <div class="form-group">
-        <label for="monitored-path">Pasta Monitorada</label>
+        <span class="rotulo-campo" id="rotulo-pasta">
+          <span class="icone-rotulo"><Icone icone={Folder} tamanho={14} /></span>
+          Pasta monitorada
+          <Salvo campo="pasta" {confirmado} />
+        </span>
         <div class="path-input-group">
-          <input
-            id="monitored-path"
-            type="text"
-            readonly
-            value={config.monitored_path || 'Nenhuma pasta (inativo)'}
-            title={config.monitored_path || 'Nenhuma pasta monitorada'}
-            class:inactive={!config.monitored_path}
-          />
-          <button type="button" class="btn-primary" on:click={handleSelectDirectory}>
-            Alterar
-          </button>
-          {#if config.monitored_path}
-            <button type="button" class="btn-danger-icon" on:click={handleClearDirectory} title="Desativar monitoramento">
-              <Icone icone={Trash2} tamanho={14} />
+          {#if semPasta}
+            <span id="monitored-path" class="caminho vazio">Nenhuma pasta escolhida</span>
+            <button type="button" class="btn-primary btn-icone-texto" on:click={handleSelectDirectory}>
+              <Icone icone={FolderOpen} tamanho={12} />
+              Escolher pasta...
+            </button>
+          {:else}
+            <span id="monitored-path" class="caminho" title={config.monitored_path} use:reticenciasMeio={config.monitored_path}></span>
+            <button
+              type="button"
+              class="btn-primary"
+              aria-describedby="rotulo-pasta monitored-path"
+              on:click={handleSelectDirectory}
+            >
+              Alterar
             </button>
           {/if}
         </div>
       </div>
+    </div>
 
-      <!-- OCR Settings Dropdown -->
+    <div class="grupo">
+      <h3 class="rotulo-grupo">Processamento</h3>
+
       <div class="form-group">
-        <label for="ocr-mode">Processamento de Imagens (OCR)</label>
-        <select
+        <Segmentado
           id="ocr-mode"
-          bind:value={config.ocr_mode}
-          on:change={handleSave}
+          icone={ScanText}
+          legenda="Processamento de Imagens (OCR)"
+          idAjuda="ajuda-ocr"
+          opcoes={OPCOES_OCR}
+          bind:valor={config.ocr_mode}
+          bind:previa={previaOcr}
+          aoMudar={() => handleSave('ocr')}
         >
-          <option value="none">Desativado</option>
-          <option value="fast">Rápido</option>
-          <option value="normal">Normal</option>
-          <option value="best">Preciso</option>
-        </select>
-        <p class="help-text">{AJUDA_OCR[config.ocr_mode] ?? ''}</p>
+          <svelte:fragment slot="legenda"><Salvo campo="ocr" {confirmado} /></svelte:fragment>
+        </Segmentado>
+        <p class="help-text" id="ajuda-ocr">{descricaoOpcao(OPCOES_OCR, previaOcr ?? config.ocr_mode)}</p>
       </div>
 
-      <!-- Cleaning Level -->
       <div class="form-group">
-        <label for="cleaning-level">Higienização de texto</label>
-        <select
+        <Segmentado
           id="cleaning-level"
-          bind:value={config.cleaning_level}
-          on:change={handleSave}
+          icone={Sparkles}
+          legenda="Higienização de texto"
+          idAjuda="ajuda-limpeza"
+          opcoes={OPCOES_LIMPEZA}
+          bind:valor={config.cleaning_level}
+          bind:previa={previaLimpeza}
+          aoMudar={() => handleSave('limpeza')}
         >
-          <option value="none">Nenhuma</option>
-          <option value="basic">Básica</option>
-          <option value="standard">Padrão</option>
-          <option value="aggressive">Máxima</option>
-        </select>
-        <p class="help-text">{AJUDA_LIMPEZA[config.cleaning_level] ?? ''}</p>
+          <svelte:fragment slot="legenda"><Salvo campo="limpeza" {confirmado} /></svelte:fragment>
+        </Segmentado>
+        <p class="help-text" id="ajuda-limpeza">{descricaoOpcao(OPCOES_LIMPEZA, previaLimpeza ?? config.cleaning_level)}</p>
       </div>
 
-      <!-- Tipos de documento omitidos -->
       <div class="form-group">
-        <label for="omitir-tipos">Omitir documentos dos tipos</label>
+        <label for="omitir-tipos" class="rotulo-campo">
+          <span class="icone-rotulo"><Icone icone={EyeOff} tamanho={14} /></span>
+          Omitir documentos dos tipos
+          <Salvo campo="omitir" {confirmado} />
+        </label>
         <input
           id="omitir-tipos"
           type="text"
+          aria-describedby="ajuda-omitir"
           placeholder="EXTR, COMP"
           autocomplete="off"
           spellcheck="false"
           bind:value={omitirTexto}
           on:change={handleSalvarOmitir}
         />
-        <p class="help-text">Ex.: EXTR, COMP. O documento vira um aviso no texto e não é lido.</p>
+        <p class="help-text" id="ajuda-omitir">Ex.: EXTR, COMP. O documento vira um aviso no texto e não é lido.</p>
       </div>
+    </div>
 
-      <!-- Auto Start Toggle -->
+    <div class="grupo">
+      <h3 class="rotulo-grupo">Sistema</h3>
+
       <div class="form-group toggle-group">
-        <label for="autostart-toggle">Iniciar com o Windows</label>
+        <label for="autostart-toggle">
+          <span class="icone-rotulo"><Icone icone={Power} tamanho={14} /></span>
+          Iniciar com o Windows
+          <Salvo campo="autostart" {confirmado} />
+        </label>
         <label class="switch">
           <input
             id="autostart-toggle"
             type="checkbox"
+            role="switch"
             bind:checked={config.auto_start}
-            on:change={handleSave}
+            on:change={() => handleSave('autostart')}
           />
           <span class="slider" aria-hidden="true"></span>
         </label>
@@ -230,66 +280,34 @@
     </div>
   {/if}
 
-  <!-- Regiões vivas sempre montadas: o leitor de tela só anuncia mudanças
-       dentro de uma região que já existia antes da mensagem. -->
-  <div class="toast-regiao" role="status" aria-live="polite" aria-atomic="true">
-    {#if statusMessage && statusType !== 'error'}
-      <div
-        class="toast-status {statusType}"
-        in:fly={{ y: 8, duration: duracaoMovimento(DUR_BASE), easing: cubicOut }}
-        out:fade={{ duration: duracaoMovimento(DUR_FAST) }}
-      >
-        <span>{statusMessage}</span>
-      </div>
-    {/if}
-  </div>
-  <div class="toast-regiao" role="alert" aria-atomic="true">
-    {#if statusMessage && statusType === 'error'}
-      <div
-        class="toast-status error"
-        in:fly={{ y: 8, duration: duracaoMovimento(DUR_BASE), easing: cubicOut }}
-        out:fade={{ duration: duracaoMovimento(DUR_FAST) }}
-      >
-        <span class="toast-texto">{statusMessage}</span>
-        <button class="toast-fechar" on:click={aviso.fechar} aria-label="Fechar aviso" title="Fechar aviso">
-          <Icone icone={X} tamanho={12} />
-        </button>
-      </div>
-    {/if}
-  </div>
+  <!-- Sempre montada: o leitor de tela só anuncia mudanças numa região que
+       já existia antes da mensagem. -->
+  <div class="sr-only" role="status" aria-live="polite">{anuncio}</div>
 </div>
 
 <style>
-  /* Seção do painel, sem moldura de cartão: o rótulo pequeno já separa. */
+  /* Seção do painel, sem moldura de cartão. flex: none: a 600px de altura
+     quem rola é .sidebar-content (App), em vez de a seção encolher e cortar. */
   .settings-card {
-    padding: 0 0 8px;
+    flex: none;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    position: relative;
-    overflow: hidden;
+    gap: 16px;
   }
 
-  .card-header {
+  .grupo {
     display: flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--text-secondary);
+    flex-direction: column;
+    gap: 12px;
   }
 
-  .card-header h2 {
+  .rotulo-grupo {
     font-size: var(--fs-section);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin: 0;
     color: var(--text-secondary);
-  }
-
-  .settings-form {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
   }
 
   .form-group {
@@ -299,6 +317,7 @@
   }
 
   .toggle-group {
+    display: flex;
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
@@ -306,7 +325,36 @@
     min-height: 32px;
   }
 
+  .rotulo-campo {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--fs-base);
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  /* Ícone da configuração (DESIGN.md §4), o mesmo no painel e na linha. */
+  .icone-rotulo {
+    display: inline-flex;
+    flex-shrink: 0;
+    color: var(--text-secondary);
+  }
+
+  .estado-monitor {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .estado-monitor.pausado {
+    color: var(--warning-strong);
+  }
+
   .toggle-group label:not(.switch) {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     cursor: pointer;
     min-width: 0;
   }
@@ -325,7 +373,31 @@
 
   .path-input-group {
     display: flex;
+    align-items: center;
     gap: 6px;
+    min-height: 30px;
+  }
+
+  /* Texto, não campo: sem contorno nem foco; o caminho inteiro fica no title. */
+  .caminho {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--fs-base);
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .caminho.vazio {
+    color: var(--text-secondary);
+    font-style: italic;
+  }
+
+  .btn-icone-texto {
+    display: flex;
+    align-items: center;
+    gap: 4px;
   }
 
   input[type="text"] {
@@ -343,24 +415,6 @@
     text-overflow: ellipsis;
   }
 
-  input[type="text"].inactive {
-    color: var(--text-secondary);
-    font-style: italic;
-  }
-
-  select {
-    padding: 6px 10px;
-    border: 1px solid var(--border-strong);
-    border-radius: 4px;
-    background-color: var(--bg-main);
-    color: var(--text-primary);
-    font-size: var(--fs-base);
-    cursor: pointer;
-    font-family: inherit;
-    width: 100%;
-    min-width: 0;
-  }
-
   button {
     font-family: inherit;
     font-size: var(--fs-base);
@@ -369,7 +423,6 @@
     border-radius: 4px;
     cursor: pointer;
     border: none;
-    transition: background-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
     flex-shrink: 0; /* Keep buttons from shrinking */
   }
 
@@ -382,23 +435,9 @@
     background-color: var(--accent-strong-hover);
   }
 
-  .btn-primary:active {
-    transform: scale(0.98);
-  }
-
-  .btn-danger-icon {
-    background-color: transparent;
-    border: 1px solid var(--border);
-    color: var(--error);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 6px 8px;
-  }
-
-  .btn-danger-icon:hover {
-    background-color: var(--error-soft);
-    border-color: var(--error);
+  /* Com 1px o anel encosta no fundo do botão, da mesma cor (--accent-strong). */
+  .btn-primary:focus-visible {
+    outline-offset: 2px;
   }
 
   /* Switch / Toggle styling */
@@ -428,6 +467,12 @@
     border-radius: 20px;
   }
 
+  /* Sem pasta: desligado e desabilitado (a ajuda abaixo diz o que fazer). */
+  .switch input:disabled + .slider {
+    cursor: default;
+    opacity: 0.6;
+  }
+
   /* O input fica invisível (0x0), então o anel vai no trilho. */
   .switch input:focus-visible + .slider {
     outline: 2px solid var(--focus-ring);
@@ -454,58 +499,45 @@
     transform: translateX(16px);
   }
 
-  /* Toast Notification */
-  .toast-regiao {
+  /* Alto contraste do Windows: o trilho vira Canvas; contorno e bolinha mostram o estado. */
+  @media (forced-colors: active) {
+    .slider {
+      border: 1px solid ButtonText;
+    }
+
+    .slider:before {
+      forced-color-adjust: none;
+      background-color: ButtonText;
+      left: 2px;
+      bottom: 2px;
+    }
+
+    input:checked + .slider {
+      forced-color-adjust: none;
+      background-color: Highlight;
+      border-color: Highlight;
+    }
+
+    input:checked + .slider:before {
+      background-color: HighlightText;
+    }
+
+    .switch input:focus-visible + .slider {
+      outline-color: CanvasText;
+    }
+  }
+
+
+  .sr-only {
     position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-  }
-
-  .toast-status {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 8px;
-    text-align: center;
-    font-size: var(--fs-meta);
-    font-weight: 500;
-    background-color: var(--surface);
-    border-top: 1px solid currentColor;
-  }
-
-  .toast-status.success {
-    color: var(--success-strong);
-  }
-
-  .toast-status.error {
-    color: var(--error-strong);
-  }
-
-  .toast-texto {
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .toast-fechar {
-    flex: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
+    width: 1px;
+    height: 1px;
     padding: 0;
-    border: none;
-    border-radius: 4px;
-    background: transparent;
-    color: inherit;
-    cursor: pointer;
-    transition: background-color var(--dur-fast) var(--ease-out);
-  }
-
-  .toast-fechar:hover {
-    background-color: var(--error-soft);
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .loading-state {
@@ -519,11 +551,7 @@
   }
 
   .spinner {
-    width: 20px;
-    height: 20px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
+    display: inline-flex;
     animation: spin var(--dur-spin) linear infinite;
   }
 

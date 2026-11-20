@@ -1,6 +1,7 @@
 // Junta os eventos da fila (queue:update com a lista inteira, queue:item com
 // um item) e aplica o resultado no máximo uma vez por quadro, para que rajadas
-// de progresso não refaçam a lista a cada evento.
+// de progresso não refaçam a lista a cada evento. Pausada (janela na bandeja),
+// só guarda o último estado e o aplica num quadro ao retomar.
 
 export function criarFilaPorQuadro(
   ler,
@@ -11,6 +12,7 @@ export function criarFilaPorQuadro(
   let lista = null;
   let itens = new Map();
   let agendado = null;
+  let pausada = false;
 
   function descarregar() {
     agendado = null;
@@ -22,7 +24,7 @@ export function criarFilaPorQuadro(
   }
 
   function agendarSePreciso() {
-    if (agendado === null) agendado = agendar(descarregar);
+    if (!pausada && agendado === null) agendado = agendar(descarregar);
   }
 
   return {
@@ -35,6 +37,13 @@ export function criarFilaPorQuadro(
       if (!novo) return;
       itens.set(novo.id, novo);
       agendarSePreciso();
+    },
+    pausar() {
+      pausada = true;
+    },
+    retomar() {
+      pausada = false;
+      if (lista !== null || itens.size) agendarSePreciso();
     },
     cancelar() {
       if (agendado !== null) cancelarAgendado(agendado);

@@ -10,6 +10,10 @@ export function CancelQueueItem(arg1) {
   return window['go']['main']['App']['CancelQueueItem'](arg1);
 }
 
+export function ClearFinishedQueue() {
+  return window['go']['main']['App']['ClearFinishedQueue']();
+}
+
 export function ClearQueue() {
   return window['go']['main']['App']['ClearQueue']();
 }
@@ -40,6 +44,10 @@ export function Hide() {
 
 export function IsQueuePaused() {
   return window['go']['main']['App']['IsQueuePaused']();
+}
+
+export function JanelaVisivel() {
+  return window['go']['main']['App']['JanelaVisivel']();
 }
 
 export function OpenDirectory(arg1) {

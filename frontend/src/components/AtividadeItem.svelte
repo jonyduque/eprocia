@@ -3,9 +3,16 @@
   import CircleAlert from 'lucide-svelte/icons/circle-alert';
   import CircleCheck from 'lucide-svelte/icons/circle-check';
   import Clock from 'lucide-svelte/icons/clock';
+  import Eye from 'lucide-svelte/icons/eye';
+  import EyeOff from 'lucide-svelte/icons/eye-off';
   import FileText from 'lucide-svelte/icons/file-text';
+  import RotateCcw from 'lucide-svelte/icons/rotate-ccw';
   import ScanText from 'lucide-svelte/icons/scan-text';
-  import { ordenarDocs, resumoAtividade, segmentos, naoLido } from '../lib/atividade.js';
+  import { flip } from 'svelte/animate';
+  import { fade, fly } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
+  import { prepararDocs, segmentos, naoLido, LIMITE_AGUARDANDO, LIMITE_FLIP_DOCS } from '../lib/atividade.js';
+  import { duracaoMovimento, DUR_FAST } from '../lib/aviso.js';
 
   // Instantâneo de etl.InstantaneoAtividade; null enquanto carrega e
   // 'nenhuma' quando o item foi cancelado antes de começar.
@@ -17,6 +24,7 @@
   export let aoReprocessarComOCR = () => {};
 
   let mostrarConcluidos = false;
+  let expandirAguardando = false;
 
   const ROTULO_LEITURA = { ocr: 'via OCR', segundo_leitor: 'segundo leitor' };
 
@@ -28,12 +36,10 @@
     erro: 'Erro'
   };
 
-  $: docs = ordenarDocs(atividade?.docs);
-  $: resumo = resumoAtividade(atividade);
+  $: ({ visiveis, resumo } = prepararDocs(atividade, { mostrarConcluidos, expandirAguardando }));
   $: limiteDocs = atividade?.limite_docs || 0;
   $: limiteOcr = atividade?.limite_ocr || 0;
   $: ocrAtivos = atividade?.ocr_ativos || 0;
-  $: visiveis = mostrarConcluidos ? docs : docs.filter((d) => d.estado !== 'concluido');
 
   function pct(d) {
     if (!d.paginas) return d.estado === 'concluido' ? 100 : 0;
@@ -41,7 +47,7 @@
   }
 </script>
 
-<div class="painel-atividade" {id} role="region" aria-label="Atividade dos documentos">
+<div class="painel-atividade" in:fly={{ y: -4, duration: duracaoMovimento(DUR_FAST), easing: cubicOut }} {id} role="region" aria-label="Atividade dos documentos">
   {#if !atividade}
     <p class="vazio">Carregando a atividade...</p>
   {:else if atividade === 'nenhuma'}
@@ -70,21 +76,24 @@
       </div>
     {/if}
 
-    <div class="resumo font-tabular" role="status">
-      {#if emAndamento}
-        <span class="chip ativo">{resumo.ativos} em andamento</span>
-        {#if resumo.paginasOcr > 0}
-          <span class="chip ocr">{resumo.paginasOcr} pág. em OCR</span>
+    <!-- Sem região viva: os marcos (fim, erros, não lidos) são anunciados uma vez pelo ProcessList. -->
+    <div class="resumo-linha">
+      <div class="resumo font-tabular">
+        {#if emAndamento}
+          <span class="chip ativo">{resumo.ativos} em andamento</span>
+          {#if resumo.paginasOcr > 0}
+            <span class="chip ocr">{resumo.paginasOcr} pág. em OCR</span>
+          {/if}
+          <span class="chip">{resumo.aguardando} aguardando</span>
         {/if}
-        <span class="chip">{resumo.aguardando} aguardando</span>
-      {/if}
-      <span class="chip ok">{resumo.concluidos} concluído{resumo.concluidos === 1 ? '' : 's'}</span>
-      {#if resumo.naoLidos > 0}
-        <span class="chip aviso">{resumo.naoLidos} não lido{resumo.naoLidos === 1 ? '' : 's'}</span>
-      {/if}
-      {#if resumo.erros > 0}
-        <span class="chip erro">{resumo.erros} com erro</span>
-      {/if}
+        <span class="chip ok">{resumo.concluidos} concluído{resumo.concluidos === 1 ? '' : 's'}</span>
+        {#if resumo.naoLidos > 0}
+          <span class="chip aviso">{resumo.naoLidos} não lido{resumo.naoLidos === 1 ? '' : 's'}</span>
+        {/if}
+        {#if resumo.erros > 0}
+          <span class="chip erro">{resumo.erros} com erro</span>
+        {/if}
+      </div>
       {#if resumo.concluidos > 0}
         <button
           type="button"
@@ -92,6 +101,7 @@
           aria-pressed={mostrarConcluidos}
           on:click={() => (mostrarConcluidos = !mostrarConcluidos)}
         >
+          <Icone icone={mostrarConcluidos ? EyeOff : Eye} tamanho={12} />
           {mostrarConcluidos ? 'Ocultar concluídos' : 'Mostrar concluídos'}
         </button>
       {/if}
@@ -100,42 +110,56 @@
     {#if resumo.semOCR > 0 && !emAndamento}
       <div class="acao-ocr">
         <span>{resumo.semOCR === 1 ? 'Um documento digitalizado ficou sem OCR.' : `${resumo.semOCR} documentos digitalizados ficaram sem OCR.`}</span>
-        <button type="button" class="btn-ocr" on:click={aoReprocessarComOCR}>Reprocessar com OCR</button>
+        <button type="button" class="btn-ocr" on:click={aoReprocessarComOCR}>
+          <Icone icone={RotateCcw} tamanho={12} />
+          Reprocessar com OCR
+        </button>
       </div>
     {/if}
 
     {#if visiveis.length > 0}
       <ul class="docs">
         {#each visiveis as d (d.i)}
-          <li class="doc {d.estado}" class:nao-lido={naoLido(d)} title={naoLido(d) && d.detalhe ? `${d.nome}\n${d.detalhe}` : d.erro ? `${d.nome}\n${d.erro}` : d.nome}>
-            <span class="doc-icone">
-              {#if d.estado === 'ocr'}
-                <span class="pulsa"><Icone icone={ScanText} tamanho={12} cor="var(--processing)" /></span>
-              {:else if d.estado === 'lendo'}
-                <Icone icone={FileText} tamanho={12} cor="var(--accent)" />
-              {:else if naoLido(d)}
-                <Icone icone={CircleAlert} tamanho={12} cor="var(--warning)" />
-              {:else if d.estado === 'concluido'}
-                <Icone icone={CircleCheck} tamanho={12} cor="var(--success)" />
-              {:else if d.estado === 'erro'}
-                <Icone icone={CircleAlert} tamanho={12} cor="var(--error)" />
-              {:else}
-                <Icone icone={Clock} tamanho={12} cor="var(--text-secondary)" />
-              {/if}
-              <span class="sr-only">{ROTULO[d.estado] ?? d.estado}:</span>
-            </span>
-            <span class="doc-nome">{d.nome}</span>
-            {#if d.ocr > 0}
-              <span class="doc-ocr font-tabular">OCR · {d.ocr} pág.</span>
-            {/if}
-            {#if ROTULO_LEITURA[d.leitura]}
-              <span class="doc-leitura">{ROTULO_LEITURA[d.leitura]}</span>
-            {/if}
-            {#if d.estado === 'erro'}
-              <span class="doc-erro" class:aviso={naoLido(d)}>{d.erro}</span>
+          <li class="doc {d.mais ? 'mais' : d.estado}" class:nao-lido={naoLido(d)} title={d.mais ? undefined : d.nome} animate:flip={{ duration: LIMITE_FLIP_DOCS < visiveis.length ? 0 : duracaoMovimento(DUR_FAST), easing: cubicOut }} out:fade={{ duration: duracaoMovimento(DUR_FAST) }}>
+            {#if d.mais}
+              <button
+                type="button"
+                class="mais-aguardando"
+                aria-expanded={expandirAguardando}
+                on:click={() => (expandirAguardando = !expandirAguardando)}
+              >
+                {#if d.expandido}Mostrar só os primeiros {LIMITE_AGUARDANDO}{:else}+ {d.n} aguardando{/if}
+              </button>
             {:else}
-              <span class="doc-barra" aria-hidden="true"><span style="width: {pct(d)}%"></span></span>
-              <span class="doc-paginas font-tabular">{d.feitas}/{d.paginas}</span>
+              <span class="doc-icone">
+                {#if d.estado === 'ocr'}
+                  <span class="pulsa"><Icone icone={ScanText} tamanho={12} cor="var(--processing)" /></span>
+                {:else if d.estado === 'lendo'}
+                  <Icone icone={FileText} tamanho={12} cor="var(--accent)" />
+                {:else if naoLido(d)}
+                  <Icone icone={CircleAlert} tamanho={12} cor="var(--warning)" />
+                {:else if d.estado === 'concluido'}
+                  <Icone icone={CircleCheck} tamanho={12} cor="var(--success)" />
+                {:else if d.estado === 'erro'}
+                  <Icone icone={CircleAlert} tamanho={12} cor="var(--error)" />
+                {:else}
+                  <Icone icone={Clock} tamanho={12} cor="var(--text-secondary)" />
+                {/if}
+                <span class="sr-only">{ROTULO[d.estado] ?? d.estado}:</span>
+              </span>
+              <span class="doc-nome">{d.nome}</span>
+              {#if d.ocr > 0}
+                <span class="doc-ocr font-tabular"><Icone icone={ScanText} tamanho={12} /><span class="sr-only">OCR:</span>{d.ocr} pág.</span>
+              {/if}
+              {#if ROTULO_LEITURA[d.leitura]}
+                <span class="doc-leitura">{ROTULO_LEITURA[d.leitura]}</span>
+              {/if}
+              {#if d.estado === 'erro'}
+                <span class="doc-erro" class:aviso={naoLido(d)}>{d.erro}{#if naoLido(d) && d.detalhe}<span class="doc-detalhe">{d.detalhe}</span>{/if}</span>
+              {:else}
+                <span class="doc-barra" aria-hidden="true"><span style:--p={pct(d) / 100}></span></span>
+                <span class="doc-paginas font-tabular">{d.feitas}/{d.paginas}</span>
+              {/if}
             {/if}
           </li>
         {/each}
@@ -210,6 +234,12 @@
     font-weight: 600;
   }
 
+  .resumo-linha {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
   .resumo {
     display: flex;
     flex-wrap: wrap;
@@ -232,23 +262,23 @@
   }
 
   .chip.ocr {
-    color: var(--processing);
+    color: var(--accent-text);
     border-color: currentColor;
   }
 
   .chip.ok {
-    color: var(--success);
+    color: var(--success-strong);
     border-color: currentColor;
   }
 
   .chip.erro {
-    color: var(--error);
+    color: var(--error-strong);
     border-color: currentColor;
     background-color: var(--error-soft);
   }
 
   .chip.aviso {
-    color: var(--warning);
+    color: var(--warning-strong);
     border-color: var(--warning-line);
     background-color: var(--warning-soft);
   }
@@ -262,12 +292,15 @@
   }
 
   .btn-ocr {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     min-height: 24px;
     padding: 3px 10px;
     border-radius: 4px;
     border: 1px solid var(--warning-line);
     background-color: var(--warning-soft);
-    color: var(--warning);
+    color: var(--warning-strong);
     font: inherit;
     font-weight: 500;
     cursor: pointer;
@@ -283,6 +316,9 @@
   }
 
   .alternar {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     margin-left: auto;
     background: transparent;
     border: none;
@@ -310,12 +346,32 @@
 
   .doc {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
+    gap: 2px 6px;
     min-height: 20px;
     padding: 0 4px;
     border-radius: 3px;
     min-width: 0;
+  }
+
+  .mais-aguardando {
+    background: transparent;
+    border: none;
+    padding: 0;
+    border-radius: 3px;
+    font: inherit;
+    color: var(--accent-text);
+    cursor: pointer;
+  }
+
+  .mais-aguardando:hover {
+    text-decoration: underline;
+  }
+
+  .mais-aguardando:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
   }
 
   .doc.ocr,
@@ -342,8 +398,11 @@
   }
 
   .doc-ocr {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
     flex-shrink: 0;
-    color: var(--processing);
+    color: var(--accent-text);
     font-weight: 600;
   }
 
@@ -354,16 +413,25 @@
   }
 
   .doc-erro.aviso {
-    color: var(--warning);
+    color: var(--warning-strong);
   }
 
+  /* Linha própria abaixo do nome, inteira e selecionável: o title não chega ao teclado. */
   .doc-erro {
-    flex: 0 1 50%;
+    flex: 1 1 100%;
     min-width: 0;
-    color: var(--error);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    padding-left: 18px;
+    color: var(--error-strong);
+    white-space: normal;
+    overflow-wrap: anywhere;
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: text;
+  }
+
+  .doc-detalhe {
+    display: block;
+    color: var(--text-secondary);
   }
 
   .doc-barra {
@@ -376,13 +444,42 @@
 
   .doc-barra span {
     display: block;
+    width: 100%;
     height: 100%;
     background-color: var(--processing);
-    transition: width var(--dur-base) var(--ease-out);
+    transform: scaleX(var(--p));
+    transform-origin: left center;
+    transition: transform var(--dur-base) var(--ease-out);
   }
 
   .doc.concluido .doc-barra span {
     background-color: var(--success);
+  }
+
+  /* Alto contraste do Windows: trilhos contornados, preenchimento em Highlight. */
+  @media (forced-colors: active) {
+    .vaga {
+      forced-color-adjust: none;
+      border: 1px solid CanvasText;
+      background-color: Canvas;
+    }
+
+    .vaga.cheia,
+    .medidor.ocr .vaga.cheia {
+      background-color: Highlight;
+      border-color: Highlight;
+    }
+
+    .doc-barra {
+      border: 1px solid CanvasText;
+      height: 6px;
+    }
+
+    .doc-barra span,
+    .doc.concluido .doc-barra span {
+      forced-color-adjust: none;
+      background-color: Highlight;
+    }
   }
 
   .doc-paginas {

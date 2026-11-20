@@ -83,7 +83,82 @@ Dependências que vale conhecer antes de aprovar:
 - **Justificativa do cético:** Confirmado em Settings.svelte:264-271 (`overflow: hidden` num item flex de `.sidebar-content`, App.svelte:893-899) e nas capturas 800x600-claro-configuracoes.png e 800x600-claro-processando-divisor-minimo.png: "Iniciar com o Windows" some e a ajuda é cortada no meio, sem rolagem (a seção "Importação Manual" continua visível logo abaixo). O conteúdo precisa de cerca de 650px de altura e main.go:54 aceita 600; não há outro caminho para esse interruptor e layout.test.mjs não cobre o caso.
 - **Nota da síntese:** O toast dentro do cartão, que motiva o `overflow: hidden`, é tratado em F-VI-08; o `flex: none` resolve o corte sem depender dele.
 
-Status: pendente
+Status: feito. Commit `5500cfe1c4c1266d7fa490ea9dd0cfff9aa56c50`.
+
+Capturas (antes / depois):
+
+- 1024x768-claro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-configuracoes.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-fila.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-processando.png)
+- 1024x768-claro-vazio: [antes](capturas/2026-11-10/antes/1024x768-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-vazio.png)
+- 1024x768-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-configuracoes.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-fila.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-processando.png)
+- 1024x768-escuro-vazio: [antes](capturas/2026-11-10/antes/1024x768-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-vazio.png)
+- 1440x900-claro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-configuracoes.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-fila.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-processando.png)
+- 1440x900-claro-vazio: [antes](capturas/2026-11-10/antes/1440x900-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-vazio.png)
+- 1440x900-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-configuracoes.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-fila.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-processando.png)
+- 1440x900-escuro-vazio: [antes](capturas/2026-11-10/antes/1440x900-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-vazio.png)
+- 1920x1080-claro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-configuracoes.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-fila.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-processando.png)
+- 1920x1080-claro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-vazio.png)
+- 1920x1080-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-configuracoes.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-processando.png)
+- 1920x1080-escuro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-vazio.png)
+- 800x600-claro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-configuracoes.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-fila.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-processando.png)
+- 800x600-claro-vazio: [antes](capturas/2026-11-10/antes/800x600-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-vazio.png)
+- 800x600-escuro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-configuracoes.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-fila.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-processando.png)
+- 800x600-escuro-vazio: [antes](capturas/2026-11-10/antes/800x600-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-vazio.png)
 
 ### F-AC-01 — Copiar o TXT, a ação principal do app, dá retorno mínimo e nenhum anúncio
 
@@ -91,14 +166,106 @@ Status: pendente
 - **Lentes:** VI, AN, AC
 - **Gravidade:** média
 - **Evidência:** `handleCopy` (linhas 192-202) só define `copiadoId` por 1,5 s. O efeito visível é a troca do ícone `Copy` por `Check`, 14px, na mesma cor `--text-secondary` (linhas 432-436), e o `title` virar "Copiado!" (linha 429), que só aparece se o ponteiro ficar parado. O `aria-label` continua "Copiar o TXT" e não há região `role="status"` na lista (a única região viva é a `role="alert"` de erro, linha 531): leitor de tela não recebe confirmação, o que foge da regra de anúncios do DESIGN.md §2. Além disso o botão é o segundo de quatro ícones cinza idênticos (ordem no DOM: reprocessar, copiar, abrir, remover; linhas 414-453; ver 1024x768-claro-processando-recolhido.png), sem destaque para a ação que é o objetivo do produto.
-- **Proposta:** 1. Retorno visível: durante 1,5 s o botão mostra `Check` em `--success` e o texto "Copiado" em `--success-strong` (`--fs-meta`) ao lado, entrando com `fade` em `--dur-fast`; pode ocupar o lugar do selo de contadores para não mudar a altura da linha. 2. Anúncio: uma região `.sr-only role="status" aria-live="polite"` sempre montada em ProcessList recebe "TXT de {nome} copiado". 3. Hierarquia: Copiar passa a ser o primeiro botão da linha concluída e o único em `--accent`; Reprocessar vai para depois de Abrir pasta. 4. Atalho: com o foco na linha, Ctrl+C copia o TXT. Ajustar `escolherAcao` e fila.test.mjs se a ordem mudar.
+- **Proposta:** Decisão do dono (2026-11-18): não mover nem destacar o botão Copiar; só retorno visual (Check em --success, texto "Copiado", fundo --success-soft) e anúncio numa região role="status" sempre montada. Ignore os itens 3 (hierarquia) e 4 (Ctrl+C, que vai para F-AC-15) da proposta. Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): com documentos não lidos a cópia já mostra o aviso do tipo aviso (role="alert"); nesse caso não anuncie o sucesso em duplicidade. Proposta original: 1. Retorno visível: durante 1,5 s o botão mostra `Check` em `--success` e o texto "Copiado" em `--success-strong` (`--fs-meta`) ao lado, entrando com `fade` em `--dur-fast`; pode ocupar o lugar do selo de contadores para não mudar a altura da linha. 2. Anúncio: uma região `.sr-only role="status" aria-live="polite"` sempre montada em ProcessList recebe "TXT de {nome} copiado". 3. Hierarquia: Copiar passa a ser o primeiro botão da linha concluída e o único em `--accent`; Reprocessar vai para depois de Abrir pasta. 4. Atalho: com o foco na linha, Ctrl+C copia o TXT. Ajustar `escolherAcao` e fila.test.mjs se a ordem mudar.
 - **Custo:** P
 - **Ganho esperado:** O usuário tem certeza de que o texto está na área de transferência antes de trocar para a IA, com ou sem leitor de tela, e acha a ação principal sem ler quatro dicas.
 - **Veredito:** mantido
 - **Justificativa do cético:** handleCopy (ProcessList.svelte:192-202) só define copiadoId; o retorno é a troca Copy/Check de 14px na mesma cor de .btn-action e o title, com aria-label fixo e nenhuma região role="status" para o sucesso (a role="alert" da linha 531 só recebe erro), o que foge da regra de anúncios do DESIGN.md §2 na ação principal. O retorno visual existe (troca de ícone por 1,5 s), mas a falta de anúncio é real e o custo é P.
 - **Nota da síntese:** Fundido com o achado de AN "Copiar o TXT, a ação principal do item concluído, dá retorno quase invisível" (média, P, mantido) e com o de VI "Copiar o TXT, a ação principal, não tem destaque nem retorno visível" (baixa, P, rebaixado), todos sobre ProcessList.svelte:425-436. Complementos: AN propõe envolver o ícone em `{#key copiadoId === item.id}` com `in:scale` (início em 0,6, `duracaoMovimento(DUR_FAST)`, `cubicOut`) e fundo `--success-soft` no botão enquanto dura, aproveitando a transição de `background-color` que `.btn-action` já tem; VI propõe a classe `copiado` no botão e, com a fila larga (container acima de cerca de 640px), o rótulo "Copiar" em `--fs-meta`. Ressalvas dos céticos de AN e VI: o retorno visual existe (troca de ícone por 1,5 s e `title` "Copiado!"; com o ponteiro em cima a cor é `--text-primary`), então o que falta é cor, movimento e o anúncio.
 
-Status: pendente
+Status: feito. Commit `a2139d859ce12abc657a48140a9f3e0ffc7e4e55`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-processando: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-erro: [antes](capturas/2026-11-10/antes/1024x768-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-claro-erro.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-claro-fila.png)
+- 1024x768-claro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-claro-nao-lidos-atividade.png)
+- 1024x768-claro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-claro-nao-lidos-copiado.png)
+- 1024x768-claro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-claro-nao-lidos.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-claro-processando.png)
+- 1024x768-escuro-erro: [antes](capturas/2026-11-10/antes/1024x768-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-escuro-erro.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-escuro-fila.png)
+- 1024x768-escuro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-escuro-nao-lidos-atividade.png)
+- 1024x768-escuro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-escuro-nao-lidos-copiado.png)
+- 1024x768-escuro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-escuro-nao-lidos.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-escuro-processando.png)
+- 1440x900-claro-erro: [antes](capturas/2026-11-10/antes/1440x900-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-claro-erro.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-claro-fila.png)
+- 1440x900-claro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-claro-nao-lidos-atividade.png)
+- 1440x900-claro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-claro-nao-lidos-copiado.png)
+- 1440x900-claro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-claro-nao-lidos.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-claro-processando.png)
+- 1440x900-escuro-erro: [antes](capturas/2026-11-10/antes/1440x900-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-escuro-erro.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-escuro-fila.png)
+- 1440x900-escuro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-escuro-nao-lidos-atividade.png)
+- 1440x900-escuro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-escuro-nao-lidos-copiado.png)
+- 1440x900-escuro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-escuro-nao-lidos.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-escuro-processando.png)
+- 1920x1080-claro-erro: [antes](capturas/2026-11-10/antes/1920x1080-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-claro-erro.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-claro-fila.png)
+- 1920x1080-claro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-claro-nao-lidos-atividade.png)
+- 1920x1080-claro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-claro-nao-lidos-copiado.png)
+- 1920x1080-claro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-claro-nao-lidos.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-claro-processando.png)
+- 1920x1080-escuro-erro: [antes](capturas/2026-11-10/antes/1920x1080-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-escuro-erro.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-escuro-nao-lidos-atividade.png)
+- 1920x1080-escuro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-escuro-nao-lidos-copiado.png)
+- 1920x1080-escuro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-escuro-nao-lidos.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-escuro-processando.png)
+- 800x600-claro-erro: [antes](capturas/2026-11-10/antes/800x600-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-claro-erro.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-claro-fila.png)
+- 800x600-claro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-claro-nao-lidos-atividade.png)
+- 800x600-claro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-claro-nao-lidos-copiado.png)
+- 800x600-claro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-claro-nao-lidos.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-claro-processando.png)
+- 800x600-escuro-erro: [antes](capturas/2026-11-10/antes/800x600-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-escuro-erro.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-escuro-fila.png)
+- 800x600-escuro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-escuro-nao-lidos-atividade.png)
+- 800x600-escuro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-escuro-nao-lidos-copiado.png)
+- 800x600-escuro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-escuro-nao-lidos.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-escuro-processando.png)
 
 ### B-EF-01 — pdftoppm gasta cerca de 0,5 s por página codificando PNG que o tesseract só decodifica
 
@@ -106,13 +273,66 @@ Status: pendente
 - **Lente:** EF
 - **Gravidade:** média
 - **Evidência:** `renderizar` chama o pdftoppm com `"-png", "-r", "150"` (tesseract.go:239-246) e `ocrPaginas` só aceita o sufixo `.png` (tesseract.go:436). Medição com os binários de %TEMP%\eprocIA_bin sobre um PDF escaneado fictício de 12 páginas (40 linhas cada, gerado com scripts/bench/pdfgen; script scratchpad da sessão, ef/ocr/medir3.sh), 6 repetições, um pdftoppm para as 12 páginas: `-png` 6479-8703 ms (mediana ~7,5 s, 0,63 s/página); `-gray` sem `-png` (PGM) 1162-2189 ms (0,11 s/página); sem `-png` (PPM colorido) 1720-3064 ms (0,16 s/página). O tesseract levou o mesmo tempo nas três entradas (6 páginas: PNG 21,4-26,1 s, PGM 22,6-22,8 s, dentro do ruído) e devolveu texto idêntico (`cmp` das saídas: PNG == PGM em 6 páginas, PNG == PPM em 2), desde que receba `--dpi 150`; sem ele, avisa `Estimating resolution as 212`, porque PNM não guarda a resolução. A máquina estava com outros agentes rodando, então os valores absolutos estão inflados; a razão entre os formatos se manteve nas 6 rodadas.
-- **Proposta:** Renderizar em PNM: trocar `-png` por `-gray` (saída `p-N.pgm`), aceitar o sufixo novo na leitura da pasta temporária (tesseract.go:435-436) e passar `--dpi 150` ao tesseract em `reconhecer` (tesseract.go:349/362). Custo colateral a aceitar: cada página passa a ocupar 2,2 MB no temporário (52 KB em PNG), apagado ao fim do bloco. Como a conversão para cinza passa a ser do Poppler, validar com `TestFixtures_LegibleToOCR` e com o corpus real (carimbos e destaques coloridos); se o texto mudar, usar PPM colorido, que tem os mesmos pixels do PNG (6,5 MB por página, ainda 4x mais rápido que PNG).
+- **Proposta:** Decisão do dono (2026-11-18): fazer agora, em PGM (-gray e --dpi 150), com volta para PPM se o texto mudar; a sessão principal compara o texto em ZIPs reais antes do merge. Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): linhas atuais tesseract.go:282-283 e :487. O bloco de OCR tem até 20 páginas e até numWorkers blocos simultâneos: em PGM o temporário chega a ~480 MB no pico; apague as imagens de cada bloco ao fim dele. Métrica-alvo: sec/op do BenchmarkSintetico no modo OCR fast; o pico de memória do modo OCR não é critério. Declare a métrica-alvo em observacoes. Proposta original: Renderizar em PNM: trocar `-png` por `-gray` (saída `p-N.pgm`), aceitar o sufixo novo na leitura da pasta temporária (tesseract.go:435-436) e passar `--dpi 150` ao tesseract em `reconhecer` (tesseract.go:349/362). Custo colateral a aceitar: cada página passa a ocupar 2,2 MB no temporário (52 KB em PNG), apagado ao fim do bloco. Como a conversão para cinza passa a ser do Poppler, validar com `TestFixtures_LegibleToOCR` e com o corpus real (carimbos e destaques coloridos); se o texto mudar, usar PPM colorido, que tem os mesmos pixels do PNG (6,5 MB por página, ainda 4x mais rápido que PNG).
 - **Custo:** P
 - **Ganho esperado:** Cerca de -0,5 s de CPU por página que vai ao OCR: -80% do tempo do pdftoppm e, no modo fast, cerca de -11% do tempo de OCR por página (0,63 s de 4,5 s medidos). Num ZIP com 500 páginas escaneadas, perto de 250 s de CPU a menos, uns 20 s de relógio com 11 workers.
 - **Veredito:** rebaixado
 - **Justificativa do cético:** Confirmei `-png -r 150` em internal/ocr/tesseract.go:242 e o sufixo `.png` na linha 436, e medi de novo com os binários de %TEMP%\eprocIA_bin sobre o esc12.pdf (6 rodadas, 12 páginas): PNG 4,4-5,2 s, PGM 0,80-0,94 s, PPM 1,2-1,9 s; o tesseract devolveu texto idêntico (`cmp`) com `--dpi 150` nos modos fast e normal. A economia medida é de ~0,33 s por página (não 0,5 s), o que dá ~11% no fast mas ~7% no modo padrão do app (`normal`, ~4,4 s/página em config.go:41), e o temporário cresce de 52 KB para 2,2 MB por página com todas as páginas do bloco renderizadas antes do tesseract: ganho real de custo P, mas gravidade média.
 
-Status: pendente
+Status: feito. Commit `e67cdd3985c690933e9a1867c68d9bbababf8fd4`.
+
+Benchstat (-count=10):
+
+```
+                                  │    antes     │               depois                │
+                                  │    sec/op    │   sec/op     vs base                │
+Sintetico/ocr=none-12               80.68m ±  6%   80.62m ± 2%        ~ (p=0.481 n=10)
+ParsePDF/nativo-12                  1.128m ±  6%   1.134m ± 9%        ~ (p=0.481 n=10)
+ParsePDF/escaneado-12               229.4µ ± 12%   232.0µ ± 9%        ~ (p=0.971 n=10)
+ParsePDF/vetorial-12                15.09m ± 12%   15.15m ± 9%        ~ (p=0.912 n=10)
+ParsePDF/contents-array-12          242.5µ ±  3%   246.4µ ± 6%        ~ (p=0.143 n=10)
+Sintetico/ocr=fast-12                2.355 ±  2%    2.133 ± 1%   -9.44% (p=0.000 n=10)
+Sintetico/escaneado24/ocr=fast-12    6.381 ±  1%    5.664 ± 1%  -11.23% (p=0.000 n=10)
+geomean                             19.69m         19.18m        -2.58%
+
+                                  │ gc-pausa-sec/op │ gc-pausa-sec/op  vs base                │
+Sintetico/ocr=none-12                 5.410m ±  13%     5.582m ±  29%       ~ (p=0.393 n=10)
+Sintetico/ocr=fast-12                 7.409m ±  22%     7.068m ±  27%       ~ (p=0.853 n=10)
+Sintetico/escaneado24/ocr=fast-12     1.099m ± 649%     1.216m ± 123%       ~ (p=0.837 n=7+9)
+
+                                  │  pico-mem-B   │  pico-mem-B    vs base               │
+Sintetico/ocr=none-12               23.14Mi ± 18%   23.24Mi ±  1%       ~ (p=1.000 n=10)
+Sintetico/ocr=fast-12               23.22Mi ± 17%   22.97Mi ± 17%       ~ (p=0.171 n=10)
+Sintetico/escaneado24/ocr=fast-12   71.35Mi ±  6%   67.48Mi ±  5%       ~ (p=0.059 n=10)
+
+                                  │   procs/op   │  procs/op   vs base                 │
+Sintetico/ocr=none-12               0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+Sintetico/ocr=fast-12               10.00 ± 0%     10.00 ± 0%       ~ (p=1.000 n=10) ¹
+Sintetico/escaneado24/ocr=fast-12   16.00 ± 0%     16.00 ± 0%       ~ (p=1.000 n=10) ¹
+
+                                  │     B/op     │     B/op      vs base               │
+Sintetico/ocr=none-12               21.92Mi ± 0%   21.91Mi ± 0%       ~ (p=0.165 n=10)
+ParsePDF/nativo-12                  318.8Ki ± 0%   318.8Ki ± 0%       ~ (p=0.671 n=10)
+ParsePDF/escaneado-12               59.82Ki ± 0%   59.82Ki ± 0%       ~ (p=0.983 n=10)
+ParsePDF/vetorial-12                2.585Mi ± 0%   2.585Mi ± 0%       ~ (p=0.436 n=10)
+ParsePDF/contents-array-12          71.20Ki ± 0%   71.20Ki ± 0%       ~ (p=0.326 n=10)
+Sintetico/ocr=fast-12               23.99Mi ± 1%   24.02Mi ± 1%       ~ (p=0.481 n=10)
+Sintetico/escaneado24/ocr=fast-12   4.986Mi ± 1%   4.983Mi ± 2%       ~ (p=0.684 n=10)
+
+                                  │  allocs/op  │  allocs/op   vs base                 │
+Sintetico/ocr=none-12               423.8k ± 0%   423.8k ± 0%       ~ (p=0.912 n=10)
+ParsePDF/nativo-12                  2.748k ± 0%   2.748k ± 0%       ~ (p=1.000 n=10) ¹
+ParsePDF/escaneado-12               404.0 ± 0%    404.0 ± 0%       ~ (p=1.000 n=10) ¹
+ParsePDF/vetorial-12                156.8k ± 0%   156.8k ± 0%       ~ (p=0.912 n=10)
+ParsePDF/contents-array-12          531.0 ± 0%    531.0 ± 0%       ~ (p=1.000 n=10) ¹
+Sintetico/ocr=fast-12               430.6k ± 0%   430.6k ± 0%       ~ (p=0.912 n=10)
+Sintetico/escaneado24/ocr=fast-12   17.67k ± 0%   17.68k ± 0%       ~ (p=0.481 n=10)
+¹ all samples are equal
+```
+
+Conferência em processos reais (2026-11-19): 9 ZIPs reais, OCR normal, higienização nenhuma, na mesma máquina, em sequência. Tempo total de 746 s com PNG e 567 s com PGM (-24%). Palavras lidas: 798.027 e 798.493, com 99,3% em comum. Das palavras que só um lado leu, as do PGM são um pouco melhores: 50% conhecidas e 9% lixo, contra 44% e 10% no PNG. Conclusão: a troca não perde texto e fica mantida.
+
+Capturas: não se aplica (correção de backend).
 
 ### F-AC-02 — Texto colorido de 11px abaixo de 4,5:1 na fila e no painel de atividade
 
@@ -129,14 +349,123 @@ Status: pendente
   - AtividadeItem.svelte: `.chip.ok` (220) claro 2,97:1; `.chip.ocr`/`.doc-ocr` (215, 290) claro 3,78 e 3,34 sobre a linha destacada; `.chip.erro` (225) 3,72 a 3,83 nos dois temas; `.doc-erro` (296) 4,14 a 4,30.
   - App.svelte:780 `.pulse-indicator` ("1 ativo"): escuro 3,72:1.
   O contraste.test.mjs só confere `--success-strong`/`--error-strong` sobre `--surface` e `--bg-main` (linhas 71-80); nenhum desses seletores é testado.
-- **Proposta:** Trocar a cor de texto nesses seletores pelos tokens que já existem: `--success-strong`, `--error-strong` e `--accent-text` (conferi: escuro `--error-strong` dá 5,99:1 sobre `--surface-hover`; `--accent-text` 6,27 no escuro e 6,68 no claro). Criar `--warning-strong` só para o tema claro (por exemplo `#9A4A00`, 5,52:1 sobre `--warning-soft`; `#B45309` fica em 4,42 e não serve). Atenção ao selo verde no claro: `--success-strong` sobre `--success-soft` dá 4,39:1, então o fundo precisa cair para `--success-faint` ou superfície neutra. Manter `--success`/`--error`/`--warning` nos ícones e bordas. Acrescentar em contraste.test.mjs os pares por seletor, incluindo o fundo `--surface-hover` e os fundos `color-mix`.
+- **Proposta:** Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): inclua também os textos em var(--warning) da v0.4.1: .nao-lidos e .aviso-erro.aviso-atencao (ProcessList), .chip.aviso, .btn-ocr e .doc-erro.aviso (AtividadeItem). --warning-strong = #9A5B00; registre o par em contraste.test.mjs e na §2 do DESIGN.md. Proposta original: Trocar a cor de texto nesses seletores pelos tokens que já existem: `--success-strong`, `--error-strong` e `--accent-text` (conferi: escuro `--error-strong` dá 5,99:1 sobre `--surface-hover`; `--accent-text` 6,27 no escuro e 6,68 no claro). Criar `--warning-strong` só para o tema claro (por exemplo `#9A4A00`, 5,52:1 sobre `--warning-soft`; `#B45309` fica em 4,42 e não serve). Atenção ao selo verde no claro: `--success-strong` sobre `--success-soft` dá 4,39:1, então o fundo precisa cair para `--success-faint` ou superfície neutra. Manter `--success`/`--error`/`--warning` nos ícones e bordas. Acrescentar em contraste.test.mjs os pares por seletor, incluindo o fundo `--surface-hover` e os fundos `color-mix`.
 - **Custo:** P
 - **Ganho esperado:** Os contadores de documentos, páginas e tokens, as mensagens de erro e o aviso de fila pausada passam de 4,5:1 nos dois temas, inclusive com a linha sob o ponteiro, e o teste impede a regressão.
 - **Veredito:** rebaixado
 - **Justificativa do cético:** Recalculei todos os pares com os hex de frontend/src/assets/css/style.css (fundos color-mix compostos sobre --surface/--surface-hover/--bg-main) e os números batem: .meta-badge.success 2,68/2,44 claro e 4,30 escuro; .queue-chip 2,81; .paused-message 3,19; .error-message 3,68/3,34 escuro; .progress-message 4,19; .chip.ok 2,97; .pulse-indicator 3,72; os seletores usam mesmo os tokens base (ProcessList.svelte:895-946, AtividadeItem.svelte:215-299, App.svelte:780) e o contraste.test.mjs não os cobre. É violação real da regra de 4,5:1 do DESIGN.md §2, mas o texto segue legível nas capturas e nada fica bloqueado: media, não alta.
 - **Nota da síntese:** Fundido com o achado de VI "Texto de estado usa tokens de preenchimento (--success, --error, --warning, --processing) em vez das variantes de texto" (média, P, rebaixado), que aponta os mesmos seletores e as mesmas capturas (1024x768-claro-fila.png, 1024x768-escuro-erro.png, 1440x900-claro-processando-atividade.png). Divergência a resolver na correção: VI sugere `--warning-strong` `#9A5B00` (5,43:1 sobre branco e 4,78:1 sobre `--warning-soft`) e AC sugere `#9A4A00` (5,52:1 sobre `--warning-soft`); as duas passam de 4,5:1, basta escolher uma e registrar o par em contraste.test.mjs e na §2 do DESIGN.md. As duas lentes concordam que o selo de sucesso precisa do fundo `--success-faint`.
 
-Status: pendente
+Status: feito. Commit `cdf83774a5047139e15c322fc622a54427a60e49`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-configuracoes: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-alto-contraste-configuracoes.png)
+- 1024x768-alto-contraste-processando: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-configuracoes.png)
+- 1024x768-claro-erro: [antes](capturas/2026-11-10/antes/1024x768-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-erro.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-fila.png)
+- 1024x768-claro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-nao-lidos-atividade.png)
+- 1024x768-claro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-nao-lidos-copiado.png)
+- 1024x768-claro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-nao-lidos.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-processando.png)
+- 1024x768-claro-vazio: [antes](capturas/2026-11-10/antes/1024x768-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-vazio.png)
+- 1024x768-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-configuracoes.png)
+- 1024x768-escuro-erro: [antes](capturas/2026-11-10/antes/1024x768-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-erro.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-fila.png)
+- 1024x768-escuro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-nao-lidos-atividade.png)
+- 1024x768-escuro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-nao-lidos-copiado.png)
+- 1024x768-escuro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-nao-lidos.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-processando.png)
+- 1024x768-escuro-vazio: [antes](capturas/2026-11-10/antes/1024x768-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-vazio.png)
+- 1440x900-claro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-configuracoes.png)
+- 1440x900-claro-erro: [antes](capturas/2026-11-10/antes/1440x900-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-erro.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-fila.png)
+- 1440x900-claro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-nao-lidos-atividade.png)
+- 1440x900-claro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-nao-lidos-copiado.png)
+- 1440x900-claro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-nao-lidos.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-processando.png)
+- 1440x900-claro-vazio: [antes](capturas/2026-11-10/antes/1440x900-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-vazio.png)
+- 1440x900-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-configuracoes.png)
+- 1440x900-escuro-erro: [antes](capturas/2026-11-10/antes/1440x900-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-erro.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-fila.png)
+- 1440x900-escuro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-nao-lidos-atividade.png)
+- 1440x900-escuro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-nao-lidos-copiado.png)
+- 1440x900-escuro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-nao-lidos.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-processando.png)
+- 1440x900-escuro-vazio: [antes](capturas/2026-11-10/antes/1440x900-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-vazio.png)
+- 1920x1080-claro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-configuracoes.png)
+- 1920x1080-claro-erro: [antes](capturas/2026-11-10/antes/1920x1080-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-erro.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-fila.png)
+- 1920x1080-claro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-nao-lidos-atividade.png)
+- 1920x1080-claro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-nao-lidos-copiado.png)
+- 1920x1080-claro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-nao-lidos.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-processando.png)
+- 1920x1080-claro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-vazio.png)
+- 1920x1080-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-configuracoes.png)
+- 1920x1080-escuro-erro: [antes](capturas/2026-11-10/antes/1920x1080-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-erro.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-nao-lidos-atividade.png)
+- 1920x1080-escuro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-nao-lidos-copiado.png)
+- 1920x1080-escuro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-nao-lidos.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-processando.png)
+- 1920x1080-escuro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-vazio.png)
+- 800x600-claro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-configuracoes.png)
+- 800x600-claro-erro: [antes](capturas/2026-11-10/antes/800x600-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-erro.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-fila.png)
+- 800x600-claro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-nao-lidos-atividade.png)
+- 800x600-claro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-nao-lidos-copiado.png)
+- 800x600-claro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-nao-lidos.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-processando.png)
+- 800x600-claro-vazio: [antes](capturas/2026-11-10/antes/800x600-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-vazio.png)
+- 800x600-escuro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-configuracoes.png)
+- 800x600-escuro-erro: [antes](capturas/2026-11-10/antes/800x600-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-erro.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-fila.png)
+- 800x600-escuro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-nao-lidos-atividade.png)
+- 800x600-escuro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-nao-lidos-copiado.png)
+- 800x600-escuro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-nao-lidos.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-processando.png)
+- 800x600-escuro-vazio: [antes](capturas/2026-11-10/antes/800x600-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-vazio.png)
 
 ### F-AC-03 — Pasta monitorada: lixeira que apaga a pasta com o rótulo "Desativar", campo somente leitura com cara de editável e interruptor ligado sem pasta
 
@@ -148,14 +477,50 @@ Status: pendente
   2. Três vocabulários para o mesmo assunto: "Monitoramento ativo" (135), "Desativar monitoramento" (163), "Nenhuma pasta (inativo)" (155), "Monitoramento pausado" e "Monitoramento inativo" (App.svelte:624 e 627).
   3. O caminho é um `<input type="text" readonly>` (151-158) com o mesmo estilo do campo editável de tipos (800x600-claro-configuracoes.png): entra na ordem de Tab, convida a digitar ou colar e não reage; o texto "Nenhuma pasta (inativo)" é o `value`. O caminho cortado só aparece inteiro no `title`.
   4. Sem pasta, o interruptor "Monitoramento ativo" pode ficar ligado (padrão `watchdog_enabled: true`, linha 24) enquanto o rodapé diz "Monitoramento inativo".
-- **Proposta:** Mostrar a pasta como texto (não input), com reticências no meio para preservar o fim do caminho e a dica com o caminho inteiro; "Alterar" vira "Escolher pasta..." quando não há nenhuma, com ícone `FolderOpen`. Tirar a lixeira: pausar fica com o interruptor, e esquecer a pasta, se continuar existindo, vira um botão de texto "Esquecer pasta" (ícone `X`, não lixeira) com rótulo honesto. Sem pasta, o interruptor aparece desligado e desabilitado, com a ajuda "Escolha uma pasta para monitorar" ligada por `aria-describedby`. Fixar dois estados e dois nomes em todo o app: "Monitorando" e "Pausado" (mais "Sem pasta"), no painel, na barra recolhida e no rodapé.
+- **Proposta:** Decisão do dono (2026-11-18): tirar a lixeira sem substituto: trocar a pasta só por "Alterar"; não criar "Esquecer pasta". Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): reticências no meio do caminho (atualizar DESIGN.md:104); vocabulário único Monitorando / Pausado / Sem pasta; ícones FolderSearch, CirclePause e FolderX (ver F-AC-09). Proposta original: Mostrar a pasta como texto (não input), com reticências no meio para preservar o fim do caminho e a dica com o caminho inteiro; "Alterar" vira "Escolher pasta..." quando não há nenhuma, com ícone `FolderOpen`. Tirar a lixeira: pausar fica com o interruptor, e esquecer a pasta, se continuar existindo, vira um botão de texto "Esquecer pasta" (ícone `X`, não lixeira) com rótulo honesto. Sem pasta, o interruptor aparece desligado e desabilitado, com a ajuda "Escolha uma pasta para monitorar" ligada por `aria-describedby`. Fixar dois estados e dois nomes em todo o app: "Monitorando" e "Pausado" (mais "Sem pasta"), no painel, na barra recolhida e no rodapé.
 - **Custo:** P
 - **Ganho esperado:** Ninguém perde a pasta configurada achando que estava só pausando; o painel e o rodapé passam a dizer a mesma coisa com as mesmas palavras.
 - **Veredito:** mantido
 - **Justificativa do cético:** Conferido: Settings.svelte:163 tem title "Desativar monitoramento" com Trash2 e handleClearDirectory (87-90) apaga monitored_path e salva sem confirmar; o caminho é input readonly com o estilo do campo editável (151-158, visível na captura); os rótulos divergem entre Settings e App.svelte:624-627; e, após a lixeira, watchdog_enabled segue true com o rodapé dizendo inativo. Ressalva: o DefaultConfig do Go já vem com a pasta Downloads, então o estado "ligado sem pasta" só aparece depois de limpar a pasta.
 - **Nota da síntese:** Fundido com o achado de VI "Pasta monitorada: o botão "Alterar" é o elemento mais forte da janela e o caminho esconde a pasta final" (baixa, M, rebaixado), sobre a mesma linha do formulário (Settings.svelte:151-163). Complementos de VI: "Alterar" como botão secundário (borda `--border-strong`, `FolderOpen` 12px), azul cheio só em "Escolher pasta..." quando não há pasta, ícone `Folder` 14px antes do caminho e função de truncamento em `src/lib` com teste. Divergência a resolver: AC propõe reticências no meio do caminho e VI propõe cortar o começo; nos dois casos a reticência no fim é decisão registrada no DESIGN.md:104, que precisa ser atualizado junto. Ressalva do cético de VI: o caminho completo já aparece no rodapé e no `title`, e os interruptores usam o mesmo azul cheio de "Alterar".
 
-Status: pendente
+Status: feito. Commit `ddf0fff11b1d52ef09ac231af57715440fbf3ce2`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-configuracoes: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-alto-contraste-configuracoes.png)
+- 1024x768-claro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-claro-configuracoes.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-claro-fila.png)
+- 1024x768-claro-vazio: [antes](capturas/2026-11-10/antes/1024x768-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-claro-vazio.png)
+- 1024x768-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-escuro-configuracoes.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-escuro-fila.png)
+- 1024x768-escuro-vazio: [antes](capturas/2026-11-10/antes/1024x768-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-escuro-vazio.png)
+- 1440x900-claro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-claro-configuracoes.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-claro-fila.png)
+- 1440x900-claro-vazio: [antes](capturas/2026-11-10/antes/1440x900-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-claro-vazio.png)
+- 1440x900-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-escuro-configuracoes.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-escuro-fila.png)
+- 1440x900-escuro-vazio: [antes](capturas/2026-11-10/antes/1440x900-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-escuro-vazio.png)
+- 1920x1080-claro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-claro-configuracoes.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-claro-fila.png)
+- 1920x1080-claro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-claro-vazio.png)
+- 1920x1080-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-escuro-configuracoes.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-escuro-vazio.png)
+- 800x600-claro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-claro-configuracoes.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-claro-fila.png)
+- 800x600-claro-vazio: [antes](capturas/2026-11-10/antes/800x600-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-claro-vazio.png)
+- 800x600-escuro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-escuro-configuracoes.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-escuro-fila.png)
+- 800x600-escuro-vazio: [antes](capturas/2026-11-10/antes/800x600-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-escuro-vazio.png)
 
 ### B-EF-02 — linhasBasicas roda três vezes por página e realoca toda linha mesmo quando ela já está limpa
 
@@ -163,13 +528,69 @@ Status: pendente
 - **Lente:** EF
 - **Gravidade:** média
 - **Evidência:** Nos níveis standard e aggressive cada página passa por `linhasBasicas` em `chaveConteudo` (formatter.go:275, pré-passada H7), em `edgeLines` (formatter.go:88, via `repeatedEdgeLines`) e em `cleanPage` (formatter.go:140). A função faz, por linha, `strings.Map` com closure + `strings.Fields` + `strings.Join` (higienizacao.go:49-58). `BenchmarkEFPartes/linhasBasicas` (overlay, -count=6, 1000 páginas de 45 linhas): 119-171 ms, 14,7 MB e 97.000 alocações por passada; três passadas somam ~330-390 ms dos 680-853 ms que `GenerateConsolidatedOutput` leva no nível standard. No perfil do `BenchmarkSintetico`, `linhasBasicas` soma 0,83 s dos 4,55 s do formatador. Protótipo de caminho rápido no arquivo de teste scratchpad da sessão, ef/zz_ef6_test.go (a linha sem controle, tab, NBSP, espaço dobrado ou espaço nas pontas é reaproveitada sem cópia; saída conferida igual com `slices.Equal` nas 1000 páginas e numa linha suja): `BenchmarkEFLinhasBasicas` atual 103-117 ms / 97.000 allocs contra caminho-rapido 32-47 ms / 1.000 allocs / 0,77 MB.
-- **Proposta:** (1) Calcular as linhas básicas uma vez por página e reaproveitar o resultado nas três etapas: `documentosOrdenados` (ou a pré-passada H7) guarda `[]string` por página, `chaveConteudo`, `edgeLines` e `cleanPage` passam a receber as linhas prontas. (2) Em `linhasBasicas`, testar antes se a linha já está limpa e, nesse caso, usar a própria fatia do texto, sem Map/Fields/Join; pré-dimensionar `out` com `strings.Count(text, "\n")+1`.
+- **Proposta:** Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): chamadas em formatter.go:88, :140 e :310. As páginas com ocr_aviso e as sem_ocr ficam fora do H7 (formatter.go:288-289): o cache de linhas não pode mudar quem entra no H7, e o teste de saída idêntica cobre uma página com ocr_aviso. Crie em internal/etl um benchmark versionado de GenerateConsolidatedOutput (níveis standard e aggressive, páginas sintéticas), que B-EF-04 reaproveita. Métrica-alvo: allocs/op e sec/op desse benchmark; declare em observacoes. Proposta original: (1) Calcular as linhas básicas uma vez por página e reaproveitar o resultado nas três etapas: `documentosOrdenados` (ou a pré-passada H7) guarda `[]string` por página, `chaveConteudo`, `edgeLines` e `cleanPage` passam a receber as linhas prontas. (2) Em `linhasBasicas`, testar antes se a linha já está limpa e, nesse caso, usar a própria fatia do texto, sem Map/Fields/Join; pré-dimensionar `out` com `strings.Count(text, "\n")+1`.
 - **Custo:** P
 - **Ganho esperado:** De ~330 ms para ~35 ms a cada 1000 páginas nessa função (-90%), o que dá cerca de -35% a -40% do tempo do formatador no nível padrão, e ~-290.000 alocações / ~-43 MB alocados a cada 1000 páginas.
 - **Veredito:** mantido
 - **Justificativa do cético:** Confirmei as três chamadas de `linhasBasicas` por página (formatter.go:88, 140 e 275) e o Map+Fields+Join por linha (higienizacao.go:49-58); no meu benchmark cada passada custa 63-108 ms e 97.000 alocações por 1000 páginas, contra 384-444 ms do formatador no nível padrão, e o caminho rápido do protótipo fica em 27-31 ms com 1.000 alocações e saída igual. O ganho relativo alegado (~-40% do formatador) se confirma; em valor absoluto são ~0,2 s por 1000 páginas, sem efeito em ZIP dominado por OCR.
 
-Status: pendente
+Status: feito. Commit `a424513bf8aa7c374bc11a2c72bc0b727773de19`.
+
+Benchstat (-count=10):
+
+```
+pkg: eprocia/internal/etl
+                                         base          novo
+sec/op
+GenerateConsolidatedOutput/standard-12    347.3m ± 12%  182.8m ± 22%  -47.38% (p=0.000 n=10)
+GenerateConsolidatedOutput/aggressive-12  506.7m ± 14%  315.0m ± 27%  -37.83% (p=0.000 n=10)
+B/op
+GenerateConsolidatedOutput/standard-12    66.20Mi ± 0%  37.92Mi ± 0%  -42.72% (p=0.000 n=10)
+GenerateConsolidatedOutput/aggressive-12  67.04Mi ± 0%  38.73Mi ± 0%  -42.23% (p=0.000 n=10)
+allocs/op
+GenerateConsolidatedOutput/standard-12    393.0k ± 0%   139.3k ± 0%   -64.56% (p=0.000 n=10)
+GenerateConsolidatedOutput/aggressive-12  398.7k ± 0%   145.1k ± 0%   -63.62% (p=0.000 n=10)
+
+pkg: eprocia/scripts/bench
+sec/op
+Sintetico/ocr=none-12              151.1m ± 10%  125.6m ± 15%  -16.86% (p=0.001 n=10)
+ParsePDF/nativo-12                 1.225m ± 12%  1.184m ± 16%  ~ (p=0.853 n=10)
+ParsePDF/escaneado-12              292.4µ ± 31%  296.8µ ± 11%  ~ (p=0.393 n=10)
+ParsePDF/vetorial-12               26.96m ± 23%  24.88m ± 30%  ~ (p=0.353 n=10)
+ParsePDF/contents-array-12         252.0µ ± 21%  255.6µ ± 12%  ~ (p=0.853 n=10)
+Sintetico/ocr=fast-12              2.431 ± 8%    2.452 ± 4%    ~ (p=0.971 n=10)
+Sintetico/escaneado24/ocr=fast-12  6.380 ± 7%    6.353 ± 9%    ~ (p=0.739 n=10)
+B/op
+Sintetico/ocr=none-12              29.10Mi ± 0%  25.53Mi ± 0%  -12.25% (p=0.000 n=10)
+ParsePDF/nativo-12                 318.8Ki ± 0%  318.8Ki ± 0%  ~ (p=0.288 n=10)
+ParsePDF/escaneado-12              78.64Ki ± 0%  78.64Ki ± 0%  ~ (p=0.396 n=10)
+ParsePDF/vetorial-12               4.388Mi ± 0%  4.388Mi ± 0%  ~ (p=0.247 n=10)
+ParsePDF/contents-array-12         71.19Ki ± 0%  71.20Ki ± 0%  +0.00% (p=0.029 n=10)
+Sintetico/ocr=fast-12              31.18Mi ± 0%  27.68Mi ± 0%  -11.23% (p=0.000 n=10)
+Sintetico/escaneado24/ocr=fast-12  5.665Mi ± 2%  5.315Mi ± 2%  -6.17% (p=0.000 n=10)
+allocs/op
+Sintetico/ocr=none-12              656.1k ± 0%  633.0k ± 0%  -3.52% (p=0.000 n=10)
+ParsePDF/nativo-12                 2.748k ± 0%  2.748k ± 0%  ~ (p=1.000 n=10)
+ParsePDF/escaneado-12              503.0 ± 0%   503.0 ± 0%   ~ (p=1.000 n=10)
+ParsePDF/vetorial-12               261.2k ± 0%  261.2k ± 0%  ~ (p=0.725 n=10)
+ParsePDF/contents-array-12         531.0 ± 0%   531.0 ± 0%   ~ (p=1.000 n=10)
+Sintetico/ocr=fast-12              663.0k ± 0%  639.8k ± 0%  -3.50% (p=0.000 n=10)
+Sintetico/escaneado24/ocr=fast-12  22.14k ± 0%  20.06k ± 0%  -9.37% (p=0.000 n=10)
+gc-pausa-sec/op
+Sintetico/ocr=none-12              5.902m ± 49%  6.974m ± 24%  ~ (p=0.796 n=10)
+Sintetico/ocr=fast-12              9.232m ± 32%  7.367m ± 27%  ~ (p=0.075 n=10)
+Sintetico/escaneado24/ocr=fast-12  1.648m ± 66%  1.878m ± 41%  ~ (p=0.931 n=9)
+pico-mem-B
+Sintetico/ocr=none-12              23.36Mi ± 16%  23.11Mi ± 1%  ~ (p=0.265 n=10)
+Sintetico/ocr=fast-12              23.14Mi ± 16%  23.10Mi ± 1%  ~ (p=0.434 n=10)
+Sintetico/escaneado24/ocr=fast-12  69.14Mi ± 3%   70.98Mi ± 5%  ~ (p=0.867 n=10)
+procs/op
+Sintetico/ocr=none-12              0.000 ± 0%  0.000 ± 0%  ~ (p=1.000 n=10)
+Sintetico/ocr=fast-12              10.00 ± 0%  10.00 ± 0%  ~ (p=1.000 n=10)
+Sintetico/escaneado24/ocr=fast-12  16.00 ± 0%  16.00 ± 0%  ~ (p=1.000 n=10)
+```
+
+Capturas: não se aplica (correção de backend).
 
 ### F-AC-04 — Foco cai no body ao fechar ou confirmar o painel Reprocessar
 
@@ -177,13 +598,105 @@ Status: pendente
 - **Lente:** AC
 - **Gravidade:** média
 - **Evidência:** ReprocessarItem.svelte:18 leva o foco para o primeiro select ao montar. Ao sair, nada devolve o foco: `aoCancelar={() => alternarReprocessar(item.id)}` (ProcessList.svelte:520) só inverte o mapa (linhas 104-106), e Esc (ReprocessarItem.svelte:30-35) e o botão Cancelar (linha 57) passam por aí. O `{#if reprocessarAberto[item.id] ...}` (linha 514) desmonta o formulário com o foco dentro dele. Em `confirmarReprocessar` (linhas 108-118) acontece o mesmo: o painel fecha, o item vira `pending` e os botões da linha trocam, sem `guardarFoco`. O mecanismo `guardarFoco`/`devolverFoco` (linhas 126-169) só é chamado por cancelar, remover e limpar. Contraria "Foco não se perde" do DESIGN.md §2: quem usa teclado volta ao começo da janela.
-- **Proposta:** Ao cancelar ou apertar Esc, focar o botão `[data-acao="reprocessar"]` da própria linha depois de `tick()`. Ao confirmar, chamar `guardarFoco(item.id, ...)` com a ação `cancelar` como preferida, para o foco ir ao X do item que voltou para a fila (o `escolherAcao` já cobre a troca de conjunto de botões). Acrescentar um caso em fila.test.mjs. Em Svelte 5 isso cabe num attachment do painel, que guarda quem abriu e devolve o foco no desmonte, e serve também para o menu da barra recolhida.
+- **Proposta:** Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): o formulário agora fica dentro de {#key geracaoReprocessar[item.id]} (ProcessList.svelte:545-555) e também abre pelo botão "Reprocessar com OCR" do painel de atividade. A devolução do foco cobre a remontagem pelo {#key} e volta ao botão que abriu o formulário (o da linha ou o do painel). Proposta original: Ao cancelar ou apertar Esc, focar o botão `[data-acao="reprocessar"]` da própria linha depois de `tick()`. Ao confirmar, chamar `guardarFoco(item.id, ...)` com a ação `cancelar` como preferida, para o foco ir ao X do item que voltou para a fila (o `escolherAcao` já cobre a troca de conjunto de botões). Acrescentar um caso em fila.test.mjs. Em Svelte 5 isso cabe num attachment do painel, que guarda quem abriu e devolve o foco no desmonte, e serve também para o menu da barra recolhida.
 - **Custo:** P
 - **Ganho esperado:** Reprocessar vira um fluxo completo por teclado: abrir, escolher, confirmar ou desistir e continuar na mesma linha.
 - **Veredito:** mantido
 - **Justificativa do cético:** ReprocessarItem.svelte:18 foca o select ao montar; alternarReprocessar (ProcessList.svelte:104-106) e confirmarReprocessar (108-118) só mexem no mapa e o {#if} da linha 514 desmonta o form com o foco dentro. Os únicos .focus() do componente estão em devolverFoco, que só roda com focoPendente (cancelar, remover, limpar), então o foco cai no body, contra "Foco não se perde" (DESIGN.md:22).
 
-Status: pendente
+Status: feito. Commit `bbd6658d8d941c400bb5426d6bcb382000264e52`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-processando: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-erro: [antes](capturas/2026-11-10/antes/1024x768-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-claro-erro.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-claro-fila.png)
+- 1024x768-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-claro-nao-lidos-atividade.png)
+- 1024x768-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-claro-nao-lidos-copiado.png)
+- 1024x768-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-claro-nao-lidos.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-claro-processando.png)
+- 1024x768-escuro-erro: [antes](capturas/2026-11-10/antes/1024x768-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-escuro-erro.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-escuro-fila.png)
+- 1024x768-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-escuro-nao-lidos-atividade.png)
+- 1024x768-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-escuro-nao-lidos-copiado.png)
+- 1024x768-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-escuro-nao-lidos.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-escuro-processando.png)
+- 1440x900-claro-erro: [antes](capturas/2026-11-10/antes/1440x900-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-claro-erro.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-claro-fila.png)
+- 1440x900-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-claro-nao-lidos-atividade.png)
+- 1440x900-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-claro-nao-lidos-copiado.png)
+- 1440x900-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-claro-nao-lidos.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-claro-processando.png)
+- 1440x900-escuro-erro: [antes](capturas/2026-11-10/antes/1440x900-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-escuro-erro.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-escuro-fila.png)
+- 1440x900-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-escuro-nao-lidos-atividade.png)
+- 1440x900-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-escuro-nao-lidos-copiado.png)
+- 1440x900-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-escuro-nao-lidos.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-escuro-processando.png)
+- 1920x1080-claro-erro: [antes](capturas/2026-11-10/antes/1920x1080-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-claro-erro.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-claro-fila.png)
+- 1920x1080-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-claro-nao-lidos-atividade.png)
+- 1920x1080-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-claro-nao-lidos-copiado.png)
+- 1920x1080-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-claro-nao-lidos.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-claro-processando.png)
+- 1920x1080-escuro-erro: [antes](capturas/2026-11-10/antes/1920x1080-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-escuro-erro.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-escuro-nao-lidos-atividade.png)
+- 1920x1080-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-escuro-nao-lidos-copiado.png)
+- 1920x1080-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-escuro-nao-lidos.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-escuro-processando.png)
+- 800x600-claro-erro: [antes](capturas/2026-11-10/antes/800x600-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-claro-erro.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-claro-fila.png)
+- 800x600-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-claro-nao-lidos-atividade.png)
+- 800x600-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-claro-nao-lidos-copiado.png)
+- 800x600-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-claro-nao-lidos.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-claro-processando.png)
+- 800x600-escuro-erro: [antes](capturas/2026-11-10/antes/800x600-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-escuro-erro.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-escuro-fila.png)
+- 800x600-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-escuro-nao-lidos-atividade.png)
+- 800x600-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-escuro-nao-lidos-copiado.png)
+- 800x600-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-escuro-nao-lidos.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-escuro-processando.png)
 
 ### F-AC-05 — Regiões vivas: resumo da atividade em `role="status"` muda a cada 200 ms e avisos são montados já com conteúdo
 
@@ -191,13 +704,105 @@ Status: pendente
 - **Lente:** AC
 - **Gravidade:** média
 - **Evidência:** AtividadeItem.svelte:69 marca `<div class="resumo font-tabular" role="status">`, cujo conteúdo são os contadores "N em andamento", "N pág. em OCR", "N aguardando", "N concluídos" (linhas 70-80) e ainda o botão "Mostrar concluídos" (82-90). Esses números vêm de `queue:atividade`, emitido a cada 200 ms no máximo (CLAUDE.md, seção de arquitetura; App.svelte:138-140). `role="status"` é região viva com leitura do conjunto: com o painel aberto, o leitor de tela relê a faixa inteira continuamente durante todo o processamento. No sentido oposto, dois avisos nascem junto com o elemento que os anuncia, contra a regra "regiões vivas sempre montadas" do DESIGN.md §2: `{#if aviso} ... <span class="queue-chip" role="status">` (ProcessList.svelte:285-292) e `<p role="status">Nenhum item corresponde ao filtro</p>` dentro de `{#if}` (linhas 295-298). O anuncios.test.mjs:101 só confere que o texto fica dentro de um `role="status"`.
-- **Proposta:** Tirar o `role="status"` do resumo (vira texto comum dentro da região "Atividade dos documentos") e mover o botão para fora dele. Anunciar só marcos: fim do item ("{nome}: concluído, 57 documentos" ou "erro") e mudança no número de documentos com erro, numa única região `.sr-only role="status"` sempre montada no ProcessList. Passar por ela também "Fila pausada"/"Fila retomada", o resultado do filtro ("3 de 12 itens", "Nenhum item corresponde ao filtro") e o "TXT copiado"; o chip e o parágrafo continuam visíveis, sem `role`. Atualizar anuncios.test.mjs para a nova região.
+- **Proposta:** Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): o resumo (AtividadeItem.svelte:73) agora também tem o chip "N não lidos" e, ao fim, a faixa "Reprocessar com OCR". O número de não lidos entra como marco na região única ("{nome}: concluído, 2 documentos não lidos"); o botão sai da região viva. Proposta original: Tirar o `role="status"` do resumo (vira texto comum dentro da região "Atividade dos documentos") e mover o botão para fora dele. Anunciar só marcos: fim do item ("{nome}: concluído, 57 documentos" ou "erro") e mudança no número de documentos com erro, numa única região `.sr-only role="status"` sempre montada no ProcessList. Passar por ela também "Fila pausada"/"Fila retomada", o resultado do filtro ("3 de 12 itens", "Nenhum item corresponde ao filtro") e o "TXT copiado"; o chip e o parágrafo continuam visíveis, sem `role`. Atualizar anuncios.test.mjs para a nova região.
 - **Custo:** P
 - **Ganho esperado:** O leitor de tela para de repetir contadores e passa a dizer o que importa: o processo terminou, a fila pausou, o filtro não achou nada.
 - **Veredito:** mantido
 - **Justificativa do cético:** AtividadeItem.svelte:69 marca como role="status" (atômica por padrão) a faixa de contadores alimentada por queue:atividade (App.svelte:138-140) e ainda contém o botão "Mostrar concluídos" (82-90); o chip de fila pausada (ProcessList.svelte:285-292) e o aviso do filtro (295-298) nascem dentro de {#if} já com o conteúdo, contra "regiões vivas sempre montadas" (DESIGN.md:21). Os contadores mudam por documento/bloco de páginas, não a cada 200 ms cravados, mas o excesso de leitura com o painel aberto é real.
 
-Status: pendente
+Status: feito. Commit `a2139d859ce12abc657a48140a9f3e0ffc7e4e55`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-processando: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-erro: [antes](capturas/2026-11-10/antes/1024x768-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-claro-erro.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-claro-fila.png)
+- 1024x768-claro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-claro-nao-lidos-atividade.png)
+- 1024x768-claro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-claro-nao-lidos-copiado.png)
+- 1024x768-claro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-claro-nao-lidos.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-claro-processando.png)
+- 1024x768-escuro-erro: [antes](capturas/2026-11-10/antes/1024x768-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-escuro-erro.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-escuro-fila.png)
+- 1024x768-escuro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-escuro-nao-lidos-atividade.png)
+- 1024x768-escuro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-escuro-nao-lidos-copiado.png)
+- 1024x768-escuro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-escuro-nao-lidos.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1024x768-escuro-processando.png)
+- 1440x900-claro-erro: [antes](capturas/2026-11-10/antes/1440x900-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-claro-erro.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-claro-fila.png)
+- 1440x900-claro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-claro-nao-lidos-atividade.png)
+- 1440x900-claro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-claro-nao-lidos-copiado.png)
+- 1440x900-claro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-claro-nao-lidos.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-claro-processando.png)
+- 1440x900-escuro-erro: [antes](capturas/2026-11-10/antes/1440x900-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-escuro-erro.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-escuro-fila.png)
+- 1440x900-escuro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-escuro-nao-lidos-atividade.png)
+- 1440x900-escuro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-escuro-nao-lidos-copiado.png)
+- 1440x900-escuro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-escuro-nao-lidos.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1440x900-escuro-processando.png)
+- 1920x1080-claro-erro: [antes](capturas/2026-11-10/antes/1920x1080-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-claro-erro.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-claro-fila.png)
+- 1920x1080-claro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-claro-nao-lidos-atividade.png)
+- 1920x1080-claro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-claro-nao-lidos-copiado.png)
+- 1920x1080-claro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-claro-nao-lidos.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-claro-processando.png)
+- 1920x1080-escuro-erro: [antes](capturas/2026-11-10/antes/1920x1080-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-escuro-erro.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-escuro-nao-lidos-atividade.png)
+- 1920x1080-escuro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-escuro-nao-lidos-copiado.png)
+- 1920x1080-escuro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-escuro-nao-lidos.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/1920x1080-escuro-processando.png)
+- 800x600-claro-erro: [antes](capturas/2026-11-10/antes/800x600-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-claro-erro.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-claro-fila.png)
+- 800x600-claro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-claro-nao-lidos-atividade.png)
+- 800x600-claro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-claro-nao-lidos-copiado.png)
+- 800x600-claro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-claro-nao-lidos.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-claro-processando.png)
+- 800x600-escuro-erro: [antes](capturas/2026-11-10/antes/800x600-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-escuro-erro.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-escuro-fila.png)
+- 800x600-escuro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-escuro-nao-lidos-atividade.png)
+- 800x600-escuro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-escuro-nao-lidos-copiado.png)
+- 800x600-escuro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-escuro-nao-lidos.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-05%2BF-AC-01/800x600-escuro-processando.png)
 
 ### F-AC-06 — Limpar Fila cancela o item em andamento e apaga tudo com um clique, sem confirmar nem desfazer
 
@@ -205,13 +810,89 @@ Status: pendente
 - **Lente:** AC
 - **Gravidade:** média
 - **Evidência:** ProcessList.svelte:277 chama `handleClear` (linhas 240-248), que vai direto a `ClearQueue()`. No Go, `Queue.Clear` (internal/etl/queue.go:379-389) cancela o item em processamento e zera a lista ("cancels all running/pending tasks and clears the queue list"). O botão fica a 6px do Pausar (`.header-actions { gap: 6px }`, linha 666; ver 1024x768-claro-erro.png) e apaga também os itens escondidos pelo filtro. Some junto o único lugar de onde se copia o TXT de cada processo e o histórico da sessão; um OCR de vários minutos é perdido. O X de cancelar o item em processamento (linhas 395-402) também age sem confirmar. Não existe ação intermediária: para tirar só os concluídos é preciso remover linha por linha.
-- **Proposta:** Separar em duas ações. "Limpar concluídos" (ícone `ListX`) remove só sucesso/erro/cancelado e não pede confirmação. Quando houver item pendente ou em processamento, "Limpar tudo" abre uma confirmação em linha na faixa do `.queue-notice`, com o texto exato do efeito ("Cancelar 1 em andamento e remover 5 itens?") e os botões Cancelar / Limpar tudo; sem prazo para sumir (WCAG 2.2.1), Esc cancela e o foco volta ao botão. O cancelamento de item em processamento pode seguir de um clique, porque o Reprocessar recupera. A faixa entra com `fade` em `--dur-fast`. O teste de foco pós-limpeza em fila.test.mjs continua valendo para o caminho confirmado.
+- **Proposta:** Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): seguir a proposta: "Limpar concluídos" sem confirmar e "Limpar tudo" com confirmação em linha. Se criar um binding no Go, rode wails generate module e declare o escopo ampliado. Proposta original: Separar em duas ações. "Limpar concluídos" (ícone `ListX`) remove só sucesso/erro/cancelado e não pede confirmação. Quando houver item pendente ou em processamento, "Limpar tudo" abre uma confirmação em linha na faixa do `.queue-notice`, com o texto exato do efeito ("Cancelar 1 em andamento e remover 5 itens?") e os botões Cancelar / Limpar tudo; sem prazo para sumir (WCAG 2.2.1), Esc cancela e o foco volta ao botão. O cancelamento de item em processamento pode seguir de um clique, porque o Reprocessar recupera. A faixa entra com `fade` em `--dur-fast`. O teste de foco pós-limpeza em fila.test.mjs continua valendo para o caminho confirmado.
 - **Custo:** M
 - **Ganho esperado:** Um clique errado ao lado do Pausar deixa de derrubar o processamento e apagar a lista; arrumar a fila sem perder os pendentes passa a ser uma ação só.
 - **Veredito:** mantido
 - **Justificativa do cético:** handleClear (ProcessList.svelte:240-248) chama ClearQueue sem confirmar; App.ClearQueue (app.go:449) vai direto a Queue.Clear (queue.go:379-389), que cancela o item em processamento e zera a lista, inclusive os itens escondidos pelo filtro; o botão fica a 6px do Pausar (linha 666). Ressalva: os TXT já gerados continuam no disco, só o item em andamento e o histórico da sessão se perdem, o que cabe em media.
 
-Status: pendente
+Status: feito. Commit `3de111c5b74385de5823e7608423956ad1a8d2a1`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-processando: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-erro: [antes](capturas/2026-11-10/antes/1024x768-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-erro.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-fila.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-processando.png)
+- 1024x768-claro-vazio: [antes](capturas/2026-11-10/antes/1024x768-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-vazio.png)
+- 1024x768-escuro-erro: [antes](capturas/2026-11-10/antes/1024x768-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-erro.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-fila.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-processando.png)
+- 1024x768-escuro-vazio: [antes](capturas/2026-11-10/antes/1024x768-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-vazio.png)
+- 1440x900-claro-erro: [antes](capturas/2026-11-10/antes/1440x900-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-erro.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-fila.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-processando.png)
+- 1440x900-claro-vazio: [antes](capturas/2026-11-10/antes/1440x900-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-vazio.png)
+- 1440x900-escuro-erro: [antes](capturas/2026-11-10/antes/1440x900-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-erro.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-fila.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-processando.png)
+- 1440x900-escuro-vazio: [antes](capturas/2026-11-10/antes/1440x900-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-vazio.png)
+- 1920x1080-claro-erro: [antes](capturas/2026-11-10/antes/1920x1080-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-erro.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-fila.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-processando.png)
+- 1920x1080-claro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-vazio.png)
+- 1920x1080-escuro-erro: [antes](capturas/2026-11-10/antes/1920x1080-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-erro.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-processando.png)
+- 1920x1080-escuro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-vazio.png)
+- 800x600-claro-erro: [antes](capturas/2026-11-10/antes/800x600-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-erro.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-fila.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-processando.png)
+- 800x600-claro-vazio: [antes](capturas/2026-11-10/antes/800x600-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-vazio.png)
+- 800x600-escuro-erro: [antes](capturas/2026-11-10/antes/800x600-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-erro.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-fila.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-processando.png)
+- 800x600-escuro-vazio: [antes](capturas/2026-11-10/antes/800x600-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-vazio.png)
 
 ### F-VI-02 — Comboboxes nativos de OCR e Higienização: trocar por controle segmentado
 
@@ -219,14 +900,81 @@ Status: pendente
 - **Lentes:** VI, AC
 - **Gravidade:** média
 - **Evidência:** `<select id="ocr-mode" bind:value={config.ocr_mode} on:change={handleSave}>` (Settings.svelte:173-182) e `<select id="cleaning-level" ...>` (189-198); mais dois em ReprocessarItem.svelte:42 e 50. Nas capturas 1024x768-claro-configuracoes.png e 1024x768-claro-fila-reprocessar.png aparecem como select padrão do Chromium (seta nativa, lista do sistema). docs/backlog.md:12: "tirar os comboboxes. Eles são feios, e o usuário só vê as opções depois de abrir". As opções são 4 níveis curtos e ordenados (frontend/src/lib/atividade.js:4-16), que a barra recolhida já desenha como escala de pontos (App.svelte:549-553). Settings repete as opções à mão em vez de usar OPCOES_OCR/OPCOES_LIMPEZA.
-- **Proposta:** Componente `Segmentado.svelte` (role="radiogroup" com inputs radio ocultos, setas do teclado nativas): faixa de 28px com 4 segmentos iguais, contorno 1px `--border-strong`, raio 4px, divisórias 1px `--border`. Selecionado: fundo `--accent-soft`, texto `--accent-text` em 600, troca de fundo em `--dur-fast`; anel de foco no segmento. Rótulos em `--fs-meta` para caber a 280px (4 x 64px; "Desativado" é o mais longo). O `.help-text` da opção escolhida continua abaixo. Usar o mesmo componente no ReprocessarItem. Atualizar DESIGN.md §5.3 e os testes que leem o select (limpeza-niveis.test.mjs:10, tema.test.mjs:128, contraste.test.mjs:120). Com Svelte 5, um componente com valor `$bindable` e `{#each}` sobre OPCOES_* atende os 4 usos.
+- **Proposta:** Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): use OPCOES_OCR/OPCOES_LIMPEZA de lib/atividade.js; troque "Desativado" por "Nenhum" só se cortar a 280 px. Proposta original: Componente `Segmentado.svelte` (role="radiogroup" com inputs radio ocultos, setas do teclado nativas): faixa de 28px com 4 segmentos iguais, contorno 1px `--border-strong`, raio 4px, divisórias 1px `--border`. Selecionado: fundo `--accent-soft`, texto `--accent-text` em 600, troca de fundo em `--dur-fast`; anel de foco no segmento. Rótulos em `--fs-meta` para caber a 280px (4 x 64px; "Desativado" é o mais longo). O `.help-text` da opção escolhida continua abaixo. Usar o mesmo componente no ReprocessarItem. Atualizar DESIGN.md §5.3 e os testes que leem o select (limpeza-niveis.test.mjs:10, tema.test.mjs:128, contraste.test.mjs:120). Com Svelte 5, um componente com valor `$bindable` e `{#each}` sobre OPCOES_* atende os 4 usos.
 - **Custo:** M
 - **Ganho esperado:** As 4 opções ficam visíveis sem abrir nada, a troca cai de 2 cliques para 1, a altura do painel não muda e o painel expandido passa a falar a mesma língua da escala de pontos da barra recolhida.
 - **Veredito:** mantido
 - **Justificativa do cético:** Os quatro `<select>` existem (Settings.svelte:173-198, ReprocessarItem.svelte:42 e 50), Settings repete as opções à mão em vez de usar OPCOES_OCR/OPCOES_LIMPEZA (lib/atividade.js:4-16) e docs/backlog.md:12 traz o pedido do dono. Os testes citados existem (limpeza-niveis:10, tema:128, contraste:120) e 4 segmentos cabem em 264px úteis a 280px.
 - **Nota da síntese:** Fundido com o achado de AC "Selects de OCR e higienização escondem as opções e só explicam a que está escolhida" (média, M, mantido). Complementos de AC: o `.help-text` só descreve a opção atual (`AJUDA_OCR[config.ocr_mode]`, `AJUDA_LIMPEZA[config.cleaning_level]`) e cada seleção já grava, então comparar "Padrão" com "Máxima" exige gravar as duas; no ReprocessarItem não há ajuda nenhuma. AC propõe `<fieldset>` com `<legend>` e rádios nativos em `.sr-only` (setas, Home/End e "2 de 4" sem ARIA manual), ajuda que descreve a opção sob o ponteiro ou em foco e volta para a escolhida ao sair (ligada por `aria-describedby`), indicador que desliza por `transform` em `--dur-fast`, e trocar "Desativado" por "Nenhum" se o rótulo cortar a 280px (conferir na captura de divisor mínimo). O mesmo componente serve de conteúdo para o menu da barra recolhida (F-AC-14).
 
-Status: pendente
+Status: feito. Commit `fab3ed5a08c36f7264970e37cda6fbe072daaa6b`.
+
+Capturas (antes / depois):
+
+- 1024x768-claro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1024x768-claro-configuracoes.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1024x768-claro-fila.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1024x768-claro-processando.png)
+- 1024x768-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1024x768-escuro-configuracoes.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1024x768-escuro-fila.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1024x768-escuro-processando.png)
+- 1440x900-claro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1440x900-claro-configuracoes.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1440x900-claro-fila.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1440x900-claro-processando.png)
+- 1440x900-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1440x900-escuro-configuracoes.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1440x900-escuro-fila.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1440x900-escuro-processando.png)
+- 1920x1080-claro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1920x1080-claro-configuracoes.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1920x1080-claro-fila.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1920x1080-claro-processando.png)
+- 1920x1080-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1920x1080-escuro-configuracoes.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-02/1920x1080-escuro-processando.png)
+- 800x600-claro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-02/800x600-claro-configuracoes.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-02/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-02/800x600-claro-fila.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-02/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-02/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-02/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-02/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-02/800x600-claro-processando.png)
+- 800x600-escuro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-02/800x600-escuro-configuracoes.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-02/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-02/800x600-escuro-fila.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-02/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-02/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-02/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-02/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-02/800x600-escuro-processando.png)
 
 ### F-AN-01 — Soltar ZIP: overlay aparece para qualquer arrasto, arquivo errado abre alert() nativo e não há confirmação do que foi aceito
 
@@ -234,14 +982,41 @@ Status: pendente
 - **Lente:** AN
 - **Gravidade:** média
 - **Evidência:** `handleDragOver` (App.svelte:370-373) liga `dragActive` sem olhar `e.dataTransfer.types`: arrastar texto selecionado (o `.erro-detalhe` tem `user-select: text`, ProcessList.svelte:1037) ou qualquer conteúdo que não seja arquivo cobre a janela com "Solte o arquivo ZIP..." sobre `--overlay` a 92% (style.css:28). Ao soltar algo que não é ZIP, o retorno é `alert('Por favor, arraste apenas arquivos ZIP do eproc.')` (linha 164), um diálogo modal do WebView numa janela frameless, embora o app já tenha o aviso animado `aviso-rapido` (642-655). Ao soltar um ZIP válido, o overlay só some (linha 158); a confirmação é a linha nova, que pode entrar fora da área visível. `handleDragLeave` (375-380) depende de `clientX === 0 || clientY === 0`. Não há captura do overlay; avaliado pelo código.
-- **Proposta:** (1) Mostrar o overlay só quando `e.dataTransfer?.types?.includes('Files')` e controlar entrada/saída com contador de `dragenter`/`dragleave`. (2) Trocar o `alert` por `aviso.mostrar('Arraste apenas arquivos ZIP do eproc.', 'error')`, que já entra com `fly` e sai com `fade`. (3) Confirmar a soltura aceita: antes de fechar, a caixa troca o ícone por `Check` e o texto por "N arquivo(s) adicionados" por cerca de `--dur-base`, e sai com o fade atual; mesmo texto na região `role="status"` (`anuncio`). (4) Levar a linha nova para a área visível com `scrollIntoView({ block: 'nearest' })`, sem rolagem suave em reduced-motion. A entrada da caixa (`scale(0.98)`, linhas 694 e 703-706) fica como está.
+- **Proposta:** Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): a troca do alert() já foi feita em F-AC-07; aqui ficam o overlay só para arquivos, o contador de dragenter/dragleave e a confirmação do aceito. Proposta original: (1) Mostrar o overlay só quando `e.dataTransfer?.types?.includes('Files')` e controlar entrada/saída com contador de `dragenter`/`dragleave`. (2) Trocar o `alert` por `aviso.mostrar('Arraste apenas arquivos ZIP do eproc.', 'error')`, que já entra com `fly` e sai com `fade`. (3) Confirmar a soltura aceita: antes de fechar, a caixa troca o ícone por `Check` e o texto por "N arquivo(s) adicionados" por cerca de `--dur-base`, e sai com o fade atual; mesmo texto na região `role="status"` (`anuncio`). (4) Levar a linha nova para a área visível com `scrollIntoView({ block: 'nearest' })`, sem rolagem suave em reduced-motion. A entrada da caixa (`scale(0.98)`, linhas 694 e 703-706) fica como está.
 - **Custo:** M
 - **Ganho esperado:** Arrastar e soltar dá retorno em três momentos (pode soltar, aceito, recusado) sem diálogo modal e sem overlay em arrastos que não são de arquivo.
 - **Veredito:** mantido
 - **Justificativa do cético:** handleDragOver (App.svelte:370-373) liga dragActive sem olhar dataTransfer.types, então o overlay aparece ao arrastar texto selecionável (.erro-detalhe tem user-select:text, ProcessList.svelte:1037), e a linha 164 usa alert nativo, que o Wails v2.13.0 não desabilita (nenhuma configuração de script dialogs no frontend Windows). A parte sobre a linha nova entrar fora da tela é fraca: AddFiles insere no topo (queue.go).
 - **Nota da síntese:** A troca do `alert()` por `aviso.mostrar` é a mesma de F-AC-07; corrigir uma vez só. O que é próprio deste achado: overlay só para arrasto de arquivos, contador de `dragenter`/`dragleave` e confirmação da soltura aceita.
 
-Status: pendente
+Status: feito. Commit `287a246ffc85816d9b861edef044a7d9fed87c84`.
+
+Capturas (antes / depois):
+
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-01/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-01/1024x768-claro-fila.png)
+- 1024x768-claro-vazio: [antes](capturas/2026-11-10/antes/1024x768-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AN-01/1024x768-claro-vazio.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-01/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-01/1024x768-escuro-fila.png)
+- 1024x768-escuro-vazio: [antes](capturas/2026-11-10/antes/1024x768-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AN-01/1024x768-escuro-vazio.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-01/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-01/1440x900-claro-fila.png)
+- 1440x900-claro-vazio: [antes](capturas/2026-11-10/antes/1440x900-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AN-01/1440x900-claro-vazio.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-01/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-01/1440x900-escuro-fila.png)
+- 1440x900-escuro-vazio: [antes](capturas/2026-11-10/antes/1440x900-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AN-01/1440x900-escuro-vazio.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-01/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-01/1920x1080-claro-fila.png)
+- 1920x1080-claro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AN-01/1920x1080-claro-vazio.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-01/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-01/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AN-01/1920x1080-escuro-vazio.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-01/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-01/800x600-claro-fila.png)
+- 800x600-claro-vazio: [antes](capturas/2026-11-10/antes/800x600-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AN-01/800x600-claro-vazio.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-01/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-01/800x600-escuro-fila.png)
+- 800x600-escuro-vazio: [antes](capturas/2026-11-10/antes/800x600-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AN-01/800x600-escuro-vazio.png)
 
 ### F-DF-01 — Barras de progresso animam width (layout) de forma quase contínua, contra a regra de só animar transform/opacity
 
@@ -256,7 +1031,66 @@ Status: pendente
 - **Justificativa do cético:** Confirmado em ProcessList.svelte:970-974 e AtividadeItem.svelte:313-318, e DESIGN.md:122 pede só transform/opacity. Medi com animações ligadas: durante a transição de width cada quadro custa na thread principal 1,3 ms (5 linhas), 2,0 ms (25) e 5,4 ms (100), contra 0,4 a 0,5 ms sem a transição; com o painel de atividade aberto (90 documentos, 100 linhas) são 8 a 10 ms por quadro contra 1,3 ms. O custo é real, cresce com a lista e é maior do que o achado supunha; a gravidade baixa fica como piso.
 - **Nota da síntese:** Fundido com o achado de AN "Barras de progresso animam `width` (layout) em vez de `transform`" (baixa, P, rebaixado), com a mesma proposta. O cético de AN registrou que a alegação de `NaN%` com `item.progress` ausente é falsa (queue.go:25 serializa `progress` sempre, sem omitempty); o `|| 0` da proposta é só defensivo. A medição que sustenta o achado é a do cético de DF.
 
-Status: pendente
+Status: feito. Commit `4a0a947c6a28514ba8fb8c797f54a9bc911af89c`.
+
+Capturas (antes / depois):
+
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-claro-fila.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-claro-processando.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-escuro-fila.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-escuro-processando.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-claro-fila.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-claro-processando.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-escuro-fila.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-escuro-processando.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-claro-fila.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-claro-processando.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-escuro-processando.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-claro-fila.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-claro-processando.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-escuro-fila.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-escuro-processando.png)
 
 ### F-AC-07 — Falhas de ações da fila vão só para o console, e o ZIP inválido usa `alert()` nativo
 
@@ -264,14 +1098,81 @@ Status: pendente
 - **Lentes:** VI, AC
 - **Gravidade:** baixa
 - **Evidência:** App.svelte:164: `alert('Por favor, arraste apenas arquivos ZIP do eproc.')` abre a caixa modal do WebView, fora do visual do app e bloqueando a janela, enquanto existe o aviso próprio `aviso.mostrar` (linhas 201-202, usado em 215 e 238). Soltar ZIPs junto com outros arquivos ignora os outros sem dizer nada (linhas 160-162). Erros que só fazem `console.error`, sem nenhum retorno na tela: abrir pasta (ProcessList.svelte:171-177), pausar e retomar (204-218), cancelar, remover e limpar (220-248) e selecionar ZIP (App.svelte:304-313). Só copiar e reprocessar mostram erro (ProcessList.svelte:116 e 200).
-- **Proposta:** Trocar o `alert` por `aviso.mostrar('Só arquivos ZIP do eproc são aceitos. Ignorados: N', 'error')`, que já sai em `role="alert"` com botão de fechar, e avisar também quando parte dos arquivos soltos foi ignorada. Nos `catch` de ProcessList, chamar `avisoCopia.mostrar` com a mensagem da ação ("Erro ao abrir a pasta: ..."), renomeando o aviso para algo geral (`avisoFila`).
+- **Proposta:** Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): renomeie avisoCopia para avisoAcao (avisoFila já é importado de lib/estado.js, ProcessList.svelte:39 e :63). Mantenha o tipo aviso (não lidos) e o teste naoLidos.test.mjs. Proposta original: Trocar o `alert` por `aviso.mostrar('Só arquivos ZIP do eproc são aceitos. Ignorados: N', 'error')`, que já sai em `role="alert"` com botão de fechar, e avisar também quando parte dos arquivos soltos foi ignorada. Nos `catch` de ProcessList, chamar `avisoCopia.mostrar` com a mensagem da ação ("Erro ao abrir a pasta: ..."), renomeando o aviso para algo geral (`avisoFila`).
 - **Custo:** P
 - **Ganho esperado:** Toda ação que falha diz que falhou, no mesmo lugar e com o mesmo visual; some a única caixa de diálogo do sistema dentro do app.
 - **Veredito:** mantido
 - **Justificativa do cético:** App.svelte:164 usa alert() nativo (único em frontend/src) apesar de existir aviso.mostrar; ZIPs soltos junto com outros arquivos descartam o resto em silêncio (160-162); e os catch de abrir pasta, pausar, retomar, cancelar, remover, limpar (ProcessList.svelte:171-248) e selecionar ZIP (App.svelte:304-313) só fazem console.error. Gravidade baixa está adequada.
 - **Nota da síntese:** Fundido com o achado de VI "`alert()` nativo para arquivo que não é ZIP" (baixa, P, mantido), que sugere o ícone `FileX` 12px no aviso quando o componente unificado existir (F-VI-08). O mesmo `alert()` é citado em F-AN-01.
 
-Status: pendente
+Status: feito. Commit `9b8e8cf0d7707dc587a4988238ff83d365e38296`.
+
+Capturas (antes / depois):
+
+- 1024x768-claro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-configuracoes.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-fila.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-processando.png)
+- 1024x768-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-configuracoes.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-fila.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-processando.png)
+- 1440x900-claro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-configuracoes.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-fila.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-processando.png)
+- 1440x900-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-configuracoes.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-fila.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-processando.png)
+- 1920x1080-claro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-configuracoes.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-fila.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-processando.png)
+- 1920x1080-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-configuracoes.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-processando.png)
+- 800x600-claro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-configuracoes.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-fila.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-processando.png)
+- 800x600-escuro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-configuracoes.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-fila.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-processando.png)
 
 ### F-VI-03 — Linha com erro não se destaca e traz dois ícones vermelhos circulados e dois expansores
 
@@ -279,13 +1180,105 @@ Status: pendente
 - **Lente:** VI
 - **Gravidade:** baixa
 - **Evidência:** `class="item-row {item.status}"` (ProcessList.svelte:310-312) aplica a classe do status, mas não há regra CSS para `.item-row.error`, `.success` etc. (busca sem resultado). Em 1024x768-claro-erro.png a linha com falha tem a mesma borda das outras e dois ícones vermelhos circulados parecidos: `CircleAlert` do status à esquerda e `CircleQuestionMark` à direita (linha 469, com `.btn-detalhes { color: var(--error); }` em 1020-1022), ao lado do chevron da atividade. São dois controles de expandir na mesma linha.
-- **Proposta:** Realce por estado só na borda da linha: erro com `--error-line` (token novo, `color-mix` de 30% como `--warning-line`), em processamento com `--accent-line`; fundo segue `--surface` (ajustar a frase da §6 do DESIGN.md). O botão de detalhes passa a `Info` em `--text-secondary`, vermelho só quando aberto. Alternativa: mostrar a mensagem completa do erro no topo do painel de atividade e ficar com um único expansor por linha.
+- **Proposta:** Decisão do dono (2026-11-18): borda --error-line na linha com erro; o botão de detalhes vira Info em --text-secondary, vermelho só quando aberto. Não adote a alternativa. Proposta original: Realce por estado só na borda da linha: erro com `--error-line` (token novo, `color-mix` de 30% como `--warning-line`), em processamento com `--accent-line`; fundo segue `--surface` (ajustar a frase da §6 do DESIGN.md). O botão de detalhes passa a `Info` em `--text-secondary`, vermelho só quando aberto. Alternativa: mostrar a mensagem completa do erro no topo do painel de atividade e ficar com um único expansor por linha.
 - **Custo:** P
 - **Ganho esperado:** Falhas saltam à vista numa fila longa sem ler linha por linha e a linha com erro fica com um só ponto vermelho, o do estado.
 - **Veredito:** mantido
 - **Justificativa do cético:** Não há regra para `.item-row.error` (só `.item-row` e `:hover`, ProcessList.svelte:780-798). A captura 1024x768-claro-erro.png mostra CircleAlert e CircleQuestionMark vermelhos na mesma linha, mais o chevron: `temAtividade` inclui 'erro' (linha 80-82), logo são dois expansores.
 
-Status: pendente
+Status: feito. Commit `390c95072f1a043d5a373277d2bfa6416f95ceb1`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-processando: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-erro: [antes](capturas/2026-11-10/antes/1024x768-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-erro.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-fila.png)
+- 1024x768-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-nao-lidos-atividade.png)
+- 1024x768-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-nao-lidos-copiado.png)
+- 1024x768-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-nao-lidos.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-processando.png)
+- 1024x768-escuro-erro: [antes](capturas/2026-11-10/antes/1024x768-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-erro.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-fila.png)
+- 1024x768-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-nao-lidos-atividade.png)
+- 1024x768-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-nao-lidos-copiado.png)
+- 1024x768-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-nao-lidos.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-processando.png)
+- 1440x900-claro-erro: [antes](capturas/2026-11-10/antes/1440x900-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-erro.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-fila.png)
+- 1440x900-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-nao-lidos-atividade.png)
+- 1440x900-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-nao-lidos-copiado.png)
+- 1440x900-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-nao-lidos.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-processando.png)
+- 1440x900-escuro-erro: [antes](capturas/2026-11-10/antes/1440x900-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-erro.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-fila.png)
+- 1440x900-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-nao-lidos-atividade.png)
+- 1440x900-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-nao-lidos-copiado.png)
+- 1440x900-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-nao-lidos.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-processando.png)
+- 1920x1080-claro-erro: [antes](capturas/2026-11-10/antes/1920x1080-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-erro.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-fila.png)
+- 1920x1080-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-nao-lidos-atividade.png)
+- 1920x1080-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-nao-lidos-copiado.png)
+- 1920x1080-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-nao-lidos.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-processando.png)
+- 1920x1080-escuro-erro: [antes](capturas/2026-11-10/antes/1920x1080-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-erro.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-nao-lidos-atividade.png)
+- 1920x1080-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-nao-lidos-copiado.png)
+- 1920x1080-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-nao-lidos.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-processando.png)
+- 800x600-claro-erro: [antes](capturas/2026-11-10/antes/800x600-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-erro.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-fila.png)
+- 800x600-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-nao-lidos-atividade.png)
+- 800x600-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-nao-lidos-copiado.png)
+- 800x600-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-nao-lidos.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-processando.png)
+- 800x600-escuro-erro: [antes](capturas/2026-11-10/antes/800x600-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-erro.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-fila.png)
+- 800x600-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-nao-lidos-atividade.png)
+- 800x600-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-nao-lidos-copiado.png)
+- 800x600-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-nao-lidos.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-processando.png)
 
 ### F-AC-08 — Estado vazio e rodapé mandam procurar o controle em outro lugar
 
@@ -293,14 +1286,50 @@ Status: pendente
 - **Lentes:** VI, AC
 - **Gravidade:** baixa
 - **Evidência:** ProcessList.svelte:303: 'Arraste arquivos ZIP em qualquer lugar ou clique em "Selecionar" no painel ao lado.' O estado vazio não tem botão; o usuário precisa achar "Selecionar arquivos ZIP..." no fim do painel (800x600-claro-configuracoes.png, abaixo da dobra junto com "Iniciar com o Windows"). Com o painel recolhido não existe nada escrito "Selecionar": só o ícone `Upload` (App.svelte:536). O rodapé faz o mesmo: "Monitoramento inativo. Configure uma pasta no painel ao lado." (App.svelte:627), embora o ponto de 6px ao lado já abra a escolha de pasta (`alternarMonitoramento`, linhas 231-241), sem nada que indique isso.
-- **Proposta:** Pôr no estado vazio o próprio botão "Selecionar arquivos ZIP..." (ícone `Upload`, estilo do `.manual-select-btn`), chamando a mesma função por uma prop de callback, e encurtar o texto para "ou arraste os ZIPs para a janela". No rodapé sem pasta, trocar a frase por um botão de texto "Escolher pasta para monitorar" que chama `alternarMonitoramento`. O ícone `Archive` do vazio pode ganhar um `fade` de entrada em `--dur-base`.
+- **Proposta:** Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): só o botão "Selecionar arquivos ZIP..." no vazio, a frase curta e o botão de texto no rodapé; a zona de soltar desenhada da nota da síntese fica de fora. Vocabulário do rodapé conforme F-AC-03. Proposta original: Pôr no estado vazio o próprio botão "Selecionar arquivos ZIP..." (ícone `Upload`, estilo do `.manual-select-btn`), chamando a mesma função por uma prop de callback, e encurtar o texto para "ou arraste os ZIPs para a janela". No rodapé sem pasta, trocar a frase por um botão de texto "Escolher pasta para monitorar" que chama `alternarMonitoramento`. O ícone `Archive` do vazio pode ganhar um `fade` de entrada em `--dur-base`.
 - **Custo:** P
 - **Ganho esperado:** O primeiro uso se resolve onde o olho já está, sem depender de o painel estar aberto nem de rolar até a seção de importação.
 - **Veredito:** mantido
 - **Justificativa do cético:** ProcessList.svelte:303 manda clicar em "Selecionar" no painel ao lado sem oferecer botão, com o painel recolhido só existe o ícone Upload (App.svelte:536), e o rodapé manda configurar a pasta no painel (627) embora o ponto ao lado já chame alternarMonitoramento. Um detalhe da evidência é falso: em 800x600-claro-configuracoes.png o botão "Selecionar arquivos ZIP..." está visível, quem fica cortado é "Iniciar com o Windows"; o núcleo do achado se mantém como baixa.
 - **Nota da síntese:** Fundido com o achado de VI "Estado vazio pobre: ícone de 32px perdido na área e instrução que não vale com o painel recolhido" (baixa, M, rebaixado), sobre ProcessList.svelte:299-304 (captura 1920x1080-claro-vazio.png). VI propõe uma versão mais rica, opcional e de custo M: o vazio vira a própria zona de soltar (caixa com borda tracejada 1px `--border-strong`, raio 6px, cerca de 420x220; `FileArchive` 48px sobre um disco `--accent-faint`; título "Solte aqui os ZIPs do eproc" em `--fs-title`; uma linha com o estado do monitoramento) e o vazio do filtro ganha `SearchX` 32px e um botão "Limpar filtro". Sem gradiente nem blur. O cético de VI lembrou que o vazio atual funciona (soltar em qualquer lugar é aceito) e que o defeito concreto é a frase imprecisa.
 
-Status: pendente
+Status: feito. Commit `ddf0fff11b1d52ef09ac231af57715440fbf3ce2`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-configuracoes: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-alto-contraste-configuracoes.png)
+- 1024x768-claro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-claro-configuracoes.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-claro-fila.png)
+- 1024x768-claro-vazio: [antes](capturas/2026-11-10/antes/1024x768-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-claro-vazio.png)
+- 1024x768-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-escuro-configuracoes.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-escuro-fila.png)
+- 1024x768-escuro-vazio: [antes](capturas/2026-11-10/antes/1024x768-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-escuro-vazio.png)
+- 1440x900-claro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-claro-configuracoes.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-claro-fila.png)
+- 1440x900-claro-vazio: [antes](capturas/2026-11-10/antes/1440x900-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-claro-vazio.png)
+- 1440x900-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-escuro-configuracoes.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-escuro-fila.png)
+- 1440x900-escuro-vazio: [antes](capturas/2026-11-10/antes/1440x900-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-escuro-vazio.png)
+- 1920x1080-claro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-claro-configuracoes.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-claro-fila.png)
+- 1920x1080-claro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-claro-vazio.png)
+- 1920x1080-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-escuro-configuracoes.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-escuro-vazio.png)
+- 800x600-claro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-claro-configuracoes.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-claro-fila.png)
+- 800x600-claro-vazio: [antes](capturas/2026-11-10/antes/800x600-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-claro-vazio.png)
+- 800x600-escuro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-escuro-configuracoes.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-escuro-fila.png)
+- 800x600-escuro-vazio: [antes](capturas/2026-11-10/antes/800x600-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-escuro-vazio.png)
 
 ### F-AC-09 — Ponto de 6px como botão de monitoramento, com `aria-pressed` e rótulo que muda ao mesmo tempo
 
@@ -308,14 +1337,50 @@ Status: pendente
 - **Lentes:** VI, AC
 - **Gravidade:** baixa
 - **Evidência:** O botão do rodapé (App.svelte:607-617) mostra só um ponto de 6px (`.status-dot`, linhas 1182-1188) numa área de 18x18 (`.status-dot-btn`, 1159-1172); o da barra recolhida (522-534) é o mesmo ponto em 24x24. Nada no repouso indica que é clicável, e o clique liga ou pausa o monitoramento na hora (`alternarMonitoramento`, 231-244). Para leitor de tela o estado é dito duas vezes e em sentidos opostos: `aria-pressed={monitorando}` com `aria-label={acaoMonitor}`, que alterna entre "Pausar o monitoramento" e "Ativar o monitoramento" (linhas 248-250, 613-614). Ligado, lê-se "Pausar o monitoramento, pressionado". O estado também depende só de cor: verde ou âmbar (linhas 1237-1243).
-- **Proposta:** Dar forma de controle: no rodapé, um botão com ícone de 12px que muda com o estado (`Eye` monitorando, `Pause`/`EyeOff` pausado, `FolderOpen` sem pasta) ao lado do texto, com fundo `--surface-hover` no hover e alvo de 24px; na barra recolhida, o mesmo ícone em 16px no lugar do ponto. Escolher um modelo de estado: rótulo fixo "Monitoramento" com `aria-pressed`, ou rótulo de ação sem `aria-pressed` (fila.test.mjs:161 fixa o `aria-label` atual e precisa acompanhar). A troca de ícone pode usar `fade` em `--dur-fast`.
+- **Proposta:** Decisão do dono (2026-11-18): ícones FolderSearch (monitorando), CirclePause (pausado) e FolderX (sem pasta), os mesmos do rótulo do painel. Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): rótulo fixo "Monitoramento" com aria-pressed (acompanhar fila.test.mjs:161). Proposta original: Dar forma de controle: no rodapé, um botão com ícone de 12px que muda com o estado (`Eye` monitorando, `Pause`/`EyeOff` pausado, `FolderOpen` sem pasta) ao lado do texto, com fundo `--surface-hover` no hover e alvo de 24px; na barra recolhida, o mesmo ícone em 16px no lugar do ponto. Escolher um modelo de estado: rótulo fixo "Monitoramento" com `aria-pressed`, ou rótulo de ação sem `aria-pressed` (fila.test.mjs:161 fixa o `aria-label` atual e precisa acompanhar). A troca de ícone pode usar `fade` em `--dur-fast`.
 - **Custo:** P
 - **Ganho esperado:** O controle de monitoramento passa a parecer um controle, o estado deixa de depender só da cor e o leitor de tela ouve uma informação só.
 - **Veredito:** mantido
 - **Justificativa do cético:** O botão do rodapé (App.svelte:607-617) é um ponto de 6px em área de 18x18 (1159-1188) e combina aria-pressed={monitorando} com aria-label={acaoMonitor}, que alterna entre "Pausar" e "Ativar o monitoramento" (248-250), gerando "Pausar o monitoramento, pressionado". A parte "só cor" vale para a barra recolhida; no rodapé há texto ao lado, mas isso não muda a gravidade baixa.
 - **Nota da síntese:** Fundido com o achado de VI "Indicador de monitoramento é só um ponto de 6px, inclusive quando é botão" (baixa, P, mantido), que olha o mesmo ponto na barra recolhida (App.svelte:522-534 e 995-1000; capturas 1024x768-claro-processando-recolhido.png e 800x600-escuro-processando-recolhido.png). Divergência a resolver: VI propõe a moldura `.collapsed-tool-btn` com `FolderSearch` 14px (ativo) ou `FolderX` 14px (pausado ou sem pasta) e o ponto como selo no canto; AC propõe `Eye`, `Pause`/`EyeOff` e `FolderOpen`. Usar um conjunto só, coerente com o ícone do rótulo "Monitoramento ativo" em F-VI-04 (`FolderSearch`). Os ícones citados existem no lucide-svelte 1.0.1 instalado.
 
-Status: pendente
+Status: feito. Commit `ddf0fff11b1d52ef09ac231af57715440fbf3ce2`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-configuracoes: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-alto-contraste-configuracoes.png)
+- 1024x768-claro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-claro-configuracoes.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-claro-fila.png)
+- 1024x768-claro-vazio: [antes](capturas/2026-11-10/antes/1024x768-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-claro-vazio.png)
+- 1024x768-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-escuro-configuracoes.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-escuro-fila.png)
+- 1024x768-escuro-vazio: [antes](capturas/2026-11-10/antes/1024x768-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1024x768-escuro-vazio.png)
+- 1440x900-claro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-claro-configuracoes.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-claro-fila.png)
+- 1440x900-claro-vazio: [antes](capturas/2026-11-10/antes/1440x900-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-claro-vazio.png)
+- 1440x900-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-escuro-configuracoes.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-escuro-fila.png)
+- 1440x900-escuro-vazio: [antes](capturas/2026-11-10/antes/1440x900-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1440x900-escuro-vazio.png)
+- 1920x1080-claro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-claro-configuracoes.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-claro-fila.png)
+- 1920x1080-claro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-claro-vazio.png)
+- 1920x1080-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-escuro-configuracoes.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/1920x1080-escuro-vazio.png)
+- 800x600-claro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-claro-configuracoes.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-claro-fila.png)
+- 800x600-claro-vazio: [antes](capturas/2026-11-10/antes/800x600-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-claro-vazio.png)
+- 800x600-escuro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-escuro-configuracoes.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-escuro-fila.png)
+- 800x600-escuro-vazio: [antes](capturas/2026-11-10/antes/800x600-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-03%2BF-AC-09%2BF-AC-08/800x600-escuro-vazio.png)
 
 ### F-VI-04 — Inventário de ícones: 33 passam por Icone.svelte; rótulos do painel, filtro, botões de texto e um spinner ainda não
 
@@ -323,13 +1388,90 @@ Status: pendente
 - **Lente:** VI
 - **Gravidade:** baixa
 - **Evidência:** Icone.svelte:9 recebe 33 ícones lucide: Archive, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, CirclePause, CircleQuestionMark, CircleSlash, Clock, Copy, FileArchive, FilePlusCorner, FileText, FolderOpen, List, ListX, LoaderCircle, Minus, Monitor, Moon, Pause, Play, RotateCcw, ScanText, Settings, Sparkles, Square, Sun, Trash2, Upload, X. Só texto ou caractere: rótulos do formulário (Settings.svelte:135, 149, 172, 188, 204, 218), embora a barra recolhida represente OCR com `ScanText` e Higienização com `Sparkles` sem rótulo (App.svelte:548, 564), ou seja, o painel aberto nunca ensina esses ícones; filtro só com `placeholder="Filtrar..."` (ProcessList.svelte:258-264); botões "Cancelar" e "Reprocessar" (ReprocessarItem.svelte:57-58); "Mostrar concluídos" (AtividadeItem.svelte:82-89); "OCR · {d.ocr} pág." (AtividadeItem.svelte:113); carregamento com spinner de borda CSS (`.spinner`, Settings.svelte:128 e 521-528) em vez do `LoaderCircle` da §4 do DESIGN.md. Os ícones de seção em 12px (Settings.svelte:122, App.svelte:504) viram um borrão nas capturas (1024x768-claro-configuracoes.png).
-- **Proposta:** Rótulos com ícone de 14px em `--text-secondary`: `FolderSearch` (Monitoramento ativo), `Folder` (Pasta), `ScanText` (OCR), `Sparkles` (Higienização), `EyeOff` (Omitir tipos), `Power` (Iniciar com o Windows). `Search` 12px dentro do filtro (padding-left de 24px); `RotateCcw` 12px no botão "Reprocessar"; `Eye`/`EyeOff` 12px em Mostrar/Ocultar concluídos; `ScanText` 12px no lugar de "OCR ·"; `LoaderCircle` no carregamento; ícones de seção em 14px. Todos existem em lucide-svelte 1.0.1 (conferido em node_modules). Registrar o mapa na §4 do DESIGN.md e em icones.test.mjs.
+- **Proposta:** Decisão do dono (2026-11-18): monitoramento com FolderSearch (e CirclePause/FolderX no controle, F-AC-09). Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): inclui ScanText e Sparkles ao lado dos rótulos OCR e Higienização, que F-AC-14 também cita. Proposta original: Rótulos com ícone de 14px em `--text-secondary`: `FolderSearch` (Monitoramento ativo), `Folder` (Pasta), `ScanText` (OCR), `Sparkles` (Higienização), `EyeOff` (Omitir tipos), `Power` (Iniciar com o Windows). `Search` 12px dentro do filtro (padding-left de 24px); `RotateCcw` 12px no botão "Reprocessar"; `Eye`/`EyeOff` 12px em Mostrar/Ocultar concluídos; `ScanText` 12px no lugar de "OCR ·"; `LoaderCircle` no carregamento; ícones de seção em 14px. Todos existem em lucide-svelte 1.0.1 (conferido em node_modules). Registrar o mapa na §4 do DESIGN.md e em icones.test.mjs.
 - **Custo:** P
 - **Ganho esperado:** O mesmo ícone identifica a mesma configuração no painel aberto, na barra recolhida e no reprocessamento; os campos se localizam mais rápido sem aumentar a altura.
 - **Veredito:** mantido
 - **Justificativa do cético:** Contei 33 imports distintos de lucide em frontend/src, iguais à lista; os rótulos só com texto, o filtro sem ícone e o spinner de borda CSS (Settings.svelte:128, 521-528) conferem. Os ícones propostos (folder-search, folder, eye, eye-off, power, search) existem em node_modules/lucide-svelte 1.0.1; ganho pequeno, compatível com a gravidade baixa.
 
-Status: pendente
+Status: feito. Commit `44ebd024cd32e469b340aa4bb5aa10438afb5ea0`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-configuracoes: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-04/1024x768-alto-contraste-configuracoes.png)
+- 1024x768-alto-contraste-processando: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-04/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1024x768-claro-configuracoes.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1024x768-claro-fila.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1024x768-claro-processando.png)
+- 1024x768-claro-vazio: [antes](capturas/2026-11-10/antes/1024x768-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1024x768-claro-vazio.png)
+- 1024x768-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1024x768-escuro-configuracoes.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1024x768-escuro-fila.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1024x768-escuro-processando.png)
+- 1024x768-escuro-vazio: [antes](capturas/2026-11-10/antes/1024x768-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1024x768-escuro-vazio.png)
+- 1440x900-claro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1440x900-claro-configuracoes.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1440x900-claro-fila.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1440x900-claro-processando.png)
+- 1440x900-claro-vazio: [antes](capturas/2026-11-10/antes/1440x900-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1440x900-claro-vazio.png)
+- 1440x900-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1440x900-escuro-configuracoes.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1440x900-escuro-fila.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1440x900-escuro-processando.png)
+- 1440x900-escuro-vazio: [antes](capturas/2026-11-10/antes/1440x900-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1440x900-escuro-vazio.png)
+- 1920x1080-claro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1920x1080-claro-configuracoes.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1920x1080-claro-fila.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1920x1080-claro-processando.png)
+- 1920x1080-claro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1920x1080-claro-vazio.png)
+- 1920x1080-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1920x1080-escuro-configuracoes.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1920x1080-escuro-processando.png)
+- 1920x1080-escuro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-04/1920x1080-escuro-vazio.png)
+- 800x600-claro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-04/800x600-claro-configuracoes.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-04/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-04/800x600-claro-fila.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-04/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-04/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-04/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-04/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-04/800x600-claro-processando.png)
+- 800x600-claro-vazio: [antes](capturas/2026-11-10/antes/800x600-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-04/800x600-claro-vazio.png)
+- 800x600-escuro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-04/800x600-escuro-configuracoes.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-04/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-04/800x600-escuro-fila.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-04/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-04/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-04/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-04/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-04/800x600-escuro-processando.png)
+- 800x600-escuro-vazio: [antes](capturas/2026-11-10/antes/800x600-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-04/800x600-escuro-vazio.png)
 
 ### F-AN-02 — Hover e estado pressionado variam de botão para botão
 
@@ -337,14 +1479,83 @@ Status: pendente
 - **Lentes:** VI, AN
 - **Gravidade:** baixa
 - **Evidência:** Com transição de 150 ms no hover: `.titlebar-btn` (App.svelte:767), `.btn-action` (ProcessList.svelte:1002), `.manual-select-btn` (App.svelte:1104), `.aviso-fechar` (ProcessList.svelte:577), `.toast-fechar` (Settings.svelte:504). Sem transição, mudando cor, fundo ou borda no hover: `.btn-clear` (ProcessList.svelte:688-706), `.btn-pause` (708-742), `.btn-toggle-sidebar` (App.svelte:876-891), `.status-dot-btn` (App.svelte:1159-1176), `.aviso-rapido-fechar` (App.svelte:1218-1235, idêntico em função aos dois "fechar" que têm). `.btn-danger-icon` herda só `background-color` da regra genérica (Settings.svelte:372) e a borda vira seca (399-402). Estado pressionado só existe em `.btn-primary:active { transform: scale(0.98); }` (Settings.svelte:385-387). DESIGN.md §7 reserva `--dur-fast` para hover e foco.
-- **Proposta:** Uma regra de especificidade zero em style.css: `:where(button) { transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }` e `:where(button):active:not(:disabled) { transform: scale(0.97); }`, com `transform` na lista de transições; remover as cópias por componente. Em reduced-motion os tokens já zeram a duração; o `scale` instantâneo pode ficar ou ser retirado na media query. Combina com a troca de tema por View Transition, que evita essas transições aparecerem durante a troca.
+- **Proposta:** Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): use o :active de fundo, sem scale (ou exclua .info-btn), como pedem os céticos. Proposta original: Uma regra de especificidade zero em style.css: `:where(button) { transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }` e `:where(button):active:not(:disabled) { transform: scale(0.97); }`, com `transform` na lista de transições; remover as cópias por componente. Em reduced-motion os tokens já zeram a duração; o `scale` instantâneo pode ficar ou ser retirado na media query. Combina com a troca de tema por View Transition, que evita essas transições aparecerem durante a troca.
 - **Custo:** P
 - **Ganho esperado:** Todo botão responde ao ponteiro e ao clique do mesmo jeito; menos CSS repetido.
 - **Veredito:** mantido
 - **Justificativa do cético:** Conferi a inconsistência: .btn-clear (ProcessList.svelte:688-706), .btn-pause (708-742), .btn-toggle-sidebar (App.svelte:876-891), .status-dot-btn (1159-1176) e .aviso-rapido-fechar (1218-1235) não têm transição de hover, enquanto .btn-action (1002), .titlebar-btn (767) e os botões de Settings (372) têm. Ressalva para a correção: um :active scale global também encolheria .info-btn, que é a linha inteira.
 - **Nota da síntese:** Fundido com o achado de VI "Estados de hover, pressionado e entrada de painéis desiguais entre controles" (baixa, M, mantido). Complementos de VI: campos e selects sem hover (Settings.svelte:331-362), `.alternar` que só sublinha (AtividadeItem.svelte:231-244) e "Pausar" preenchido ao lado de "Limpar Fila" transparente, sem razão de hierarquia (1024x768-claro-fila.png). VI propõe classes utilitárias em style.css (`.btn`, `.btn-icone`, `.campo`), `:active` com fundo `--border` e sem escala, hover de campo com borda `--text-secondary` e uma tabela de estados na §7 do DESIGN.md. A entrada dos painéis da linha está em F-AN-08. Ressalva do cético de AN: um `:active` com `scale` global encolheria `.info-btn`, que é a linha inteira; excluir esse botão ou adotar o `:active` de fundo proposto por VI.
 
-Status: pendente
+Status: feito. Commit `fbfaeb0743a2e84d9a8edd3516acbc8412a4f6e0`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-configuracoes: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-alto-contraste-configuracoes.png)
+- 1024x768-alto-contraste-processando: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-configuracoes.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-fila.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-processando.png)
+- 1024x768-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-configuracoes.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-fila.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-processando.png)
+- 1440x900-claro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-configuracoes.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-fila.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-processando.png)
+- 1440x900-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-configuracoes.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-fila.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-processando.png)
+- 1920x1080-claro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-configuracoes.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-fila.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-processando.png)
+- 1920x1080-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-configuracoes.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-processando.png)
+- 800x600-claro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-configuracoes.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-fila.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-processando.png)
+- 800x600-escuro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-configuracoes.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-fila.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-processando.png)
 
 ### F-AN-03 — Testes de movimento não cobrem AtividadeItem nem ReprocessarItem, onde entrarão efeitos novos
 
@@ -359,7 +1570,66 @@ Status: pendente
 - **Justificativa do cético:** Em frontend/movimento.test.mjs, 'folhas' (linha 117) e o laço da linha 174 cobrem só App, ProcessList, Settings e style.css, e a regex só reconhece fly|fade; nenhum frontend/*.test.mjs menciona AtividadeItem ou ReprocessarItem (grep vazio). Lacuna de teste real, gravidade baixa.
 - **Nota da síntese:** Vale fazer antes dos achados que acrescentam `scale`, `flip` ou keyframes (F-AC-01, F-AN-08, F-AN-09, F-AN-11).
 
-Status: pendente
+Status: feito. Commit `4a0a947c6a28514ba8fb8c797f54a9bc911af89c`.
+
+Capturas (antes / depois):
+
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-claro-fila.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-claro-processando.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-escuro-fila.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1024x768-escuro-processando.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-claro-fila.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-claro-processando.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-escuro-fila.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1440x900-escuro-processando.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-claro-fila.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-claro-processando.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/1920x1080-escuro-processando.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-claro-fila.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-claro-processando.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-escuro-fila.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-03%2BF-DF-01/800x600-escuro-processando.png)
 
 ### F-VI-05 — Botões da janela não encostam no canto e parecem botões de barra de ferramentas
 
@@ -373,7 +1643,76 @@ Status: pendente
 - **Veredito:** mantido
 - **Justificativa do cético:** Confirmado em App.svelte:709-768: `padding: 0 12px`, botões de 28x28 com raio de 4px e intervalo de 4px, numa janela `Frameless` (main.go:55). O canto superior direito cai na área arrastável e não em Fechar, como se vê nas capturas (X a 12px da borda). O custo do erro é pequeno porque Fechar só oculta para a bandeja.
 
-Status: pendente
+Status: feito. Commit `fbfaeb0743a2e84d9a8edd3516acbc8412a4f6e0`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-configuracoes: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-alto-contraste-configuracoes.png)
+- 1024x768-alto-contraste-processando: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-configuracoes.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-fila.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-processando.png)
+- 1024x768-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-configuracoes.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-fila.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-processando.png)
+- 1440x900-claro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-configuracoes.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-fila.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-processando.png)
+- 1440x900-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-configuracoes.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-fila.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-processando.png)
+- 1920x1080-claro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-configuracoes.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-fila.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-processando.png)
+- 1920x1080-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-configuracoes.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-processando.png)
+- 800x600-claro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-configuracoes.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-fila.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-processando.png)
+- 800x600-escuro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-configuracoes.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-fila.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-processando.png)
 
 ### F-VI-06 — Barra de rolagem quase invisível e nenhuma pista de conteúdo rolado
 
@@ -387,7 +1726,116 @@ Status: pendente
 - **Veredito:** mantido
 - **Justificativa do cético:** style.css:120-132 confere (6px, polegar em `--border`). Recalculei: 1,19:1 no escuro e 1,30:1 no claro sobre `--surface`; `--border-strong` daria 3,56 e 4,69:1. As três áreas roláveis citadas existem; avaliado só pelo código, pois as capturas escondem as barras.
 
-Status: pendente
+Status: feito. Commit `cdf83774a5047139e15c322fc622a54427a60e49`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-configuracoes: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-alto-contraste-configuracoes.png)
+- 1024x768-alto-contraste-processando: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-configuracoes.png)
+- 1024x768-claro-erro: [antes](capturas/2026-11-10/antes/1024x768-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-erro.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-fila.png)
+- 1024x768-claro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-nao-lidos-atividade.png)
+- 1024x768-claro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-nao-lidos-copiado.png)
+- 1024x768-claro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-nao-lidos.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-processando.png)
+- 1024x768-claro-vazio: [antes](capturas/2026-11-10/antes/1024x768-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-vazio.png)
+- 1024x768-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-configuracoes.png)
+- 1024x768-escuro-erro: [antes](capturas/2026-11-10/antes/1024x768-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-erro.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-fila.png)
+- 1024x768-escuro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-nao-lidos-atividade.png)
+- 1024x768-escuro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-nao-lidos-copiado.png)
+- 1024x768-escuro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-nao-lidos.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-processando.png)
+- 1024x768-escuro-vazio: [antes](capturas/2026-11-10/antes/1024x768-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-vazio.png)
+- 1440x900-claro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-configuracoes.png)
+- 1440x900-claro-erro: [antes](capturas/2026-11-10/antes/1440x900-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-erro.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-fila.png)
+- 1440x900-claro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-nao-lidos-atividade.png)
+- 1440x900-claro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-nao-lidos-copiado.png)
+- 1440x900-claro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-nao-lidos.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-processando.png)
+- 1440x900-claro-vazio: [antes](capturas/2026-11-10/antes/1440x900-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-vazio.png)
+- 1440x900-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-configuracoes.png)
+- 1440x900-escuro-erro: [antes](capturas/2026-11-10/antes/1440x900-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-erro.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-fila.png)
+- 1440x900-escuro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-nao-lidos-atividade.png)
+- 1440x900-escuro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-nao-lidos-copiado.png)
+- 1440x900-escuro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-nao-lidos.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-processando.png)
+- 1440x900-escuro-vazio: [antes](capturas/2026-11-10/antes/1440x900-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-vazio.png)
+- 1920x1080-claro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-configuracoes.png)
+- 1920x1080-claro-erro: [antes](capturas/2026-11-10/antes/1920x1080-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-erro.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-fila.png)
+- 1920x1080-claro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-nao-lidos-atividade.png)
+- 1920x1080-claro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-nao-lidos-copiado.png)
+- 1920x1080-claro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-nao-lidos.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-processando.png)
+- 1920x1080-claro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-vazio.png)
+- 1920x1080-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-configuracoes.png)
+- 1920x1080-escuro-erro: [antes](capturas/2026-11-10/antes/1920x1080-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-erro.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-nao-lidos-atividade.png)
+- 1920x1080-escuro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-nao-lidos-copiado.png)
+- 1920x1080-escuro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-nao-lidos.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-processando.png)
+- 1920x1080-escuro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-vazio.png)
+- 800x600-claro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-configuracoes.png)
+- 800x600-claro-erro: [antes](capturas/2026-11-10/antes/800x600-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-erro.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-fila.png)
+- 800x600-claro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-nao-lidos-atividade.png)
+- 800x600-claro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-nao-lidos-copiado.png)
+- 800x600-claro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-nao-lidos.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-processando.png)
+- 800x600-claro-vazio: [antes](capturas/2026-11-10/antes/800x600-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-vazio.png)
+- 800x600-escuro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-configuracoes.png)
+- 800x600-escuro-erro: [antes](capturas/2026-11-10/antes/800x600-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-erro.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-fila.png)
+- 800x600-escuro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-nao-lidos-atividade.png)
+- 800x600-escuro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-nao-lidos-copiado.png)
+- 800x600-escuro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-nao-lidos.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-processando.png)
+- 800x600-escuro-vazio: [antes](capturas/2026-11-10/antes/800x600-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-vazio.png)
 
 ### F-AN-04 — Limpar Fila e remover o último item não têm fade; o estado vazio aparece seco
 
@@ -401,7 +1849,83 @@ Status: pendente
 - **Veredito:** mantido
 - **Justificativa do cético:** O out:fade da linha é local (ProcessList.svelte:314-316) e, no Svelte 5.57.1, pause_children (reactivity/effects.js:644-676) não coleta transições locais de um each quando o ramo {#if} pai (295-305) é destruído; o último item some sem fade. Contradiz DESIGN.md §7 ('o que sai da fila sai com fade'); gravidade baixa.
 
-Status: pendente
+Status: feito. Commit `3de111c5b74385de5823e7608423956ad1a8d2a1`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-processando: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-erro: [antes](capturas/2026-11-10/antes/1024x768-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-erro.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-fila.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-processando.png)
+- 1024x768-claro-vazio: [antes](capturas/2026-11-10/antes/1024x768-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-vazio.png)
+- 1024x768-escuro-erro: [antes](capturas/2026-11-10/antes/1024x768-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-erro.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-fila.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-processando.png)
+- 1024x768-escuro-vazio: [antes](capturas/2026-11-10/antes/1024x768-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-vazio.png)
+- 1440x900-claro-erro: [antes](capturas/2026-11-10/antes/1440x900-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-erro.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-fila.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-processando.png)
+- 1440x900-claro-vazio: [antes](capturas/2026-11-10/antes/1440x900-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-vazio.png)
+- 1440x900-escuro-erro: [antes](capturas/2026-11-10/antes/1440x900-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-erro.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-fila.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-processando.png)
+- 1440x900-escuro-vazio: [antes](capturas/2026-11-10/antes/1440x900-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-vazio.png)
+- 1920x1080-claro-erro: [antes](capturas/2026-11-10/antes/1920x1080-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-erro.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-fila.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-processando.png)
+- 1920x1080-claro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-vazio.png)
+- 1920x1080-escuro-erro: [antes](capturas/2026-11-10/antes/1920x1080-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-erro.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-processando.png)
+- 1920x1080-escuro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-vazio.png)
+- 800x600-claro-erro: [antes](capturas/2026-11-10/antes/800x600-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-erro.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-fila.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-processando.png)
+- 800x600-claro-vazio: [antes](capturas/2026-11-10/antes/800x600-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-vazio.png)
+- 800x600-escuro-erro: [antes](capturas/2026-11-10/antes/800x600-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-erro.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-fila.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-processando.png)
+- 800x600-escuro-vazio: [antes](capturas/2026-11-10/antes/800x600-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-vazio.png)
 
 ### F-AN-05 — Chip "Fila pausada" e indicador "N ativos" surgem sem transição; o chip desloca a lista inteira
 
@@ -409,13 +1933,81 @@ Status: pendente
 - **Lente:** AN
 - **Gravidade:** baixa
 - **Evidência:** `{#if aviso}<div class="queue-notice">` (ProcessList.svelte:285-292) entra no fluxo entre o cabeçalho e a lista, sem `in:`/`out:`. Comparando `1024x768-escuro-erro.png` (com o chip, primeira linha em y≈141) com `1024x768-escuro-processando.png` (sem o chip, primeira linha em y≈114), pausar ou retomar move todas as linhas ~27 px em um quadro. `{#if processingCount > 0}<div class="pulse-indicator">` (App.svelte:418-423) também aparece e some sem transição, e os botões Pausar/Retomar trocam por `{#if isPaused}` (266-276).
-- **Proposta:** Chip e indicador com `transition:fade={{ duration: duracaoMovimento(DUR_FAST) }}`. Para a lista não saltar sem animar altura, compensar com transform: ao montar ou desmontar o chip, animar `.items-container` de `translateY(∓altura do chip)` para `none` com `element.animate(..., { duration: duracaoMovimento(DUR_FAST), easing: 'cubic-bezier(.2,.8,.2,1)' })` numa action ou attachment pequena. Alternativa mais simples: reservar o lugar do chip na linha do cabeçalho.
+- **Proposta:** Decisão do dono (2026-11-18): reservar o lugar do chip na linha do cabeçalho, sem a lista se mexer; não usar a animação de compensação. Chip e indicador "N ativos" com fade em --dur-fast. Proposta original: Chip e indicador com `transition:fade={{ duration: duracaoMovimento(DUR_FAST) }}`. Para a lista não saltar sem animar altura, compensar com transform: ao montar ou desmontar o chip, animar `.items-container` de `translateY(∓altura do chip)` para `none` com `element.animate(..., { duration: duracaoMovimento(DUR_FAST), easing: 'cubic-bezier(.2,.8,.2,1)' })` numa action ou attachment pequena. Alternativa mais simples: reservar o lugar do chip na linha do cabeçalho.
 - **Custo:** P
 - **Ganho esperado:** Pausar e retomar deixa de sacudir a lista; os indicadores de estado entram e saem como o resto da interface.
 - **Veredito:** mantido
 - **Justificativa do cético:** O chip de aviso da fila ({#if aviso}, ProcessList.svelte:285-292) e o indicador 'N ativos' ({#if processingCount > 0}, App.svelte:418-423) entram e saem sem transição, e o chip empurra a lista em cerca de 27 px. Evidência exata, impacto baixo.
 
-Status: pendente
+Status: feito. Commit `f9e5b4f7106a8fb9b67400048a1cbdec2ff122cb`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-processando: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-erro: [antes](capturas/2026-11-10/antes/1024x768-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-erro.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-fila.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-processando.png)
+- 1024x768-escuro-erro: [antes](capturas/2026-11-10/antes/1024x768-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-erro.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-fila.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-processando.png)
+- 1440x900-claro-erro: [antes](capturas/2026-11-10/antes/1440x900-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-erro.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-fila.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-processando.png)
+- 1440x900-escuro-erro: [antes](capturas/2026-11-10/antes/1440x900-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-erro.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-fila.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-processando.png)
+- 1920x1080-claro-erro: [antes](capturas/2026-11-10/antes/1920x1080-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-erro.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-fila.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-processando.png)
+- 1920x1080-escuro-erro: [antes](capturas/2026-11-10/antes/1920x1080-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-erro.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-processando.png)
+- 800x600-claro-erro: [antes](capturas/2026-11-10/antes/800x600-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-erro.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-fila.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-processando.png)
+- 800x600-escuro-erro: [antes](capturas/2026-11-10/antes/800x600-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-erro.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-fila.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-processando.png)
 
 ### F-AN-06 — Salvar de novo enquanto o toast de sucesso está visível não dá retorno novo
 
@@ -423,13 +2015,80 @@ Status: pendente
 - **Lente:** AN
 - **Gravidade:** baixa
 - **Evidência:** Cada `handleSave` chama `showStatus('Configurações salvas com sucesso!', 'success')` (Settings.svelte:95). `criarAviso.mostrar` cancela o timer e redefine o mesmo texto (aviso.js:25-32); o `{#if statusMessage && statusType !== 'error'}` (236) continua verdadeiro, então o `in:fly` (239) não roda de novo. Quem muda dois ou três controles em menos de 3 s vê o primeiro toast e depois nada: o texto é idêntico e só o prazo é renovado.
-- **Proposta:** Dar ao aviso um contador (`{ texto, tipo, n }`) em `criarAviso` e envolver o conteúdo em `{#key n}` com um `in:fade` curto (`--dur-fast`), para cada salvamento reafirmar a mensagem sem repetir o deslocamento. Alternativa mais localizada: um `Check` de 12 px que aparece com fade ao lado do rótulo do controle alterado e some em 1,5 s, deixando o toast só para erro.
+- **Proposta:** Decisão do dono (2026-11-18): um Check de 12 px que entra com fade ao lado do controle alterado e some em 1,5 s; o toast de Settings passa a ser só para erro. Ignore o contador com {#key} da proposta. Proposta original: Dar ao aviso um contador (`{ texto, tipo, n }`) em `criarAviso` e envolver o conteúdo em `{#key n}` com um `in:fade` curto (`--dur-fast`), para cada salvamento reafirmar a mensagem sem repetir o deslocamento. Alternativa mais localizada: um `Check` de 12 px que aparece com fade ao lado do rótulo do controle alterado e some em 1,5 s, deixando o toast só para erro.
 - **Custo:** P
 - **Ganho esperado:** Cada alteração confirmada tem um sinal próprio, sem aumentar o tempo de tela do toast.
 - **Veredito:** mantido
 - **Justificativa do cético:** criarAviso.mostrar (aviso.js) cancela o timer e redefine o mesmo {texto, tipo}; com o mesmo texto o {#if} de Settings.svelte:236 continua verdadeiro, o DOM não muda e o in:fly (239) não roda de novo, então salvar duas vezes seguidas não dá retorno visível. Evidência exata, ganho pequeno.
 
-Status: pendente
+Status: feito. Commit `9b8e8cf0d7707dc587a4988238ff83d365e38296`.
+
+Capturas (antes / depois):
+
+- 1024x768-claro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-configuracoes.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-fila.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-processando.png)
+- 1024x768-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-configuracoes.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-fila.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-processando.png)
+- 1440x900-claro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-configuracoes.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-fila.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-processando.png)
+- 1440x900-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-configuracoes.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-fila.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-processando.png)
+- 1920x1080-claro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-configuracoes.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-fila.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-processando.png)
+- 1920x1080-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-configuracoes.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-processando.png)
+- 800x600-claro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-configuracoes.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-fila.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-processando.png)
+- 800x600-escuro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-configuracoes.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-fila.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-processando.png)
 
 ### B-EF-03 — Página sem operadores de texto é interpretada uma segunda vez pelo GetTextByRow
 
@@ -437,13 +2096,61 @@ Status: pendente
 - **Lente:** EF
 - **Gravidade:** baixa
 - **Evidência:** `ExtractNativeText` cai em `page.GetTextByRow()` (pdf_parser.go:625) sempre que `textoPosicionalSeguro` devolve texto vazio num stream único com fontes legíveis (pdf_parser.go:608-619), mesmo quando o extrator posicional rodou sem erro e não viu nenhum Tj/TJ/'/": é o caso de toda página escaneada ou desenhada em vetores, em que o GetTextByRow reinterpreta o stream inteiro e também não acha nada. `BenchmarkEFPassadas` (overlay, -count=6; arquivo scratchpad da sessão, ef/zz_ef2_test.go) na página de vetorial.pdf (stream de 199 KB): `ExtractNativeText` 260.958 allocs / 4,54 MB = checkContentStream 52.204 + posicional 104.351 + GetTextByRow 104.376 allocs (1,88 MB), com GetTextByRow levando 11,8-16,4 ms, o mesmo que a passada posicional (14,6-18,2 ms). Em escaneado.pdf: GetTextByRow 22-28 us dos 42-57 us de `ExtractNativeText`. No perfil do `BenchmarkSintetico`, `Page.GetTextByRow` soma 1,93 s dos 5,51 s de `ExtractNativeText` (9,5% de toda a CPU do benchmark), vindos de 5 documentos em 50.
-- **Proposta:** Fazer `extrairTextoPosicional` devolver também quantas operações de mostrar texto viu (contador incrementado em `mostrar`, pdf_texto.go:191) e, em `ExtractNativeText`, pular o fallback quando `errPos == nil` e o contador é zero. O fallback continua valendo para pânico/erro do extrator posicional e para páginas em que houve Tj mas a decodificação saiu vazia.
+- **Proposta:** Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): o trecho está em pdf_parser.go:542-561 (extrairNativoSeguro), e o contador vai em mostrar (pdf_texto.go:292), contando também as operações dentro de Forms (Do). Pular o GetTextByRow deixa válidas as métricas de uma página sem texto (hoje zeradas na linha 556): teste que escaneada e vetorial sem texto continuam indo ao OCR e, com OCR desligado, mantêm o marcador de página digitalizada. Métrica-alvo: allocs/op do BenchmarkParsePDF nas fixtures escaneada e vetorial; declare em observacoes. Proposta original: Fazer `extrairTextoPosicional` devolver também quantas operações de mostrar texto viu (contador incrementado em `mostrar`, pdf_texto.go:191) e, em `ExtractNativeText`, pular o fallback quando `errPos == nil` e o contador é zero. O fallback continua valendo para pânico/erro do extrator posicional e para páginas em que houve Tj mas a decodificação saiu vazia.
 - **Custo:** P
 - **Ganho esperado:** Cerca de -40% de CPU e de alocações na extração nativa de páginas sem texto (vetoriais e escaneadas): -12 a -16 ms por página vetorial de 200 KB e cerca de -9% de CPU no `BenchmarkSintetico`. Em ZIP com OCR ligado o efeito no tempo total é pequeno, porque essas páginas seguem para o OCR, que custa segundos.
 - **Veredito:** mantido
 - **Justificativa do cético:** Confirmei em pdf_parser.go:608-625 que o texto posicional vazio sem erro cai em `GetTextByRow`, que trata os mesmos operadores de mostrar texto (Tj, TJ, ', ") que `extrairTextoPosicional` (page.go:712-749 da dslipak v0.0.2), então a segunda passada não acha nada novo. Reproduzi: em vetorial.pdf `GetTextByRow` custa 9,2-10 ms e 104.376 alocações dos 24-36 ms de `ExtractNativeText`, em escaneado.pdf 20-23 us de 50-56 us, e no perfil do revisor soma 1,09 s de 11,91 s (9,15%); o ganho real é pequeno (páginas vetoriais são raras e seguem para o OCR), como a gravidade baixa já diz.
 
-Status: pendente
+Status: feito. Commit `c605d582b042704ed65dd9316cf6501154168069`.
+
+Benchstat (-count=10):
+
+```
+Rodada principal (-count=10, base b03266d vs árvore atual):
+sec/op
+Sintetico/ocr=none-12              96.10m ±  7%   75.38m ± 6%  -21.57% (p=0.000 n=10)
+ParsePDF/nativo-12                 1.129m ±  3%   1.148m ± 5%        ~ (p=0.123 n=10)
+ParsePDF/escaneado-12              294.7µ ± 11%   233.5µ ± 2%  -20.77% (p=0.000 n=10)
+ParsePDF/vetorial-12               25.43m ±  6%   14.71m ± 2%  -42.13% (p=0.000 n=10)
+ParsePDF/contents-array-12         250.3µ ±  3%   251.3µ ± 3%        ~ (p=0.853 n=10)
+Sintetico/ocr=fast-12               2.292 ±  2%    2.291 ± 3%        ~ (p=0.684 n=10)
+Sintetico/escaneado24/ocr=fast-12   6.322 ±  1%    6.314 ± 1%        ~ (p=0.739 n=10)
+gc-pausa-sec/op
+Sintetico/ocr=none-12              4.884m ±  19%  4.991m ±  13%        ~ (p=0.579 n=10)
+Sintetico/ocr=fast-12              5.334m ±  39%  7.404m ±  36%  +38.81% (p=0.029 n=10)
+Sintetico/escaneado24/ocr=fast-12 1497.0µ ± 106%  820.7µ ± 199%        ~ (p=0.328 n=8)
+pico-mem-B
+Sintetico/ocr=none-12              27.49Mi ± 16%  23.36Mi ± 0%  -15.01% (p=0.015 n=10)
+Sintetico/ocr=fast-12              23.11Mi ±  0%  23.36Mi ± 0%   +1.08% (p=0.000 n=10)
+Sintetico/escaneado24/ocr=fast-12  71.11Mi ±  0%  71.36Mi ± 0%   +0.35% (p=0.000 n=10)
+procs/op: 0 / 10 / 16 iguais (~ p=1.000)
+B/op
+Sintetico/ocr=none-12              25.56Mi ± 0%  21.90Mi ± 0%  -14.32% (p=0.000 n=10)
+ParsePDF/nativo-12                 318.8Ki ± 0%  318.8Ki ± 0%        ~ (p=0.446 n=10)
+ParsePDF/escaneado-12              78.65Ki ± 0%  59.83Ki ± 0%  -23.93% (p=0.000 n=10)
+ParsePDF/vetorial-12               4.388Mi ± 0%  2.585Mi ± 0%  -41.11% (p=0.000 n=10)
+ParsePDF/contents-array-12         71.21Ki ± 0%  71.21Ki ± 0%        ~ (p=0.131 n=10)
+Sintetico/ocr=fast-12              27.49Mi ± 1%  23.87Mi ± 0%  -13.16% (p=0.000 n=10)
+Sintetico/escaneado24/ocr=fast-12  5.356Mi ± 3%  4.892Mi ± 3%   -8.66% (p=0.000 n=10)
+allocs/op
+Sintetico/ocr=none-12               632.8k ± 0%   423.7k ± 0%  -33.05% (p=0.000 n=10)
+ParsePDF/nativo-12                  2.748k ± 0%   2.748k ± 0%        ~ (p=1.000 n=10)
+ParsePDF/escaneado-12                503.0 ± 0%    404.0 ± 0%  -19.68% (p=0.000 n=10)
+ParsePDF/vetorial-12                261.2k ± 0%   156.8k ± 0%  -39.97% (p=0.000 n=10)
+ParsePDF/contents-array-12           531.0 ± 0%    531.0 ± 0%        ~ (p=1.000 n=10)
+Sintetico/ocr=fast-12               638.1k ± 0%   429.0k ± 0%  -32.77% (p=0.000 n=10)
+Sintetico/escaneado24/ocr=fast-12   20.07k ± 0%   17.67k ± 0%  -11.97% (p=0.000 n=10)
+
+Nova rodada só de Sintetico/ocr=fast (-count=10):
+sec/op           2.341 ± 2%     2.310 ± 1%         ~ (p=0.165 n=10)
+gc-pausa-sec/op  6.491m ± 18%   4.972m ± 40%  -23.40% (p=0.043 n=10)
+pico-mem-B       23.36Mi ± 17%  23.11Mi ± 0%       ~ (p=0.449 n=10)
+B/op             27.47Mi ± 1%   23.88Mi ± 1%  -13.08% (p=0.000 n=10)
+allocs/op        638.1k ± 0%    429.0k ± 0%   -32.78% (p=0.000 n=10)
+```
+
+Capturas: não se aplica (correção de backend).
 
 ### F-DF-02 — Todas as linhas da fila entram no layout a cada quadro do arrasto do divisor; não há content-visibility nem janela
 
@@ -457,7 +2164,99 @@ Status: pendente
 - **Veredito:** mantido
 - **Justificativa do cético:** Confirmado: sem content-visibility/contain em frontend/src, fila com container-type e regras @container. Medi o layout forçado por quadro ao variar a largura do painel: 1,8 ms (5 linhas), 3,5 (25), 5,5 (50), 10 (100) e 26 ms (300); injetando a regra proposta em .item-row: 3,7 (25), 5,6 (50), 6,0 (100) e 6,6 ms (300). O ganho é nulo até 50 itens, 40% com 100 e 4 vezes com 300, então só aparece em histórico longo, como o próprio achado diz; fica em baixa, com os três pontos de validação (flip, foco, anel de foco) como condição.
 
-Status: pendente
+Status: feito. Commit `390c95072f1a043d5a373277d2bfa6416f95ceb1`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-processando: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-erro: [antes](capturas/2026-11-10/antes/1024x768-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-erro.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-fila.png)
+- 1024x768-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-nao-lidos-atividade.png)
+- 1024x768-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-nao-lidos-copiado.png)
+- 1024x768-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-nao-lidos.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-processando.png)
+- 1024x768-escuro-erro: [antes](capturas/2026-11-10/antes/1024x768-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-erro.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-fila.png)
+- 1024x768-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-nao-lidos-atividade.png)
+- 1024x768-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-nao-lidos-copiado.png)
+- 1024x768-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-nao-lidos.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-processando.png)
+- 1440x900-claro-erro: [antes](capturas/2026-11-10/antes/1440x900-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-erro.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-fila.png)
+- 1440x900-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-nao-lidos-atividade.png)
+- 1440x900-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-nao-lidos-copiado.png)
+- 1440x900-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-nao-lidos.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-processando.png)
+- 1440x900-escuro-erro: [antes](capturas/2026-11-10/antes/1440x900-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-erro.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-fila.png)
+- 1440x900-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-nao-lidos-atividade.png)
+- 1440x900-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-nao-lidos-copiado.png)
+- 1440x900-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-nao-lidos.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-processando.png)
+- 1920x1080-claro-erro: [antes](capturas/2026-11-10/antes/1920x1080-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-erro.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-fila.png)
+- 1920x1080-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-nao-lidos-atividade.png)
+- 1920x1080-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-nao-lidos-copiado.png)
+- 1920x1080-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-nao-lidos.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-processando.png)
+- 1920x1080-escuro-erro: [antes](capturas/2026-11-10/antes/1920x1080-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-erro.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-nao-lidos-atividade.png)
+- 1920x1080-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-nao-lidos-copiado.png)
+- 1920x1080-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-nao-lidos.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-processando.png)
+- 800x600-claro-erro: [antes](capturas/2026-11-10/antes/800x600-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-erro.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-fila.png)
+- 800x600-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-nao-lidos-atividade.png)
+- 800x600-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-nao-lidos-copiado.png)
+- 800x600-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-nao-lidos.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-processando.png)
+- 800x600-escuro-erro: [antes](capturas/2026-11-10/antes/800x600-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-erro.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-fila.png)
+- 800x600-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-nao-lidos-atividade.png)
+- 800x600-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-nao-lidos-copiado.png)
+- 800x600-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-nao-lidos.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-processando.png)
 
 ### F-AC-10 — Sem regras para o modo de alto contraste do Windows: interruptores, pontos de estado e barras são só `background-color`
 
@@ -465,13 +2264,122 @@ Status: pendente
 - **Lente:** AC
 - **Gravidade:** baixa
 - **Evidência:** Busca por `forced-colors` e `prefers-contrast` em frontend/src: nenhum resultado. Vários indicadores existem só como cor de fundo, sem borda nem ícone: o trilho e a bolinha do interruptor (Settings.svelte:419-455, `background-color: var(--border-strong)` / `var(--on-accent)`, input com `opacity: 0`), os pontos de estado (App.svelte:1182-1188 e 995-1000), os pontos de nível (App.svelte:1014-1024), a barra de progresso (ProcessList.svelte:960-974) e as vagas e barras do painel de atividade (AtividadeItem.svelte:174-188, 305-322). Em `forced-colors: active` (temas de contraste do Windows, que o WebView2 respeita) o navegador substitui os fundos pelas cores do sistema, e esses elementos deixam de se distinguir. Avaliado pelo código; as capturas não cobrem esse modo.
-- **Proposta:** Acrescentar em style.css um bloco `@media (forced-colors: active)` que dá borda `1px solid ButtonText`/`CanvasText` ao trilho, à bolinha, aos pontos e aos trilhos das barras, e usa `Highlight` para o estado ligado e o preenchimento (com `forced-color-adjust: none` só nesses preenchimentos). Conferir o anel de foco (o `outline` já é preservado nesse modo). Incluir uma captura com `forcedColors: 'active'` na matriz de `.claude/review.json` para validar em vez de presumir.
+- **Proposta:** Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): a captura com forcedColors: 'active' mexe em scripts/visual/capturar.mjs e .claude/review.json: declare o escopo ampliado. Proposta original: Acrescentar em style.css um bloco `@media (forced-colors: active)` que dá borda `1px solid ButtonText`/`CanvasText` ao trilho, à bolinha, aos pontos e aos trilhos das barras, e usa `Highlight` para o estado ligado e o preenchimento (com `forced-color-adjust: none` só nesses preenchimentos). Conferir o anel de foco (o `outline` já é preservado nesse modo). Incluir uma captura com `forcedColors: 'active'` na matriz de `.claude/review.json` para validar em vez de presumir.
 - **Custo:** P
 - **Ganho esperado:** Quem usa tema de contraste do Windows continua vendo se o monitoramento está ligado, em que nível está o OCR e quanto falta do processamento.
 - **Veredito:** mantido
 - **Justificativa do cético:** Busca por forced-colors e prefers-contrast em frontend/src não retorna nada, e trilho/bolinha do interruptor (Settings.svelte:419-455), pontos de estado e de nível (App.svelte:995-1024, 1182-1188), barra de progresso (ProcessList.svelte:960-974) e vagas/barras (AtividadeItem.svelte:174-188, 305-322) são só background-color, que o Chromium força para a cor do sistema nesse modo. Não reproduzi em captura (o próprio achado declara isso); público pequeno, gravidade baixa adequada.
 
-Status: pendente
+Status: feito. Commit `cdf83774a5047139e15c322fc622a54427a60e49`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-configuracoes: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-alto-contraste-configuracoes.png)
+- 1024x768-alto-contraste-processando: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-configuracoes.png)
+- 1024x768-claro-erro: [antes](capturas/2026-11-10/antes/1024x768-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-erro.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-fila.png)
+- 1024x768-claro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-nao-lidos-atividade.png)
+- 1024x768-claro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-nao-lidos-copiado.png)
+- 1024x768-claro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-nao-lidos.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-processando.png)
+- 1024x768-claro-vazio: [antes](capturas/2026-11-10/antes/1024x768-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-claro-vazio.png)
+- 1024x768-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-configuracoes.png)
+- 1024x768-escuro-erro: [antes](capturas/2026-11-10/antes/1024x768-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-erro.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-fila.png)
+- 1024x768-escuro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-nao-lidos-atividade.png)
+- 1024x768-escuro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-nao-lidos-copiado.png)
+- 1024x768-escuro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-nao-lidos.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-processando.png)
+- 1024x768-escuro-vazio: [antes](capturas/2026-11-10/antes/1024x768-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1024x768-escuro-vazio.png)
+- 1440x900-claro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-configuracoes.png)
+- 1440x900-claro-erro: [antes](capturas/2026-11-10/antes/1440x900-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-erro.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-fila.png)
+- 1440x900-claro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-nao-lidos-atividade.png)
+- 1440x900-claro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-nao-lidos-copiado.png)
+- 1440x900-claro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-nao-lidos.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-processando.png)
+- 1440x900-claro-vazio: [antes](capturas/2026-11-10/antes/1440x900-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-claro-vazio.png)
+- 1440x900-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-configuracoes.png)
+- 1440x900-escuro-erro: [antes](capturas/2026-11-10/antes/1440x900-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-erro.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-fila.png)
+- 1440x900-escuro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-nao-lidos-atividade.png)
+- 1440x900-escuro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-nao-lidos-copiado.png)
+- 1440x900-escuro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-nao-lidos.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-processando.png)
+- 1440x900-escuro-vazio: [antes](capturas/2026-11-10/antes/1440x900-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1440x900-escuro-vazio.png)
+- 1920x1080-claro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-configuracoes.png)
+- 1920x1080-claro-erro: [antes](capturas/2026-11-10/antes/1920x1080-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-erro.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-fila.png)
+- 1920x1080-claro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-nao-lidos-atividade.png)
+- 1920x1080-claro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-nao-lidos-copiado.png)
+- 1920x1080-claro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-nao-lidos.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-processando.png)
+- 1920x1080-claro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-claro-vazio.png)
+- 1920x1080-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-configuracoes.png)
+- 1920x1080-escuro-erro: [antes](capturas/2026-11-10/antes/1920x1080-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-erro.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-nao-lidos-atividade.png)
+- 1920x1080-escuro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-nao-lidos-copiado.png)
+- 1920x1080-escuro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-nao-lidos.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-processando.png)
+- 1920x1080-escuro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/1920x1080-escuro-vazio.png)
+- 800x600-claro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-configuracoes.png)
+- 800x600-claro-erro: [antes](capturas/2026-11-10/antes/800x600-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-erro.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-fila.png)
+- 800x600-claro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-nao-lidos-atividade.png)
+- 800x600-claro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-nao-lidos-copiado.png)
+- 800x600-claro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-nao-lidos.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-processando.png)
+- 800x600-claro-vazio: [antes](capturas/2026-11-10/antes/800x600-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-claro-vazio.png)
+- 800x600-escuro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-configuracoes.png)
+- 800x600-escuro-erro: [antes](capturas/2026-11-10/antes/800x600-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-erro.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-fila.png)
+- 800x600-escuro-nao-lidos-atividade: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-nao-lidos-atividade.png)
+- 800x600-escuro-nao-lidos-copiado: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-nao-lidos-copiado.png)
+- 800x600-escuro-nao-lidos: (sem antes) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-nao-lidos.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-processando.png)
+- 800x600-escuro-vazio: [antes](capturas/2026-11-10/antes/800x600-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-02%2BF-AC-10%2BF-VI-06/800x600-escuro-vazio.png)
 
 ### F-AC-11 — Semântica miúda: marcos, títulos, rótulo do divisor, ajuda sem vínculo e anel de foco igual ao botão primário
 
@@ -487,13 +2395,88 @@ Status: pendente
   - Settings.svelte:137-142 e 221-226: interruptores são `type="checkbox"` sem `role="switch"`.
   - ProcessList.svelte:340: `role="button"` redundante num `<button>`.
   - style.css:114-117: o anel de foco é `--focus-ring` com afastamento de 1px; no tema claro `--focus-ring` e o fundo do botão primário são o mesmo `#0056B3` (contraste 1,00:1; no escuro 1,77:1), então em "Alterar" e "Reprocessar" o foco aparece só como um fio de 1px da cor da superfície.
-- **Proposta:** Tirar o `role="region"` do contêiner; dar `aria-label="Configurações e importação"` ao `aside` e tirá-lo de dentro do `main` (ou trocar o `main` para envolver só a fila). Igualar "Importação Manual" a `h2`. Renomear o divisor para "Largura do painel". Ligar cada ajuda ao campo com `aria-describedby`. Acrescentar `role="switch"` aos dois interruptores. Remover o `role` redundante. No botão primário, usar `outline-offset: 2px` para o anel se separar do preenchimento. Tudo cabe na passada de sintaxe da migração para runes, que já toca essas marcações.
+- **Proposta:** Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): o role redundante está em ProcessList.svelte:364; o divisor em App.svelte:578-579. Proposta original: Tirar o `role="region"` do contêiner; dar `aria-label="Configurações e importação"` ao `aside` e tirá-lo de dentro do `main` (ou trocar o `main` para envolver só a fila). Igualar "Importação Manual" a `h2`. Renomear o divisor para "Largura do painel". Ligar cada ajuda ao campo com `aria-describedby`. Acrescentar `role="switch"` aos dois interruptores. Remover o `role` redundante. No botão primário, usar `outline-offset: 2px` para o anel se separar do preenchimento. Tudo cabe na passada de sintaxe da migração para runes, que já toca essas marcações.
 - **Custo:** P
 - **Ganho esperado:** Navegação por marcos e títulos coerente, ajuda lida junto com o campo e foco mais nítido nos botões primários, sem mudança visual perceptível.
 - **Veredito:** mantido
 - **Justificativa do cético:** Todos os itens conferem no código: role="region" no contêiner (App.svelte:392-393) e aside sem nome dentro do main (468-470); h2 em Settings.svelte:123 contra h3 em App.svelte:505; "Redimensionador de Menu" (579); nenhum aria-describedby em frontend/src; checkboxes sem role="switch"; role="button" redundante (ProcessList.svelte:340). Calculei --focus-ring contra --accent-strong: 1,00:1 no claro e 1,77:1 no escuro, com outline-offset de 1px (style.css:114-117).
 
-Status: pendente
+Status: feito. Commit `5500cfe1c4c1266d7fa490ea9dd0cfff9aa56c50`.
+
+Capturas (antes / depois):
+
+- 1024x768-claro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-configuracoes.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-fila.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-processando.png)
+- 1024x768-claro-vazio: [antes](capturas/2026-11-10/antes/1024x768-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-vazio.png)
+- 1024x768-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-configuracoes.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-fila.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-processando.png)
+- 1024x768-escuro-vazio: [antes](capturas/2026-11-10/antes/1024x768-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-vazio.png)
+- 1440x900-claro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-configuracoes.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-fila.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-processando.png)
+- 1440x900-claro-vazio: [antes](capturas/2026-11-10/antes/1440x900-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-vazio.png)
+- 1440x900-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-configuracoes.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-fila.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-processando.png)
+- 1440x900-escuro-vazio: [antes](capturas/2026-11-10/antes/1440x900-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-vazio.png)
+- 1920x1080-claro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-configuracoes.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-fila.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-processando.png)
+- 1920x1080-claro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-vazio.png)
+- 1920x1080-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-configuracoes.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-processando.png)
+- 1920x1080-escuro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-vazio.png)
+- 800x600-claro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-configuracoes.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-fila.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-processando.png)
+- 800x600-claro-vazio: [antes](capturas/2026-11-10/antes/800x600-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-vazio.png)
+- 800x600-escuro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-configuracoes.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-fila.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-processando.png)
+- 800x600-escuro-vazio: [antes](capturas/2026-11-10/antes/800x600-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-vazio.png)
 
 ### F-AC-12 — "Remover da fila" no item pendente não remove: deixa uma linha "Cancelado" que pede outro clique
 
@@ -501,13 +2484,89 @@ Status: pendente
 - **Lente:** AC
 - **Gravidade:** baixa
 - **Evidência:** O X do item pendente tem `title="Remover da fila"` (linha 408), mas chama `handleCancel` (linha 407), isto é, `CancelQueueItem`. No Go, `CancelItem` (internal/etl/queue.go:347-350) só troca o estado: `target.Status = "cancelled"; target.Message = "Cancelado"`. A linha continua na lista com reprocessar e lixeira (item 5 em 1024x768-escuro-fila-reprocessar.png) e precisa de um segundo clique, agora em "Remover da lista", para sair. O mesmo ícone `X` com `data-acao="cancelar"` tem dois rótulos ("Cancelar processamento ativo" na linha 399 e "Remover da fila" na 408) e "remover" significa duas coisas a duas linhas de distância.
-- **Proposta:** Alinhar rótulo e efeito. Opção mais simples: o X do pendente passa a chamar `RemoveQueueItem` (ícone `X`, "Tirar da fila"), já que um ZIP que nem começou não tem resultado a preservar e o arquivo continua na pasta; `data-acao="remover"` mantém a regra de foco. Se a intenção for manter o registro, o rótulo vira "Cancelar (fica na lista como cancelado)". Em qualquer caso, usar o mesmo verbo para o mesmo efeito: "Cancelar" quando sobra a linha, "Remover" quando ela some.
+- **Proposta:** Decisão do dono (2026-11-18): o X do item que aguarda SÓ CANCELA, não remove: o usuário pode querer mudar os parâmetros e reprocessar antes de excluir. Rótulo e aria-label "Cancelar" (sem "remover"); a linha cancelada mostra Reprocessar e o botão de excluir ("Remover da lista"). Não troque o X por RemoveQueueItem; ignore a "opção mais simples" da proposta. O mesmo verbo para o mesmo efeito: "Cancelar" quando a linha fica, "Remover" quando ela some. Proposta original: Alinhar rótulo e efeito. Opção mais simples: o X do pendente passa a chamar `RemoveQueueItem` (ícone `X`, "Tirar da fila"), já que um ZIP que nem começou não tem resultado a preservar e o arquivo continua na pasta; `data-acao="remover"` mantém a regra de foco. Se a intenção for manter o registro, o rótulo vira "Cancelar (fica na lista como cancelado)". Em qualquer caso, usar o mesmo verbo para o mesmo efeito: "Cancelar" quando sobra a linha, "Remover" quando ela some.
 - **Custo:** P
 - **Ganho esperado:** Um clique faz o que o rótulo promete; some o passo extra de limpar a linha "Cancelado" que o usuário não pediu.
 - **Veredito:** rebaixado
 - **Justificativa do cético:** Confirmado: o X do pendente tem title "Remover da fila" (ProcessList.svelte:408) e chama CancelQueueItem, que só marca cancelled (queue.go:347-350), deixando a linha com reprocessar e lixeira. O rótulo é defensável ("fila" de pendentes contra "lista" na lixeira) e manter a linha permite reprocessar; é ambiguidade de texto com um clique extra, não defeito de fluxo: baixa.
 
-Status: pendente
+Status: feito. Commit `3de111c5b74385de5823e7608423956ad1a8d2a1`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-processando: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-erro: [antes](capturas/2026-11-10/antes/1024x768-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-erro.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-fila.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-processando.png)
+- 1024x768-claro-vazio: [antes](capturas/2026-11-10/antes/1024x768-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-claro-vazio.png)
+- 1024x768-escuro-erro: [antes](capturas/2026-11-10/antes/1024x768-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-erro.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-fila.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-processando.png)
+- 1024x768-escuro-vazio: [antes](capturas/2026-11-10/antes/1024x768-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1024x768-escuro-vazio.png)
+- 1440x900-claro-erro: [antes](capturas/2026-11-10/antes/1440x900-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-erro.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-fila.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-processando.png)
+- 1440x900-claro-vazio: [antes](capturas/2026-11-10/antes/1440x900-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-claro-vazio.png)
+- 1440x900-escuro-erro: [antes](capturas/2026-11-10/antes/1440x900-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-erro.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-fila.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-processando.png)
+- 1440x900-escuro-vazio: [antes](capturas/2026-11-10/antes/1440x900-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1440x900-escuro-vazio.png)
+- 1920x1080-claro-erro: [antes](capturas/2026-11-10/antes/1920x1080-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-erro.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-fila.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-processando.png)
+- 1920x1080-claro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-claro-vazio.png)
+- 1920x1080-escuro-erro: [antes](capturas/2026-11-10/antes/1920x1080-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-erro.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-processando.png)
+- 1920x1080-escuro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/1920x1080-escuro-vazio.png)
+- 800x600-claro-erro: [antes](capturas/2026-11-10/antes/800x600-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-erro.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-fila.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-processando.png)
+- 800x600-claro-vazio: [antes](capturas/2026-11-10/antes/800x600-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-claro-vazio.png)
+- 800x600-escuro-erro: [antes](capturas/2026-11-10/antes/800x600-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-erro.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-fila.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-processando.png)
+- 800x600-escuro-vazio: [antes](capturas/2026-11-10/antes/800x600-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-AC-06%2BF-AC-12%2BF-AN-04/800x600-escuro-vazio.png)
 
 ### F-VI-07 — Painel lateral com 8px de padding, desalinhado dos 12px das barras
 
@@ -515,14 +2574,89 @@ Status: pendente
 - **Lente:** VI
 - **Gravidade:** baixa
 - **Evidência:** `.sidebar-content { padding: 8px; ... gap: 8px; }` (App.svelte:893-897), enquanto barra de título (`padding: 0 12px`, 716), rodapé (1127), `.sidebar-header-toggle` (`8px 12px`, 864) e `.list-header` (ProcessList.svelte:604) usam 12px. Na captura 1024x768-claro-configuracoes.png os rótulos começam em x=8 e a marca e o ponto do rodapé em x=12; os campos chegam a 8px do divisor. A faixa `.sidebar-header-toggle` (38px, 860-869) aparece vazia, só com o chevron. docs/backlog.md:9 pede "aumentar um pouco o padding da barra lateral".
-- **Proposta:** Padding horizontal de 12px no conteúdo do painel e 16px entre seções (com o divisor de 1px); 12px entre grupos do formulário continua. Agrupar em três blocos com rótulo `--fs-section`: Monitoramento (interruptor + pasta), Processamento (OCR, higienização, tipos omitidos), Sistema (iniciar com o Windows). Para pagar a altura extra, levar o rótulo "Configurações" para a faixa do botão de recolher, hoje vazia (ganha cerca de 26px; exige mudar DESIGN.md §5.3 e os testes densidade.test.mjs:139 e movimento.test.mjs:262). Registrar na §6 que o painel usa 12px.
+- **Proposta:** Decisão do dono (2026-11-18): sim, levar o rótulo "Configurações" para a faixa do botão de recolher; atualize o DESIGN.md §5.3 (tirar "Sem título geral"), o comentário em App.svelte:859 e os testes densidade.test.mjs:139 e movimento.test.mjs:262. Proposta original: Padding horizontal de 12px no conteúdo do painel e 16px entre seções (com o divisor de 1px); 12px entre grupos do formulário continua. Agrupar em três blocos com rótulo `--fs-section`: Monitoramento (interruptor + pasta), Processamento (OCR, higienização, tipos omitidos), Sistema (iniciar com o Windows). Para pagar a altura extra, levar o rótulo "Configurações" para a faixa do botão de recolher, hoje vazia (ganha cerca de 26px; exige mudar DESIGN.md §5.3 e os testes densidade.test.mjs:139 e movimento.test.mjs:262). Registrar na §6 que o painel usa 12px.
 - **Custo:** P
 - **Ganho esperado:** Uma única linha-guia vertical de 12px na janela inteira, respiro entre campos e divisor, e grupos que se leem de relance.
 - **Veredito:** rebaixado
 - **Justificativa do cético:** Confirmado: `.sidebar-content` tem 8px (App.svelte:894) contra 12px na barra de título, rodapé e cabeçalhos, e o backlog:9 pede mais padding. É um desalinhamento cosmético de 4px; a parte de levar "Configurações" para a faixa do botão desfaz uma decisão registrada (DESIGN.md §5.3 "Sem título geral", comentário em App.svelte:859 e teste movimento.test.mjs:262).
 - **Nota da síntese:** O cético separou duas partes: o padding de 12px (pedido em docs/backlog.md:9) e levar o rótulo "Configurações" para a faixa do botão de recolher, que desfaz uma decisão registrada (DESIGN.md §5.3 "Sem título geral", comentário em App.svelte:859 e movimento.test.mjs:262). A segunda parte só entra se o dono aprovar a mudança no DESIGN.md.
 
-Status: pendente
+Status: feito. Commit `5500cfe1c4c1266d7fa490ea9dd0cfff9aa56c50`.
+
+Capturas (antes / depois):
+
+- 1024x768-claro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-configuracoes.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-fila.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-processando.png)
+- 1024x768-claro-vazio: [antes](capturas/2026-11-10/antes/1024x768-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-claro-vazio.png)
+- 1024x768-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-configuracoes.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-fila.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-processando.png)
+- 1024x768-escuro-vazio: [antes](capturas/2026-11-10/antes/1024x768-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1024x768-escuro-vazio.png)
+- 1440x900-claro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-configuracoes.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-fila.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-processando.png)
+- 1440x900-claro-vazio: [antes](capturas/2026-11-10/antes/1440x900-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-claro-vazio.png)
+- 1440x900-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-configuracoes.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-fila.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-processando.png)
+- 1440x900-escuro-vazio: [antes](capturas/2026-11-10/antes/1440x900-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1440x900-escuro-vazio.png)
+- 1920x1080-claro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-configuracoes.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-fila.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-processando.png)
+- 1920x1080-claro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-claro-vazio.png)
+- 1920x1080-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-configuracoes.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-processando.png)
+- 1920x1080-escuro-vazio: [antes](capturas/2026-11-10/antes/1920x1080-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/1920x1080-escuro-vazio.png)
+- 800x600-claro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-configuracoes.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-fila.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-processando.png)
+- 800x600-claro-vazio: [antes](capturas/2026-11-10/antes/800x600-claro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-claro-vazio.png)
+- 800x600-escuro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-configuracoes.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-fila.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-processando.png)
+- 800x600-escuro-vazio: [antes](capturas/2026-11-10/antes/800x600-escuro-vazio.png) / [depois](capturas/2026-11-10/depois-F-VI-01%2BF-VI-07%2BF-AC-11/800x600-escuro-vazio.png)
 
 ### F-AN-07 — Ao recolher o painel, o botão salta cerca de 135 px no primeiro quadro e o chevron troca seco
 
@@ -536,7 +2670,76 @@ Status: pendente
 - **Veredito:** rebaixado
 - **Justificativa do cético:** A regra .sidebar.collapsed .sidebar-header-toggle (App.svelte:871-874) troca justify-content e padding no mesmo quadro em que começa a transição de largura (845), e .btn-toggle-sidebar (876-891) não tem transição, então o salto do botão existe. O movimento todo dura 150 ms e o botão sai de baixo do ponteiro de qualquer forma; é polimento.
 
-Status: pendente
+Status: feito. Commit `fbfaeb0743a2e84d9a8edd3516acbc8412a4f6e0`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-configuracoes: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-alto-contraste-configuracoes.png)
+- 1024x768-alto-contraste-processando: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-configuracoes.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-fila.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-processando.png)
+- 1024x768-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-configuracoes.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-fila.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-processando.png)
+- 1440x900-claro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-configuracoes.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-fila.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-processando.png)
+- 1440x900-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-configuracoes.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-fila.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-processando.png)
+- 1920x1080-claro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-configuracoes.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-fila.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-processando.png)
+- 1920x1080-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-configuracoes.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-processando.png)
+- 800x600-claro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-configuracoes.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-fila.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-processando.png)
+- 800x600-escuro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-configuracoes.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-fila.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-processando.png)
 
 ### F-AN-08 — Painéis dentro da linha (atividade, reprocessar, detalhes do erro) abrem e fecham sem transição coerente
 
@@ -544,13 +2747,81 @@ Status: pendente
 - **Lente:** AN
 - **Gravidade:** baixa
 - **Evidência:** `<AtividadeItem>` (ProcessList.svelte:506-512) e `<ReprocessarItem>` (514-522) entram e saem sem `in:`/`out:`; só `.erro-detalhe` tem `in:fade` (499), e mesmo ele fecha seco. O painel de atividade chega a ~300 px (captura `1024x768-escuro-processando-atividade.png`) e aparece em um quadro, empurrando as linhas de baixo, enquanto o chevron do mesmo botão gira em 150 ms (836-845): dois elementos do mesmo gesto com tempos diferentes. Dentro do painel, "Carregando a atividade..." troca pelo conteúdo também sem transição (AtividadeItem.svelte:41-45).
-- **Proposta:** Dar a mesma entrada aos três painéis: `in:fly={{ y: -4, duration: duracaoMovimento(DUR_FAST), easing: cubicOut }}` no elemento raiz (`.painel-atividade`, `.painel-reprocessar`, `.erro-detalhe`); a saída pode ser instantânea ou `out:fade` em `--dur-fast`. Não animar altura (`slide` anima layout): o deslocamento das linhas de baixo continua em um quadro, mas o conteúdo novo deixa de aparecer de uma vez. Em `prefers-reduced-motion`, `duracaoMovimento` já zera. Documentar em DESIGN.md §7 e cobrir no teste de movimento.
+- **Proposta:** Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): o ReprocessarItem remonta pelo {#key} quando o usuário clica em "Reprocessar com OCR" com o formulário aberto; a entrada roda de novo nessa remontagem, e está certo. Proposta original: Dar a mesma entrada aos três painéis: `in:fly={{ y: -4, duration: duracaoMovimento(DUR_FAST), easing: cubicOut }}` no elemento raiz (`.painel-atividade`, `.painel-reprocessar`, `.erro-detalhe`); a saída pode ser instantânea ou `out:fade` em `--dur-fast`. Não animar altura (`slide` anima layout): o deslocamento das linhas de baixo continua em um quadro, mas o conteúdo novo deixa de aparecer de uma vez. Em `prefers-reduced-motion`, `duracaoMovimento` já zera. Documentar em DESIGN.md §7 e cobrir no teste de movimento.
 - **Custo:** P
 - **Ganho esperado:** Abrir detalhes fica coerente com o giro do chevron e entre os três painéis, sem custo de layout por quadro.
 - **Veredito:** rebaixado
 - **Justificativa do cético:** Só .erro-detalhe tem in:fade (ProcessList.svelte:499); AtividadeItem (raiz na linha 40) e ReprocessarItem (form na linha 39) abrem e fecham sem transição (ProcessList.svelte:506-522). É polimento, e a proposta mantém o salto de layout da linha.
 
-Status: pendente
+Status: feito. Commit `f9e5b4f7106a8fb9b67400048a1cbdec2ff122cb`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-processando: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-erro: [antes](capturas/2026-11-10/antes/1024x768-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-erro.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-fila.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-processando.png)
+- 1024x768-escuro-erro: [antes](capturas/2026-11-10/antes/1024x768-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-erro.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-fila.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-processando.png)
+- 1440x900-claro-erro: [antes](capturas/2026-11-10/antes/1440x900-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-erro.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-fila.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-processando.png)
+- 1440x900-escuro-erro: [antes](capturas/2026-11-10/antes/1440x900-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-erro.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-fila.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-processando.png)
+- 1920x1080-claro-erro: [antes](capturas/2026-11-10/antes/1920x1080-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-erro.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-fila.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-processando.png)
+- 1920x1080-escuro-erro: [antes](capturas/2026-11-10/antes/1920x1080-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-erro.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-processando.png)
+- 800x600-claro-erro: [antes](capturas/2026-11-10/antes/800x600-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-erro.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-fila.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-processando.png)
+- 800x600-escuro-erro: [antes](capturas/2026-11-10/antes/800x600-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-erro.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-fila.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-processando.png)
 
 ### F-AN-09 — Documentos do painel de atividade mudam de posição aos saltos, até 5 vezes por segundo
 
@@ -558,14 +2829,82 @@ Status: pendente
 - **Lente:** AN
 - **Gravidade:** baixa
 - **Evidência:** `{#each visiveis as d (d.i)}` (AtividadeItem.svelte:95) tem chave mas nenhum `animate:` ou transição. `ordenarDocs` reordena por estado a cada instantâneo (atividade.js:34-40: OCR, lendo, erro, aguardando, concluído) e o backend manda `queue:atividade` a cada 200 ms (internal/etl/queue.go:692). Cada documento que começa a ser lido pula para o topo; ao concluir, some na hora (filtro `d.estado !== 'concluido'`, linha 32). Na captura `1024x768-escuro-processando-atividade.png` há 10 documentos visíveis em 4 estados; ao vivo essa ordem se refaz sem continuidade e o olho perde o documento que acompanhava.
-- **Proposta:** Adicionar `animate:flip={{ duration: duracaoMovimento(DUR_FAST), easing: cubicOut }}` ao `<li class="doc">` e `out:fade={{ duration: duracaoMovimento(DUR_FAST) }}` para o documento que conclui (com `animate`, o Svelte fixa a posição do item que sai, então os demais deslizam ao mesmo tempo). Medir com um ZIP de centenas de documentos antes de fechar: o `flip` mede todos os `<li>` a cada instantâneo (ver F-DF-03); se pesar, desligar acima de N documentos ou paginar o painel. Incluir AtividadeItem.svelte nos testes de movimento.
+- **Proposta:** Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): meça com o stub de muitos documentos antes de fechar; se o flip pesar, desligue acima de N documentos. Proposta original: Adicionar `animate:flip={{ duration: duracaoMovimento(DUR_FAST), easing: cubicOut }}` ao `<li class="doc">` e `out:fade={{ duration: duracaoMovimento(DUR_FAST) }}` para o documento que conclui (com `animate`, o Svelte fixa a posição do item que sai, então os demais deslizam ao mesmo tempo). Medir com um ZIP de centenas de documentos antes de fechar: o `flip` mede todos os `<li>` a cada instantâneo (ver F-DF-03); se pesar, desligar acima de N documentos ou paginar o painel. Incluir AtividadeItem.svelte nos testes de movimento.
 - **Custo:** P
 - **Ganho esperado:** O usuário consegue seguir um documento enquanto ele muda de estado; o painel deixa de piscar durante o OCR.
 - **Veredito:** rebaixado
 - **Justificativa do cético:** O each com chave em AtividadeItem.svelte:95 não tem animate, e ordenarDocs (atividade.js:34-40) reordena por estado a cada instantâneo de 200 ms (queue.go:692), então as linhas trocam de lugar sem movimento. O painel é opcional, a ordenação é intencional e um flip a 5 Hz não foi medido e pode virar movimento constante.
 - **Nota da síntese:** O cético pede medir antes de fechar: um `flip` a 5 Hz pode virar movimento constante. O custo de reordenar a lista inteira está em F-DF-04, que convém resolver antes.
 
-Status: pendente
+Status: feito. Commit `aa8ec5c5f1d07406a930e0de1fbe95dd8b8a6aa9`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-processando: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-claro-nao-lidos-atividade.png)
+- 1024x768-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-claro-nao-lidos-copiado.png)
+- 1024x768-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-claro-nao-lidos.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-claro-processando.png)
+- 1024x768-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-escuro-nao-lidos-atividade.png)
+- 1024x768-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-escuro-nao-lidos-copiado.png)
+- 1024x768-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-escuro-nao-lidos.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-escuro-processando.png)
+- 1440x900-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-claro-nao-lidos-atividade.png)
+- 1440x900-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-claro-nao-lidos-copiado.png)
+- 1440x900-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-claro-nao-lidos.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-claro-processando.png)
+- 1440x900-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-escuro-nao-lidos-atividade.png)
+- 1440x900-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-escuro-nao-lidos-copiado.png)
+- 1440x900-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-escuro-nao-lidos.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-escuro-processando.png)
+- 1920x1080-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-claro-nao-lidos-atividade.png)
+- 1920x1080-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-claro-nao-lidos-copiado.png)
+- 1920x1080-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-claro-nao-lidos.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-claro-processando.png)
+- 1920x1080-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-escuro-nao-lidos-atividade.png)
+- 1920x1080-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-escuro-nao-lidos-copiado.png)
+- 1920x1080-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-escuro-nao-lidos.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-escuro-processando.png)
+- 800x600-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-claro-nao-lidos-atividade.png)
+- 800x600-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-claro-nao-lidos-copiado.png)
+- 800x600-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-claro-nao-lidos.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-claro-processando.png)
+- 800x600-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-escuro-nao-lidos-atividade.png)
+- 800x600-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-escuro-nao-lidos-copiado.png)
+- 800x600-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-escuro-nao-lidos.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-escuro-processando.png)
 
 ### B-EF-04 — Regex executada em toda linha sem pré-filtro barato na limpeza
 
@@ -573,14 +2912,97 @@ Status: pendente
 - **Lente:** EF
 - **Gravidade:** baixa
 - **Evidência:** `cleanPage` testa `pageMarkerRegex.MatchString(line)` em toda linha (formatter.go:177; a regex é `(?i)^p[áa]g(ina|\.)?\s*\d+...$`, sem prefixo literal por causa do `(?i)`); `linhaLetraSolta` roda `romanoRegex` e `alineaRegex` antes de olhar o tamanho da linha (higienizacao.go:322), embora só linhas de 1-2 letras interessem; `paginaCertificado` roda duas regex `(?i)` em todas as linhas de todas as páginas no nível aggressive (higienizacao.go:359-362); `normalizeEdgeLine` roda `valorEdgeRegex` (`R\$|US\$|\d+,\d{2}|%`) em cada linha de borda (formatter.go:73). Perfil do `BenchmarkSintetico` (aggressive): `regexp.(*Regexp).find` 2,10 s dos 4,55 s de `GenerateConsolidatedOutput` (46%), `normalizeEdgeLine` 0,95 s, `paginaCertificado` 0,78 s, `linhaLetraSolta` 0,42 s. Micro-benchmarks por overlay (-count=6, 1000 páginas, 45.000 linhas): `filtrosPorLinha` (a condição da linha 177) 159-171 ms; a mesma condição com pré-filtro (`len(l) <= 40 && (l[0]=='p'||l[0]=='P')` antes de `pageMarkerRegex`, `len(l) <= 4` antes de `linhaLetraSolta`) 52-63 ms; `paginaCertificado` 89-189 ms.
-- **Proposta:** Pôr um teste barato antes de cada regex, sem mudar a regra: em `cleanPage`, só chamar `pageMarkerRegex` se a linha começa com p/P e é curta; em `linhaLetraSolta`, sair cedo quando `len(l) > 4` (duas runas de até 2 bytes) antes das regex e dos mapas; em `paginaCertificado`, só chamar `certificadoCampoRegex` se o primeiro byte é E/V/A/N (ou minúsculo) e `certificadoTituloRegex` se a linha contém "ssinatura" (comparação sem caixa feita à mão); em `normalizeEdgeLine`, trocar a regex por `strings.ContainsAny(l, "$%")` mais uma busca manual de `dígito,dígito dígito`. Os testes de higienização existentes cobrem a equivalência.
+- **Proposta:** Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): pré-filtros estritamente equivalentes, com casos de teste para "ﬁﬁ" (linhaLetraSolta verdadeira hoje) e "$ 100 pagos" (valorEdgeRegex não casa). O pré-filtro não muda alocações: métrica-alvo é sec/op do benchmark do formatador em internal/etl criado em B-EF-02, nível aggressive, comparado em rodadas alternadas; declare em observacoes. Proposta original: Pôr um teste barato antes de cada regex, sem mudar a regra: em `cleanPage`, só chamar `pageMarkerRegex` se a linha começa com p/P e é curta; em `linhaLetraSolta`, sair cedo quando `len(l) > 4` (duas runas de até 2 bytes) antes das regex e dos mapas; em `paginaCertificado`, só chamar `certificadoCampoRegex` se o primeiro byte é E/V/A/N (ou minúsculo) e `certificadoTituloRegex` se a linha contém "ssinatura" (comparação sem caixa feita à mão); em `normalizeEdgeLine`, trocar a regex por `strings.ContainsAny(l, "$%")` mais uma busca manual de `dígito,dígito dígito`. Os testes de higienização existentes cobrem a equivalência.
 - **Custo:** P
 - **Ganho esperado:** -65% no filtro por linha (medido: ~165 ms para ~56 ms a cada 1000 páginas) e a maior parte dos ~90-190 ms de `paginaCertificado`; somados, cerca de -20% a -25% do tempo do formatador no nível aggressive e -10% no padrão (onde pesam `pageMarkerRegex` e `normalizeEdgeLine`).
 - **Veredito:** rebaixado
 - **Justificativa do cético:** As regex sem pré-filtro existem (formatter.go:73 e 177, higienizacao.go:322 e 359-362) e reproduzi `filtrosPorLinha` 92-130 ms contra 36-45 ms com pré-filtro e `paginaCertificado` 102-140 ms, mas isso só vale no nível Máxima: no padrão, `pageMarkerRegex || linhaSoSimbolos` custa 34-45 ms e o pré-filtro 30-40 ms (ganho dentro do ruído), restando só o `normalizeEdgeLine`. Além disso dois pré-filtros propostos mudam a regra, ao contrário do que o achado afirma: `len(l) <= 4` deixa de pegar `"ﬁﬁ"` (6 bytes, `linhaLetraSolta` = true hoje) e `ContainsAny(l, "$%")` passa a casar `"$ 100 pagos"`, que `valorEdgeRegex` não casa.
 - **Nota da síntese:** Atenção do cético: dois dos pré-filtros propostos mudam a regra (`len(l) <= 4` e `ContainsAny(l, "$%")`). A correção precisa de pré-filtros estritamente equivalentes, com caso de teste para cada contraexemplo citado na justificativa.
 
-Status: pendente
+Status: feito. Commit `b03266dbc672ef6e8ee0f34abe1fe88b39c6c94d`.
+
+Benchstat (-count=10):
+
+```
+goos: windows
+goarch: amd64
+pkg: eprocia/internal/etl
+cpu: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz
+                                         │  antes.txt  │              depois.txt              │
+                                         │   sec/op    │    sec/op     vs base                │
+GenerateConsolidatedOutput/standard-12     181.1m ± 4%   113.6m ± 11%  -37.28% (p=0.000 n=10)
+GenerateConsolidatedOutput/aggressive-12   314.5m ± 7%   151.5m ±  3%  -51.84% (p=0.000 n=10)
+geomean                                    238.7m        131.2m        -45.04%
+
+                                         │  antes.txt   │             depois.txt              │
+                                         │     B/op     │     B/op      vs base               │
+GenerateConsolidatedOutput/standard-12     37.89Mi ± 0%   37.97Mi ± 0%  +0.21% (p=0.000 n=10)
+GenerateConsolidatedOutput/aggressive-12   38.72Mi ± 0%   38.81Mi ± 0%  +0.22% (p=0.001 n=10)
+geomean                                    38.30Mi        38.39Mi       +0.22%
+
+                                         │  antes.txt  │             depois.txt             │
+                                         │  allocs/op  │  allocs/op   vs base               │
+GenerateConsolidatedOutput/standard-12     139.3k ± 0%   139.2k ± 0%  -0.02% (p=0.000 n=10)
+GenerateConsolidatedOutput/aggressive-12   145.1k ± 0%   145.1k ± 0%       ~ (p=0.342 n=10)
+geomean                                    142.1k        142.1k       -0.01%
+
+pkg: eprocia/scripts/bench
+                                  │   antes.txt   │              depois.txt              │
+                                  │    sec/op     │    sec/op     vs base                │
+Sintetico/ocr=none-12               126.98m ±  7%   96.03m ±  4%  -24.37% (p=0.000 n=10)
+ParsePDF/nativo-12                   1.111m ±  7%   1.108m ±  4%        ~ (p=0.971 n=10)
+ParsePDF/escaneado-12                272.3µ ± 12%   277.6µ ±  3%        ~ (p=0.143 n=10)
+ParsePDF/vetorial-12                 24.79m ±  8%   25.25m ±  4%        ~ (p=0.063 n=10)
+ParsePDF/contents-array-12           239.6µ ± 11%   251.6µ ± 12%        ~ (p=0.280 n=10)
+Sintetico/ocr=fast-12                 2.411 ±  3%    2.365 ±  2%        ~ (p=0.247 n=10)
+Sintetico/escaneado24/ocr=fast-12     6.294 ±  1%    6.377 ±  1%        ~ (p=0.075 n=10)
+geomean                              23.05m         22.40m         -2.83%
+
+                                  │  antes.txt   │             depois.txt              │
+                                  │     B/op     │     B/op      vs base               │
+Sintetico/ocr=none-12               25.57Mi ± 0%   25.56Mi ± 0%       ~ (p=0.912 n=10)
+ParsePDF/nativo-12                  318.8Ki ± 0%   318.8Ki ± 0%       ~ (p=0.171 n=10)
+ParsePDF/escaneado-12               78.64Ki ± 0%   78.64Ki ± 0%       ~ (p=0.617 n=10)
+ParsePDF/vetorial-12                4.388Mi ± 0%   4.388Mi ± 0%  +0.00% (p=0.035 n=10)
+ParsePDF/contents-array-12          71.20Ki ± 0%   71.20Ki ± 0%       ~ (p=0.241 n=10)
+Sintetico/ocr=fast-12               27.58Mi ± 1%   27.61Mi ± 1%       ~ (p=0.631 n=10)
+Sintetico/escaneado24/ocr=fast-12   5.443Mi ± 3%   5.365Mi ± 3%       ~ (p=0.393 n=10)
+geomean                             1.610Mi        1.607Mi       -0.19%
+
+                                  │  antes.txt  │  depois.txt                          │
+                                  │  allocs/op  │  allocs/op   vs base                 │
+Sintetico/ocr=none-12               633.0k ± 0%   632.9k ± 0%  -0.01% (p=0.000 n=10)
+ParsePDF/nativo-12                  2.748k ± 0%   2.748k ± 0%       ~ (p=1.000 n=10) ¹
+ParsePDF/escaneado-12                503.0 ± 0%    503.0 ± 0%       ~ (p=1.000 n=10) ¹
+ParsePDF/vetorial-12                261.2k ± 0%   261.2k ± 0%       ~ (p=1.000 n=10)
+ParsePDF/contents-array-12           531.0 ± 0%    531.0 ± 0%       ~ (p=1.000 n=10) ¹
+Sintetico/ocr=fast-12               639.8k ± 0%   639.7k ± 0%       ~ (p=0.579 n=10)
+Sintetico/escaneado24/ocr=fast-12   20.07k ± 0%   20.06k ± 0%       ~ (p=0.912 n=10)
+geomean                             20.57k        20.57k       -0.01%
+¹ all samples are equal
+
+                                  │    antes.txt    │                depois.txt                 │
+                                  │ gc-pausa-sec/op │ gc-pausa-sec/op  vs base                  │
+Sintetico/ocr=none-12                 5.618m ±  32%      6.260m ± 21%        ~ (p=0.315 n=10)
+Sintetico/ocr=fast-12                 7.628m ±  36%      6.867m ± 23%        ~ (p=0.853 n=10)
+Sintetico/escaneado24/ocr=fast-12     2.113m ± 115%      1.429m ± 87%        ~ (p=0.274 n=10+8)
+geomean                               4.490m             3.946m        -12.13%
+
+                                  │  antes.txt   │              depois.txt               │
+                                  │  pico-mem-B  │  pico-mem-B    vs base                │
+Sintetico/ocr=none-12               23.36Mi ± 1%   23.11Mi ±  1%        ~ (p=0.488 n=10)
+Sintetico/ocr=fast-12               23.22Mi ± 1%   19.35Mi ± 21%  -16.65% (p=0.030 n=10)
+Sintetico/escaneado24/ocr=fast-12   71.23Mi ± 5%   67.11Mi ±  6%        ~ (p=0.195 n=10)
+geomean                             33.81Mi        31.08Mi         -8.07%
+
+                                  │  antes.txt   │             depois.txt              │
+                                  │   procs/op   │  procs/op   vs base                 │
+Sintetico/ocr=none-12               0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+Sintetico/ocr=fast-12               10.00 ± 0%     10.00 ± 0%       ~ (p=1.000 n=10) ¹
+Sintetico/escaneado24/ocr=fast-12   16.00 ± 0%     16.00 ± 0%       ~ (p=1.000 n=10) ¹
+```
+
+Capturas: não se aplica (correção de backend).
 
 ### F-AC-13 — Omitir tipos: campo de texto livre que exige lembrar os códigos e aceita qualquer coisa sem aviso
 
@@ -601,7 +3023,7 @@ Status: pendente
 - **Justificativa do cético:** Confirmado: Settings.svelte:205-214 é texto livre salvo em on:change, normalizarTipos (43-49) e config.NormalizarTipos só separam por vírgula e põem em maiúsculas, e o pipeline casa por igualdade exata com tipoDocumento (pipeline.go:379), então "EXTRATO" ou "EXTR;COMP" é gravado e nunca casa; o pedido está em docs/backlog.md:13. O recurso é opcional (padrão vazio) e o erro só faz o documento ser lido normalmente, sem perda: media, não alta.
 - **Nota da síntese:** Fundido com o achado de VI "Omissão de tipos é um campo de texto livre: trocar por chips de tipos" (média, G, mantido), sobre Settings.svelte:205-214. Complementos de VI: chip marcado com `EyeOff` 12px, fundo `--accent-soft` e borda `--accent-line`, desmarcado com borda `--border-strong`; chip "+ Outro" (`Plus` 12px) abre o campo de texto atual; rótulo com contagem ("Omitir tipos (2)"); limite de duas linhas com "ver todos"; a parte visual pode começar com uma lista fixa em `src/lib`. A lista de tipos já vistos depende de um binding novo no Go, que cruza para o backend. A etapa barata descrita no ganho esperado (chips do que já está salvo e validação do formato) sai com custo P e pode ser aprovada sozinha.
 
-Status: pendente
+Status: adiado para o backlog. Decisão do dono (2026-11-18): a direção é o catálogo de tipos que cresce com os tipos já vistos nos processos (binding novo no Go); fica fora da correção de 2026-11-18.
 
 ### F-AN-10 — Spinner, pulso e barras provavelmente seguem animando com a janela oculta na bandeja (inferência do código, falta medir)
 
@@ -616,7 +3038,67 @@ Status: pendente
 - **Justificativa do cético:** No Wails v2.13.0, WindowHide é só mainWindow.Hide() (frontend.go:316-320), sem chromium.Hide(). Medi com build/bin/eprocia.exe em APPDATA isolado e um ZIP sintético em OCR: os processos msedgewebview2 somaram cerca de 23% de um núcleo com a janela visível e 23 a 26% com ela oculta na bandeja (processo de GPU 16 a 20%), ou seja, o custo de renderização não cai ao ocultar. Gravidade baixa; ao final encerrei a instância de teste e um tesseract.exe remanescente por nome de imagem.
 - **Nota da síntese:** O título é o do revisor, que não tinha medido. O cético mediu depois (ver a justificativa): o custo dos processos do WebView2 não cai ao ocultar a janela, então o passo "medir primeiro" da proposta já está cumprido.
 
-Status: pendente
+Status: feito. Commit `cb5e1c0`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-processando: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AN-10/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1024x768-claro-fila.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1024x768-claro-processando.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1024x768-escuro-fila.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1024x768-escuro-processando.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1440x900-claro-fila.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1440x900-claro-processando.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1440x900-escuro-fila.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1440x900-escuro-processando.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1920x1080-claro-fila.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1920x1080-claro-processando.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-10/1920x1080-escuro-processando.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-10/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-10/800x600-claro-fila.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-10/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-10/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-10/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-10/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-10/800x600-claro-processando.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-10/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-10/800x600-escuro-fila.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-10/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-10/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-10/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-10/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-10/800x600-escuro-processando.png)
 
 ### F-DF-03 — Cada queue:item refaz todas as linhas da fila e mede a posição de todas elas (animate:flip), não só a linha que mudou
 
@@ -631,7 +3113,7 @@ Status: pendente
 - **Justificativa do cético:** Evidência confirmada: quadro.js:21 entrega array novo, each.js:318 e 466-478 (Svelte 5.57.1) notificam e medem todas as linhas. Medi o bundle de produção em Chromium headless com stubs do Wails (build no scratchpad, nada no repo): cada flush de queue:item custa 2,3 ms com 5 linhas, 4,7 com 25, 7,1 com 50, 12 com 100 e 24,6 com 300, sempre com 2 getBoundingClientRect por linha. O custo é linear como alegado, mas só pesa com 100 ou mais itens e fica abaixo de um quadro até cerca de 130; nas filas usuais (até 25 a 50 itens; a varredura inicial só pega downloads recentes, internal/watchdog/pendentes.go:11) são no máximo 5 a 7% da thread principal a 10 flushes/s, e durante o OCR as páginas chegam mais devagar que isso.
 - **Nota da síntese:** O achado equivalente da lente AN ("`animate:flip` mede todas as linhas da fila a cada evento de progresso") foi derrubado com base em uma página sintética (1,2 ms com 200 linhas). A medição deste, feita no bundle de produção, deu valores maiores (12 ms com 100 linhas) e é a que vale; mesmo assim só pesa em fila longa. Depende da passagem de ProcessList e App para runes.
 
-Status: pendente
+Status: adiado. Decisão do dono (2026-11-18): exige migrar ProcessList e os eventos do App para runes, e o ganho só aparece com 100 itens ou mais; fica para outra rodada.
 
 ### F-DF-04 — Painel de atividade reordena, clona e reavalia todos os documentos a cada 200 ms, e mantém no DOM todos os que aguardam
 
@@ -639,13 +3121,81 @@ Status: pendente
 - **Lente:** DF
 - **Gravidade:** baixa
 - **Evidência:** O backend manda o instantâneo inteiro a cada 200 ms (internal/etl/queue.go:669 e 692; `Docs: slices.Clone(a.docs)` em internal/etl/atividade.go:154-166), não um delta. Com o painel aberto, AtividadeItem.svelte:27 faz `$: docs = ordenarDocs(atividade?.docs)`, e ordenarDocs (frontend/src/lib/atividade.js:36-40) faz `.map((d, i) => ({ ...d, i })).sort(...)`: um objeto novo por documento e uma ordenação completa a cada evento. Como todo objeto é novo, o `{#each visiveis as d (d.i)}` (linha 95) reexecuta todas as linhas; compilado, cada linha tem 4 template_effect, 3 blocos if e um Icone (3 componentes aninhados até o svg). `resumoAtividade` (linha 28) percorre a lista de novo. A linha 32, `visiveis = mostrarConcluidos ? docs : docs.filter((d) => d.estado !== 'concluido')`, deixa todos os documentos em 'aguardando' renderizados; a captura 1024x768-escuro-processando-atividade.png mostra as linhas de relógio (Evento 19 a 24, chip '6 aguardando') dentro da lista. A lista tem `max-height: 220px; overflow-y: auto` (linhas 250-251), cerca de 10 linhas visíveis, sem janela nem content-visibility. Num ZIP com centenas de documentos, quase todos começam aguardando: são centenas de `li` montados e reavaliados 5 vezes por segundo. Custo em milissegundos não medido.
-- **Proposta:** (1) Estabilizar identidade e ordem: guardar os documentos num array `$state` (runes) e, a cada instantâneo, copiar para o objeto existente só os campos que mudaram (estado, feitas, ocr, erro); ordenar índices apenas quando algum `estado` mudou. Assim só as linhas dos documentos ativos (no máximo NumCPU-1) rodam. (2) Limitar o DOM: mostrar ativos e erros e apenas os primeiros K aguardando (por exemplo 20), com uma linha '+ N aguardando' que expande, no mesmo padrão do botão 'Mostrar concluídos'; ou, mais barato, `content-visibility: auto; contain-intrinsic-size: auto 20px` em `.doc`. (3) Calcular o resumo no mesmo laço da ordenação. Opcional entre camadas: o backend mandar só os documentos alterados desde a última versão (já existe `atv.Versao()`).
+- **Proposta:** Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): faça só as partes (2), limitar os aguardando no DOM, e (3), resumo no mesmo laço; a (1) só rende com runes e fica fora (F-DF-03 adiado). Ao estabilizar, copie também leitura e detalhe (v0.4.1). Proposta original: (1) Estabilizar identidade e ordem: guardar os documentos num array `$state` (runes) e, a cada instantâneo, copiar para o objeto existente só os campos que mudaram (estado, feitas, ocr, erro); ordenar índices apenas quando algum `estado` mudou. Assim só as linhas dos documentos ativos (no máximo NumCPU-1) rodam. (2) Limitar o DOM: mostrar ativos e erros e apenas os primeiros K aguardando (por exemplo 20), com uma linha '+ N aguardando' que expande, no mesmo padrão do botão 'Mostrar concluídos'; ou, mais barato, `content-visibility: auto; contain-intrinsic-size: auto 20px` em `.doc`. (3) Calcular o resumo no mesmo laço da ordenação. Opcional entre camadas: o backend mandar só os documentos alterados desde a última versão (já existe `atv.Versao()`).
 - **Custo:** M
 - **Ganho esperado:** O trabalho por evento passa a ser proporcional aos documentos que mudaram, não ao total do ZIP; num ZIP de 400 documentos, de cerca de 2.800 reações e 400 clones a cada 200 ms para algumas dezenas. Abrir o painel num processo grande deixa de montar centenas de linhas de uma vez.
 - **Veredito:** rebaixado
 - **Justificativa do cético:** Evidência confirmada (AtividadeItem.svelte:27 e 32, atividade.js:36-40, lista com max-height 220px sem janela; a captura mostra as linhas aguardando). Medido com o painel aberto: cada queue:atividade custa 0,7 ms de script com 24 documentos, 1,4 ms com 100 e 4,0 ms com 400 (7,1 ms com layout), a 5 eventos/s, ou seja, no máximo cerca de 3,5% da thread principal no pior caso. O único custo perceptível é abrir o painel: 58 ms com 100 documentos e 219 ms com 400, uma vez por abertura.
 
-Status: pendente
+Status: feito. Commit `aa8ec5c5f1d07406a930e0de1fbe95dd8b8a6aa9`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-processando: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-claro-nao-lidos-atividade.png)
+- 1024x768-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-claro-nao-lidos-copiado.png)
+- 1024x768-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-claro-nao-lidos.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-claro-processando.png)
+- 1024x768-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-escuro-nao-lidos-atividade.png)
+- 1024x768-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-escuro-nao-lidos-copiado.png)
+- 1024x768-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-escuro-nao-lidos.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1024x768-escuro-processando.png)
+- 1440x900-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-claro-nao-lidos-atividade.png)
+- 1440x900-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-claro-nao-lidos-copiado.png)
+- 1440x900-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-claro-nao-lidos.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-claro-processando.png)
+- 1440x900-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-escuro-nao-lidos-atividade.png)
+- 1440x900-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-escuro-nao-lidos-copiado.png)
+- 1440x900-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-escuro-nao-lidos.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1440x900-escuro-processando.png)
+- 1920x1080-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-claro-nao-lidos-atividade.png)
+- 1920x1080-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-claro-nao-lidos-copiado.png)
+- 1920x1080-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-claro-nao-lidos.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-claro-processando.png)
+- 1920x1080-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-escuro-nao-lidos-atividade.png)
+- 1920x1080-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-escuro-nao-lidos-copiado.png)
+- 1920x1080-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-escuro-nao-lidos.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/1920x1080-escuro-processando.png)
+- 800x600-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-claro-nao-lidos-atividade.png)
+- 800x600-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-claro-nao-lidos-copiado.png)
+- 800x600-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-claro-nao-lidos.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-claro-processando.png)
+- 800x600-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-escuro-nao-lidos-atividade.png)
+- 800x600-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-escuro-nao-lidos-copiado.png)
+- 800x600-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-escuro-nao-lidos.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-escuro-processando.png)
 
 ### B-EF-05 — Higienização e montagem da saída rodam em uma thread só depois da fase paralela
 
@@ -660,7 +3210,7 @@ Status: pendente
 - **Justificativa do cético:** A formatação é mesmo serial depois do `wg.Wait()` (pipeline.go:612-625, formatter.go:421-483) e o perfil do revisor confere (GenerateConsolidatedOutput 2,77 s de 3,19 s da goroutine principal), mas reproduzi `GenerateConsolidatedOutput` em 384-444 ms por 1000 páginas no nível padrão (não 680-853) e o paralelo só 3,6x mais rápido na limpeza (357-413 ms contra 103-108 ms), com a pré-passada H7 (~75-100 ms) e a concatenação ainda seriais. O ganho fica abaixo de ~0,3 s por 1000 páginas, encolhe se B-EF-02 e B-EF-04 (custo P) entrarem antes, e custa M numa parte sensível a ordem e estado.
 - **Nota da síntese:** Só faz sentido medir de novo depois de B-EF-02 e B-EF-04, que reduzem o mesmo trecho com custo P.
 
-Status: pendente
+Status: adiado. Motivo: o relatório pede medir de novo depois de B-EF-02 e B-EF-04 (Nota da síntese); fica fora da correção de 2026-11-18 e volta depois dessa medição.
 
 ### F-VI-08 — Toast do painel cobre o interruptor que o disparou e não tem ícone de estado
 
@@ -668,13 +3218,80 @@ Status: pendente
 - **Lente:** VI
 - **Gravidade:** baixa
 - **Evidência:** `.toast-regiao { position: absolute; bottom: 0; left: 0; right: 0; }` (Settings.svelte:458-463) fica dentro de `.settings-card { padding: 0 0 8px; ... position: relative; overflow: hidden; }` (264-271), cujo último controle é a linha de 32px "Iniciar com o Windows" (218-229). O toast tem cerca de 34px (padding 8+8, linha de 11px x 1,5, borda de 1px), então cobre os 8px de padding e 26 dos 32px dessa linha: o próprio interruptor recém-clicado. O de erro fica até ser fechado. Avaliado pelo código, não há captura com toast. DESIGN.md §5.3 pede o toast "no rodapé do painel". Os avisos só têm texto e cor: `<span>{statusMessage}</span>` (242), App.svelte:649, ProcessList.svelte:538. São três implementações com CSS repetido (Settings.svelte:465-509, ProcessList.svelte:548-585, App.svelte:1199-1235).
-- **Proposta:** Um componente `Aviso.svelte` (ícone `CircleCheck` ou `CircleAlert` 12px + texto + fechar), numa região fixa no pé do painel, fora da área rolável, e no pé da lista; como cartão flutuante pode levar `--shadow-sm`. Mantém `fly`/`fade` com `duracaoMovimento`. Com Svelte 5, props e snippets deixam um componente servir os três lugares. Ajustar anuncios.test.mjs:60 e contraste.test.mjs:88.
+- **Proposta:** Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): o aviso da ProcessList ganhou a variante aviso-atencao (âmbar, não lidos): o componente único tem três tipos (sucesso, erro, atenção), com CircleAlert em --warning para atenção. Pela decisão de F-AN-06, o salvamento com sucesso em Settings deixa de usar toast. Proposta original: Um componente `Aviso.svelte` (ícone `CircleCheck` ou `CircleAlert` 12px + texto + fechar), numa região fixa no pé do painel, fora da área rolável, e no pé da lista; como cartão flutuante pode levar `--shadow-sm`. Mantém `fly`/`fade` com `duracaoMovimento`. Com Svelte 5, props e snippets deixam um componente servir os três lugares. Ajustar anuncios.test.mjs:60 e contraste.test.mjs:88.
 - **Custo:** M
 - **Ganho esperado:** O retorno de "salvo" deixa de esconder o controle, sucesso e erro se distinguem também pela forma e some a triplicação de CSS.
 - **Veredito:** rebaixado
 - **Justificativa do cético:** A geometria confere: `.toast-regiao` absoluta em `bottom: 0` dentro do cartão (Settings.svelte:458-463), toast de cerca de 33,5px sobre 8px de padding e a linha de 32px do último interruptor; avisos sem ícone e CSS repetido em três arquivos também conferem. Porém o de sucesso some em 3 s (lib/aviso.js) e o de erro tem botão fechar, então a cobertura é passageira; não há captura do estado.
 
-Status: pendente
+Status: feito. Commit `9b8e8cf0d7707dc587a4988238ff83d365e38296`.
+
+Capturas (antes / depois):
+
+- 1024x768-claro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-configuracoes.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-fila.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-claro-processando.png)
+- 1024x768-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-configuracoes.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-fila.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1024x768-escuro-processando.png)
+- 1440x900-claro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-configuracoes.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-fila.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-claro-processando.png)
+- 1440x900-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-configuracoes.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-fila.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1440x900-escuro-processando.png)
+- 1920x1080-claro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-configuracoes.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-fila.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-claro-processando.png)
+- 1920x1080-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-configuracoes.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/1920x1080-escuro-processando.png)
+- 800x600-claro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-configuracoes.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-fila.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-claro-processando.png)
+- 800x600-escuro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-configuracoes.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-fila.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-08%2BF-AN-06%2BF-AC-07/800x600-escuro-processando.png)
 
 ### F-VI-09 — Linha da fila trunca o número do processo enquanto mensagem redundante e rótulos ocupam espaço; contadores podem usar ícones
 
@@ -682,13 +3299,105 @@ Status: pendente
 - **Lente:** VI
 - **Gravidade:** baixa
 - **Evidência:** Capturas: 1024x768-claro-erro.png (item em processamento: "5000000-00.2026.4.00.00..." + "Processando document..." + "Docs: 43/57 | Págs: 107/1...", três textos cortados); 800x600-claro-processando-divisor-minimo.png ("5000000-00.20..." e um "F" solto, resto da mensagem); 800x600-claro-fila-reprocessar.png (os cinco nomes terminam em "...", e o número CNJ difere justamente no fim). Código: `<span class="progress-message">{item.message || 'Processando...'}</span>` seguido de `Docs: {..}/{..} | Págs: {..}/{..}` (ProcessList.svelte:357-360): a mensagem "Processando documento 24 de 57" repete "Docs: 24/57". `.file-name { flex: 1 1 auto; min-width: 96px; }` (851-860) encolhe junto com `.details-row` (863-873). O selo de sucesso sai "142 pág| ~98.450 tokens" (353-354), com espaço desigual em volta da barra.
-- **Proposta:** (1) O nome tem prioridade: os detalhes encolhem antes (`flex-shrink` alto em `.details-row`), a `.progress-message` some sempre que há contadores (ou sobe a container query de 480px para cerca de 720px) e a extensão ".zip" sai do texto exibido. (2) Contadores com ícone no lugar de "Docs:", "Págs:" e das barras verticais: `Files` 12px + "24/57", `FileText` 12px + "60/142", tokens abreviados ("~98 mil") com o valor exato no `title`; `tabular-nums`, sem encolher, nomes em `.sr-only`. (3) Tirar o itálico de "Aguardando na fila..." (935-938): o relógio e o `.sr-only` já dizem isso. Atualizar DESIGN.md §5.1 e os testes densidade/layout.
+- **Proposta:** Decisão do dono (2026-11-18): sim, contadores com ícones e números abreviados, com o valor exato na dica. Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): a linha tem agora o rótulo .nao-lidos (flex: none), que precisa conviver com a prioridade do nome; confira nas capturas com o divisor no máximo que ele não corta (residual P6). Proposta original: (1) O nome tem prioridade: os detalhes encolhem antes (`flex-shrink` alto em `.details-row`), a `.progress-message` some sempre que há contadores (ou sobe a container query de 480px para cerca de 720px) e a extensão ".zip" sai do texto exibido. (2) Contadores com ícone no lugar de "Docs:", "Págs:" e das barras verticais: `Files` 12px + "24/57", `FileText` 12px + "60/142", tokens abreviados ("~98 mil") com o valor exato no `title`; `tabular-nums`, sem encolher, nomes em `.sr-only`. (3) Tirar o itálico de "Aguardando na fila..." (935-938): o relógio e o `.sr-only` já dizem isso. Atualizar DESIGN.md §5.1 e os testes densidade/layout.
 - **Custo:** M
 - **Ganho esperado:** O identificador do processo fica inteiro em 1024x768 e legível em 800x600; os contadores ocupam cerca de metade da largura e não cortam o total de páginas.
 - **Veredito:** rebaixado
 - **Justificativa do cético:** Os três textos cortados aparecem em 1024x768-claro-erro.png, e o "F" solto e o "pág|" nas capturas de 800x600 e em ProcessList.svelte:353-360. Mas "Processando documento 24 de 57" é texto do stub (scripts/visual/estados.mjs:49); o real é "Processando \<doc> (pág. x/y) [Docs: d/t]" (pipeline.go:563), também redundante. E o número CNJ real difere nos 7 primeiros dígitos, que seguem visíveis, não no fim; o nome completo está no `title`.
 
-Status: pendente
+Status: feito. Commit `390c95072f1a043d5a373277d2bfa6416f95ceb1`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-processando: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-erro: [antes](capturas/2026-11-10/antes/1024x768-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-erro.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-fila.png)
+- 1024x768-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-nao-lidos-atividade.png)
+- 1024x768-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-nao-lidos-copiado.png)
+- 1024x768-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-nao-lidos.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-claro-processando.png)
+- 1024x768-escuro-erro: [antes](capturas/2026-11-10/antes/1024x768-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-erro.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-fila.png)
+- 1024x768-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-nao-lidos-atividade.png)
+- 1024x768-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-nao-lidos-copiado.png)
+- 1024x768-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-nao-lidos.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1024x768-escuro-processando.png)
+- 1440x900-claro-erro: [antes](capturas/2026-11-10/antes/1440x900-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-erro.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-fila.png)
+- 1440x900-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-nao-lidos-atividade.png)
+- 1440x900-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-nao-lidos-copiado.png)
+- 1440x900-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-nao-lidos.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-claro-processando.png)
+- 1440x900-escuro-erro: [antes](capturas/2026-11-10/antes/1440x900-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-erro.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-fila.png)
+- 1440x900-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-nao-lidos-atividade.png)
+- 1440x900-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-nao-lidos-copiado.png)
+- 1440x900-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-nao-lidos.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1440x900-escuro-processando.png)
+- 1920x1080-claro-erro: [antes](capturas/2026-11-10/antes/1920x1080-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-erro.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-fila.png)
+- 1920x1080-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-nao-lidos-atividade.png)
+- 1920x1080-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-nao-lidos-copiado.png)
+- 1920x1080-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-nao-lidos.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-claro-processando.png)
+- 1920x1080-escuro-erro: [antes](capturas/2026-11-10/antes/1920x1080-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-erro.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-nao-lidos-atividade.png)
+- 1920x1080-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-nao-lidos-copiado.png)
+- 1920x1080-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-nao-lidos.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/1920x1080-escuro-processando.png)
+- 800x600-claro-erro: [antes](capturas/2026-11-10/antes/800x600-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-erro.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-fila.png)
+- 800x600-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-nao-lidos-atividade.png)
+- 800x600-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-nao-lidos-copiado.png)
+- 800x600-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-nao-lidos.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-claro-processando.png)
+- 800x600-escuro-erro: [antes](capturas/2026-11-10/antes/800x600-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-erro.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-fila.png)
+- 800x600-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-nao-lidos-atividade.png)
+- 800x600-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-nao-lidos-copiado.png)
+- 800x600-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-nao-lidos.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-VI-03%2BF-VI-09%2BF-DF-02/800x600-escuro-processando.png)
 
 ### F-AN-11 — Conclusão e erro de um item não têm retorno: o ícone troca seco e a barra some antes de chegar ao fim
 
@@ -696,13 +3405,81 @@ Status: pendente
 - **Lente:** AN
 - **Gravidade:** baixa
 - **Evidência:** O ícone de estado é uma cadeia `{#if estado === 'processando'} ... {:else if estado === 'sucesso'}` sem transição (ProcessList.svelte:320-332). A barra está em `{#if estado === 'processando'}` (379-390) e é desmontada no mesmo quadro em que o status vira `success`/`error`, interrompendo a transição de 220 ms em curso (linha 973); o usuário nunca vê a barra completa. Os botões de ação e o selo de contadores também trocam no mesmo quadro (351-369, 394-492). Terminar um ZIP é o evento que o usuário espera, muitas vezes olhando outra janela, e a linha só muda de ícone de 16 px.
-- **Proposta:** (1) Ícone: envolver em `{#key estado}` com `in:scale={{ start: 0.6, duration: duracaoMovimento(DUR_FAST), easing: cubicOut }}`. Por ser transição local dentro do `{#key}`, só roda quando o estado muda, não na montagem da linha nem ao filtrar. (2) Barra: `out:fade={{ duration: duracaoMovimento(DUR_BASE) }}` no contêiner, para sair suave em vez de sumir. (3) Realce único da linha: `::after` com `inset: 0`, `background-color: var(--success-soft)` (ou `--error-soft`), `pointer-events: none` e uma animação de opacidade 1 para 0, uma vez, com token novo `--dur-realce` (~600 ms), desligada em `prefers-reduced-motion`. Aplicar só a itens que mudaram de estado nesta sessão: estender `criarMovimentoFila` (fila.js) com `terminou(id)`, comparando o status anterior, testável em `node --test`. Sem tremor nem brilho; apenas tom de fundo, como DESIGN.md §2 já permite. Com runes, `$effect.pre` facilita comparar o status anterior sem variável auxiliar. Ampliar o teste `transições do Svelte passam por duracaoMovimento` para aceitar `scale`.
+- **Proposta:** Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): seguir a proposta inteira: ícone com scale, barra com out:fade e realce de fundo uma vez, desligado em reduced-motion. Proposta original: (1) Ícone: envolver em `{#key estado}` com `in:scale={{ start: 0.6, duration: duracaoMovimento(DUR_FAST), easing: cubicOut }}`. Por ser transição local dentro do `{#key}`, só roda quando o estado muda, não na montagem da linha nem ao filtrar. (2) Barra: `out:fade={{ duration: duracaoMovimento(DUR_BASE) }}` no contêiner, para sair suave em vez de sumir. (3) Realce único da linha: `::after` com `inset: 0`, `background-color: var(--success-soft)` (ou `--error-soft`), `pointer-events: none` e uma animação de opacidade 1 para 0, uma vez, com token novo `--dur-realce` (~600 ms), desligada em `prefers-reduced-motion`. Aplicar só a itens que mudaram de estado nesta sessão: estender `criarMovimentoFila` (fila.js) com `terminou(id)`, comparando o status anterior, testável em `node --test`. Sem tremor nem brilho; apenas tom de fundo, como DESIGN.md §2 já permite. Com runes, `$effect.pre` facilita comparar o status anterior sem variável auxiliar. Ampliar o teste `transições do Svelte passam por duracaoMovimento` para aceitar `scale`.
 - **Custo:** M
 - **Ganho esperado:** O término (ou a falha) de um ZIP fica perceptível de relance, só com transform e opacity, sem aumentar a altura da linha.
 - **Veredito:** rebaixado
 - **Justificativa do cético:** Confirmado que a barra é desmontada sem transição (ProcessList.svelte:379-390) no mesmo broadcast em que queue.go:543-545 grava Status=success e Progress=1.0. Mas o fim já é sinalizado pela notificação do Windows em app.go (aoTerminar) e pela troca de ícone, cor e ações da linha.
 
-Status: pendente
+Status: feito. Commit `f9e5b4f7106a8fb9b67400048a1cbdec2ff122cb`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-processando: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-erro: [antes](capturas/2026-11-10/antes/1024x768-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-erro.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-fila.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-claro-processando.png)
+- 1024x768-escuro-erro: [antes](capturas/2026-11-10/antes/1024x768-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-erro.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-fila.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1024x768-escuro-processando.png)
+- 1440x900-claro-erro: [antes](capturas/2026-11-10/antes/1440x900-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-erro.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-fila.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-claro-processando.png)
+- 1440x900-escuro-erro: [antes](capturas/2026-11-10/antes/1440x900-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-erro.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-fila.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1440x900-escuro-processando.png)
+- 1920x1080-claro-erro: [antes](capturas/2026-11-10/antes/1920x1080-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-erro.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-fila.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-claro-processando.png)
+- 1920x1080-escuro-erro: [antes](capturas/2026-11-10/antes/1920x1080-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-erro.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/1920x1080-escuro-processando.png)
+- 800x600-claro-erro: [antes](capturas/2026-11-10/antes/800x600-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-erro.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-fila.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-claro-processando.png)
+- 800x600-escuro-erro: [antes](capturas/2026-11-10/antes/800x600-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-erro.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-fila.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-05%2BF-AN-08%2BF-AN-11/800x600-escuro-processando.png)
 
 ### F-AN-12 — Troca de tema acontece em três velocidades (0, 150 e 220 ms) em vez de uma transição única
 
@@ -716,7 +3493,76 @@ Status: pendente
 - **Veredito:** rebaixado
 - **Justificativa do cético:** Conferi as velocidades mistas na troca de tema: 220 ms em body (style.css:110), titlebar (App.svelte:719), sidebar, footer e .list-card; 150 ms em .item-row (ProcessList.svelte:791); instantâneo em .list-header (599-607), nos campos de Settings e em .painel-atividade. O descompasso existe, mas é uma ação rara que dura 220 ms e o ganho de repintura alegado é desprezível.
 
-Status: pendente
+Status: feito. Commit `fbfaeb0743a2e84d9a8edd3516acbc8412a4f6e0`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-configuracoes: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-alto-contraste-configuracoes.png)
+- 1024x768-alto-contraste-processando: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-configuracoes.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-fila.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-claro-processando.png)
+- 1024x768-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-configuracoes.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-fila.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1024x768-escuro-processando.png)
+- 1440x900-claro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-configuracoes.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-fila.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-claro-processando.png)
+- 1440x900-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-configuracoes.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-fila.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1440x900-escuro-processando.png)
+- 1920x1080-claro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-configuracoes.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-fila.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-claro-processando.png)
+- 1920x1080-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-configuracoes.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/1920x1080-escuro-processando.png)
+- 800x600-claro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-configuracoes.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-fila.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-claro-processando.png)
+- 800x600-escuro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-configuracoes.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-fila.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AN-02%2BF-VI-05%2BF-AN-07%2BF-AN-12/800x600-escuro-processando.png)
 
 ### F-AC-14 — Barra recolhida: OCR e higienização são botões de ciclo com três pontinhos, sem mostrar as opções
 
@@ -724,14 +3570,67 @@ Status: pendente
 - **Lente:** AC
 - **Gravidade:** baixa
 - **Evidência:** App.svelte:540-570: cada clique chama `ciclarOcr`/`ciclarLimpeza` (linhas 220-228), que avança para a próxima de 4 opções e chama `SaveConfig` na hora. Para ir de "Preciso" a "Normal" são 3 cliques e 3 gravações, passando por "Desativado". O estado visível são três pontos de 4px (`.nivel-ponto`, linhas 1014-1024); o nome da opção só existe no `title` ("OCR: Normal. Clique para Preciso") e no `aria-label`. A confirmação da troca vai só para a região `.sr-only` (`anuncio`, linha 641): quem enxerga vê um ponto mudar de cor. Em 1024x768-claro-processando-recolhido.png os dois botões são ícones com três pontos azuis iguais, sem pista do que são nem de qual nível está ativo. Os ícones (`ScanText`, `Sparkles`) também não aparecem ao lado dos rótulos no painel aberto, então não há como aprender a associação.
-- **Proposta:** Trocar o ciclo por um menu curto: o botão abre, à direita, um cartão flutuante com as 4 opções e a descrição de cada uma (o mesmo conteúdo do controle segmentado, em coluna), com `aria-haspopup`/`aria-expanded`, foco na opção atual, setas para mover, Enter para escolher, Esc para fechar e devolver o foco ao botão. Usar a Popover API (`popover` + posicionamento por âncora, disponíveis no WebView2 atual) para não ser cortado pelo `overflow: hidden` da barra. Entrada com `fade` e deslocamento de 4px em `--dur-fast`; sem deslocamento em `prefers-reduced-motion`. Ao escolher, mostrar o nome da opção por 1,5 s ao lado do botão, além do anúncio que já existe. Usar os mesmos ícones ao lado dos rótulos "Processamento de Imagens (OCR)" e "Higienização de texto" no painel aberto. Em Svelte 5, um attachment (`{@attach}`) cuida de fechar ao clicar fora e de devolver o foco.
+- **Proposta:** Decisão do dono (2026-11-19): menu flutuante com as 4 opções e a descrição de cada uma, como na proposta original. Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): depende de F-VI-02; os ícones ao lado dos rótulos do painel aberto já foram feitos em F-VI-04; esta tarefa faz só o menu da barra recolhida. Proposta original: Trocar o ciclo por um menu curto: o botão abre, à direita, um cartão flutuante com as 4 opções e a descrição de cada uma (o mesmo conteúdo do controle segmentado, em coluna), com `aria-haspopup`/`aria-expanded`, foco na opção atual, setas para mover, Enter para escolher, Esc para fechar e devolver o foco ao botão. Usar a Popover API (`popover` + posicionamento por âncora, disponíveis no WebView2 atual) para não ser cortado pelo `overflow: hidden` da barra. Entrada com `fade` e deslocamento de 4px em `--dur-fast`; sem deslocamento em `prefers-reduced-motion`. Ao escolher, mostrar o nome da opção por 1,5 s ao lado do botão, além do anúncio que já existe. Usar os mesmos ícones ao lado dos rótulos "Processamento de Imagens (OCR)" e "Higienização de texto" no painel aberto. Em Svelte 5, um attachment (`{@attach}`) cuida de fechar ao clicar fora e de devolver o foco.
 - **Custo:** M
 - **Ganho esperado:** Qualquer opção a um clique e uma gravação, com o nome e a explicação à vista; o usuário deixa de passar por "Desativado" sem querer no meio do ciclo.
 - **Veredito:** rebaixado
 - **Justificativa do cético:** Confirmado: ciclarOcr/ciclarLimpeza (App.svelte:220-228) avançam com proximaOpcao circular e gravam a cada clique, de Preciso a Normal são 3 cliques passando por Desativado, e o estado visível são três pontos de 4px (captura processando-recolhido). Mas é um atalho da barra recolhida, com title/aria-label corretos e o painel completo a um clique, e a proposta se sobrepõe ao controle segmentado de F-VI-02: baixa.
 - **Nota da síntese:** Depende do componente de F-VI-02, cujo conteúdo o menu reaproveita.
 
-Status: pendente
+Status: feito. Commit `84a05da0d8d8b35107caa1e623272869222fb015`.
+
+Capturas (antes / depois):
+
+- 800x600-claro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-claro-configuracoes.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-claro-processando.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-claro-processando-recolhido.png)
+- 800x600-escuro-configuracoes: [antes](capturas/2026-11-10/antes/800x600-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-escuro-configuracoes.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-escuro-processando.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-14/800x600-escuro-processando-recolhido.png)
+- 1024x768-claro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-claro-configuracoes.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-claro-processando.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-claro-processando-recolhido.png)
+- 1024x768-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-escuro-configuracoes.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-escuro-processando.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-escuro-processando-recolhido.png)
+- 1440x900-claro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-claro-configuracoes.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-claro-processando.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-claro-processando-recolhido.png)
+- 1440x900-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1440x900-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-escuro-configuracoes.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-escuro-processando.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1440x900-escuro-processando-recolhido.png)
+- 1920x1080-claro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-claro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-claro-configuracoes.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-claro-processando.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-escuro-configuracoes: [antes](capturas/2026-11-10/antes/1920x1080-escuro-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-escuro-configuracoes.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-escuro-processando.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1920x1080-escuro-processando-recolhido.png)
+- 1024x768-alto-contraste-configuracoes: [antes](capturas/2026-11-10/antes/1024x768-alto-contraste-configuracoes.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-alto-contraste-configuracoes.png)
+- 1024x768-alto-contraste-processando: [antes](capturas/2026-11-10/antes/1024x768-alto-contraste-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-14/1024x768-alto-contraste-processando.png)
 
 ### F-AC-15 — Fila: cinco paradas de Tab por linha, sem setas nem atalhos
 
@@ -739,13 +3638,105 @@ Status: pendente
 - **Lente:** AC
 - **Gravidade:** baixa
 - **Evidência:** Cada linha concluída tem cinco elementos na ordem de tabulação: o botão do nome (`svelte:element this="button"`, linhas 337-376) e reprocessar, copiar, abrir, remover (linhas 414-453). Com 20 processos são cerca de 100 Tabs para chegar ao último, e Shift+Tab a partir do rodapé percorre tudo de volta. O único `on:keydown` do frontend fora do divisor é o Esc do ReprocessarItem (busca por `keydown` em frontend/src: App.svelte:592 e ReprocessarItem.svelte:39). Não há setas entre linhas, Delete para remover nem Ctrl+F para o filtro (linhas 258-264).
-- **Proposta:** Tratar a lista como um conjunto com foco itinerante: uma parada de Tab para a lista; setas para cima/baixo movem entre linhas (foco no botão do nome ou na própria linha com `tabindex`), setas esquerda/direita entre as ações da linha, Home/End para a primeira e a última, Enter abre a atividade, Delete remove (ou cancela), Ctrl+C copia o TXT, Ctrl+F leva ao filtro e Esc no filtro limpa o texto. A lógica de "qual é o próximo foco" fica em `src/lib/fila.js`, ao lado de `alvoFoco`, com teste em fila.test.mjs. Documentar as teclas no DESIGN.md §5.1, como já é feito para o divisor. Em Svelte 5 as ações da linha viram um snippet, e o `tabindex` itinerante sai de um `$state` único em vez de mapas recriados a cada clique.
+- **Proposta:** Decisão do dono (2026-11-18): foco itinerante completo: setas entre linhas e entre ações, Home/End, Enter abre a atividade, Delete segue F-AC-12 (cancela o pendente, remove o concluído ou cancelado), Ctrl+C copia o TXT da linha em foco (vindo de F-AC-01), Ctrl+F leva ao filtro e Esc no filtro limpa. Proposta original: Tratar a lista como um conjunto com foco itinerante: uma parada de Tab para a lista; setas para cima/baixo movem entre linhas (foco no botão do nome ou na própria linha com `tabindex`), setas esquerda/direita entre as ações da linha, Home/End para a primeira e a última, Enter abre a atividade, Delete remove (ou cancela), Ctrl+C copia o TXT, Ctrl+F leva ao filtro e Esc no filtro limpa o texto. A lógica de "qual é o próximo foco" fica em `src/lib/fila.js`, ao lado de `alvoFoco`, com teste em fila.test.mjs. Documentar as teclas no DESIGN.md §5.1, como já é feito para o divisor. Em Svelte 5 as ações da linha viram um snippet, e o `tabindex` itinerante sai de um `$state` único em vez de mapas recriados a cada clique.
 - **Custo:** M
 - **Ganho esperado:** Chegar a qualquer processo e copiar o TXT com poucas teclas; a fila longa deixa de ser uma barreira para quem não usa o mouse.
 - **Veredito:** rebaixado
 - **Justificativa do cético:** Os fatos conferem (5 paradas de Tab por linha concluída em ProcessList.svelte:337-453; keydown só em App.svelte:592 e ReprocessarItem.svelte:39), mas a navegação por Tab funciona e nenhum critério é violado: é uma melhoria de eficiência (foco itinerante e atalhos) de custo M, não uma barreira. Baixa.
 
-Status: pendente
+Status: feito. Commit `4c2957842b16593a2a20122c94bf8e41649db382`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-processando: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-erro: [antes](capturas/2026-11-10/antes/1024x768-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-claro-erro.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-claro-fila.png)
+- 1024x768-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-claro-nao-lidos-atividade.png)
+- 1024x768-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-claro-nao-lidos-copiado.png)
+- 1024x768-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-claro-nao-lidos.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-claro-processando.png)
+- 1024x768-escuro-erro: [antes](capturas/2026-11-10/antes/1024x768-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-escuro-erro.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-escuro-fila.png)
+- 1024x768-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-escuro-nao-lidos-atividade.png)
+- 1024x768-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-escuro-nao-lidos-copiado.png)
+- 1024x768-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-escuro-nao-lidos.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1024x768-escuro-processando.png)
+- 1440x900-claro-erro: [antes](capturas/2026-11-10/antes/1440x900-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1440x900-claro-erro.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1440x900-claro-fila.png)
+- 1440x900-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/1440x900-claro-nao-lidos-atividade.png)
+- 1440x900-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/1440x900-claro-nao-lidos-copiado.png)
+- 1440x900-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/1440x900-claro-nao-lidos.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1440x900-claro-processando.png)
+- 1440x900-escuro-erro: [antes](capturas/2026-11-10/antes/1440x900-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1440x900-escuro-erro.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1440x900-escuro-fila.png)
+- 1440x900-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/1440x900-escuro-nao-lidos-atividade.png)
+- 1440x900-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/1440x900-escuro-nao-lidos-copiado.png)
+- 1440x900-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/1440x900-escuro-nao-lidos.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1440x900-escuro-processando.png)
+- 1920x1080-claro-erro: [antes](capturas/2026-11-10/antes/1920x1080-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1920x1080-claro-erro.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1920x1080-claro-fila.png)
+- 1920x1080-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/1920x1080-claro-nao-lidos-atividade.png)
+- 1920x1080-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/1920x1080-claro-nao-lidos-copiado.png)
+- 1920x1080-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/1920x1080-claro-nao-lidos.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1920x1080-claro-processando.png)
+- 1920x1080-escuro-erro: [antes](capturas/2026-11-10/antes/1920x1080-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1920x1080-escuro-erro.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/1920x1080-escuro-nao-lidos-atividade.png)
+- 1920x1080-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/1920x1080-escuro-nao-lidos-copiado.png)
+- 1920x1080-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/1920x1080-escuro-nao-lidos.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-15/1920x1080-escuro-processando.png)
+- 800x600-claro-erro: [antes](capturas/2026-11-10/antes/800x600-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-15/800x600-claro-erro.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-15/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-15/800x600-claro-fila.png)
+- 800x600-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/800x600-claro-nao-lidos-atividade.png)
+- 800x600-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/800x600-claro-nao-lidos-copiado.png)
+- 800x600-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/800x600-claro-nao-lidos.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-15/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-15/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-15/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-15/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-15/800x600-claro-processando.png)
+- 800x600-escuro-erro: [antes](capturas/2026-11-10/antes/800x600-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-15/800x600-escuro-erro.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-15/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-15/800x600-escuro-fila.png)
+- 800x600-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/800x600-escuro-nao-lidos-atividade.png)
+- 800x600-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/800x600-escuro-nao-lidos-copiado.png)
+- 800x600-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-15/800x600-escuro-nao-lidos.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-15/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-15/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-15/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-15/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-15/800x600-escuro-processando.png)
 
 ### F-AC-16 — Nomes dos ícones só no `title`: não aparecem no foco por teclado e não dizem de qual processo são
 
@@ -753,13 +3744,144 @@ Status: pendente
 - **Lente:** AC
 - **Gravidade:** baixa
 - **Evidência:** Os botões da linha são ícones de 14px sem texto. Quatro deles têm só `title`, sem `aria-label`: cancelar (linhas 395-402), "Remover da fila" (403-411), "Abrir pasta contendo o TXT" (438-445) e "Remover da lista" (446-453, 483-490); o DESIGN.md §2 pede `aria-label` em todo botão só com ícone. Vale o mesmo para a lixeira de Settings.svelte:163. O `title` nativo demora e nunca aparece no foco por teclado, então quem navega com Tab vê quatro ícones cinza sem nome (1024x768-escuro-fila-reprocessar.png). Nenhum nome inclui o arquivo: com leitor de tela são N botões "Remover da lista" iguais, e as linhas são `<div class="item-row">` dentro de `<div class="items-list">` (linhas 306-310), sem semântica de lista (busca por `role="list"` em frontend/src: nenhum resultado). Informação que só existe em `title`: caminho do ZIP (linha 348), explicação da estimativa de tokens (354), dos medidores "Documentos em paralelo" e "Processos de OCR" (AtividadeItem.svelte:48 e 57) e o erro completo de cada documento (AtividadeItem.svelte:96, cortado em `.doc-erro`), ao contrário do erro do item, que o DESIGN.md exige acessível por teclado.
-- **Proposta:** 1. Dica própria, sóbria: um attachment/ação `dica` que mostra um rótulo de `--fs-meta` sobre `--surface` com borda `--border-strong` e `--shadow-sm`, em `:hover` (com atraso de `--dur-fast`) e em `:focus-visible` (sem atraso), com `fade` em `--dur-fast` e nada em `prefers-reduced-motion`. Como `.list-card` e `.settings-card` têm `overflow: hidden`, usar um único elemento na camada superior (Popover API) em vez de `::after`. Tirar o `title` onde a dica entra, para não duplicar; os testes que fixam `title=` (painel.test.mjs:133, tema.test.mjs:141, estado.test.mjs:31) precisam acompanhar. 2. Nomes acessíveis: `aria-label` em todos, com o arquivo ("Remover 5000000-...zip da lista"). 3. Semântica: `role="list"` em `.items-list` e `role="listitem"` em `.item-row`. 4. Erro por documento: tornar a linha com erro expansível ou mostrar o texto inteiro com quebra, selecionável, como em `.erro-detalhe`.
+- **Proposta:** Ajuste de 2026-11-18 (plano docs/revisao/2026-11-18-plano-correcao.md): o title do documento agora traz também o detalhe do não lido: a parte 4 vale para ele. A lixeira de Settings já saiu em F-AC-03. Nomes de remover e cancelar seguem F-AC-12. Proposta original: 1. Dica própria, sóbria: um attachment/ação `dica` que mostra um rótulo de `--fs-meta` sobre `--surface` com borda `--border-strong` e `--shadow-sm`, em `:hover` (com atraso de `--dur-fast`) e em `:focus-visible` (sem atraso), com `fade` em `--dur-fast` e nada em `prefers-reduced-motion`. Como `.list-card` e `.settings-card` têm `overflow: hidden`, usar um único elemento na camada superior (Popover API) em vez de `::after`. Tirar o `title` onde a dica entra, para não duplicar; os testes que fixam `title=` (painel.test.mjs:133, tema.test.mjs:141, estado.test.mjs:31) precisam acompanhar. 2. Nomes acessíveis: `aria-label` em todos, com o arquivo ("Remover 5000000-...zip da lista"). 3. Semântica: `role="list"` em `.items-list` e `role="listitem"` em `.item-row`. 4. Erro por documento: tornar a linha com erro expansível ou mostrar o texto inteiro com quebra, selecionável, como em `.erro-detalhe`.
 - **Custo:** M
 - **Ganho esperado:** Os ícones passam a se explicar para mouse e teclado do mesmo jeito, o leitor de tela diz de qual processo é cada botão e quantos itens há, e nenhuma informação fica presa ao ponteiro.
 - **Veredito:** rebaixado
 - **Justificativa do cético:** Confirmado que cancelar, remover, abrir pasta (ProcessList.svelte:395-453, 483-490) e a lixeira de Settings.svelte:163 têm só title, que não há role="list" e que o erro por documento fica cortado em .doc-erro com o texto inteiro apenas no title (AtividadeItem.svelte:96, 296-303). Porém o title já serve de nome acessível para o leitor de tela, então a afirmação de botões sem nome é exagerada; sobra descumprimento da convenção de aria-label do DESIGN.md:20 e falta de dica no foco por teclado: baixa.
 
-Status: pendente
+Status: feito. Commit `bbd6658d8d941c400bb5426d6bcb382000264e52`.
+
+Capturas (antes / depois):
+
+- 1024x768-alto-contraste-processando: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-alto-contraste-processando.png)
+- 1024x768-claro-erro: [antes](capturas/2026-11-10/antes/1024x768-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-claro-erro.png)
+- 1024x768-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-claro-fila-reprocessar.png)
+- 1024x768-claro-fila: [antes](capturas/2026-11-10/antes/1024x768-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-claro-fila.png)
+- 1024x768-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-claro-nao-lidos-atividade.png)
+- 1024x768-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-claro-nao-lidos-copiado.png)
+- 1024x768-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-claro-nao-lidos.png)
+- 1024x768-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-claro-processando-atividade.png)
+- 1024x768-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-claro-processando-divisor-maximo.png)
+- 1024x768-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-claro-processando-divisor-minimo.png)
+- 1024x768-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-claro-processando-recolhido.png)
+- 1024x768-claro-processando: [antes](capturas/2026-11-10/antes/1024x768-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-claro-processando.png)
+- 1024x768-escuro-erro: [antes](capturas/2026-11-10/antes/1024x768-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-escuro-erro.png)
+- 1024x768-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-escuro-fila-reprocessar.png)
+- 1024x768-escuro-fila: [antes](capturas/2026-11-10/antes/1024x768-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-escuro-fila.png)
+- 1024x768-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-escuro-nao-lidos-atividade.png)
+- 1024x768-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-escuro-nao-lidos-copiado.png)
+- 1024x768-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-escuro-nao-lidos.png)
+- 1024x768-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-escuro-processando-atividade.png)
+- 1024x768-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-escuro-processando-divisor-maximo.png)
+- 1024x768-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-escuro-processando-divisor-minimo.png)
+- 1024x768-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-escuro-processando-recolhido.png)
+- 1024x768-escuro-processando: [antes](capturas/2026-11-10/antes/1024x768-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1024x768-escuro-processando.png)
+- 1440x900-claro-erro: [antes](capturas/2026-11-10/antes/1440x900-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-claro-erro.png)
+- 1440x900-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-claro-fila-reprocessar.png)
+- 1440x900-claro-fila: [antes](capturas/2026-11-10/antes/1440x900-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-claro-fila.png)
+- 1440x900-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-claro-nao-lidos-atividade.png)
+- 1440x900-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-claro-nao-lidos-copiado.png)
+- 1440x900-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-claro-nao-lidos.png)
+- 1440x900-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-claro-processando-atividade.png)
+- 1440x900-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-claro-processando-divisor-maximo.png)
+- 1440x900-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-claro-processando-divisor-minimo.png)
+- 1440x900-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-claro-processando-recolhido.png)
+- 1440x900-claro-processando: [antes](capturas/2026-11-10/antes/1440x900-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-claro-processando.png)
+- 1440x900-escuro-erro: [antes](capturas/2026-11-10/antes/1440x900-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-escuro-erro.png)
+- 1440x900-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-escuro-fila-reprocessar.png)
+- 1440x900-escuro-fila: [antes](capturas/2026-11-10/antes/1440x900-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-escuro-fila.png)
+- 1440x900-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-escuro-nao-lidos-atividade.png)
+- 1440x900-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-escuro-nao-lidos-copiado.png)
+- 1440x900-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-escuro-nao-lidos.png)
+- 1440x900-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-escuro-processando-atividade.png)
+- 1440x900-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-escuro-processando-divisor-maximo.png)
+- 1440x900-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-escuro-processando-divisor-minimo.png)
+- 1440x900-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-escuro-processando-recolhido.png)
+- 1440x900-escuro-processando: [antes](capturas/2026-11-10/antes/1440x900-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1440x900-escuro-processando.png)
+- 1920x1080-claro-erro: [antes](capturas/2026-11-10/antes/1920x1080-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-claro-erro.png)
+- 1920x1080-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-claro-fila-reprocessar.png)
+- 1920x1080-claro-fila: [antes](capturas/2026-11-10/antes/1920x1080-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-claro-fila.png)
+- 1920x1080-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-claro-nao-lidos-atividade.png)
+- 1920x1080-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-claro-nao-lidos-copiado.png)
+- 1920x1080-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-claro-nao-lidos.png)
+- 1920x1080-claro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-claro-processando-atividade.png)
+- 1920x1080-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-claro-processando-divisor-maximo.png)
+- 1920x1080-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-claro-processando-divisor-minimo.png)
+- 1920x1080-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-claro-processando-recolhido.png)
+- 1920x1080-claro-processando: [antes](capturas/2026-11-10/antes/1920x1080-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-claro-processando.png)
+- 1920x1080-escuro-erro: [antes](capturas/2026-11-10/antes/1920x1080-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-escuro-erro.png)
+- 1920x1080-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-escuro-fila-reprocessar.png)
+- 1920x1080-escuro-fila: [antes](capturas/2026-11-10/antes/1920x1080-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-escuro-fila.png)
+- 1920x1080-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-escuro-nao-lidos-atividade.png)
+- 1920x1080-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-escuro-nao-lidos-copiado.png)
+- 1920x1080-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-escuro-nao-lidos.png)
+- 1920x1080-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-escuro-processando-atividade.png)
+- 1920x1080-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-escuro-processando-divisor-maximo.png)
+- 1920x1080-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-escuro-processando-divisor-minimo.png)
+- 1920x1080-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-escuro-processando-recolhido.png)
+- 1920x1080-escuro-processando: [antes](capturas/2026-11-10/antes/1920x1080-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/1920x1080-escuro-processando.png)
+- 800x600-claro-erro: [antes](capturas/2026-11-10/antes/800x600-claro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-claro-erro.png)
+- 800x600-claro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-claro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-claro-fila-reprocessar.png)
+- 800x600-claro-fila: [antes](capturas/2026-11-10/antes/800x600-claro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-claro-fila.png)
+- 800x600-claro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-claro-nao-lidos-atividade.png)
+- 800x600-claro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-claro-nao-lidos-copiado.png)
+- 800x600-claro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-claro-nao-lidos.png)
+- 800x600-claro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-claro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-claro-processando-atividade.png)
+- 800x600-claro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-claro-processando-divisor-maximo.png)
+- 800x600-claro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-claro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-claro-processando-divisor-minimo.png)
+- 800x600-claro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-claro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-claro-processando-recolhido.png)
+- 800x600-claro-processando: [antes](capturas/2026-11-10/antes/800x600-claro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-claro-processando.png)
+- 800x600-escuro-erro: [antes](capturas/2026-11-10/antes/800x600-escuro-erro.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-escuro-erro.png)
+- 800x600-escuro-fila-reprocessar: [antes](capturas/2026-11-10/antes/800x600-escuro-fila-reprocessar.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-escuro-fila-reprocessar.png)
+- 800x600-escuro-fila: [antes](capturas/2026-11-10/antes/800x600-escuro-fila.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-escuro-fila.png)
+- 800x600-escuro-nao-lidos-atividade: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-escuro-nao-lidos-atividade.png)
+- 800x600-escuro-nao-lidos-copiado: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-escuro-nao-lidos-copiado.png)
+- 800x600-escuro-nao-lidos: antes: sem captura / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-escuro-nao-lidos.png)
+- 800x600-escuro-processando-atividade: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-atividade.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-escuro-processando-atividade.png)
+- 800x600-escuro-processando-divisor-maximo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-maximo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-escuro-processando-divisor-maximo.png)
+- 800x600-escuro-processando-divisor-minimo: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-divisor-minimo.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-escuro-processando-divisor-minimo.png)
+- 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-escuro-processando-recolhido.png)
+- 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-AC-04%2BF-AC-16/800x600-escuro-processando.png)
+
+## Revisão final da branch
+
+go vet ./... passou (exit 0). go test ./... -count=1 passou (exit 0). Nenhum .zip, .pdf ou .txt de saída foi commitado entre 05e7e7f e HEAD. As mensagens novas de log e de teste estão em pt-BR. Encontrei 4 pontos, nenhum bloqueante:
+
+1. frontend/package.json.md5:1 - o commit B-EF-01 (e67cdd3) levou ruído do `wails build`: o hash mudou e o package.json não. O CLAUDE.md manda reverter esse ruído.
+2. internal/etl/formatter.go:128 - `repeatedEdgeLines(pages []string)` virou código morto em produção. O GenerateConsolidatedOutput agora usa `repeatedEdgeLinesDe`, e o único chamador restante é teste (formatter_test.go:335, higienizacao_test.go:371).
+3. internal/etl/pdf_parser.go:543 - mudança de comportamento do B-EF-03, provável, não confirmada:
+   - Antes, uma página de /Contents único sem texto nativo caía no GetTextByRow, que zerava as métricas (`valida=false`).
+   - Agora, com `opsTexto==0`, ela volta com as métricas válidas, e a `regraNova` (motivoImagemDescoberta) pode mandar ao OCR uma página que antes não ia. Exemplo: imagem com fDesc >= 0,30 mas com 100 px ou menos de lado, que o `HasImages` não conta.
+   - Se esse OCR falhar, a página fica com o texto nativo vazio mais o `ocr_aviso`, sem `ocr_erro`.
+   - Raro, mas é uma interação nova com as regras de OCR para páginas com texto nativo (as das métricas da página).
+4. internal/ocr/prazo_test.go:50 - sobrou o nome "p-1.png" depois da troca para PGM no B-EF-01. É inofensivo (o teste não lê o arquivo), mas está desatualizado.
+
+As outras mudanças não têm diferença de comportamento que eu tenha achado: linhaLimpa/linhasBasicas, temValorEdge, marcadorPagina, tituloCertificado/campoCertificado, o corte de runas em linhaLetraSolta e o cálculo das linhas uma vez só em prepararLinhas (H7, bordas repetidas e limpeza).
+
+### Bloco frontend (4a0a947, 9b8e8cf, 5500cfe)
+
+Um problema menor: conflito entre duas correções. O resto da lista voltou limpo.
+
+- frontend/src/components/Aviso.svelte:62: o aviso no rodapé do painel (`<div class="painel-aviso">`, frontend/src/App.svelte:536) usa `margin: 0 8px 8px`. A correção F-VI-08 (9b8e8cf) definiu isso. A correção posterior F-VI-07 (5500cfe) passou o painel para a guia horizontal de 12px (padding 12px em `.sidebar-content`, App.svelte:935; DESIGN.md §6, "Guia horizontal de 12px"). `.painel-aviso` (App.svelte:944) não foi ajustado, então o aviso fica 4px fora da guia.
+- **Regressão:** nada encontrado. `go vet ./...` saiu com 0 e `go test ./... -count=1` saiu com 0, sem falhas.
+- **Código morto:** nenhum. Os imports que deixaram de ser usados (`fly`, `cubicOut`, `DUR_BASE` em App.svelte; `SettingsIcon`, `X`, `fly`, `fade` em Settings.svelte) foram removidos. O toast antigo e o CSS `.aviso-*` também foram apagados.
+- **Mensagens fora do pt-BR:** nenhuma.
+- **Arquivos sensíveis commitados:** nenhum. Nenhum zip, pdf ou .txt no diff. Os únicos binários são 192 PNGs de capturas com dados fictícios em docs/revisao/capturas/2026-11-10/.
+
+### Bloco frontend (287a246, fab3ed5, cdf8377, ddf0fff, a2139d8)
+
+- **Verificação:** go vet ./...: ok. go test ./... -count=1: ok, todos os pacotes passaram. Também rodei os testes do frontend (node --test frontend/*.test.mjs): passaram.
+- **Arquivos sensíveis:** nenhum .zip, .pdf ou .txt no diff. Os 316 PNGs estão em docs/revisao/capturas/2026-11-10/depois-*, com dados fictícios, como nas rodadas anteriores (por exemplo, o commit 5500cfe).
+- **Mensagens novas:** todas em pt-BR.
+- **Código morto:** nada sobrou das classes e funções removidas (collapsed-dot, status-dot, btn-danger-icon, handleClearDirectory, dragActive). O CSS input[type="text"] de Settings ainda é usado pelo campo de tipos omitidos.
+
+Achados (menores):
+
+- frontend/src/App.svelte:171: `anuncio = textoAceitos(n)` grava direto, sem esvaziar antes. O padrão anunciar() de ProcessList e Settings esvazia antes de escrever. Por isso, uma segunda soltura com a mesma quantidade de ZIPs não é anunciada de novo. O mesmo vale para salvarRapido em App.svelte:234, que já era assim antes.
+- frontend/src/App.svelte:170-172: o overlay e o anúncio dizem "N arquivos adicionados" antes de AddFilesToQueue terminar. Se a chamada falhar, o usuário vê a confirmação e logo depois o erro. Além disso, a condição `if (zips.length > 0)` aparece duas vezes seguidas e dá para juntar.
+
+Não encontrei interação ruim entre as correções nem regressão funcional. Conferi: o interruptor de monitoramento passou a ser só de leitura e volta ao estado certo quando o salvamento falha; o vocabulário de monitoramento é o mesmo em App, Settings e monitoramento.js; os anúncios estão concentrados numa só região viva em ProcessList, e AtividadeItem não tem mais role="status"; as regras de alto contraste apontam para classes que existem; o rótulo "Desativado" virou "Nenhum" e não restou nenhuma ocorrência do antigo.
 
 ## Capturas
 
@@ -814,6 +3936,51 @@ Ficam registrados para auditoria. Não entram na correção.
 | Estado por id das linhas (painéis abertos e atividades buscadas) nunca é podado quando o item sai da fila | F-DF | É verdade que os quatro mapas não são podados (ProcessList.svelte:70-113, handleRemove/handleClear em 230-248), mas o ganho é desprezível: três deles guardam um booleano por linha clicada (cerca de 100 bytes cada). O atividadesBuscadas só é preenchido quando o App ainda não tem instantâneo do item (linha 87: primeiros 200 ms do processamento, ou item cancelado antes de começar, que guarda a string 'nenhuma'), porque App.svelte:139 já mantém o instantâneo de todo item processado. Não há instantâneos acumulando por item removido no uso normal. |
 
 Observação: o primeiro derrubado (lente AN) e o achado F-DF-03 descrevem o mesmo mecanismo do `animate:flip`. Os céticos mediram de formas diferentes (página sintética contra o bundle de produção); F-DF-03 ficou, rebaixado para baixa, com a medição mais próxima do app real.
+
+## Revisão final da branch
+
+Revisão da branch revisao/2026-11-10 (9 commits, de 6ad2a63 a 4c29578). Não alterei nenhum arquivo.
+
+Verificações:
+
+- `go vet ./...`: passou (exit 0).
+- `go test ./... -count=1`: passou (exit 0), sem nenhuma falha.
+- Testes do frontend (`node --test frontend/*.test.mjs`): passaram (exit 0).
+- Arquivos sensíveis: nenhum .zip, .pdf ou .txt de saída no diff. Os 667 arquivos em `docs/revisao/capturas/2026-11-10/**` são PNG de captura. O repositório já versiona capturas (2255 arquivos no total), então isso segue a convenção.
+- Mensagens fora do pt-BR: nenhuma. Logs, aria-label, dicas e console.error/warn novos estão em português.
+- Imports sem uso nos três componentes alterados: nenhum.
+
+Achados (2, ambos leves):
+
+1. `scripts/visual/estados.mjs:135` com `frontend/src/App.svelte:139` e `frontend/src/App.svelte:231`: o stub das capturas não define `JanelaVisivel`. A chamada devolve undefined, e `mudarVisibilidade(undefined)` toma a janela como oculta: põe `:root.oculta` e pausa o `filaQuadro`. Com isso, as capturas feitas desde o F-AN-10 saem com spinner, pulso e realce parados. A lista não fica vazia, porque a carga inicial vem do `GetQueue` e não passa pelo `filaQuadro`. Há dois jeitos de corrigir: o stub devolver `JanelaVisivel: true`, ou o frontend aceitar só `visivel === false` como oculta.
+2. `frontend/src/lib/atividade.js:36`: `ordenarDocs` virou código morto em produção. Desde o F-DF-04 o `AtividadeItem` usa `prepararDocs`, e `ordenarDocs` só aparece nos testes (`atividade.test.mjs`, `desempenho.test.mjs`). `ORDEM_ESTADO` continua em uso.
+
+Não encontrei interação ruim entre as correções nem regressão nestes pontos:
+
+- `realce` com `LimparConcluidos`: `terminados` é podado.
+- `content-visibility` com o foco itinerante.
+- Bandeja oculta com troca de tema.
+- `confirmarReprocessar` com `devolverFoco` (prefere "cancelar").
+- `Show` com `Cancelar` do animador: `Cancelar` espera a reposição, então não há corrida no aviso de visibilidade.
+
+## Revisão final da branch
+
+Revisão do intervalo 7cc90e2..HEAD (só o commit 84a05da, F-AC-14). O código não tem defeitos; há um problema, na mensagem de commit.
+
+Achado:
+
+- O título do commit 84a05da (F-AC-14) contradiz o código: "OCR e higienização são botões de ciclo com três pontinhos, sem mostrar as opções". O commit remove o ciclo (`ciclarOcr`/`ciclarLimpeza`/`proximaOpcao` saíram de `frontend/src/App.svelte` e `frontend/src/lib/atividade.js`) e acrescenta um menu que mostra as 4 opções com suas descrições (`frontend/src/components/MenuNivel.svelte`), conforme DESIGN.md:121 e a decisão do dono em 7cc90e2 ("menu flutuante"). O título precisa ser reescrito.
+
+Verificações:
+
+- Escopo: o intervalo 7cc90e2..HEAD contém só 84a05da.
+- Arquivos sensíveis: nenhum .zip, .pdf ou .txt. Os binários do diff são as capturas PNG em `depois-F-AC-14/`.
+- Código morto: nenhum. `proximaOpcao`, `AJUDA_OCR` e `AJUDA_LIMPEZA` saíram sem referências restantes; `.nivel-btn` e `.nivel-ponto` foram para `MenuNivel.svelte` com as regras de alto contraste.
+- `.pulse-dot` em `frontend/src/App.svelte`: a regra de alto contraste virou um bloco só, com o mesmo efeito (preenchimento e borda Highlight).
+- Interação entre correções: nenhuma. `salvarRapido` agora devolve booleano, e `MenuNivel` o usa para mostrar a confirmação só depois de gravar; os demais chamadores ignoram o retorno.
+- Versão do Svelte: 5.57.1 suporta o `{@attach}` usado em `MenuNivel.svelte`.
+- Idioma: mensagens e comentários novos em pt-BR.
+- Testes: `go vet ./...` sem saída; `go test ./... -count=1` passou em todos os pacotes; testes do frontend (`node --test frontend/*.test.mjs`): 310 passaram, 0 falharam.
 
 ## Como aprovar
 

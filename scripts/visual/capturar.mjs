@@ -6,6 +6,8 @@
 // Starts only the Vite dev server (no Go backend, so no real data can show up),
 // stubs the Wails bindings, and saves one PNG per size × theme × state, plus the
 // inner divider dragged to its minimum and maximum and the collapsed sidebar.
+// The states in ALTO_CONTRASTE are also captured once with forced colors on
+// (Windows high contrast), at 1024x768, with the activity panel open.
 import { execFileSync, execSync, spawn } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -16,6 +18,7 @@ import { ESTADOS, instalarStubs } from './estados.mjs';
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PLAYWRIGHT = '1.63.0';
 const PORTA = 5199;
+const ALTO_CONTRASTE = ['processando', 'configuracoes'];
 
 function opcoes(argv) {
   const o = { saida: null, rapido: false, estados: null };
@@ -186,6 +189,24 @@ async function main() {
           await ctx.close();
         }
       }
+    }
+
+    for (const nome of estados.filter((e) => ALTO_CONTRASTE.includes(e))) {
+      const ctx = await navegador.newContext({ viewport: { width: 1024, height: 768 }, reducedMotion: 'reduce', forcedColors: 'active' });
+      const page = await ctx.newPage();
+      await page.addInitScript(instalarStubs, { estado: ESTADOS[nome], tema: 'escuro' });
+      await page.goto(vite.url);
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(300);
+      const linha = await page.$('.item-row.processing .info-btn');
+      if (linha) {
+        await linha.click();
+        await page.waitForTimeout(300);
+      }
+      const arquivo = path.join(saida, `1024x768-alto-contraste-${nome}.png`);
+      await page.screenshot({ path: arquivo });
+      gerados.push(arquivo);
+      await ctx.close();
     }
   } finally {
     await navegador?.close();

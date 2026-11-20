@@ -1,14 +1,19 @@
 <script>
   import Icone from './components/Icone.svelte';
+  import MenuNivel from './components/MenuNivel.svelte';
+  import Check from 'lucide-svelte/icons/check';
   import ChevronLeft from 'lucide-svelte/icons/chevron-left';
-  import ChevronRight from 'lucide-svelte/icons/chevron-right';
+  import CirclePause from 'lucide-svelte/icons/circle-pause';
   import Copy from 'lucide-svelte/icons/copy';
   import FileArchive from 'lucide-svelte/icons/file-archive';
   import FilePlusCorner from 'lucide-svelte/icons/file-plus-corner';
+  import FolderSearch from 'lucide-svelte/icons/folder-search';
+  import FolderX from 'lucide-svelte/icons/folder-x';
   import Minus from 'lucide-svelte/icons/minus';
   import Monitor from 'lucide-svelte/icons/monitor';
   import Moon from 'lucide-svelte/icons/moon';
   import ScanText from 'lucide-svelte/icons/scan-text';
+  import SettingsIcon from 'lucide-svelte/icons/settings';
   import Sparkles from 'lucide-svelte/icons/sparkles';
   import Square from 'lucide-svelte/icons/square';
   import Sun from 'lucide-svelte/icons/sun';
@@ -29,6 +34,7 @@
     GetQueue,
     SelectZipFiles,
     IsQueuePaused,
+    JanelaVisivel,
     Hide,
     SetTheme,
     SaveConfig,
@@ -36,14 +42,17 @@
   } from './wailsjs/go/main/App.js';
   import Settings from './components/Settings.svelte';
   import ProcessList from './components/ProcessList.svelte';
+  import Aviso from './components/Aviso.svelte';
   import { contarAtivos, rotuloFila } from './lib/estado.js';
   import { criarFilaPorQuadro } from './lib/quadro.js';
-  import { fade, fly } from 'svelte/transition';
+  import { fade } from 'svelte/transition';
   import { LARGURA_MIN_PAINEL, criarArrasto, larguraMaxPainel, limitarPainel, teclaDivisor } from './lib/divisor.js';
-  import { DUR_BASE, DUR_FAST, criarAviso, duracaoMovimento } from './lib/aviso.js';
-  import { OPCOES_LIMPEZA, OPCOES_OCR, nivelOpcao, proximaOpcao, rotuloOpcao } from './lib/atividade.js';
-  import { cubicOut } from 'svelte/easing';
+  import { DUR_BASE, DUR_FAST, avisoSoltura, criarAviso, duracaoMovimento, separarZips } from './lib/aviso.js';
+  import { OPCOES_LIMPEZA, OPCOES_OCR, rotuloOpcao } from './lib/atividade.js';
   import { gravarPainel, lerPainel } from './lib/painel.js';
+  import { rolagem } from './lib/rolagem.js';
+  import { ROTULO_MONITORAMENTO, estadoMonitoramento, textoMonitoramento } from './lib/monitoramento.js';
+  import { criarSoltura, textoAceitos, textoJaNaFila } from './lib/soltura.js';
   import {
     CONSULTA_ESCURO,
     NOME_TEMA,
@@ -53,7 +62,8 @@
     lerPreferencia,
     lerSalvo,
     proximoTema,
-    temaEfetivo
+    temaEfetivo,
+    trocarTema
   } from './lib/tema.js';
 
   const versao = __APP_VERSION__;
@@ -76,6 +86,8 @@
   const painelSalvo = lerPainel(armazenamento(), larguraJanela);
   let sidebarWidth = painelSalvo.largura;
   let sidebarCollapsed = painelSalvo.recolhido;
+  let painelMaisAbaixo = false;
+  const marcarPainel = (e) => (painelMaisAbaixo = e.abaixo);
   let isResizing = false;
   let maximizada = false;
   let botaoRecolher;
@@ -85,8 +97,9 @@
   $: maxPainel = larguraMaxPainel(larguraJanela);
   $: larguraPainel = limitarPainel(sidebarWidth, larguraJanela);
 
-  // Drag and Drop State
-  let dragActive = false;
+  // Overlay de soltar: só para arquivos, e confirma o que foi aceito.
+  let estadoSoltura = null;
+  const soltura = criarSoltura((e) => { estadoSoltura = e; }, globalThis, DUR_BASE);
 
   // Unsubscribe handlers
   let unsubscribers = [];
@@ -96,10 +109,10 @@
   // Pausar a fila não interrompe o item em curso, que segue ativo.
   $: processingCount = contarAtivos(items);
 
-  $: monitorando = !!(config && config.watchdog_enabled && config.monitored_path);
-  $: textoMonitoramento = monitorando
-    ? `Monitorando: ${config.monitored_path}`
-    : (config && !config.watchdog_enabled && config.monitored_path ? 'Monitoramento pausado' : 'Sem monitoramento ativo');
+  // Mesmos rótulos e ícones do painel (Settings.svelte).
+  const ICONE_MONITORAMENTO = { monitorando: FolderSearch, pausado: CirclePause, sem_pasta: FolderX };
+  $: estado = estadoMonitoramento(config);
+  $: textoMonitor = textoMonitoramento(config);
 
   $: temaAtual = temaEfetivo(temaPref, sistemaEscuro);
   $: {
@@ -107,11 +120,26 @@
   }
 
   function mudouTemaDoSistema(e) {
-    sistemaEscuro = e.matches;
+    trocarTema(document, async () => {
+      sistemaEscuro = e.matches;
+      await tick();
+    }, duracaoMovimento(DUR_BASE));
   }
 
   onMount(async () => {
     consultaTema.addEventListener('change', mudouTemaDoSistema);
+
+    // Antes de qualquer await: o aviso pode chegar enquanto a consulta volta.
+    let visibilidadeAvisada = false;
+    unsubscribers.push(
+      EventsOn('janela:visivel', (visivel) => {
+        visibilidadeAvisada = true;
+        mudarVisibilidade(visivel);
+      })
+    );
+    JanelaVisivel().then((visivel) => {
+      if (!visibilidadeAvisada) mudarVisibilidade(visivel);
+    }).catch((err) => console.warn('Erro ao consultar a visibilidade da janela:', err));
     atualizarMaximizada();
 
     // Load initial config
@@ -130,13 +158,16 @@
     unsubscribers.push(
       EventsOn('queue:update', (data) => {
         filaQuadro.lista(data);
-        podarAtividades(data);
+        if (janelaOculta) listaOculta = data;
+        else podarAtividades(data);
       })
     );
 
     unsubscribers.push(
       EventsOn('queue:atividade', (inst) => {
-        if (inst?.item_id) atividades = { ...atividades, [inst.item_id]: inst };
+        if (!inst?.item_id) return;
+        if (janelaOculta) atividadesOcultas[inst.item_id] = inst;
+        else atividades = { ...atividades, [inst.item_id]: inst };
       })
     );
 
@@ -155,15 +186,22 @@
     // Register Native Drag and Drop for the whole window (global target)
     try {
       OnFileDrop((x, y, paths) => {
-        dragActive = false; // Reset visual overlay
-        if (paths && paths.length > 0) {
-          const zipPaths = paths.filter(path => path.toLowerCase().endsWith('.zip'));
-          if (zipPaths.length > 0) {
-            AddFilesToQueue(zipPaths);
-          } else {
-            alert('Por favor, arraste apenas arquivos ZIP do eproc.');
-          }
+        const { zips, ignorados } = separarZips(paths);
+        // O overlay e o anúncio esperam a fila dizer quantos entraram de fato:
+        // um ZIP já pendente ou em processamento é descartado por ela.
+        if (zips.length === 0) soltura.recebido(0);
+        else {
+          AddFilesToQueue(zips).then((n) => {
+            soltura.recebido(n);
+            anunciar(n > 0 ? textoAceitos(n) : textoJaNaFila(zips.length));
+          }).catch((err) => {
+            soltura.recebido(0);
+            console.error('Erro ao adicionar à fila:', err);
+            aviso.mostrar('Erro ao adicionar à fila: ' + (err?.message ?? err), 'error');
+          });
         }
+        const r = avisoSoltura(zips.length, ignorados);
+        if (r) aviso.mostrar(r.texto, r.tipo);
       }, false); // useDropTarget = false for global drop
     } catch (err) {
       console.warn('Wails OnFileDrop not available:', err);
@@ -173,6 +211,8 @@
   onDestroy(() => {
     stopResizing();
     aviso.limpar();
+    avisoPainel.limpar();
+    soltura.limpar();
     consultaTema.removeEventListener('change', mudouTemaDoSistema);
     filaQuadro.cancelar();
 
@@ -187,6 +227,31 @@
     } catch (e) {}
   });
 
+  // Na bandeja a WebView2 segue renderizando (o Windows só esconde a janela):
+  // :root.oculta pausa as animações e a fila e a atividade só guardam o último
+  // estado, aplicado ao reabrir.
+  let janelaOculta = false;
+  let atividadesOcultas = {};
+  let listaOculta = null;
+
+  function mudarVisibilidade(visivel) {
+    janelaOculta = !visivel;
+    document.documentElement.classList.toggle('oculta', janelaOculta);
+    if (janelaOculta) {
+      filaQuadro.pausar();
+      return;
+    }
+    if (Object.keys(atividadesOcultas).length) {
+      atividades = { ...atividades, ...atividadesOcultas };
+      atividadesOcultas = {};
+    }
+    if (listaOculta) {
+      podarAtividades(listaOculta);
+      listaOculta = null;
+    }
+    filaQuadro.retomar();
+  }
+
   // Item removido ou de volta à fila (reprocessar) não mostra a atividade antiga.
   function podarAtividades(lista) {
     const vivos = new Set((lista || []).filter((i) => i.status !== 'pending').map((i) => i.id));
@@ -200,31 +265,39 @@
   // formulário pode estar recolhido.
   let avisoRapido = null;
   const aviso = criarAviso((a) => { avisoRapido = a; });
+
+  // Pé do painel, fora da área rolável: erros do Settings e da importação
+  // manual. Com o painel recolhido o pé some, e o aviso vai para o flutuante.
+  let avisoPe = null;
+  const avisoPainel = criarAviso((a) => { avisoPe = a; });
+  function avisarPainel(texto, tipo) {
+    (sidebarCollapsed ? aviso : avisoPainel).mostrar(texto, tipo);
+  }
   let anuncio = '';
 
+  // Esvazia antes de escrever: o mesmo texto duas vezes seguidas é anunciado de novo.
+  async function anunciar(texto) {
+    if (!texto) return;
+    anuncio = '';
+    await tick();
+    anuncio = texto;
+  }
+
   async function salvarRapido(mudanca, texto) {
-    if (!config) return;
+    if (!config) return false;
     const novo = { ...config, ...mudanca };
     try {
       await SaveConfig(novo);
       config = novo;
-      anuncio = texto;
+      await anunciar(texto);
+      return true;
     } catch (err) {
       const msg = String(err?.message ?? err);
       // "configurações salvas, mas..." já se explica sozinha.
       aviso.mostrar(/^configurações salvas/i.test(msg) ? msg[0].toUpperCase() + msg.slice(1) : 'Erro ao salvar: ' + msg, 'error');
       await refreshConfig();
+      return false;
     }
-  }
-
-  function ciclarOcr() {
-    const prox = proximaOpcao(OPCOES_OCR, config?.ocr_mode);
-    salvarRapido({ ocr_mode: prox.valor }, `OCR: ${prox.rotulo}`);
-  }
-
-  function ciclarLimpeza() {
-    const prox = proximaOpcao(OPCOES_LIMPEZA, config?.cleaning_level);
-    salvarRapido({ cleaning_level: prox.valor }, `Higienização: ${prox.rotulo}`);
   }
 
   // Sem pasta configurada, ligar o monitoramento começa pela escolha da pasta.
@@ -243,8 +316,6 @@
     await salvarRapido({ watchdog_enabled: ligar }, ligar ? 'Monitoramento ativado' : 'Monitoramento pausado');
   }
 
-  $: rotuloOcr = rotuloOpcao(OPCOES_OCR, config?.ocr_mode);
-  $: rotuloLimpeza = rotuloOpcao(OPCOES_LIMPEZA, config?.cleaning_level);
   $: acaoMonitor = !config?.monitored_path
     ? 'Escolher pasta e ativar o monitoramento'
     : (config.watchdog_enabled ? 'Pausar o monitoramento' : 'Ativar o monitoramento');
@@ -270,10 +341,15 @@
     if (r.gravarConfig) gravarTemaNoBackend(r.tema);
   }
 
+  // Tudo dentro do retorno: com cliques seguidos, cada troca parte do tema
+  // que a anterior já aplicou.
   function toggleTheme() {
-    temaPref = proximoTema(temaPref);
-    gravarSalvo(armazenamento(), temaPref);
-    gravarTemaNoBackend(temaPref);
+    trocarTema(document, async () => {
+      temaPref = proximoTema(temaPref);
+      gravarSalvo(armazenamento(), temaPref);
+      gravarTemaNoBackend(temaPref);
+      await tick();
+    }, duracaoMovimento(DUR_BASE));
   }
 
   // O Wails não emite evento de maximizar; o resize da janela cobre o botão,
@@ -309,6 +385,7 @@
       }
     } catch (err) {
       console.error('Erro ao selecionar arquivos:', err);
+      avisarPainel('Erro ao selecionar arquivos: ' + (err?.message ?? err), 'error');
     }
   }
 
@@ -366,42 +443,46 @@
     gravarPainel(armazenamento(), { largura: sidebarWidth, recolhido: sidebarCollapsed });
   }
 
-  // Web Drag and Drop handlers (to show visual overlay when dragging over the window)
+  // preventDefault só em arrasto de arquivos; texto arrastado segue o padrão.
+  function handleDragEnter(e) {
+    if (soltura.entrar(e.dataTransfer)) e.preventDefault();
+  }
+
   function handleDragOver(e) {
-    e.preventDefault();
-    dragActive = true;
+    if (estadoSoltura) e.preventDefault();
   }
 
   function handleDragLeave(e) {
-    e.preventDefault();
-    if (e.clientX === 0 || e.clientY === 0) {
-      dragActive = false;
-    }
+    soltura.sair(e.dataTransfer);
   }
 
   function handleWindowDrop(e) {
-    // Let the event bubble naturally so WebView2/Wails captures it.
-    dragActive = false;
+    // Sem stopPropagation: o WebView2/Wails precisa do evento para o OnFileDrop.
+    soltura.soltar(e.dataTransfer);
   }
 </script>
 
-<svelte:window bind:innerWidth={larguraJanela} on:resize={atualizarMaximizada} />
-
-<div
-  class="app-container"
-  role="region"
-  aria-label="Aplicativo eprocIA"
+<svelte:window
+  bind:innerWidth={larguraJanela}
+  on:resize={atualizarMaximizada}
   on:dragover={handleDragOver}
-  on:dragenter={handleDragOver}
+  on:dragenter={handleDragEnter}
   on:dragleave={handleDragLeave}
   on:drop={handleWindowDrop}
->
+/>
+
+<div class="app-container">
   <!-- Full Window Drag & Drop Overlay -->
-  {#if dragActive}
+  {#if estadoSoltura}
     <div class="drag-overlay" transition:fade={{ duration: duracaoMovimento(DUR_FAST) }}>
       <div class="overlay-box">
-        <Icone icone={FileArchive} tamanho={48} cor="var(--accent)" />
-        <p>Solte o arquivo ZIP em qualquer lugar para processar</p>
+        {#if estadoSoltura.fase === 'aceito'}
+          <Icone icone={Check} tamanho={48} cor="var(--accent)" />
+          <p>{estadoSoltura.texto}</p>
+        {:else}
+          <Icone icone={FileArchive} tamanho={48} cor="var(--accent)" />
+          <p>Solte o arquivo ZIP em qualquer lugar para processar</p>
+        {/if}
       </div>
     </div>
   {/if}
@@ -416,7 +497,7 @@
     <div class="titlebar-actions" style="--wails-draggable: no-drag">
       <!-- Active Processes Indicator -->
       {#if processingCount > 0}
-        <div class="pulse-indicator">
+        <div class="pulse-indicator" transition:fade={{ duration: duracaoMovimento(DUR_FAST) }}>
           <span class="pulse-dot"></span>
           <span>{processingCount} ativo{processingCount > 1 ? 's' : ''}</span>
         </div>
@@ -424,7 +505,7 @@
 
       <!-- Theme Switcher -->
       <button
-        class="titlebar-btn"
+        class="titlebar-btn btn-tema"
         on:click={toggleTheme}
         title="Tema: {NOME_TEMA[temaPref]} (clique para {NOME_TEMA[proximoTema(temaPref)]})"
         aria-label="Tema: {NOME_TEMA[temaPref]}. Mudar para {NOME_TEMA[proximoTema(temaPref)]}"
@@ -438,14 +519,16 @@
         {/if}
       </button>
 
+      <span class="titlebar-divisor" aria-hidden="true"></span>
+
       <!-- Minimize Window -->
-      <button class="titlebar-btn" on:click={WindowMinimise} title="Minimizar" aria-label="Minimizar">
+      <button class="titlebar-btn btn-janela" on:click={WindowMinimise} title="Minimizar" aria-label="Minimizar">
         <Icone icone={Minus} tamanho={14} />
       </button>
 
       <!-- Maximize/Restore Window -->
       <button
-        class="titlebar-btn"
+        class="titlebar-btn btn-janela"
         on:click={alternarMaximizar}
         title={maximizada ? 'Restaurar' : 'Maximizar'}
         aria-label={maximizada ? 'Restaurar' : 'Maximizar'}
@@ -458,24 +541,30 @@
       </button>
 
       <!-- Close Window (Hides to Tray) -->
-      <button class="titlebar-btn btn-close" on:click={handleCloseWindow} title="Fechar (Minimiza para a bandeja)" aria-label="Fechar (minimiza para a bandeja)">
+      <button class="titlebar-btn btn-janela btn-close" on:click={handleCloseWindow} title="Fechar (Minimiza para a bandeja)" aria-label="Fechar (minimiza para a bandeja)">
         <Icone icone={X} tamanho={14} />
       </button>
     </div>
   </div>
 
   <!-- Main Content Grid -->
-  <main class="grid-layout">
+  <div class="grid-layout">
     <!-- Sidebar (Collapsible & Resizable) -->
     <aside
       id="sidebar"
       class="sidebar"
+      aria-label="Configurações e importação"
       style="width: {sidebarCollapsed ? '48px' : larguraPainel + 'px'}"
       style:--largura-painel="{larguraPainel}px"
       class:collapsed={sidebarCollapsed}
       class:resizing={isResizing}
     >
       <div class="sidebar-header-toggle">
+        <!-- Montado também recolhido: some com fade, como o conteúdo. -->
+        <div class="painel-titulo">
+          <Icone icone={SettingsIcon} tamanho={14} />
+          <h2>Configurações</h2>
+        </div>
         <button
           class="btn-toggle-sidebar"
           bind:this={botaoRecolher}
@@ -485,24 +574,20 @@
           aria-expanded={!sidebarCollapsed}
           aria-controls="sidebar"
         >
-          {#if sidebarCollapsed}
-            <Icone icone={ChevronRight} />
-          {:else}
-            <Icone icone={ChevronLeft} />
-          {/if}
+          <span class="chevron-painel"><Icone icone={ChevronLeft} /></span>
         </button>
       </div>
 
       <!-- Escondido, não desmontado: o Settings mantém o aviso e a config. -->
-      <div class="sidebar-content" inert={sidebarCollapsed}>
+      <div class="sidebar-content" class:mais-abaixo={painelMaisAbaixo} use:rolagem={marcarPainel} inert={sidebarCollapsed}>
         <!-- Settings Component -->
-        <Settings bind:config {erroConfig} aoFalharSalvar={refreshConfig} />
+        <Settings bind:config {erroConfig} aoFalharSalvar={refreshConfig} avisar={avisarPainel} />
 
         <!-- Manual Process Card -->
         <div class="manual-card">
           <div class="card-header">
-            <Icone icone={FilePlusCorner} tamanho={12} />
-            <h3>Importação Manual</h3>
+            <Icone icone={FilePlusCorner} tamanho={14} />
+            <h2>Importação Manual</h2>
           </div>
 
           <button
@@ -516,58 +601,55 @@
         </div>
       </div>
 
+      <div class="painel-aviso">
+        <Aviso aviso={avisoPe} aoFechar={avisoPainel.fechar} />
+      </div>
+
       {#if sidebarCollapsed}
         <!-- Collapsed Sidebar Vertical Tools -->
         <div class="collapsed-tools" in:fade={{ duration: duracaoMovimento(DUR_FAST), delay: duracaoMovimento(DUR_FAST) }}>
           <button
             type="button"
             class="collapsed-indicator"
-            class:active={monitorando}
-            class:inactive={!monitorando}
+            class:pausado={estado === 'pausado'}
             on:click={alternarMonitoramento}
-            title="{textoMonitoramento}. Clique para {acaoMonitor.toLowerCase()}"
-            aria-label="{textoMonitoramento}. {acaoMonitor}"
-            aria-pressed={monitorando}
+            title="{textoMonitor}. Clique para {acaoMonitor.toLowerCase()}"
+            aria-label="Monitoramento"
+            aria-pressed={estado === 'monitorando'}
+            aria-describedby="estado-monitor-recolhido"
             disabled={!config}
           >
-            <span class="collapsed-dot" aria-hidden="true"></span>
+            {#key estado}
+              <span class="monitor-icone" in:fade={{ duration: duracaoMovimento(DUR_FAST) }}>
+                <Icone icone={ICONE_MONITORAMENTO[estado]} />
+              </span>
+            {/key}
           </button>
+          <span id="estado-monitor-recolhido" class="sr-only">{textoMonitor}</span>
 
           <button class="collapsed-tool-btn" on:click={triggerManualSelect} title="Processar ZIP Manualmente" aria-label="Processar ZIP manualmente">
             <Icone icone={Upload} />
           </button>
 
-          <button
-            type="button"
-            class="collapsed-tool-btn nivel-btn"
-            on:click={ciclarOcr}
-            disabled={!config}
-            title="OCR: {rotuloOcr}. Clique para {rotuloOpcao(OPCOES_OCR, proximaOpcao(OPCOES_OCR, config?.ocr_mode).valor)}"
-            aria-label="OCR: {rotuloOcr}. Mudar para {rotuloOpcao(OPCOES_OCR, proximaOpcao(OPCOES_OCR, config?.ocr_mode).valor)}"
-          >
-            <Icone icone={ScanText} tamanho={14} />
-            <span class="nivel" aria-hidden="true">
-              {#each OPCOES_OCR.slice(1) as _, i}
-                <span class="nivel-ponto" class:cheio={i < nivelOpcao(OPCOES_OCR, config?.ocr_mode)}></span>
-              {/each}
-            </span>
-          </button>
+          <MenuNivel
+            id="ocr"
+            legenda="OCR"
+            icone={ScanText}
+            opcoes={OPCOES_OCR}
+            valor={config?.ocr_mode}
+            desabilitado={!config}
+            aoEscolher={(v) => salvarRapido({ ocr_mode: v }, `OCR: ${rotuloOpcao(OPCOES_OCR, v)}`)}
+          />
 
-          <button
-            type="button"
-            class="collapsed-tool-btn nivel-btn"
-            on:click={ciclarLimpeza}
-            disabled={!config}
-            title="Higienização: {rotuloLimpeza}. Clique para {rotuloOpcao(OPCOES_LIMPEZA, proximaOpcao(OPCOES_LIMPEZA, config?.cleaning_level).valor)}"
-            aria-label="Higienização: {rotuloLimpeza}. Mudar para {rotuloOpcao(OPCOES_LIMPEZA, proximaOpcao(OPCOES_LIMPEZA, config?.cleaning_level).valor)}"
-          >
-            <Icone icone={Sparkles} tamanho={14} />
-            <span class="nivel" aria-hidden="true">
-              {#each OPCOES_LIMPEZA.slice(1) as _, i}
-                <span class="nivel-ponto" class:cheio={i < nivelOpcao(OPCOES_LIMPEZA, config?.cleaning_level)}></span>
-              {/each}
-            </span>
-          </button>
+          <MenuNivel
+            id="limpeza"
+            legenda="Higienização"
+            icone={Sparkles}
+            opcoes={OPCOES_LIMPEZA}
+            valor={config?.cleaning_level}
+            desabilitado={!config}
+            aoEscolher={(v) => salvarRapido({ cleaning_level: v }, `Higienização: ${rotuloOpcao(OPCOES_LIMPEZA, v)}`)}
+          />
         </div>
       {/if}
 
@@ -576,7 +658,7 @@
         <div
           class="resize-handle"
           role="slider"
-          aria-label="Redimensionador de Menu"
+          aria-label="Largura do painel"
           aria-orientation="horizontal"
           aria-valuemin={LARGURA_MIN_PAINEL}
           aria-valuemax={maxPainel}
@@ -596,35 +678,41 @@
     </aside>
 
     <!-- Right Process List Area -->
-    <section class="content-area">
-      <ProcessList bind:items={items} {isPaused} {atividades} {config} />
-    </section>
-  </main>
+    <main class="content-area">
+      <ProcessList bind:items={items} {isPaused} {atividades} {config} aoSelecionarZip={triggerManualSelect} />
+    </main>
+  </div>
 
   <!-- Footer Status Bar -->
   <footer>
     <div class="status-item status-main">
       <button
         type="button"
-        class="status-dot-btn"
+        class="monitor-btn"
+        class:pausado={estado === 'pausado'}
         on:click={alternarMonitoramento}
         disabled={!config}
-        title={acaoMonitor}
-        aria-label={acaoMonitor}
-        aria-pressed={monitorando}
+        title="{textoMonitor}. Clique para {acaoMonitor.toLowerCase()}"
+        aria-label="Monitoramento"
+        aria-pressed={estado === 'monitorando'}
       >
-        <span class="status-dot" class:active={monitorando} class:inactive={!monitorando}></span>
+        {#key estado}
+          <span class="monitor-icone" in:fade={{ duration: duracaoMovimento(DUR_FAST) }}>
+            <Icone icone={ICONE_MONITORAMENTO[estado]} tamanho={12} />
+          </span>
+        {/key}
       </button>
-      {#if config && config.watchdog_enabled && config.monitored_path}
+      {#if estado === 'monitorando'}
         <span class="status-text truncate" title={config.monitored_path}>
-          Pasta monitorada: <strong>{config.monitored_path}</strong>
+          Monitorando: <strong>{config.monitored_path}</strong>
         </span>
-      {:else if config && !config.watchdog_enabled && config.monitored_path}
+      {:else if estado === 'pausado'}
         <span class="status-text truncate" title={config.monitored_path}>
-          Monitoramento pausado (pasta configurada: <strong>{config.monitored_path}</strong>)
+          Pausado: <strong>{config.monitored_path}</strong>
         </span>
       {:else}
-        <span class="status-text truncate">Monitoramento inativo. Configure uma pasta no painel ao lado.</span>
+        <span class="status-text">{ROTULO_MONITORAMENTO[estado]}.</span>
+        <button type="button" class="status-link" on:click={alternarMonitoramento} disabled={!config}>Escolher pasta para monitorar</button>
       {/if}
     </div>
     <div class="status-item status-count font-tabular">
@@ -639,19 +727,8 @@
   <!-- Sempre montadas: o leitor de tela só anuncia mudanças numa região que
        já existia antes da mensagem. -->
   <div class="sr-only" role="status" aria-live="polite">{anuncio}</div>
-  <div class="aviso-rapido-regiao" role="alert" aria-atomic="true">
-    {#if avisoRapido}
-      <div
-        class="aviso-rapido"
-        in:fly={{ y: 8, duration: duracaoMovimento(DUR_BASE), easing: cubicOut }}
-        out:fade={{ duration: duracaoMovimento(DUR_FAST) }}
-      >
-        <span class="aviso-rapido-texto">{avisoRapido.texto}</span>
-        <button class="aviso-rapido-fechar" on:click={aviso.fechar} aria-label="Fechar aviso" title="Fechar aviso">
-          <Icone icone={X} tamanho={12} />
-        </button>
-      </div>
-    {/if}
+  <div class="aviso-flutuante">
+    <Aviso aviso={avisoRapido} aoFechar={aviso.fechar} flutuante />
   </div>
 </div>
 
@@ -713,10 +790,10 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 12px;
+    /* Sem padding à direita: o Fechar encosta no canto, como no Windows 11. */
+    padding: 0 0 0 12px;
     flex-shrink: 0;
     user-select: none;
-    transition: background-color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
   }
 
   .brand-title {
@@ -750,7 +827,8 @@
   .titlebar-actions {
     display: flex;
     align-items: center;
-    gap: 4px;
+    align-self: stretch;
+    gap: 0;
   }
 
   .titlebar-btn {
@@ -758,13 +836,28 @@
     border: none;
     color: var(--text-secondary);
     cursor: pointer;
-    border-radius: 4px;
-    width: 28px;
-    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+  }
+
+  .btn-tema {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+  }
+
+  .titlebar-divisor {
+    width: 1px;
+    height: 16px;
+    margin: 0 8px;
+    background-color: var(--border);
+  }
+
+  /* Minimizar, maximizar e fechar: faixas da altura da barra, coladas entre si. */
+  .btn-janela {
+    width: 44px;
+    height: 100%;
   }
 
   .titlebar-btn:hover {
@@ -782,7 +875,7 @@
     align-items: center;
     gap: 6px;
     font-size: var(--fs-meta);
-    color: var(--accent);
+    color: var(--accent-text);
     font-weight: 600;
     background-color: var(--accent-soft);
     padding: 2px 8px;
@@ -842,7 +935,7 @@
     position: relative;
     flex-shrink: 0;
     overflow: visible; /* Needed for resize handle to overlap */
-    transition: width var(--dur-fast) var(--ease-out), background-color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
+    transition: width var(--dur-fast) var(--ease-out);
   }
 
   /* A largura acompanha o ponteiro 1:1; a transição só vale para recolher e teclado. */
@@ -856,11 +949,15 @@
     overflow: hidden;
   }
 
-  /* Só o botão de recolher: o painel não repete um título acima das seções. */
+  /* Rótulo "Configurações" à esquerda e botão de recolher à direita. */
+  /* flex-end: o chevron fica a 12px da borda direita na largura toda e, na
+     coluna de 48px, já centrado; nada salta enquanto a largura anima. */
   .sidebar-header-toggle {
+    position: relative;
     display: flex;
     justify-content: flex-end;
     align-items: center;
+    gap: 8px;
     padding: 8px 12px;
     border-bottom: 1px solid var(--border);
     height: 38px;
@@ -868,12 +965,37 @@
     width: 100%;
   }
 
-  .sidebar.collapsed .sidebar-header-toggle {
-    justify-content: center;
-    padding: 8px 0;
+  .painel-titulo {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    margin-right: auto;
+    color: var(--text-secondary);
+    transition: opacity var(--dur-fast) var(--ease-out) var(--dur-fast);
+  }
+
+  .painel-titulo h2 {
+    font-size: var(--fs-section);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    margin: 0;
+    white-space: nowrap;
+  }
+
+  /* Fora do fluxo, para o chevron centralizar na coluna de 48px. */
+  .sidebar.collapsed .painel-titulo {
+    position: absolute;
+    left: 12px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--dur-fast) var(--ease-out), visibility var(--dur-fast) linear;
   }
 
   .btn-toggle-sidebar {
+    flex-shrink: 0;
     background: transparent;
     border: none;
     color: var(--text-secondary);
@@ -890,15 +1012,42 @@
     background-color: var(--surface-hover);
   }
 
+  .chevron-painel {
+    display: flex;
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+
+  .sidebar.collapsed .chevron-painel {
+    transform: rotate(180deg);
+  }
+
+  /* 12px: a mesma guia vertical da barra de título, do rodapé e da lista. */
   .sidebar-content {
-    padding: 8px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 16px;
     flex: 1;
     overflow-y: auto;
-    transition: opacity var(--dur-fast) var(--ease-out) var(--dur-fast);
+    /* A sombra de "há mais abaixo" precisa ficar por cima do pé do painel. */
+    position: relative;
+    z-index: 1;
+    transition: opacity var(--dur-fast) var(--ease-out) var(--dur-fast), box-shadow var(--dur-fast) var(--ease-out);
   }
+
+  .sidebar-content.mais-abaixo {
+    box-shadow: var(--shadow-sm);
+  }
+  .painel-aviso {
+    flex-shrink: 0;
+    /* o Aviso já traz 8px de margem lateral: +4px fecham a guia de 12px */
+    padding: 0 4px;
+  }
+
+  .sidebar.collapsed .painel-aviso {
+    display: none;
+  }
+
   .sidebar.collapsed .sidebar-content {
     position: absolute;
     top: 38px;
@@ -962,7 +1111,7 @@
     border: 0;
   }
 
-  /* Botão de 24px em volta do ponto de 6px: alvo fácil sem mudar o visual. */
+  /* Ícone do estado do monitoramento (o mesmo do rodapé e do painel). */
   .collapsed-indicator {
     width: 24px;
     height: 24px;
@@ -973,62 +1122,30 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    color: var(--text-secondary);
     cursor: pointer;
-    transition: background-color var(--dur-fast) var(--ease-out);
   }
 
   .collapsed-indicator:hover {
     background-color: var(--surface-hover);
+    color: var(--text-primary);
   }
 
-  .collapsed-indicator:hover .collapsed-dot {
-    transform: scale(1.4);
+  .collapsed-indicator.pausado,
+  .monitor-btn.pausado {
+    color: var(--warning);
+  }
+
+  .monitor-icone {
+    display: flex;
   }
 
   .collapsed-indicator:disabled,
   .collapsed-tool-btn:disabled,
-  .status-dot-btn:disabled {
+  .monitor-btn:disabled,
+  .status-link:disabled {
     cursor: default;
     opacity: 0.6;
-  }
-
-  .collapsed-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
-  }
-
-  /* Ícone com os pontos de nível embaixo: o nível muda a cada clique. */
-  .nivel-btn {
-    flex-direction: column;
-    gap: 3px;
-    height: 36px;
-  }
-
-  .nivel {
-    display: flex;
-    gap: 2px;
-  }
-
-  .nivel-ponto {
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background-color: var(--border-strong);
-    transition: background-color var(--dur-fast) var(--ease-out);
-  }
-
-  .nivel-ponto.cheio {
-    background-color: var(--accent);
-  }
-
-  .collapsed-indicator.active .collapsed-dot {
-    background-color: var(--success);
-  }
-
-  .collapsed-indicator.inactive .collapsed-dot {
-    background-color: var(--warning);
   }
 
   .collapsed-tool-btn {
@@ -1042,7 +1159,6 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
   }
 
   .collapsed-tool-btn:hover {
@@ -1062,13 +1178,14 @@
 
   /* Manual process card */
   /* Seção do painel: divisor de 1px no lugar da moldura de cartão. */
+  /* flex: none: a 600px de altura a área rola em vez de espremer a seção. */
   .manual-card {
+    flex: none;
     border-top: 1px solid var(--border);
-    padding-top: 8px;
+    padding-top: 16px;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    transition: border-color var(--dur-base) var(--ease-out);
   }
 
   .manual-card .card-header {
@@ -1078,7 +1195,7 @@
     color: var(--text-secondary);
   }
 
-  .manual-card h3 {
+  .manual-card h2 {
     font-size: var(--fs-section);
     font-weight: 600;
     text-transform: uppercase;
@@ -1101,7 +1218,6 @@
     justify-content: center;
     gap: 8px;
     cursor: pointer;
-    transition: border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
   }
 
   .manual-select-btn:hover {
@@ -1129,7 +1245,6 @@
     color: var(--text-secondary);
     flex-shrink: 0;
     user-select: none;
-    transition: background-color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
   }
 
   .status-item {
@@ -1156,94 +1271,67 @@
     background-color: var(--border);
   }
 
-  .status-dot-btn {
+  /* Alvo de 24px no rodapé de 26px; a margem negativa alinha o ícone à guia de 12px. */
+  .monitor-btn {
     flex-shrink: 0;
-    width: 18px;
-    height: 18px;
-    margin: 0 -6px;
+    width: 24px;
+    height: 24px;
+    margin: 0 -4px 0 -6px;
     padding: 0;
     border: none;
-    border-radius: 50%;
+    border-radius: 4px;
     background: transparent;
+    color: var(--text-secondary);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
   }
 
-  .status-dot-btn:hover {
+  .monitor-btn:hover {
+    background-color: var(--surface-hover);
+    color: var(--text-primary);
+  }
+
+  .status-link {
+    flex-shrink: 0;
+    padding: 0 4px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--accent-text);
+    font-family: inherit;
+    font-size: var(--fs-meta);
+    text-decoration: underline;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .status-link:hover {
     background-color: var(--surface-hover);
   }
 
-  .status-dot-btn:hover .status-dot {
-    transform: scale(1.4);
-  }
-
-  .status-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
-  }
-
-  .aviso-rapido-regiao {
+  .aviso-flutuante {
     position: absolute;
     left: 50%;
     bottom: 34px;
     transform: translateX(-50%);
     z-index: 900;
+    width: max-content;
     max-width: min(480px, calc(100% - 32px));
-  }
-
-  .aviso-rapido {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    font-size: var(--fs-meta);
-    font-weight: 500;
-    color: var(--error-strong);
-    background-color: var(--surface);
-    border: 1px solid currentColor;
-    border-radius: 4px;
-    box-shadow: var(--shadow-overlay);
-  }
-
-  .aviso-rapido-texto {
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .aviso-rapido-fechar {
-    flex: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    border: none;
-    border-radius: 4px;
-    background: transparent;
-    color: inherit;
-    cursor: pointer;
-  }
-
-  .aviso-rapido-fechar:hover {
-    background-color: var(--error-soft);
-  }
-
-  .status-dot.active {
-    background-color: var(--success);
-  }
-
-  .status-dot.inactive {
-    background-color: var(--warning);
   }
 
   .status-text {
     font-size: var(--fs-meta);
+  }
+
+  /* Alto contraste do Windows: o fundo vira Canvas e o ponto sumiria. */
+  @media (forced-colors: active) {
+    .pulse-dot {
+      forced-color-adjust: none;
+      border: 1px solid Highlight;
+      background-color: Highlight;
+    }
   }
 
   .font-tabular {

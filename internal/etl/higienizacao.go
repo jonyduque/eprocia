@@ -44,8 +44,15 @@ func linhaSeparadora(l string) bool {
 // linhasBasicas tira caracteres de controle (exceto \n e \t), colapsa espaços,
 // tabs e NBSP, apara as linhas e descarta as vazias e as separadoras.
 func linhasBasicas(text string) []string {
-	var out []string
+	out := make([]string, 0, strings.Count(text, "\n")+1)
 	for linha := range strings.SplitSeq(text, "\n") {
+		if linhaLimpa(linha) {
+			// Reaproveita a fatia do texto: Map, Fields e Join a devolveriam igual.
+			if linha != "" && !linhaSeparadora(linha) {
+				out = append(out, linha)
+			}
+			continue
+		}
 		linha = strings.Map(func(r rune) rune {
 			switch {
 			case r == '\t' || r == ' ' || r == '\v' || r == '\f' || r == '\u0085':
@@ -62,6 +69,38 @@ func linhasBasicas(text string) []string {
 		out = append(out, linha)
 	}
 	return out
+}
+
+// linhaLimpa informa se linhasBasicas devolveria l sem mudança: nenhum
+// controle, nenhum espaço além do ' ' simples entre palavras e UTF-8 válido
+// (strings.Map troca o byte inválido por U+FFFD).
+func linhaLimpa(l string) bool {
+	espaco := true // um ' ' no começo já suja a linha
+	for i := 0; i < len(l); {
+		c := l[i]
+		if c < utf8.RuneSelf {
+			switch {
+			case c == ' ':
+				if espaco {
+					return false
+				}
+				espaco = true
+			case c < 0x20 || c == 0x7f:
+				return false
+			default:
+				espaco = false
+			}
+			i++
+			continue
+		}
+		r, n := utf8.DecodeRuneInString(l[i:])
+		if r == utf8.RuneError || unicode.IsSpace(r) || unicode.IsControl(r) {
+			return false
+		}
+		espaco = false
+		i += n
+	}
+	return !espaco || l == ""
 }
 
 // Janelas de H6: a chancela só é procurada nas últimas linhas da página e, no
@@ -319,6 +358,11 @@ var (
 // nem outro caractere, que não são numeral romano (D de débito incluído),
 // alínea, sigla de UF, crase ou "é" soltos, nem contêm º ou ª ("nº").
 func linhaLetraSolta(l string) bool {
+	// Mais de duas runas nunca é letra solta; contar runas, e não bytes, mantém
+	// "ﬁﬁ" (6 bytes) na regra.
+	if len(l) > 2*utf8.UTFMax || utf8.RuneCountInString(l) > 2 {
+		return false
+	}
 	if romanoRegex.MatchString(l) || alineaRegex.MatchString(l) || siglasUF[l] || strings.ContainsAny(l, "ºª") {
 		return false
 	}
@@ -356,15 +400,55 @@ func paginaCertificado(linhas []string) bool {
 	n := 0
 	titulo := false
 	for _, l := range linhas {
-		if certificadoTituloRegex.MatchString(l) {
+		if tituloCertificado(l) {
 			titulo = true
 		}
-		if m := certificadoCampoRegex.FindStringSubmatch(l); m != nil {
+		if campo, ok := campoCertificado(l); ok {
 			n++
-			tipos[strings.ToLower(strings.Join(strings.Fields(m[1]), " "))] = true
+			tipos[strings.ToLower(strings.Join(strings.Fields(campo), " "))] = true
 		}
 	}
 	return (titulo && n >= 1) || (n >= 3 && len(tipos) >= 2)
+}
+
+// tituloCertificado é certificadoTituloRegex com pré-filtro: a linha precisa
+// conter "eletr" em qualquer caixa. O filtro não usa o s, que sob (?i) casa
+// também com ſ; e, l, t e r só casam com as próprias maiúscula e minúscula.
+func tituloCertificado(l string) bool {
+	return contemSemCaixaASCII(l, "eletr") && certificadoTituloRegex.MatchString(l)
+}
+
+// campoCertificado é certificadoCampoRegex com pré-filtro no primeiro byte
+// (E, V, A ou N, em qualquer caixa) e devolve o campo casado.
+func campoCertificado(l string) (string, bool) {
+	if len(l) == 0 {
+		return "", false
+	}
+	switch l[0] | 0x20 {
+	case 'e', 'v', 'a', 'n':
+	default:
+		return "", false
+	}
+	m := certificadoCampoRegex.FindStringSubmatch(l)
+	if m == nil {
+		return "", false
+	}
+	return m[1], true
+}
+
+// contemSemCaixaASCII informa se s contém sub (letras minúsculas ASCII)
+// ignorando a caixa das letras ASCII.
+func contemSemCaixaASCII(s, sub string) bool {
+	for i := 0; i+len(sub) <= len(s); i++ {
+		j := 0
+		for j < len(sub) && s[i+j]|0x20 == sub[j] {
+			j++
+		}
+		if j == len(sub) {
+			return true
+		}
+	}
+	return false
 }
 
 // Limites de H9.

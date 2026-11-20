@@ -3,9 +3,11 @@
 import {models} from '../models';
 import {etl} from '../models';
 
-export function AddFilesToQueue(arg1:Array<string>):Promise<void>;
+export function AddFilesToQueue(arg1:Array<string>):Promise<number>;
 
 export function CancelQueueItem(arg1:string):Promise<void>;
+
+export function ClearFinishedQueue():Promise<void>;
 
 export function ClearQueue():Promise<void>;
 
@@ -22,6 +24,8 @@ export function Greet(arg1:string):Promise<string>;
 export function Hide():Promise<void>;
 
 export function IsQueuePaused():Promise<boolean>;
+
+export function JanelaVisivel():Promise<boolean>;
 
 export function OpenDirectory(arg1:string):Promise<void>;
 
