@@ -48,6 +48,10 @@
 .PARAMETER DryRun
     Mostra o que seria feito sem alterar nada e depois pergunta se deve fazer de verdade.
 
+.PARAMETER Yes
+    Não pergunta antes de instalar, atualizar ou remover. Sem console para perguntar (entrada
+    redirecionada, tarefa agendada), o script só segue com -Yes.
+
 .PARAMETER Log
     Interno: arquivo de log da cópia sem privilégios iniciada por um terminal elevado.
 
@@ -66,6 +70,7 @@ param(
     [switch]$NoStart,
     [Alias('dry-run')]
     [switch]$DryRun,
+    [switch]$Yes,
     [string]$Log = '',
     [string]$Self = ''
 )
@@ -236,6 +241,32 @@ function Read-Choice([string]$Question, [System.Collections.IDictionary]$Options
 # Erros terminam com uma linha vermelha; `exit` fecharia o terminal sob `irm | iex`.
 function Fail([string]$Text) { throw $Text }
 
+# Há um console para perguntar? Não há na tarefa agendada nem com a entrada redirecionada.
+# Sob `irm | iex` a entrada é o console, e o Read-Host lê normalmente.
+function Test-Interactive {
+    try { [Environment]::UserInteractive -and -not [Console]::IsInputRedirected } catch { $false }
+}
+
+# Verdadeiro depois do "Sim" da simulação: a execução real que vem em seguida não pergunta de novo.
+$script:confirmed = $false
+
+# Pergunta [S/n] antes de mudar a máquina: Enter ou s segue, n cancela. Com -Yes não
+# pergunta; na simulação só mostra o que perguntaria; sem console, exige -Yes.
+function Confirm-Plan([string]$Question) {
+    if ($Yes -or $script:confirmed) { return $true }
+    if ($DryRun) { Write-Note "Perguntaria: $Question [S/n]"; return $true }
+    if (-not (Test-Interactive)) { Fail 'Sem console para confirmar. Rode de novo com -Yes para seguir sem pergunta.' }
+    Write-Host ''
+    while ($true) {
+        $answer = ([string](Read-Host "  $Question [S/n]")).Trim()
+        if ($answer -eq '' -or $answer -match '^(s|sim)$') { return $true }
+        if ($answer -match '^(n|nao|não)$') { return $false }
+        Write-Note 'Responda s ou n (Enter = sim).'
+    }
+}
+
+function Write-Cancelled { Write-Warn 'Cancelado. Nada foi alterado.' }
+
 function Test-Elevated {
     $id = [Security.Principal.WindowsIdentity]::GetCurrent()
     (New-Object Security.Principal.WindowsPrincipal $id).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -255,6 +286,29 @@ function Get-SessionUser {
 }
 
 function Get-InstallDir { if ($Dir) { $Dir } else { Join-Path $env:LOCALAPPDATA "Programs\$app" } }
+
+# Pasta de instalação de outro usuário (terminal elevado), pelo perfil registrado dele.
+function Get-UserInstallDir([string]$User) {
+    if ($Dir -or $User -eq [Security.Principal.WindowsIdentity]::GetCurrent().Name) { return Get-InstallDir }
+    try {
+        $sid = (New-Object Security.Principal.NTAccount $User).Translate([Security.Principal.SecurityIdentifier]).Value
+        $userHome = (Get-ItemProperty -LiteralPath "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$sid").ProfileImagePath
+        if ($userHome) { return Join-Path $userHome "AppData\Local\Programs\$app" }
+    } catch { }
+    "%LOCALAPPDATA%\Programs\$app ($User)"
+}
+
+# Com -Purge: configurações e falhas.json, dados do WebView2 e binários do OCR extraídos.
+function Get-PurgeDirs {
+    @((Join-Path $env:APPDATA $app), (Join-Path $env:APPDATA $exeName), (Join-Path ([IO.Path]::GetTempPath()) 'eprocIA_bin'))
+}
+
+function Enable-Tls12 {
+    if ($PSVersionTable.PSVersion.Major -lt 6) {
+        # O 5.1 pode usar TLS 1.0 por padrão, que o GitHub recusa.
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+    }
+}
 
 function Get-Shortcuts {
     @((Join-Path ([Environment]::GetFolderPath('Programs')) "$app.lnk"),
@@ -335,9 +389,9 @@ function Get-Sha256([string]$Path) {
     finally { $stream.Dispose(); $sha.Dispose() }
 }
 
-# Baixa o exe da release para $Target e confere o SHA-256. Devolve a tag.
-function Save-ReleaseExe([string]$Target) {
-    $rel = Get-Release
+# Baixa o exe da release ($Rel, de Get-Release) para $Target e confere o SHA-256. Devolve a tag.
+function Save-ReleaseExe([string]$Target, $Rel = $null) {
+    $rel = if ($Rel) { $Rel } else { Get-Release }
     Write-Step 'Baixando' "$($rel.Exe.name) ($($rel.Tag))"
     Invoke-GitHub $rel.Exe.browser_download_url 'application/octet-stream' $Target $rel.Exe.url | Out-Null
     $sumText = Get-Text (Invoke-GitHub $rel.Sums.browser_download_url 'application/octet-stream' '' $rel.Sums.url)
@@ -400,6 +454,55 @@ function Get-ExeVersion([string]$Exe) {
     '{0}.{1}.{2}' -f $v.FileMajorPart, $v.FileMinorPart, $v.FileBuildPart
 }
 
+# Versão que será instalada: a do -From ou a da tag da release ($Rel), sem o "v".
+function Get-NewVersion($Rel) {
+    if ($From) {
+        try { return Get-ExeVersion (Resolve-Path -LiteralPath $From).Path } catch { return 'desconhecida' }
+    }
+    ([string]$Rel.Tag) -replace '^v', ''
+}
+
+function Get-CurrentVersion([string]$InstallDir) {
+    $exe = Join-Path $InstallDir $exeName
+    if (-not (Test-Path -LiteralPath $exe)) { return '' }
+    try { Get-ExeVersion $exe } catch { 'desconhecida' }
+}
+
+function Get-InstallQuestion([string]$NewVersion, [string]$InstallDir) {
+    $current = Get-CurrentVersion $InstallDir
+    if (-not $NewVersion) { $NewVersion = 'da release mais recente' }
+    if (-not $current) { return "Instalar o eprocIA ${NewVersion}?" }
+    if ($current -eq $NewVersion) { return "Reinstalar o eprocIA ${current}?" }
+    "Atualizar o eprocIA de $current para ${NewVersion}?"
+}
+
+# Mostra a versão (a atual também, numa atualização) e a pasta, e pergunta.
+function Confirm-Install([string]$NewVersion, [string]$InstallDir) {
+    $current = Get-CurrentVersion $InstallDir
+    if ($current) {
+        Write-Step 'Versão instalada' $current
+        Write-Step 'Nova versão' $NewVersion
+    } else {
+        Write-Step 'Versão' $NewVersion
+    }
+    Write-Step 'Pasta' $InstallDir
+    Confirm-Plan (Get-InstallQuestion $NewVersion $InstallDir)
+}
+
+# Mostra o que será apagado e pergunta.
+function Confirm-Uninstall([string]$InstallDir) {
+    if (Test-Path -LiteralPath $InstallDir) { Write-Step 'Apaga a pasta' $InstallDir } else { Write-Step 'Não há eprocIA em' $InstallDir }
+    Write-Step 'Apaga os atalhos, a entrada em Aplicativos instalados e o "Iniciar com o Windows"'
+    if ($Purge) {
+        foreach ($d in Get-PurgeDirs) { Write-Step 'Apaga também' $d }
+        $question = 'Remover o eprocIA e as configurações?'
+    } else {
+        Write-Note "Configurações em $(Join-Path $env:APPDATA $app) ficam (-Purge apaga)"
+        $question = 'Remover o eprocIA?'
+    }
+    Confirm-Plan $question
+}
+
 function New-Shortcut([string]$Path, [string]$Target) {
     $lnk = (New-Object -ComObject WScript.Shell).CreateShortcut($Path)
     $lnk.TargetPath = $Target
@@ -414,13 +517,12 @@ function New-Shortcut([string]$Path, [string]$Target) {
 function Install-App {
     $installDir = Get-InstallDir
     $exe = Join-Path $installDir $exeName
-    if ($PSVersionTable.PSVersion.Major -lt 6) {
-        # O 5.1 pode usar TLS 1.0 por padrão, que o GitHub recusa.
-        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-    }
+    Enable-Tls12
     $label = if ($From) { 'arquivo local' } elseif ($Version) { $Version } else { 'última release' }
     Write-Title "Instalando o eprocIA ($label, só para você)"
     Assert-Closed $exe
+    $rel = if ($From) { $null } else { Get-Release }
+    if (-not (Confirm-Install (Get-NewVersion $rel) $installDir)) { Write-Cancelled; return }
 
     New-Item -ItemType Directory -Force -Path $installDir | Out-Null
     # Tudo é baixado antes de trocar qualquer arquivo: uma falha no meio não muda nada.
@@ -435,7 +537,7 @@ function Install-App {
             Write-Step 'Copiando' $source
             Copy-Item -LiteralPath $source -Destination $tmp
         } else {
-            Save-ReleaseExe $tmp | Out-Null
+            Save-ReleaseExe $tmp $rel | Out-Null
         }
         # A cópia local do script atende a desinstalação por Aplicativos instalados.
         if ($copyScript) { Save-ScriptCopy $tmpScript }
@@ -468,7 +570,7 @@ function Install-App {
         DisplayIcon          = "$exe,0"
         InstallLocation      = $installDir
         UninstallString      = $uninstall
-        QuietUninstallString = $uninstall
+        QuietUninstallString = "$uninstall -Yes"
         HelpLink             = "https://github.com/$repo"
     }
     foreach ($k in $values.Keys) { Set-ItemProperty -LiteralPath $uninstallKey -Name $k -Value $values[$k] }
@@ -502,6 +604,7 @@ function Uninstall-App {
     $exe = Join-Path $installDir $exeName
     Write-Title 'Removendo o eprocIA (só para você)'
     Assert-Closed $exe
+    if (-not (Confirm-Uninstall $installDir)) { Write-Cancelled; return }
     # A pasta pode ser a atual (desinstalação por Aplicativos instalados).
     Set-Location -LiteralPath ([IO.Path]::GetTempPath())
 
@@ -519,8 +622,7 @@ function Uninstall-App {
 
     $config = Join-Path $env:APPDATA $app
     if ($Purge) {
-        # Configurações e falhas.json, dados do WebView2 e binários do OCR extraídos.
-        foreach ($d in @($config, (Join-Path $env:APPDATA $exeName), (Join-Path ([IO.Path]::GetTempPath()) 'eprocIA_bin'))) {
+        foreach ($d in Get-PurgeDirs) {
             if (Test-Path -LiteralPath $d) { Remove-Item -LiteralPath $d -Recurse -Force; Write-Step 'Apagado' $d }
         }
     } else {
@@ -534,6 +636,16 @@ function Uninstall-App {
 function Invoke-AsUser {
     $user = Get-SessionUser
     Write-Note "Terminal elevado: a instalação continua só para $user, sem privilégios."
+    # A pergunta é feita aqui: a cópia sem privilégios roda sem console e recebe -Yes.
+    $userDir = Get-UserInstallDir $user
+    $rel = $null
+    if ($Uninstall) {
+        if (-not (Confirm-Uninstall $userDir)) { Write-Cancelled; return }
+    } else {
+        Enable-Tls12
+        if (-not $From) { $rel = Get-Release }
+        if (-not (Confirm-Install (Get-NewVersion $rel) $userDir)) { Write-Cancelled; return }
+    }
     $id = [Guid]::NewGuid().ToString('N')
     $stage = Join-Path $env:PUBLIC "eprocia-install-$id"
     New-Item -ItemType Directory -Path $stage | Out-Null
@@ -546,7 +658,7 @@ function Invoke-AsUser {
         Save-ScriptCopy $stagedScript
         $stagedLog = Join-Path $stage 'install.log'
 
-        $argv = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', "`"$stagedScript`"", '-Log', "`"$stagedLog`"")
+        $argv = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', "`"$stagedScript`"", '-Log', "`"$stagedLog`"", '-Yes')
         if ($Dir) { $argv += @('-Dir', "`"$Dir`"") }
         if ($Uninstall) {
             $argv += '-Uninstall'
@@ -555,12 +667,7 @@ function Invoke-AsUser {
             # O exe é obtido aqui: o token do gh e o -From podem só existir para o administrador.
             $stagedExe = Join-Path $stage $exeName
             if ($From) { Copy-Item -LiteralPath (Resolve-Path -LiteralPath $From).Path -Destination $stagedExe }
-            else {
-                if ($PSVersionTable.PSVersion.Major -lt 6) {
-                    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-                }
-                Save-ReleaseExe $stagedExe | Out-Null
-            }
+            else { Save-ReleaseExe $stagedExe $rel | Out-Null }
             $argv += @('-From', "`"$stagedExe`"")
             if ($NoDesktop) { $argv += '-NoDesktop' }
             if ($NoStart) { $argv += '-NoStart' }
@@ -596,11 +703,13 @@ function Invoke-AsUser {
 function Invoke-DryRun([bool]$Elevated) {
     $action = if ($Uninstall) { 'remover' } else { 'instalar' }
     Write-Title "Simulação: $action o eprocIA (só para você)"
-    if ($Elevated) {
-        Write-Step 'Terminal elevado: rodaria sem privilégios, por tarefa agendada, como' (Get-SessionUser)
-        Write-Note 'Os caminhos abaixo seriam os do perfil desse usuário'
-    }
     $installDir = Get-InstallDir
+    if ($Elevated) {
+        $user = Get-SessionUser
+        Write-Step 'Terminal elevado: rodaria sem privilégios, por tarefa agendada, como' $user
+        Write-Note 'Os caminhos abaixo seriam os do perfil desse usuário'
+        $installDir = Get-UserInstallDir $user
+    }
     $exe = Join-Path $installDir $exeName
     $shortcuts = Get-Shortcuts
     if ($Uninstall) {
@@ -621,6 +730,14 @@ function Invoke-DryRun([bool]$Elevated) {
         Write-Step 'Registraria em Aplicativos instalados'
         if (-not $NoStart) { Write-Step 'Abriria o eprocIA' }
     }
+    # A versão nova vem da API do GitHub; sem rede, a pergunta sai sem ela.
+    if ($Uninstall) { $question = if ($Purge) { 'Remover o eprocIA e as configurações?' } else { 'Remover o eprocIA?' } }
+    else {
+        $newVersion = ''
+        try { Enable-Tls12; $newVersion = Get-NewVersion $(if ($From) { $null } else { Get-Release }) } catch { }
+        $question = Get-InstallQuestion $newVersion $installDir
+    }
+    Confirm-Plan $question | Out-Null
     Write-Host ''
     Write-Note 'Simulação: nada foi alterado.'
     $verb = if ($Uninstall) { 'remoção' } else { 'instalação' }
@@ -634,7 +751,11 @@ function Invoke-DryRun([bool]$Elevated) {
 
 function Invoke-Main {
     $elevated = Test-Elevated
-    if ($DryRun -and -not (Invoke-DryRun $elevated)) { return }
+    if ($DryRun) {
+        if (-not (Invoke-DryRun $elevated)) { return }
+        # O "Sim" da simulação já confirmou; a cópia elevada passa -Yes adiante.
+        $script:confirmed = $true
+    }
     if ($elevated) { Invoke-AsUser; return }
     if ($Uninstall) { Uninstall-App } else { Install-App }
 }
