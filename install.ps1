@@ -444,13 +444,33 @@ function Get-Status($ErrorRecord) {
     0
 }
 
-# Baixa um arquivo em blocos, com barra de progresso própria: a do Invoke-WebRequest deixa
-# o download de 100+ MB muito lento no 5.1. Os redirecionamentos (o GitHub manda os assets
-# para outro host) são seguidos aqui, para o token não ir junto a outro servidor.
+# Linha da barra de download, que cabe em $Width colunas:
+# "  Baixando  [blocos cheios e vazios]  45%  60,1 de 132,7 MB". Sem o tamanho total
+# ($Total <= 0), só os MB baixados.
+function Format-Bar([long]$Done, [long]$Total, [int]$Width) {
+    if ($Width -le 0) { $Width = 80 }
+    if ($Total -le 0) { return "  Baixando  $cPeach$('{0:N1} MB' -f ($Done / 1MB))$cReset" }
+    $pct = [int][Math]::Floor([Math]::Min(100, $Done * 100.0 / $Total))
+    $tail = ' {0}%  {1:N1} de {2:N1} MB' -f $pct, ($Done / 1MB), ($Total / 1MB)
+    $head = '  Baixando  '
+    # Uma coluna de folga: escrever na última coluna quebra a linha em alguns terminais.
+    $size = [Math]::Min(30, $Width - 1 - $head.Length - 2 - $tail.Length - 1)
+    if ($size -lt 5) {
+        $short = '  {0}%  {1:N1} MB' -f $pct, ($Done / 1MB)
+        if ($short.Length -lt $Width) { return $short }
+        return ''
+    }
+    $fill = [int][Math]::Floor($size * $pct / 100)
+    $full = ([string][char]0x2588) * $fill
+    $empty = ([string][char]0x2591) * ($size - $fill)
+    "$head[$cBlue$full$cGray$empty$cReset]$tail"
+}
+
+# Baixa um arquivo em blocos, com barra de progresso desenhada na linha corrente (a do
+# Write-Progress aparece em outro lugar no Windows Terminal e deixa o 5.1 lento). Sem console
+# não há barra, só a linha de fim. Os redirecionamentos (o GitHub manda os assets para outro
+# host) são seguidos aqui, para o token não ir junto a outro servidor.
 function Save-WithProgress([hashtable]$Request) {
-    # Só o Write-Progress desta função mostra a barra; o resto do script segue sem.
-    $ProgressPreference = 'Continue'
-    $activity = "Baixando $(Split-Path -Leaf $Request.OutFile)"
     $uri = [Uri]$Request.Uri
     $headers = @{}
     if ($Request.ContainsKey('Headers')) { foreach ($k in $Request.Headers.Keys) { $headers[$k] = $Request.Headers[$k] } }
@@ -487,18 +507,16 @@ function Save-WithProgress([hashtable]$Request) {
             $buf = New-Object byte[] 262144
             $done = [long]0
             $clock = [Diagnostics.Stopwatch]::StartNew()
+            $cursor = $null
+            if ($fancy) { try { $cursor = [Console]::CursorVisible; [Console]::CursorVisible = $false } catch { } }
             while (($n = $in.Read($buf, 0, $buf.Length)) -gt 0) {
                 try { $out.Write($buf, 0, $n) }
                 catch { Fail "Não foi possível gravar $($Request.OutFile): $($_.Exception.InnerException.Message)" }
                 $done += $n
-                if ($clock.ElapsedMilliseconds -ge 250) {
+                if ($fancy -and $clock.ElapsedMilliseconds -ge 250) {
                     $clock.Restart()
-                    if ($total -gt 0) {
-                        $pct = [int][Math]::Min(100, $done * 100 / $total)
-                        Write-Progress -Activity $activity -Status ('{0:N1} de {1:N1} MB ({2}%)' -f ($done / 1MB), ($total / 1MB), $pct) -PercentComplete $pct
-                    } else {
-                        Write-Progress -Activity $activity -Status ('{0:N1} MB' -f ($done / 1MB))
-                    }
+                    # `r volta ao início da linha; ESC[K apaga o resto da anterior.
+                    Write-Host "`r$(Format-Bar $done $total (Get-WindowWidth))$esc[K" -NoNewline
                 }
             }
             # Conexão fechada antes do fim: conta como queda e Invoke-Download repete.
@@ -506,8 +524,13 @@ function Save-WithProgress([hashtable]$Request) {
         } finally {
             $out.Dispose()
             $in.Dispose()
-            Write-Progress -Activity $activity -Completed
+            # A linha da barra some; a nota de nova tentativa ou o ok começam numa linha limpa.
+            if ($fancy) {
+                Write-Host "`r$esc[K" -NoNewline
+                if ($null -ne $cursor) { try { [Console]::CursorVisible = $cursor } catch { } }
+            }
         }
+        Write-Ok ('Baixado: {0:N1} MB' -f ($done / 1MB))
     } finally { $resp.Close() }
 }
 
