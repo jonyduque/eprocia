@@ -110,7 +110,6 @@ $useColor = $fancy -and -not $env:NO_COLOR
 $esc = [char]27
 function Get-Rgb([int]$R, [int]$G, [int]$B) { if ($useColor) { "$esc[38;2;$R;$G;${B}m" } else { '' } }
 $cPurple = Get-Rgb 154 92 219
-$cPeach  = Get-Rgb 255 117 117
 $cGray   = Get-Rgb 128 128 128
 $cPink   = Get-Rgb 224 91 191
 $cBlue   = Get-Rgb 26 124 240
@@ -118,25 +117,47 @@ $cDim    = if ($useColor) { "$esc[2m" } else { '' }
 $cBold   = if ($useColor) { "$esc[1m" } else { '' }
 $cReset  = if ($useColor) { "$esc[0m" } else { '' }
 
-# Write-Host colorido só quando há cor (no 7 o -ForegroundColor também vira ANSI).
-function Write-Color([string]$Text, [ConsoleColor]$Color) {
-    if ($useColor) { Write-Host $Text -ForegroundColor $Color } else { Write-Host $Text }
+$cGreen  = Get-Rgb 80 200 120
+$cYellow = Get-Rgb 230 190 60
+$cRed    = Get-Rgb 235 80 80
+# Intensidade normal: tira o negrito sem perder a cor do resto da linha.
+$cNoBold = if ($useColor) { "$esc[22m" } else { '' }
+
+# Marcadores fora do ASCII montados com [char] (o 5.1 lê o arquivo sem BOM como ANSI).
+$iconOk   = [string][char]0x2705
+$iconFail = [string][char]0x274C
+$bullet   = [string][char]0x203A
+$ellipsis = [string][char]0x2026
+
+# Texto de mais de $Max caracteres é cortado com reticências (o log guarda o texto inteiro).
+function Limit-Text([string]$Text, [int]$Max = 49) {
+    if ($Text.Length -le $Max) { return $Text }
+    $Text.Substring(0, $Max - 1) + $ellipsis
+}
+# O nome do app sempre em negrito.
+function Format-Name([string]$Text) {
+    if ($cBold) { $Text -creplace 'eprocIA', "${cBold}eprocIA$cNoBold" } else { $Text }
 }
 
-if ($Version -and $Version -notmatch '^v?\d+\.\d+\.\d+([-.][0-9A-Za-z.]+)?$') {
-    Write-Color "x versão inválida: '$Version' (use uma tag de release, ex.: v0.3.0)" Red
-    return
-}
-if ($Purge -and -not $Uninstall) {
-    Write-Color 'x -Purge só vale junto com -Uninstall' Red
-    return
-}
-
-# UTF-8 para as setas e o ponto; o valor anterior volta no fim, porque sob `irm | iex` a
-# mudança ficaria valendo no terminal de quem rodou.
+# UTF-8 para as setas, o ponto e os ícones; o valor anterior volta no fim, porque sob
+# `irm | iex` a mudança ficaria valendo no terminal de quem rodou.
 $prevOutputEncoding = [Console]::OutputEncoding
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 function Restore-Console { try { [Console]::OutputEncoding = $prevOutputEncoding } catch { } }
+
+# Erro: linha vermelha com o ícone, sem corte (a mensagem inteira importa).
+function Write-Fail([string]$Text) { Write-Host "  $iconFail $cRed$(Format-Name $Text)$cReset" }
+
+if ($Version -and $Version -notmatch '^v?\d+\.\d+\.\d+([-.][0-9A-Za-z.]+)?$') {
+    Write-Fail "Versão inválida: '$Version' (use uma tag de release, ex.: v0.3.0)"
+    Restore-Console
+    return
+}
+if ($Purge -and -not $Uninstall) {
+    Write-Fail '-Purge só vale junto com -Uninstall'
+    Restore-Console
+    return
+}
 
 # Título da janela durante a execução; Restore-Window devolve o anterior.
 $script:prevTitle = $null
@@ -232,21 +253,25 @@ function Write-Title([string]$Text) {
     Write-Host "$cBold$cPink`n$Text$cReset`n"
     Add-Log 'title' $Text
 }
-# Uma linha de passo: o texto na cor padrão e o valor (um caminho, uma versão) em destaque.
+# Uma linha de passo: o texto em cinza e o valor (um caminho, uma versão) em roxo. Texto e
+# valor juntos cabem em 49 caracteres: o valor é cortado primeiro.
 function Write-Step([string]$Text, [string]$Value = '') {
-    Write-Host "  - " -NoNewline
-    if ($Value) {
-        Write-Host "$cGray$Text$cReset " -NoNewline
-        Write-Host "$cPeach$Value$cReset"
+    $t = $Text; $v = $Value
+    if ($v) {
+        $room = 49 - $t.Length - 1
+        if ($room -lt 8) { $t = Limit-Text "$Text $Value"; $v = '' } else { $v = Limit-Text $v $room }
     } else {
-        Write-Host $Text
+        $t = Limit-Text $t
     }
+    $line = "  $bullet $cGray$(Format-Name $t)"
+    if ($v) { $line += " $cPurple$(Format-Name $v)" }
+    Write-Host "$line$cReset"
     Add-Log 'step' $Text $Value
 }
-function Write-Ok([string]$Text) { Write-Color "  ok $Text" Green; Add-Log 'ok' $Text }
-function Write-Note([string]$Text) { Write-Host "  $cGray$Text$cReset"; Add-Log 'note' $Text }
-function Write-Warn([string]$Text) { Write-Color "  ! $Text" Yellow; Add-Log 'warn' $Text }
-function Write-Done([string]$Text) { Write-Host ''; Write-Color $Text Green; Add-Log 'done' $Text }
+function Write-Ok([string]$Text) { Write-Host "  $iconOk $cGreen$(Format-Name (Limit-Text $Text))$cReset"; Add-Log 'ok' $Text }
+function Write-Note([string]$Text) { Write-Host "  $cGray$(Format-Name (Limit-Text $Text))$cReset"; Add-Log 'note' $Text }
+function Write-Warn([string]$Text) { Write-Host "  ! $cYellow$(Format-Name (Limit-Text $Text))$cReset"; Add-Log 'warn' $Text }
+function Write-Done([string]$Text) { Write-Host ''; Write-Host "  $cGreen$(Format-Name (Limit-Text $Text))$cReset"; Add-Log 'done' $Text }
 
 function Show-Log([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path)) { return }
@@ -262,7 +287,7 @@ function Show-Log([string]$Path) {
                 'note'  { Write-Note $text }
                 'warn'  { Write-Warn $text }
                 'done'  { Write-Done $text }
-                'fail'  { Write-Color "x $text" Red }
+                'fail'  { Write-Fail $text }
             }
         }
     } finally { $script:Log = $saved }
@@ -297,21 +322,29 @@ function Read-Choice([string]$Question, [System.Collections.IDictionary]$Options
     # rola o buffer e uma posição lida antes ficaria velha.
     $startTop = -1
     $cursorVisibleOriginal = [Console]::CursorVisible
+    # A explicação começa 5 colunas depois da opção mais longa, com inicial maiúscula.
+    $keyWidth = 5
+    foreach ($k in $keyOptions) { $keyWidth = [Math]::Max($keyWidth, $k.ToString().Length + 5) }
+    $descs = foreach ($k in $keyOptions) {
+        $d = Limit-Text ([string]$Options[$k])
+        if ($d) { $d.Substring(0, 1).ToUpper() + $d.Substring(1) } else { $d }
+    }
+    $descs = @($descs)
     $draw = {
         if ($startTop -ge 0) { [Console]::SetCursorPosition(0, $startTop) }
         for ($i = 0; $i -lt $Options.Count; $i++) {
-            $k = $keyOptions[$i]
-            $v = $Options[$k]
+            $k = $keyOptions[$i].ToString().PadRight($keyWidth)
+            $v = $descs[$i]
             if ($i -eq $sel) {
                 $colArrow = "$cPurple$cBold{0,-2}$cReset" -f " $([char]0x2192)"
-                $colKey   = "$cPurple$cBold{0,-25}$cReset" -f $k
-                $colDesc  = "$cPurple$cDim{0,-30}$cReset" -f $v
+                $colKey   = "$cPurple$cBold$k$cReset"
+                $colDesc  = "$cPurple$cDim$v$cReset"
             } else {
                 $colArrow = "$cGray{0,-2}$cReset" -f '  '
-                $colKey   = '{0,-25}' -f $k
-                $colDesc  = "$cDim{0,-30}$cReset" -f $v
+                $colKey   = $k
+                $colDesc  = "$cDim$v$cReset"
             }
-            Write-Host "  $colArrow $colKey $colDesc"
+            Write-Host "  $colArrow $colKey$colDesc"
         }
         Get-Footer $keybinds
     }
@@ -356,7 +389,7 @@ function Confirm-Plan([string]$Question, [string]$Action, [string]$Detail) {
     if (-not (Test-Interactive)) { Fail 'Sem console para confirmar. Rode de novo com -Yes para seguir sem pergunta.' }
     $options = [ordered]@{}
     $options[$Action] = $Detail
-    $options['Cancelar'] = 'sai sem alterar nada'
+    $options['Cancelar'] = 'Sai sem alterar nada'
     (Read-Choice $Question $options) -eq 0
 }
 
@@ -449,7 +482,7 @@ function Get-Status($ErrorRecord) {
 # ($Total <= 0), só os MB baixados.
 function Format-Bar([long]$Done, [long]$Total, [int]$Width) {
     if ($Width -le 0) { $Width = 80 }
-    if ($Total -le 0) { return "  Baixando  $cPeach$('{0:N1} MB' -f ($Done / 1MB))$cReset" }
+    if ($Total -le 0) { return "  Baixando  $cPurple$('{0:N1} MB' -f ($Done / 1MB))$cReset" }
     $pct = [int][Math]::Floor([Math]::Min(100, $Done * 100.0 / $Total))
     $tail = ' {0}%  {1:N1} de {2:N1} MB' -f $pct, ($Done / 1MB), ($Total / 1MB)
     $head = '  Baixando  '
@@ -690,16 +723,16 @@ function Get-InstallPrompt([string]$NewVersion, [string]$InstallDir) {
     if (-not $NewVersion) { $NewVersion = 'da release mais recente' }
     $a = ConvertTo-Version $current
     $b = ConvertTo-Version $NewVersion
-    if (-not $current) { $q = "Instalar o eprocIA ${NewVersion}?"; $act = 'Instalar'; $det = "instala $label" }
-    elseif ($current -eq $NewVersion) { $q = "Reinstalar o eprocIA ${current}?"; $act = 'Reinstalar'; $det = "instala de novo $label" }
-    elseif ($a -and $b -and $b -lt $a) { $q = "Voltar o eprocIA de $current para ${NewVersion}?"; $act = 'Voltar'; $det = "troca a $current pela $NewVersion" }
-    else { $q = "Atualizar o eprocIA de $current para ${NewVersion}?"; $act = 'Atualizar'; $det = "troca a $current pela $NewVersion" }
+    if (-not $current) { $q = "Instalar o eprocIA ${NewVersion}?"; $act = 'Instalar'; $det = "Instala $label" }
+    elseif ($current -eq $NewVersion) { $q = "Reinstalar o eprocIA ${current}?"; $act = 'Reinstalar'; $det = "Instala de novo $label" }
+    elseif ($a -and $b -and $b -lt $a) { $q = "Voltar o eprocIA de $current para ${NewVersion}?"; $act = 'Voltar'; $det = "Troca a $current pela $NewVersion" }
+    else { $q = "Atualizar o eprocIA de $current para ${NewVersion}?"; $act = 'Atualizar'; $det = "Troca a $current pela $NewVersion" }
     [pscustomobject]@{ Question = $q; Action = $act; Detail = $det }
 }
 
 function Get-UninstallPrompt {
-    if ($Purge) { [pscustomobject]@{ Question = 'Remover o eprocIA e as configurações?'; Action = 'Remover'; Detail = 'apaga o app e as configurações' } }
-    else { [pscustomobject]@{ Question = 'Remover o eprocIA?'; Action = 'Remover'; Detail = 'apaga o app; configurações ficam' } }
+    if ($Purge) { [pscustomobject]@{ Question = 'Remover o eprocIA e as configurações?'; Action = 'Remover'; Detail = 'Apaga o app e as configurações' } }
+    else { [pscustomobject]@{ Question = 'Remover o eprocIA?'; Action = 'Remover'; Detail = 'Apaga o app; configurações ficam' } }
 }
 
 # Mostra a versão (a atual também, numa atualização) e a pasta, e pergunta.
@@ -972,8 +1005,8 @@ function Invoke-DryRun([bool]$Elevated) {
     $verb = if ($Uninstall) { 'remoção' } else { 'instalação' }
     # Padrão "Não": sem console para perguntar, uma simulação nunca vira execução real.
     $go = Read-Choice "Iniciar a $verb real?" ([ordered]@{
-        'Sim' = "faz a $verb agora"
-        'Não' = 'sai sem alterar nada'
+        'Sim' = "Faz a $verb agora"
+        'Não' = 'Sai sem alterar nada'
     }) -Default 1
     $go -eq 0
 }
@@ -1000,7 +1033,7 @@ try {
     Invoke-Main
 } catch {
     $failed = $true
-    Write-Color "x $($_.Exception.Message)" Red
+    Write-Fail $_.Exception.Message
     Add-Log 'fail' $_.Exception.Message
 } finally { Restore-Console; Restore-Window }
 # A cópia da tarefa agendada roda com -File: o código de saída chega ao terminal elevado.
