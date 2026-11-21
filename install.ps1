@@ -347,19 +347,17 @@ function Test-Interactive {
 # Verdadeiro depois do "Sim" da simulação: a execução real que vem em seguida não pergunta de novo.
 $script:confirmed = $false
 
-# Pergunta [S/n] antes de mudar a máquina: Enter ou s segue, n cancela. Com -Yes não
-# pergunta; na simulação só mostra o que perguntaria; sem console, exige -Yes.
-function Confirm-Plan([string]$Question) {
+# Pergunta antes de mudar a máquina, com a escolha por setas: a ação ($Action, descrita por
+# $Detail) ou Cancelar; Enter escolhe, Esc cancela. Com -Yes não pergunta; na simulação só
+# mostra o que perguntaria; sem console, exige -Yes.
+function Confirm-Plan([string]$Question, [string]$Action, [string]$Detail) {
     if ($Yes -or $script:confirmed) { return $true }
-    if ($DryRun) { Write-Note "Perguntaria: $Question [S/n]"; return $true }
+    if ($DryRun) { Write-Note "Perguntaria: $Question ($Action ou Cancelar)"; return $true }
     if (-not (Test-Interactive)) { Fail 'Sem console para confirmar. Rode de novo com -Yes para seguir sem pergunta.' }
-    Write-Host ''
-    while ($true) {
-        $answer = ([string](Read-Host "  $Question [S/n]")).Trim()
-        if ($answer -eq '' -or $answer -match '^(s|sim)$') { return $true }
-        if ($answer -match '^(n|nao|não)$') { return $false }
-        Write-Note 'Responda s ou n (Enter = sim).'
-    }
+    $options = [ordered]@{}
+    $options[$Action] = $Detail
+    $options['Cancelar'] = 'sai sem alterar nada'
+    (Read-Choice $Question $options) -eq 0
 }
 
 function Write-Cancelled { Write-Warn 'Cancelado. Nada foi alterado.' }
@@ -662,20 +660,29 @@ function ConvertTo-Version([string]$Text) {
     if ($m.Success) { [version]$m.Groups[1].Value } else { $null }
 }
 
-function Get-InstallQuestion([string]$NewVersion, [string]$InstallDir) {
+# Pergunta, ação e detalhe da confirmação de instalação, conforme a versão instalada.
+function Get-InstallPrompt([string]$NewVersion, [string]$InstallDir) {
     $current = Get-CurrentVersion $InstallDir
+    $label = if ($NewVersion) { "a $NewVersion" } else { 'a release mais recente' }
     if (-not $NewVersion) { $NewVersion = 'da release mais recente' }
-    if (-not $current) { return "Instalar o eprocIA ${NewVersion}?" }
-    if ($current -eq $NewVersion) { return "Reinstalar o eprocIA ${current}?" }
     $a = ConvertTo-Version $current
     $b = ConvertTo-Version $NewVersion
-    if ($a -and $b -and $b -lt $a) { return "Voltar o eprocIA de $current para ${NewVersion}?" }
-    "Atualizar o eprocIA de $current para ${NewVersion}?"
+    if (-not $current) { $q = "Instalar o eprocIA ${NewVersion}?"; $act = 'Instalar'; $det = "instala $label" }
+    elseif ($current -eq $NewVersion) { $q = "Reinstalar o eprocIA ${current}?"; $act = 'Reinstalar'; $det = "instala de novo $label" }
+    elseif ($a -and $b -and $b -lt $a) { $q = "Voltar o eprocIA de $current para ${NewVersion}?"; $act = 'Voltar'; $det = "troca a $current pela $NewVersion" }
+    else { $q = "Atualizar o eprocIA de $current para ${NewVersion}?"; $act = 'Atualizar'; $det = "troca a $current pela $NewVersion" }
+    [pscustomobject]@{ Question = $q; Action = $act; Detail = $det }
+}
+
+function Get-UninstallPrompt {
+    if ($Purge) { [pscustomobject]@{ Question = 'Remover o eprocIA e as configurações?'; Action = 'Remover'; Detail = 'apaga o app e as configurações' } }
+    else { [pscustomobject]@{ Question = 'Remover o eprocIA?'; Action = 'Remover'; Detail = 'apaga o app; configurações ficam' } }
 }
 
 # Mostra a versão (a atual também, numa atualização) e a pasta, e pergunta.
 function Confirm-Install([string]$NewVersion, [string]$InstallDir) {
-    if ($Log) { return (Confirm-Plan 'Instalar?') }
+    $p = Get-InstallPrompt $NewVersion $InstallDir
+    if ($Log) { return (Confirm-Plan $p.Question $p.Action $p.Detail) }
     $current = Get-CurrentVersion $InstallDir
     if ($current) {
         Write-Step 'Versão instalada' $current
@@ -684,22 +691,21 @@ function Confirm-Install([string]$NewVersion, [string]$InstallDir) {
         Write-Step 'Versão' $NewVersion
     }
     Write-Step 'Pasta' $InstallDir
-    Confirm-Plan (Get-InstallQuestion $NewVersion $InstallDir)
+    Confirm-Plan $p.Question $p.Action $p.Detail
 }
 
 # Mostra o que será apagado e pergunta.
 function Confirm-Uninstall([string]$InstallDir) {
-    if ($Log) { return (Confirm-Plan 'Remover?') }
+    $p = Get-UninstallPrompt
+    if ($Log) { return (Confirm-Plan $p.Question $p.Action $p.Detail) }
     if (Test-Path -LiteralPath $InstallDir) { Write-Step 'Apaga a pasta' $InstallDir } else { Write-Step 'Não há eprocIA em' $InstallDir }
     Write-Step 'Apaga os atalhos, a entrada em Aplicativos instalados e o "Iniciar com o Windows"'
     if ($Purge) {
         foreach ($d in Get-PurgeDirs) { Write-Step 'Apaga também' $d }
-        $question = 'Remover o eprocIA e as configurações?'
     } else {
         Write-Note "Configurações em $(Join-Path $env:APPDATA $app) ficam (-Purge apaga)"
-        $question = 'Remover o eprocIA?'
     }
-    Confirm-Plan $question
+    Confirm-Plan $p.Question $p.Action $p.Detail
 }
 
 function New-Shortcut([string]$Path, [string]$Target) {
@@ -931,13 +937,13 @@ function Invoke-DryRun([bool]$Elevated) {
         if (-not $NoStart) { Write-Step 'Abriria o eprocIA' }
     }
     # A versão nova vem da API do GitHub; sem rede, a pergunta sai sem ela.
-    if ($Uninstall) { $question = if ($Purge) { 'Remover o eprocIA e as configurações?' } else { 'Remover o eprocIA?' } }
+    if ($Uninstall) { $p = Get-UninstallPrompt }
     else {
         $newVersion = ''
         try { Enable-Tls12; $newVersion = Get-NewVersion $(if ($From) { $null } else { Get-Release }) } catch { }
-        $question = Get-InstallQuestion $newVersion $installDir
+        $p = Get-InstallPrompt $newVersion $installDir
     }
-    Confirm-Plan $question | Out-Null
+    Confirm-Plan $p.Question $p.Action $p.Detail | Out-Null
     Write-Host ''
     Write-Note 'Simulação: nada foi alterado.'
     $verb = if ($Uninstall) { 'remoção' } else { 'instalação' }
