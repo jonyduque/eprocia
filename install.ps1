@@ -126,6 +126,47 @@ $prevOutputEncoding = [Console]::OutputEncoding
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 function Restore-Console { try { [Console]::OutputEncoding = $prevOutputEncoding } catch { } }
 
+# Título e ícone da janela do console durante a execução; Restore-Window devolve os
+# anteriores. No Windows Terminal a janela do console é oculta: o ícone não aparece, sem erro.
+$script:prevTitle = $null
+$script:windowIcon = $null
+function Set-WindowTitle([string]$Title) {
+    try {
+        if ($null -eq $script:prevTitle) { $script:prevTitle = $Host.UI.RawUI.WindowTitle }
+        $Host.UI.RawUI.WindowTitle = $Title
+    } catch { }
+}
+function Set-WindowIcon([string]$Exe) {
+    try {
+        if ($null -ne $script:windowIcon -or -not $Exe -or -not (Test-Path -LiteralPath $Exe)) { return }
+        if (-not ('EprocIA.ConsoleWindow' -as [type])) {
+            Add-Type -Namespace EprocIA -Name ConsoleWindow -MemberDefinition @'
+[DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();
+[DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+'@
+        }
+        $hwnd = [EprocIA.ConsoleWindow]::GetConsoleWindow()
+        if ($hwnd -eq [IntPtr]::Zero) { return }
+        Add-Type -AssemblyName System.Drawing
+        $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($Exe)
+        # WM_SETICON (0x80) devolve o ícone anterior: 0 = pequeno, 1 = grande.
+        $small = [EprocIA.ConsoleWindow]::SendMessage($hwnd, 0x80, [IntPtr]0, $icon.Handle)
+        $big = [EprocIA.ConsoleWindow]::SendMessage($hwnd, 0x80, [IntPtr]1, $icon.Handle)
+        $script:windowIcon = [pscustomobject]@{ Hwnd = $hwnd; Icon = $icon; Small = $small; Big = $big }
+    } catch { }
+}
+function Restore-Window {
+    try { if ($null -ne $script:prevTitle) { $Host.UI.RawUI.WindowTitle = $script:prevTitle; $script:prevTitle = $null } } catch { }
+    try {
+        $w = $script:windowIcon
+        if ($null -eq $w) { return }
+        $script:windowIcon = $null
+        [EprocIA.ConsoleWindow]::SendMessage($w.Hwnd, 0x80, [IntPtr]0, $w.Small) | Out-Null
+        [EprocIA.ConsoleWindow]::SendMessage($w.Hwnd, 0x80, [IntPtr]1, $w.Big) | Out-Null
+        $w.Icon.Dispose()
+    } catch { }
+}
+
 # A cópia sem privilégios grava cada linha no -Log (tipo, texto, valor) e o terminal
 # elevado as reapresenta com os mesmos estilos.
 function Add-Log([string]$Kind, [string]$Text, [string]$Value = '') {
@@ -612,6 +653,7 @@ function Install-App {
         if ($copyScript) { Save-ScriptCopy $tmpScript }
         Move-Item -LiteralPath $tmp -Destination $exe -Force
         if ($copyScript) { Move-Item -LiteralPath $tmpScript -Destination $localScript -Force }
+        if (-not $Log) { Set-WindowIcon $exe }
     } finally {
         foreach ($f in $tmp, $tmpScript) { if (Test-Path -LiteralPath $f) { Remove-Item -LiteralPath $f -Force } }
     }
@@ -707,6 +749,7 @@ function Invoke-AsUser {
     Write-Note "Terminal elevado: a instalação continua só para $user, sem privilégios."
     # A pergunta é feita aqui: a cópia sem privilégios roda sem console e recebe -Yes.
     $userDir = Get-UserInstallDir $user
+    Set-WindowIcon (Join-Path $userDir $exeName)
     $rel = $null
     if ($Uninstall) {
         if (-not (Confirm-Uninstall $userDir)) { Write-Cancelled; return }
@@ -737,6 +780,7 @@ function Invoke-AsUser {
             $stagedExe = Join-Path $stage $exeName
             if ($From) { Copy-Item -LiteralPath (Resolve-Path -LiteralPath $From).Path -Destination $stagedExe }
             else { Save-ReleaseExe $stagedExe $rel | Out-Null }
+            Set-WindowIcon $stagedExe
             $argv += @('-From', "`"$stagedExe`"")
             if ($NoDesktop) { $argv += '-NoDesktop' }
             if ($NoStart) { $argv += '-NoStart' }
@@ -820,6 +864,11 @@ function Invoke-DryRun([bool]$Elevated) {
 
 function Invoke-Main {
     $elevated = Test-Elevated
+    # A cópia da tarefa agendada roda numa janela oculta: título e ícone só no terminal visível.
+    if (-not $Log) {
+        Set-WindowTitle "eprocIA - $(if ($Uninstall) { 'remoção' } else { 'instalação' })"
+        if (-not $elevated) { Set-WindowIcon (Join-Path (Get-InstallDir) $exeName) }
+    }
     if ($DryRun) {
         if (-not (Invoke-DryRun $elevated)) { return }
         # O "Sim" da simulação já confirmou; a cópia elevada passa -Yes adiante.
@@ -836,6 +885,6 @@ try {
     $failed = $true
     Write-Host "x $($_.Exception.Message)" -ForegroundColor Red
     Add-Log 'fail' $_.Exception.Message
-} finally { Restore-Console }
+} finally { Restore-Console; Restore-Window }
 # A cópia da tarefa agendada roda com -File: o código de saída chega ao terminal elevado.
 if ($Log -and $failed) { exit 1 }
