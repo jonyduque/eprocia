@@ -246,11 +246,11 @@ function Test-Elevated {
 function Get-SessionUser {
     $session = (Get-Process -Id $PID).SessionId
     $shells = @(Get-CimInstance Win32_Process -Filter "Name = 'explorer.exe'")
-    if ($shells.Count -eq 0) { Fail 'nenhum usuário com sessão aberta no Windows; entre com a conta que vai usar o eprocIA e rode de novo' }
+    if ($shells.Count -eq 0) { Fail 'Nenhum usuário com sessão aberta no Windows. Entre com a conta que vai usar o eprocIA e rode de novo.' }
     $mine = @($shells | Where-Object { $_.SessionId -eq $session })
     if ($mine.Count -eq 0) { $mine = $shells }
     $owner = Invoke-CimMethod -InputObject $mine[0] -MethodName GetOwner
-    if ($owner.ReturnValue -ne 0) { Fail 'não foi possível identificar o usuário da sessão' }
+    if ($owner.ReturnValue -ne 0) { Fail 'Não foi possível identificar o usuário da sessão.' }
     "$($owner.Domain)\$($owner.User)"
 }
 
@@ -286,7 +286,7 @@ function Invoke-Download([hashtable]$Request) {
         try { return Invoke-WebRequest @Request }
         catch {
             if ((Get-Status $_) -ne 0 -or $try -ge 3) { throw }
-            Write-Note "conexão interrompida; tentando de novo ($($try + 1)/3)"
+            Write-Note "Conexão interrompida. Tentando de novo ($($try + 1)/3)"
             Start-Sleep -Seconds (2 * $try)
         }
     }
@@ -302,11 +302,11 @@ function Invoke-GitHub([string]$Uri, [string]$Accept = 'application/vnd.github+j
         $status = Get-Status $_
         if ($status -notin 401, 403, 404) { throw }
         $tok = Get-Token
-        if (-not $tok) { Fail "o GitHub negou o acesso a $Uri (código $status); se o repositório for privado, defina GITHUB_TOKEN ou entre com 'gh auth login'" }
+        if (-not $tok) { Fail "O GitHub negou o acesso a $Uri (código $status)." }
         if ($AuthUri) { $request.Uri = $AuthUri }
         $request.Headers = @{ Authorization = "Bearer $tok"; Accept = $Accept; 'X-GitHub-Api-Version' = '2022-11-28' }
         try { return Invoke-Download $request }
-        catch { Fail "não foi possível baixar $($request.Uri) nem com o token do GitHub (código $(Get-Status $_))" }
+        catch { Fail "Não foi possível baixar $($request.Uri) nem com o token do GitHub (código $(Get-Status $_))" }
     }
 }
 
@@ -321,8 +321,8 @@ function Get-Release {
     $rel = (Get-Text (Invoke-GitHub $uri)) | ConvertFrom-Json
     $exe = @($rel.assets | Where-Object { $_.name -match '^eprocia-.+-windows-amd64\.exe$' })
     $sums = @($rel.assets | Where-Object { $_.name -eq 'SHA256SUMS.txt' })
-    if ($exe.Count -ne 1) { Fail "a release $($rel.tag_name) não tem exatamente um eprocia-*-windows-amd64.exe" }
-    if ($sums.Count -ne 1) { Fail "a release $($rel.tag_name) não tem SHA256SUMS.txt" }
+    if ($exe.Count -ne 1) { Fail "A release $($rel.tag_name) não tem exatamente um eprocia-*-windows-amd64.exe" }
+    if ($sums.Count -ne 1) { Fail "A release $($rel.tag_name) não tem SHA256SUMS.txt" }
     [pscustomobject]@{ Tag = $rel.tag_name; Exe = $exe[0]; Sums = $sums[0] }
 }
 
@@ -338,7 +338,7 @@ function Get-Sha256([string]$Path) {
 # Baixa o exe da release para $Target e confere o SHA-256. Devolve a tag.
 function Save-ReleaseExe([string]$Target) {
     $rel = Get-Release
-    Write-Step 'baixando' "$($rel.Exe.name) ($($rel.Tag))"
+    Write-Step 'Baixando' "$($rel.Exe.name) ($($rel.Tag))"
     Invoke-GitHub $rel.Exe.browser_download_url 'application/octet-stream' $Target $rel.Exe.url | Out-Null
     $sumText = Get-Text (Invoke-GitHub $rel.Sums.browser_download_url 'application/octet-stream' '' $rel.Sums.url)
     $pattern = "^\s*([0-9a-fA-F]{64})\s+\*?$([regex]::Escape($rel.Exe.name))\s*$"
@@ -368,7 +368,7 @@ function Assert-Closed([string]$Exe) {
     $running = @(Get-Process -Name 'eprocia' -ErrorAction SilentlyContinue | Where-Object {
         try { $_.Path -eq $Exe } catch { $false }
     })
-    if ($running.Count -gt 0) { Fail 'o eprocIA está aberto; feche pelo ícone da bandeja (Sair) e rode de novo' }
+    if ($running.Count -gt 0) { Fail 'O eprocIA está aberto. Feche pelo ícone da bandeja (Sair) e rode de novo' }
 }
 
 function Test-WebView2 {
@@ -432,7 +432,7 @@ function Install-App {
     try {
         if ($From) {
             $source = (Resolve-Path -LiteralPath $From).Path
-            Write-Step 'copiando' $source
+            Write-Step 'Copiando' $source
             Copy-Item -LiteralPath $source -Destination $tmp
         } else {
             Save-ReleaseExe $tmp | Out-Null
@@ -447,16 +447,16 @@ function Install-App {
     # Sem a marca de download, o SmartScreen não barra cada abertura.
     Unblock-File -LiteralPath $exe
     $version = Get-ExeVersion $exe
-    Write-Step 'salvo em' $exe
+    Write-Step 'Salvo em' $exe
 
     $shortcuts = Get-Shortcuts
     New-Shortcut $shortcuts[0] $exe
-    Write-Step 'atalho no menu Iniciar' $shortcuts[0]
+    Write-Step 'Atalho no menu Iniciar' $shortcuts[0]
     if ($NoDesktop) {
         Remove-Item -LiteralPath $shortcuts[1] -Force -ErrorAction SilentlyContinue
     } else {
         New-Shortcut $shortcuts[1] $exe
-        Write-Step 'atalho na área de trabalho' $shortcuts[1]
+        Write-Step 'Atalho na área de trabalho' $shortcuts[1]
     }
 
     $uninstall = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$localScript`" -Uninstall"
@@ -475,7 +475,7 @@ function Install-App {
     foreach ($k in 'NoModify', 'NoRepair') { Set-ItemProperty -LiteralPath $uninstallKey -Name $k -Value 1 -Type DWord }
     $kb = [int][Math]::Ceiling((Get-Item -LiteralPath $exe).Length / 1KB)
     Set-ItemProperty -LiteralPath $uninstallKey -Name EstimatedSize -Value $kb -Type DWord
-    Write-Step 'registrado em Aplicativos instalados'
+    Write-Step 'Registrado em Aplicativos instalados'
 
     # Quem usava a versão portátil com "Iniciar com o Windows" passa a abrir a instalada.
     if (Get-ItemProperty -LiteralPath $runKey -Name $app -ErrorAction SilentlyContinue) {
@@ -484,16 +484,16 @@ function Install-App {
     }
 
     if (-not (Test-WebView2)) {
-        Write-Warn 'Microsoft Edge WebView2 Runtime não encontrado; instale em https://go.microsoft.com/fwlink/p/?LinkId=2124703'
+        Write-Warn 'Microsoft Edge WebView2 Runtime não encontrado. Instale em https://go.microsoft.com/fwlink/p/?LinkId=2124703 ou com o comando "winget install -e --id Microsoft.EdgeWebView2Runtime"'
     }
     foreach ($other in @(Get-MachineInstall)) {
-        Write-Warn "há também uma instalação para todos os usuários ($($other.DisplayName)); desinstale em Configurações > Aplicativos para não ficar com duas cópias"
+        Write-Warn "Há também uma instalação para todos os usuários ($($other.DisplayName)).`nDesinstale em Configurações > Aplicativos para não ficar com duas cópias"
     }
 
-    Write-Done "Pronto: eprocIA $version (só para você)"
+    Write-Done "Pronto: eprocIA $version instalado só para você."
     if (-not $NoStart) {
         Start-Process -FilePath $exe -WorkingDirectory $installDir
-        Write-Note 'eprocIA aberto; ele fica no ícone da bandeja ao fechar a janela'
+        Write-Note 'eprocIA aberto. Ele fica no ícone da bandeja ao fechar a janela.'
     }
 }
 
@@ -511,20 +511,20 @@ function Uninstall-App {
         Write-Step '"Iniciar com o Windows" desligado'
     }
     foreach ($s in Get-Shortcuts) {
-        if (Test-Path -LiteralPath $s) { Remove-Item -LiteralPath $s -Force; Write-Step 'atalho removido' $s }
+        if (Test-Path -LiteralPath $s) { Remove-Item -LiteralPath $s -Force; Write-Step 'Atalho removido' $s }
     }
     Remove-Item -LiteralPath $uninstallKey -Recurse -Force -ErrorAction SilentlyContinue
     if (Test-Path -LiteralPath $installDir) { Remove-Item -LiteralPath $installDir -Recurse -Force }
-    Write-Ok "removido: $installDir"
+    Write-Ok "Removido: $installDir"
 
     $config = Join-Path $env:APPDATA $app
     if ($Purge) {
         # Configurações e falhas.json, dados do WebView2 e binários do OCR extraídos.
         foreach ($d in @($config, (Join-Path $env:APPDATA $exeName), (Join-Path ([IO.Path]::GetTempPath()) 'eprocIA_bin'))) {
-            if (Test-Path -LiteralPath $d) { Remove-Item -LiteralPath $d -Recurse -Force; Write-Step 'apagado' $d }
+            if (Test-Path -LiteralPath $d) { Remove-Item -LiteralPath $d -Recurse -Force; Write-Step 'Apagado' $d }
         }
     } else {
-        Write-Note "configurações mantidas em $config (-Purge apaga)"
+        Write-Note "Configurações mantidas em $config (-Purge apaga)"
     }
     Write-Done 'Pronto: eprocIA removido'
 }
@@ -533,7 +533,7 @@ function Uninstall-App {
 # por uma tarefa agendada de uso único, e reapresenta o log dele.
 function Invoke-AsUser {
     $user = Get-SessionUser
-    Write-Note "terminal elevado: a instalação continua só para $user, sem privilégios"
+    Write-Note "Terminal elevado: a instalação continua só para $user, sem privilégios."
     $id = [Guid]::NewGuid().ToString('N')
     $stage = Join-Path $env:PUBLIC "eprocia-install-$id"
     New-Item -ItemType Directory -Path $stage | Out-Null
@@ -584,8 +584,8 @@ function Invoke-AsUser {
             Unregister-ScheduledTask -TaskName $task -Confirm:$false -ErrorAction SilentlyContinue
         }
         Show-Log $stagedLog
-        if (-not $finished) { Fail 'a cópia sem privilégios não terminou em 10 minutos' }
-        if ($info.LastTaskResult -ne 0) { Fail "a cópia sem privilégios terminou com erro (código $($info.LastTaskResult))" }
+        if (-not $finished) { Fail 'A cópia sem privilégios não terminou em 10 minutos.' }
+        if ($info.LastTaskResult -ne 0) { Fail "A cópia sem privilégios terminou com erro (código $($info.LastTaskResult))" }
     } finally {
         Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
     }
@@ -597,29 +597,29 @@ function Invoke-DryRun([bool]$Elevated) {
     $action = if ($Uninstall) { 'remover' } else { 'instalar' }
     Write-Title "Simulação: $action o eprocIA (só para você)"
     if ($Elevated) {
-        Write-Step 'terminal elevado: rodaria sem privilégios, por tarefa agendada, como' (Get-SessionUser)
-        Write-Note 'os caminhos abaixo seriam os do perfil desse usuário'
+        Write-Step 'Terminal elevado: rodaria sem privilégios, por tarefa agendada, como' (Get-SessionUser)
+        Write-Note 'Os caminhos abaixo seriam os do perfil desse usuário'
     }
     $installDir = Get-InstallDir
     $exe = Join-Path $installDir $exeName
     $shortcuts = Get-Shortcuts
     if ($Uninstall) {
-        if (Test-Path -LiteralPath $installDir) { Write-Step 'apagaria' $installDir } else { Write-Step 'não há eprocIA em' $installDir }
-        Write-Step 'apagaria os atalhos e a entrada de Aplicativos instalados'
-        if ($Purge) { Write-Step 'apagaria as configurações em' (Join-Path $env:APPDATA $app) }
-        else { Write-Note "configurações em $(Join-Path $env:APPDATA $app) ficariam" }
+        if (Test-Path -LiteralPath $installDir) { Write-Step 'apagaria' $installDir } else { Write-Step 'Não há eprocIA em' $installDir }
+        Write-Step 'Apagaria os atalhos e a entrada de Aplicativos instalados'
+        if ($Purge) { Write-Step 'Apagaria as configurações em' (Join-Path $env:APPDATA $app) }
+        else { Write-Note "Configurações em $(Join-Path $env:APPDATA $app) ficariam" }
     } else {
         if ($From) { Write-Step 'copiaria' $From }
         else {
             $label = if ($Version) { "release $Version" } else { 'release mais recente' }
-            Write-Step 'baixaria' "eprocia-*-windows-amd64.exe ($label de $repo)"
-            Write-Step 'conferiria o SHA-256 com o SHA256SUMS.txt da release'
+            Write-Step 'Baixaria' "eprocia-*-windows-amd64.exe ($label de $repo)"
+            Write-Step 'Conferiria o SHA-256 com o SHA256SUMS.txt da release'
         }
-        if (Test-Path -LiteralPath $exe) { Write-Step "substituiria a $(Get-ExeVersion $exe) em" $exe } else { Write-Step 'salvaria em' $exe }
-        Write-Step 'criaria o atalho' $shortcuts[0]
-        if (-not $NoDesktop) { Write-Step 'criaria o atalho' $shortcuts[1] }
-        Write-Step 'registraria em Aplicativos instalados'
-        if (-not $NoStart) { Write-Step 'abriria o eprocIA' }
+        if (Test-Path -LiteralPath $exe) { Write-Step "substituiria a $(Get-ExeVersion $exe) em" $exe } else { Write-Step 'Salvaria em' $exe }
+        Write-Step 'Criaria o atalho' $shortcuts[0]
+        if (-not $NoDesktop) { Write-Step 'Criaria o atalho' $shortcuts[1] }
+        Write-Step 'Registraria em Aplicativos instalados'
+        if (-not $NoStart) { Write-Step 'Abriria o eprocIA' }
     }
     Write-Host ''
     Write-Note 'Simulação: nada foi alterado.'
