@@ -100,25 +100,37 @@ $scriptUrl = "https://raw.githubusercontent.com/$repo/main/install.ps1"
 $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\eprocIA'
 $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
 
-if ($Version -and $Version -notmatch '^v?\d+\.\d+\.\d+([-.][0-9A-Za-z.]+)?$') {
-    Write-Host "x versão inválida: '$Version' (use uma tag de release, ex.: v0.3.0)" -ForegroundColor Red
-    return
-}
-if ($Purge -and -not $Uninstall) {
-    Write-Host 'x -Purge só vale junto com -Uninstall' -ForegroundColor Red
-    return
-}
+# Console de verdade: banner, cores e barra de progresso. Não há com a saída redirecionada
+# nem na cópia da tarefa agendada (-Log), que roda oculta. NO_COLOR (no-color.org) tira as cores.
+$fancy = $false
+try { $fancy = -not $Log -and -not [Console]::IsOutputRedirected } catch { }
+$useColor = $fancy -and -not $env:NO_COLOR
 
 # Estilos ANSI montados com o caractere ESC: `$PSStyle` e `` `e `` só existem no 7.
 $esc = [char]27
-function Get-Rgb([int]$R, [int]$G, [int]$B) { "$esc[38;2;$R;$G;${B}m" }
+function Get-Rgb([int]$R, [int]$G, [int]$B) { if ($useColor) { "$esc[38;2;$R;$G;${B}m" } else { '' } }
 $cPurple = Get-Rgb 154 92 219
 $cPeach  = Get-Rgb 255 117 117
 $cGray   = Get-Rgb 128 128 128
 $cPink   = Get-Rgb 224 91 191
-$cDim    = "$esc[2m"
-$cBold   = "$esc[1m"
-$cReset  = "$esc[0m"
+$cBlue   = Get-Rgb 26 124 240
+$cDim    = if ($useColor) { "$esc[2m" } else { '' }
+$cBold   = if ($useColor) { "$esc[1m" } else { '' }
+$cReset  = if ($useColor) { "$esc[0m" } else { '' }
+
+# Write-Host colorido só quando há cor (no 7 o -ForegroundColor também vira ANSI).
+function Write-Color([string]$Text, [ConsoleColor]$Color) {
+    if ($useColor) { Write-Host $Text -ForegroundColor $Color } else { Write-Host $Text }
+}
+
+if ($Version -and $Version -notmatch '^v?\d+\.\d+\.\d+([-.][0-9A-Za-z.]+)?$') {
+    Write-Color "x versão inválida: '$Version' (use uma tag de release, ex.: v0.3.0)" Red
+    return
+}
+if ($Purge -and -not $Uninstall) {
+    Write-Color 'x -Purge só vale junto com -Uninstall' Red
+    return
+}
 
 # UTF-8 para as setas e o ponto; o valor anterior volta no fim, porque sob `irm | iex` a
 # mudança ficaria valendo no terminal de quem rodou.
@@ -126,45 +138,89 @@ $prevOutputEncoding = [Console]::OutputEncoding
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 function Restore-Console { try { [Console]::OutputEncoding = $prevOutputEncoding } catch { } }
 
-# Título e ícone da janela do console durante a execução; Restore-Window devolve os
-# anteriores. No Windows Terminal a janela do console é oculta: o ícone não aparece, sem erro.
+# Título da janela durante a execução; Restore-Window devolve o anterior.
 $script:prevTitle = $null
-$script:windowIcon = $null
 function Set-WindowTitle([string]$Title) {
     try {
         if ($null -eq $script:prevTitle) { $script:prevTitle = $Host.UI.RawUI.WindowTitle }
         $Host.UI.RawUI.WindowTitle = $Title
     } catch { }
 }
-function Set-WindowIcon([string]$Exe) {
-    try {
-        if ($env:WT_SESSION -or $null -ne $script:windowIcon -or -not $Exe -or -not (Test-Path -LiteralPath $Exe)) { return }
-        if (-not ('EprocIA.ConsoleWindow' -as [type])) {
-            Add-Type -Namespace EprocIA -Name ConsoleWindow -MemberDefinition @'
-[DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();
-[DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
-'@
-        }
-        $hwnd = [EprocIA.ConsoleWindow]::GetConsoleWindow()
-        if ($hwnd -eq [IntPtr]::Zero) { return }
-        Add-Type -AssemblyName System.Drawing
-        $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($Exe)
-        # WM_SETICON (0x80) devolve o ícone anterior: 0 = pequeno, 1 = grande.
-        $small = [EprocIA.ConsoleWindow]::SendMessage($hwnd, 0x80, [IntPtr]0, $icon.Handle)
-        $big = [EprocIA.ConsoleWindow]::SendMessage($hwnd, 0x80, [IntPtr]1, $icon.Handle)
-        $script:windowIcon = [pscustomobject]@{ Hwnd = $hwnd; Icon = $icon; Small = $small; Big = $big }
-    } catch { }
-}
 function Restore-Window {
     try { if ($null -ne $script:prevTitle) { $Host.UI.RawUI.WindowTitle = $script:prevTitle; $script:prevTitle = $null } } catch { }
-    try {
-        $w = $script:windowIcon
-        if ($null -eq $w) { return }
-        $script:windowIcon = $null
-        [EprocIA.ConsoleWindow]::SendMessage($w.Hwnd, 0x80, [IntPtr]0, $w.Small) | Out-Null
-        [EprocIA.ConsoleWindow]::SendMessage($w.Hwnd, 0x80, [IntPtr]1, $w.Big) | Out-Null
-        $w.Icon.Dispose()
-    } catch { }
+}
+
+# Banner: o ícone do app (quadrado azul em degradê com o "e" e a estrela brancos) e o nome,
+# em pixels: '.' vazio, 'b' azul, 'w' branco, '#' texto na cor padrão, '@' texto azul ("IA").
+# Cada linha da tela junta duas linhas de pixels com meios-blocos, montados com [char]
+# porque o 5.1 lê este arquivo sem BOM como ANSI.
+$bannerPixels = @(
+    '..bbbbbbbbbbbb...........................................'
+    '.bbbbbbbbbbbbbb.................................@@@...@..'
+    'bbbbbbbbbbbbwbbb.................................@...@.@.'
+    'bbbbbbbbbbbwwwbb.................................@...@.@.'
+    'bbbbbbbbbbbbwbbb....###..####..#.##..###...###...@..@...@'
+    'bbbbbbwwwwbbbbbb...#...#.#...#.##...#...#.#...#..@..@...@'
+    'bbbbbwwbbwwbbbbb...#...#.#...#.#....#...#.#......@..@...@'
+    'bbbbwwbbbbwwbbbb...#####.#...#.#....#...#.#......@..@@@@@'
+    'bbbbwwwwwwwwbbbb...#.....#...#.#....#...#.#......@..@...@'
+    'bbbbwwbbbbbbbbbb...#.....#...#.#....#...#.#......@..@...@'
+    'bbbbbwwbbwwbbbbb...#...#.####..#....#...#.#...#..@..@...@'
+    'bbbbbbwwwwbbbbbb....###..#.....#.....###...###..@@@.@...@'
+    'bbbbbbbbbbbbbbbb.........#...............................'
+    'bbbbbbbbbbbbbbbb.........#...............................'
+    '.bbbbbbbbbbbbbb..........#...............................'
+    '..bbbbbbbbbbbb...........................................'
+)
+
+# Cor de um pixel como "r;g;b", 'def' (cor padrão do terminal) ou $null (vazio). O azul do
+# ícone vai em degradê na diagonal, de #1A7CF0 a #0056B3.
+function Get-BannerColor([char]$P, [int]$X, [int]$Y) {
+    switch ($P) {
+        'b' {
+            $k = ($X + $Y) / 30.0
+            return '{0};{1};{2}' -f [int](26 - 26 * $k), [int](124 - 38 * $k), [int](240 - 61 * $k)
+        }
+        'w' { return '255;255;255' }
+        '#' { return 'def' }
+        '@' { return '26;124;240' }
+    }
+    $null
+}
+
+function Get-BannerLines {
+    $up = [char]0x2580; $down = [char]0x2584; $full = [char]0x2588
+    for ($r = 0; $r -lt $bannerPixels.Count; $r += 2) {
+        $top = $bannerPixels[$r]; $bottom = $bannerPixels[$r + 1]
+        $sb = New-Object Text.StringBuilder '  '
+        for ($x = 0; $x -lt $top.Length; $x++) {
+            $a = Get-BannerColor $top[$x] $x $r
+            $b = Get-BannerColor $bottom[$x] $x ($r + 1)
+            $fa = if ($a -eq 'def') { "$esc[39m" } else { "$esc[38;2;${a}m" }
+            $fb = if ($b -eq 'def') { "$esc[39m" } else { "$esc[38;2;${b}m" }
+            if (-not $a -and -not $b) { [void]$sb.Append("$esc[0m ") }
+            elseif (-not $b) { [void]$sb.Append("$esc[0m$fa$up") }
+            elseif (-not $a) { [void]$sb.Append("$esc[0m$fb$down") }
+            elseif ($a -eq $b) { [void]$sb.Append("$esc[0m$fa$full") }
+            else { [void]$sb.Append("$esc[0m$fa$esc[48;2;${b}m$up") }
+        }
+        [void]$sb.Append("$esc[0m")
+        $sb.ToString()
+    }
+}
+
+# No início de cada execução visível. Janela mais estreita que o banner, ou sem cor: só o nome.
+function Get-WindowWidth { try { [int]$Host.UI.RawUI.WindowSize.Width } catch { 0 } }
+
+function Show-Banner {
+    if (-not $fancy) { return }
+    $width = Get-WindowWidth
+    Write-Host ''
+    if ($useColor -and $width -ge $bannerPixels[0].Length + 3) {
+        foreach ($line in Get-BannerLines) { Write-Host $line }
+    } else {
+        Write-Host "  ${cBold}eproc$cBlue${cBold}IA$cReset"
+    }
 }
 
 # A cópia sem privilégios grava cada linha no -Log (tipo, texto, valor) e o terminal
@@ -187,10 +243,10 @@ function Write-Step([string]$Text, [string]$Value = '') {
     }
     Add-Log 'step' $Text $Value
 }
-function Write-Ok([string]$Text) { Write-Host "  ok $Text" -ForegroundColor Green; Add-Log 'ok' $Text }
+function Write-Ok([string]$Text) { Write-Color "  ok $Text" Green; Add-Log 'ok' $Text }
 function Write-Note([string]$Text) { Write-Host "  $cGray$Text$cReset"; Add-Log 'note' $Text }
-function Write-Warn([string]$Text) { Write-Host "  ! $Text" -ForegroundColor Yellow; Add-Log 'warn' $Text }
-function Write-Done([string]$Text) { Write-Host ''; Write-Host $Text -ForegroundColor Green; Add-Log 'done' $Text }
+function Write-Warn([string]$Text) { Write-Color "  ! $Text" Yellow; Add-Log 'warn' $Text }
+function Write-Done([string]$Text) { Write-Host ''; Write-Color $Text Green; Add-Log 'done' $Text }
 
 function Show-Log([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path)) { return }
@@ -206,7 +262,7 @@ function Show-Log([string]$Path) {
                 'note'  { Write-Note $text }
                 'warn'  { Write-Warn $text }
                 'done'  { Write-Done $text }
-                'fail'  { Write-Host "x $text" -ForegroundColor Red }
+                'fail'  { Write-Color "x $text" Red }
             }
         }
     } finally { $script:Log = $saved }
@@ -686,7 +742,6 @@ function Install-App {
         if ($copyScript) { Save-ScriptCopy $tmpScript }
         Move-Item -LiteralPath $tmp -Destination $exe -Force
         if ($copyScript) { Move-Item -LiteralPath $tmpScript -Destination $localScript -Force }
-        if (-not $Log) { Set-WindowIcon $exe }
     } finally {
         foreach ($f in $tmp, $tmpScript) { if (Test-Path -LiteralPath $f) { Remove-Item -LiteralPath $f -Force } }
     }
@@ -782,7 +837,6 @@ function Invoke-AsUser {
     Write-Note "Terminal elevado: a instalação continua só para $user, sem privilégios."
     # A pergunta é feita aqui: a cópia sem privilégios roda sem console e recebe -Yes.
     $userDir = Get-UserInstallDir $user
-    Set-WindowIcon (Join-Path $userDir $exeName)
     Assert-Closed (Join-Path $userDir $exeName)
     $rel = $null
     if ($Uninstall) {
@@ -814,7 +868,6 @@ function Invoke-AsUser {
             $stagedExe = Join-Path $stage $exeName
             if ($From) { Copy-Item -LiteralPath (Resolve-Path -LiteralPath $From).Path -Destination $stagedExe }
             else { Save-ReleaseExe $stagedExe $rel | Out-Null }
-            Set-WindowIcon $stagedExe
             $argv += @('-From', "`"$stagedExe`"")
             if ($NoDesktop) { $argv += '-NoDesktop' }
             if ($NoStart) { $argv += '-NoStart' }
@@ -899,10 +952,10 @@ function Invoke-DryRun([bool]$Elevated) {
 function Invoke-Main {
     $elevated = Test-Elevated
     if (-not $Uninstall) { Assert-From }
-    # A cópia da tarefa agendada roda numa janela oculta: título e ícone só no terminal visível.
+    # A cópia da tarefa agendada roda numa janela oculta: título e banner só no terminal visível.
     if (-not $Log) {
         Set-WindowTitle "eprocIA - $(if ($Uninstall) { 'remoção' } else { 'instalação' })"
-        if (-not $elevated) { Set-WindowIcon (Join-Path (Get-InstallDir) $exeName) }
+        Show-Banner
     }
     if ($DryRun) {
         if (-not (Invoke-DryRun $elevated)) { return }
@@ -918,7 +971,7 @@ try {
     Invoke-Main
 } catch {
     $failed = $true
-    Write-Host "x $($_.Exception.Message)" -ForegroundColor Red
+    Write-Color "x $($_.Exception.Message)" Red
     Add-Log 'fail' $_.Exception.Message
 } finally { Restore-Console; Restore-Window }
 # A cópia da tarefa agendada roda com -File: o código de saída chega ao terminal elevado.
