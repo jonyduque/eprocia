@@ -138,7 +138,7 @@ function Set-WindowTitle([string]$Title) {
 }
 function Set-WindowIcon([string]$Exe) {
     try {
-        if ($null -ne $script:windowIcon -or -not $Exe -or -not (Test-Path -LiteralPath $Exe)) { return }
+        if ($env:WT_SESSION -or $null -ne $script:windowIcon -or -not $Exe -or -not (Test-Path -LiteralPath $Exe)) { return }
         if (-not ('EprocIA.ConsoleWindow' -as [type])) {
             Add-Type -Namespace EprocIA -Name ConsoleWindow -MemberDefinition @'
 [DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();
@@ -373,6 +373,16 @@ function Get-Token {
 
 # Código HTTP do erro, ou 0 se a conexão caiu. Um erro de um método .NET (HttpWebRequest)
 # chega embrulhado: a resposta fica numa exceção interna.
+# Queda de conexão: erro de rede sem código HTTP. Os erros locais saem por Fail e não repetem.
+function Test-Dropped($ErrorRecord) {
+    if ((Get-Status $ErrorRecord) -ne 0) { return $false }
+    for ($e = $ErrorRecord.Exception; $e; $e = $e.InnerException) {
+        if ($e -is [Net.WebException] -or $e -is [IO.IOException] -or $e -is [Net.Sockets.SocketException] -or $e -is [TimeoutException] -or
+            $e.GetType().FullName -in 'System.Net.Http.HttpRequestException', 'System.Threading.Tasks.TaskCanceledException') { return $true }
+    }
+    $false
+}
+
 function Get-Status($ErrorRecord) {
     for ($e = $ErrorRecord.Exception; $e; $e = $e.InnerException) {
         try { if ($e.Response) { return [int]$e.Response.StatusCode } } catch { }
@@ -398,7 +408,13 @@ function Save-WithProgress([hashtable]$Request) {
         foreach ($k in $headers.Keys) {
             if ($k -eq 'Accept') { $req.Accept = $headers[$k] } else { $req.Headers[$k] = $headers[$k] }
         }
-        $resp = $req.GetResponse()
+        try { $resp = $req.GetResponse() }
+        catch {
+            for ($e = $_.Exception; $e; $e = $e.InnerException) {
+                if ($e -is [Net.WebException] -and $e.Response) { try { $e.Response.GetResponseStream().Dispose() } catch { } }
+            }
+            throw
+        }
         $code = [int]$resp.StatusCode
         if ($code -lt 300 -or $code -ge 400) { break }
         $location = $resp.Headers['Location']
@@ -411,13 +427,15 @@ function Save-WithProgress([hashtable]$Request) {
     try {
         $total = $resp.ContentLength
         $in = $resp.GetResponseStream()
-        $out = [IO.File]::Create($Request.OutFile)
+        try { $out = [IO.File]::Create($Request.OutFile) }
+        catch { $in.Dispose(); Fail "Não foi possível gravar $($Request.OutFile): $($_.Exception.InnerException.Message)" }
         try {
             $buf = New-Object byte[] 262144
             $done = [long]0
             $clock = [Diagnostics.Stopwatch]::StartNew()
             while (($n = $in.Read($buf, 0, $buf.Length)) -gt 0) {
-                $out.Write($buf, 0, $n)
+                try { $out.Write($buf, 0, $n) }
+                catch { Fail "Não foi possível gravar $($Request.OutFile): $($_.Exception.InnerException.Message)" }
                 $done += $n
                 if ($clock.ElapsedMilliseconds -ge 250) {
                     $clock.Restart()
@@ -449,7 +467,7 @@ function Invoke-Download([hashtable]$Request) {
             return Invoke-WebRequest @Request
         }
         catch {
-            if ((Get-Status $_) -ne 0 -or $try -ge 3) { throw }
+            if (-not (Test-Dropped $_) -or $try -ge 3) { throw }
             Write-Note "Conexão interrompida. Tentando de novo ($($try + 1)/3)"
             Start-Sleep -Seconds (2 * $try)
         }
@@ -564,6 +582,10 @@ function Get-ExeVersion([string]$Exe) {
     '{0}.{1}.{2}' -f $v.FileMajorPart, $v.FileMinorPart, $v.FileBuildPart
 }
 
+function Assert-From {
+    if ($From -and -not (Test-Path -LiteralPath $From -PathType Leaf)) { Fail "Arquivo não encontrado: $From" }
+}
+
 # Versão que será instalada: a do -From ou a da tag da release ($Rel), sem o "v".
 function Get-NewVersion($Rel) {
     if ($From) {
@@ -578,16 +600,26 @@ function Get-CurrentVersion([string]$InstallDir) {
     try { Get-ExeVersion $exe } catch { 'desconhecida' }
 }
 
+# X.Y.Z como [version] (sem "v" nem sufixo de pré-release), ou $null se não der para ler.
+function ConvertTo-Version([string]$Text) {
+    $m = [regex]::Match($Text, '^v?(\d+\.\d+\.\d+)')
+    if ($m.Success) { [version]$m.Groups[1].Value } else { $null }
+}
+
 function Get-InstallQuestion([string]$NewVersion, [string]$InstallDir) {
     $current = Get-CurrentVersion $InstallDir
     if (-not $NewVersion) { $NewVersion = 'da release mais recente' }
     if (-not $current) { return "Instalar o eprocIA ${NewVersion}?" }
     if ($current -eq $NewVersion) { return "Reinstalar o eprocIA ${current}?" }
+    $a = ConvertTo-Version $current
+    $b = ConvertTo-Version $NewVersion
+    if ($a -and $b -and $b -lt $a) { return "Voltar o eprocIA de $current para ${NewVersion}?" }
     "Atualizar o eprocIA de $current para ${NewVersion}?"
 }
 
 # Mostra a versão (a atual também, numa atualização) e a pasta, e pergunta.
 function Confirm-Install([string]$NewVersion, [string]$InstallDir) {
+    if ($Log) { return (Confirm-Plan 'Instalar?') }
     $current = Get-CurrentVersion $InstallDir
     if ($current) {
         Write-Step 'Versão instalada' $current
@@ -601,6 +633,7 @@ function Confirm-Install([string]$NewVersion, [string]$InstallDir) {
 
 # Mostra o que será apagado e pergunta.
 function Confirm-Uninstall([string]$InstallDir) {
+    if ($Log) { return (Confirm-Plan 'Remover?') }
     if (Test-Path -LiteralPath $InstallDir) { Write-Step 'Apaga a pasta' $InstallDir } else { Write-Step 'Não há eprocIA em' $InstallDir }
     Write-Step 'Apaga os atalhos, a entrada em Aplicativos instalados e o "Iniciar com o Windows"'
     if ($Purge) {
@@ -750,6 +783,7 @@ function Invoke-AsUser {
     # A pergunta é feita aqui: a cópia sem privilégios roda sem console e recebe -Yes.
     $userDir = Get-UserInstallDir $user
     Set-WindowIcon (Join-Path $userDir $exeName)
+    Assert-Closed (Join-Path $userDir $exeName)
     $rel = $null
     if ($Uninstall) {
         if (-not (Confirm-Uninstall $userDir)) { Write-Cancelled; return }
@@ -826,18 +860,18 @@ function Invoke-DryRun([bool]$Elevated) {
     $exe = Join-Path $installDir $exeName
     $shortcuts = Get-Shortcuts
     if ($Uninstall) {
-        if (Test-Path -LiteralPath $installDir) { Write-Step 'apagaria' $installDir } else { Write-Step 'Não há eprocIA em' $installDir }
+        if (Test-Path -LiteralPath $installDir) { Write-Step 'Apagaria' $installDir } else { Write-Step 'Não há eprocIA em' $installDir }
         Write-Step 'Apagaria os atalhos e a entrada de Aplicativos instalados'
         if ($Purge) { Write-Step 'Apagaria as configurações em' (Join-Path $env:APPDATA $app) }
         else { Write-Note "Configurações em $(Join-Path $env:APPDATA $app) ficariam" }
     } else {
-        if ($From) { Write-Step 'copiaria' $From }
+        if ($From) { Write-Step 'Copiaria' $From }
         else {
             $label = if ($Version) { "release $Version" } else { 'release mais recente' }
             Write-Step 'Baixaria' "eprocia-*-windows-amd64.exe ($label de $repo)"
             Write-Step 'Conferiria o SHA-256 com o SHA256SUMS.txt da release'
         }
-        if (Test-Path -LiteralPath $exe) { Write-Step "substituiria a $(Get-ExeVersion $exe) em" $exe } else { Write-Step 'Salvaria em' $exe }
+        if (Test-Path -LiteralPath $exe) { Write-Step "Substituiria a $(Get-ExeVersion $exe) em" $exe } else { Write-Step 'Salvaria em' $exe }
         Write-Step 'Criaria o atalho' $shortcuts[0]
         if (-not $NoDesktop) { Write-Step 'Criaria o atalho' $shortcuts[1] }
         Write-Step 'Registraria em Aplicativos instalados'
@@ -864,6 +898,7 @@ function Invoke-DryRun([bool]$Elevated) {
 
 function Invoke-Main {
     $elevated = Test-Elevated
+    if (-not $Uninstall) { Assert-From }
     # A cópia da tarefa agendada roda numa janela oculta: título e ícone só no terminal visível.
     if (-not $Log) {
         Set-WindowTitle "eprocIA - $(if ($Uninstall) { 'remoção' } else { 'instalação' })"
