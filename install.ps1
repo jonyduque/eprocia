@@ -330,14 +330,83 @@ function Get-Token {
     $script:token
 }
 
+# Código HTTP do erro, ou 0 se a conexão caiu. Um erro de um método .NET (HttpWebRequest)
+# chega embrulhado: a resposta fica numa exceção interna.
 function Get-Status($ErrorRecord) {
-    try { [int]$ErrorRecord.Exception.Response.StatusCode } catch { 0 }
+    for ($e = $ErrorRecord.Exception; $e; $e = $e.InnerException) {
+        try { if ($e.Response) { return [int]$e.Response.StatusCode } } catch { }
+    }
+    0
+}
+
+# Baixa um arquivo em blocos, com barra de progresso própria: a do Invoke-WebRequest deixa
+# o download de 100+ MB muito lento no 5.1. Os redirecionamentos (o GitHub manda os assets
+# para outro host) são seguidos aqui, para o token não ir junto a outro servidor.
+function Save-WithProgress([hashtable]$Request) {
+    # Só o Write-Progress desta função mostra a barra; o resto do script segue sem.
+    $ProgressPreference = 'Continue'
+    $activity = "Baixando $(Split-Path -Leaf $Request.OutFile)"
+    $uri = [Uri]$Request.Uri
+    $headers = @{}
+    if ($Request.ContainsKey('Headers')) { foreach ($k in $Request.Headers.Keys) { $headers[$k] = $Request.Headers[$k] } }
+    for ($hop = 0; ; $hop++) {
+        $req = [Net.HttpWebRequest][Net.WebRequest]::Create($uri)
+        $req.AllowAutoRedirect = $false
+        $req.UserAgent = 'eprocIA-install'
+        $req.ReadWriteTimeout = 60000
+        foreach ($k in $headers.Keys) {
+            if ($k -eq 'Accept') { $req.Accept = $headers[$k] } else { $req.Headers[$k] = $headers[$k] }
+        }
+        $resp = $req.GetResponse()
+        $code = [int]$resp.StatusCode
+        if ($code -lt 300 -or $code -ge 400) { break }
+        $location = $resp.Headers['Location']
+        $resp.Close()
+        if (-not $location -or $hop -ge 5) { Fail "Redirecionamento inválido ao baixar $($Request.Uri)" }
+        $next = New-Object Uri($uri, $location)
+        if ($next.Host -ne $uri.Host) { $headers.Remove('Authorization') }
+        $uri = $next
+    }
+    try {
+        $total = $resp.ContentLength
+        $in = $resp.GetResponseStream()
+        $out = [IO.File]::Create($Request.OutFile)
+        try {
+            $buf = New-Object byte[] 262144
+            $done = [long]0
+            $clock = [Diagnostics.Stopwatch]::StartNew()
+            while (($n = $in.Read($buf, 0, $buf.Length)) -gt 0) {
+                $out.Write($buf, 0, $n)
+                $done += $n
+                if ($clock.ElapsedMilliseconds -ge 250) {
+                    $clock.Restart()
+                    if ($total -gt 0) {
+                        $pct = [int][Math]::Min(100, $done * 100 / $total)
+                        Write-Progress -Activity $activity -Status ('{0:N1} de {1:N1} MB ({2}%)' -f ($done / 1MB), ($total / 1MB), $pct) -PercentComplete $pct
+                    } else {
+                        Write-Progress -Activity $activity -Status ('{0:N1} MB' -f ($done / 1MB))
+                    }
+                }
+            }
+            # Conexão fechada antes do fim: conta como queda e Invoke-Download repete.
+            if ($total -ge 0 -and $done -ne $total) { throw (New-Object IO.IOException "Download incompleto ($done de $total bytes)") }
+        } finally {
+            $out.Dispose()
+            $in.Dispose()
+            Write-Progress -Activity $activity -Completed
+        }
+    } finally { $resp.Close() }
 }
 
 # Repete até 3 vezes quando a conexão cai (o exe tem mais de 100 MB); erro HTTP não repete.
+# O arquivo grande (OutFile) vai em blocos com progresso; as chamadas pequenas, pelo
+# Invoke-WebRequest.
 function Invoke-Download([hashtable]$Request) {
     for ($try = 1; ; $try++) {
-        try { return Invoke-WebRequest @Request }
+        try {
+            if ($Request.ContainsKey('OutFile')) { return Save-WithProgress $Request }
+            return Invoke-WebRequest @Request
+        }
         catch {
             if ((Get-Status $_) -ne 0 -or $try -ge 3) { throw }
             Write-Note "Conexão interrompida. Tentando de novo ($($try + 1)/3)"
