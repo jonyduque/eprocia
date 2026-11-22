@@ -627,7 +627,7 @@ func extrairNativoContando(page pdf.Page) (string, metricasPagina, int, error) {
 	}
 	m := p.metricas()
 	topo := math.Inf(1) // sem imagem útil ou sem página válida, nenhuma linha conta
-	if t, ok := topoImagens(p.imagens); ok && m.valida {
+	if t, ok := topoImagens(p.imagens, p.mediaBox); ok && m.valida {
 		topo = t
 	}
 	texto, n := montarEContar(p.trechos, topo)

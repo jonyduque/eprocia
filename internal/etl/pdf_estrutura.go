@@ -157,12 +157,12 @@ func medirPagina(mediaBox caixa, imagens []imagemColocada, textos []caixa) metri
 		if !im.util() {
 			continue
 		}
+		if !cruzaMediaBox(im, mediaBox) {
+			continue
+		}
 		xs, ys := im.cantos()
 		x0, x1 := min(xs[0], xs[1], xs[2], xs[3])-mediaBox.x0, max(xs[0], xs[1], xs[2], xs[3])-mediaBox.x0
 		y0, y1 := min(ys[0], ys[1], ys[2], ys[3])-mediaBox.y0, max(ys[0], ys[1], ys[2], ys[3])-mediaBox.y0
-		if x1 < 0 || y1 < 0 || x0 > largura || y0 > altura {
-			continue
-		}
 		for r := indiceGrade(y0, ch, gradeLinhas); r <= indiceGrade(y1, ch, gradeLinhas); r++ {
 			cy := mediaBox.y0 + (float64(r)+0.5)*ch
 			for c := indiceGrade(x0, cw, gradeColunas); c <= indiceGrade(x1, cw, gradeColunas); c++ {
@@ -205,6 +205,16 @@ func medirPagina(mediaBox caixa, imagens []imagemColocada, textos []caixa) metri
 	return m
 }
 
+// cruzaMediaBox diz se a caixa dos cantos da imagem, relativa à origem do
+// MediaBox, toca o MediaBox. É o critério de medirPagina e de topoImagens.
+func cruzaMediaBox(im imagemColocada, mediaBox caixa) bool {
+	largura, altura := mediaBox.x1-mediaBox.x0, mediaBox.y1-mediaBox.y0
+	xs, ys := im.cantos()
+	x0, x1 := min(xs[0], xs[1], xs[2], xs[3])-mediaBox.x0, max(xs[0], xs[1], xs[2], xs[3])-mediaBox.x0
+	y0, y1 := min(ys[0], ys[1], ys[2], ys[3])-mediaBox.y0, max(ys[0], ys[1], ys[2], ys[3])-mediaBox.y0
+	return !(x1 < 0 || y1 < 0 || x0 > largura || y0 > altura)
+}
+
 // textoPerto diz se a célula (r, c) ou uma das 8 vizinhas tem texto.
 func textoPerto(txt *[gradeLinhas][gradeColunas]bool, r, c int) bool {
 	for rr := max(r-1, 0); rr <= min(r+1, gradeLinhas-1); rr++ {
@@ -217,12 +227,13 @@ func textoPerto(txt *[gradeLinhas][gradeColunas]bool, r, c int) bool {
 	return false
 }
 
-// topoImagens devolve o maior Y dos cantos das imagens úteis, e false quando
-// nenhuma é útil.
-func topoImagens(imagens []imagemColocada) (float64, bool) {
+// topoImagens devolve o maior Y dos cantos das imagens úteis que cruzam o
+// MediaBox (cruzaMediaBox, o mesmo critério de medirPagina), e false quando
+// nenhuma serve.
+func topoImagens(imagens []imagemColocada, mediaBox caixa) (float64, bool) {
 	topo, achou := math.Inf(-1), false
 	for _, im := range imagens {
-		if !im.util() {
+		if !im.util() || !cruzaMediaBox(im, mediaBox) {
 			continue
 		}
 		_, ys := im.cantos()
@@ -233,10 +244,11 @@ func topoImagens(imagens []imagemColocada) (float64, bool) {
 
 // linhasAcimaDasImagens conta as linhas do texto nativo (as que montarLinhas
 // emite) cuja linha de base fica na altura do topo da imagem útil mais alta,
-// ou acima dele. Pura. Sem imagem útil devolve 0. extrairNativo não a usa:
-// conta na mesma passada que monta o texto (montarEContar).
-func linhasAcimaDasImagens(trechos []trecho, imagens []imagemColocada) int {
-	topo, achou := topoImagens(imagens)
+// ou acima dele (só as imagens que cruzam o MediaBox). Pura. Sem imagem útil
+// devolve 0. extrairNativo não a usa: conta na mesma passada que monta o
+// texto (montarEContar).
+func linhasAcimaDasImagens(trechos []trecho, imagens []imagemColocada, mediaBox caixa) int {
+	topo, achou := topoImagens(imagens, mediaBox)
 	if !achou {
 		return 0
 	}

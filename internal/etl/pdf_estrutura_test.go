@@ -80,7 +80,7 @@ func TestMedir_CTMSingular(t *testing.T) {
 		if m := medirPagina(a4, []imagemColocada{im}, nil); m.fImg != 0 || m.fDesc != 0 {
 			t.Errorf("CTM %v: %+v; quer fImg = fDesc = 0", im.ctm, m)
 		}
-		if n := linhasAcimaDasImagens([]trecho{{texto: "X", y: 900, tamanho: 10}}, []imagemColocada{im}); n != 0 {
+		if n := linhasAcimaDasImagens([]trecho{{texto: "X", y: 900, tamanho: 10}}, []imagemColocada{im}, a4); n != 0 {
 			t.Errorf("CTM %v: linhasAcima = %d, quer 0", im.ctm, n)
 		}
 	}
@@ -157,10 +157,11 @@ func TestLinhasAcima(t *testing.T) {
 		{"duas imagens", []imagemColocada{baixo, img(413, 207, 200, 0, 0, 100, 0, 500)}, linhas(800, 780, 700, 500, 300), 3},
 		{"imagem inútil", []imagemColocada{img(1, 1, 595, 0, 0, 842, 0, 0)}, linhas(800, 780), 0},
 		{"dois trechos na mesma linha", []imagemColocada{baixo}, append(linhas(800, 300), trecho{texto: "B", x: 300, y: 800, fimX: 320, tamanho: 10}), 1},
+		{"imagem fora do MediaBox", []imagemColocada{baixo, img(1240, 300, 595, 0, 0, 100, 0, 900)}, linhas(800, 780, 700, 300, 100), 3},
 	}
 	for _, c := range casos {
 		t.Run(c.nome, func(t *testing.T) {
-			if n := linhasAcimaDasImagens(c.trechos, c.imagens); n != c.quer {
+			if n := linhasAcimaDasImagens(c.trechos, c.imagens, a4); n != c.quer {
 				t.Fatalf("linhasAcimaDasImagens = %d, quer %d", n, c.quer)
 			}
 		})
