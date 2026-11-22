@@ -20,9 +20,10 @@ Rode na raiz da worktree, com a saída em arquivo no scratchpad (leia só o trec
 - Go: `go vet ./...` e `go test -race ./internal/...`. Na tarefa que mexe só num pacote, rode também `go test -race` nesse pacote sem `-short` (os testes de `pdf_classes_test.go` e de `internal/ocr` usam os binários reais do Poppler e do tesseract).
 - Formato: `git show HEAD:<arquivo> | gofmt -d` não serve para arquivo novo; para conferir o que você escreveu, rode `gofmt -l <arquivo>` numa cópia com LF ou confie no hook `go-check`. O checkout usa `core.autocrlf=true`, então `gofmt -l` direto na cópia de trabalho lista tudo.
 - A suíte tem `TestModernizacao_GoFixSemDiff`: código que o `go fix` reescreveria reprova (ex.: `strings.Split` num `range` vira `SplitSeq`).
-- Frontend (só se a tarefa mexer em `frontend/` ou `scripts/visual/`): `node --test` em todos os `frontend/*.test.mjs` (no Git Bash: `node --test frontend/*.test.mjs`), `npx svelte-check` e `npm run build` em `frontend`. Para `scripts/visual/`, também `node --test scripts/visual/estados.test.mjs`.
+- Frontend (tarefa que mexe em `frontend/`): `node --test` em todos os `frontend/*.test.mjs` (no Git Bash: `node --test frontend/*.test.mjs`), `npx svelte-check` e `npm run build` em `frontend`. Tarefa que mexe só em `scripts/visual/` (Tasks 6 e 7): `node --test scripts/visual/estados.test.mjs` e `node --test frontend/*.test.mjs`, sem `svelte-check` nem `npm run build` (o script não entra no bundle).
 - Com outros agentes rodando, a suíte pode estourar tempo: rode de novo só os pacotes ou arquivos que falharam, com `-p 1` (Go) ou `--test-concurrency=1` (node). Falha que persiste com a máquina ociosa é falha.
-- Não rode dois `go test ./internal/etl` ao mesmo tempo na mesma máquina depois da Task 5: o `TestMain` passa a apagar a pasta `%TEMP%\eprocia_testes_classes`, que a outra execução pode estar usando.
+- Binário de teste como executável falso (`internal/ocr`): todo teste que copia `os.Args[0]` define `EPROCIA_TESTE_FILHO=1` junto do modo (`EPROCIA_TESTE_DORMIR`, `EPROCIA_TESTE_SENHA`, `EPROCIA_TESTE_JORRAR`), e o modo existe no `TestMain` antes de o teste rodar. Sem isso o filho roda a suíte inteira e se copia de novo, em cascata.
+- A partir da Task 5, cada `go test ./internal/etl` cria a sua pasta `%TEMP%\eprocia_testes_classes_*` e a apaga no fim; execuções em paralelo (outra worktree, outro agente) não se atrapalham. Não apague pastas `eprocia_testes_classes*` à mão durante a rodada.
 
 ## Commit
 
