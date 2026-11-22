@@ -12,9 +12,9 @@ Os ids são os do registro de execução do plano (`docs/superpowers/plans/2026-
 | M2 (resolvido na v0.4.2, commit `66a1c67`) | `internal/etl/pdf_ocr_despacho.go` (sucesso do OCR) | Quando o OCR devolve texto em branco, o texto nativo curto que servia de reserva é descartado. No caminho do Poppler toda página com menos de 100 bytes vai ao OCR, então o trecho roda mais do que antes. | Feito: `conteudoAposOCR` (`internal/etl/pdf_juncao.go`) mantém a reserva quando o OCR vem em branco ou ilegível. |
 | M5 | `frontend/src/lib/atividade.js`, `AtividadeItem.svelte` | Documento com só algumas páginas sem OCR conta como lido; o painel não mostra nada e o botão "Reprocessar com OCR" não aparece. O único sinal é o marcador dentro do `.txt`. | Levar a contagem de páginas `sem_ocr` no `AtividadeDoc`. |
 | P18 | `internal/etl/queue.go` (`QueueItem.Error`/`Message`), `app.go` (notificação de falha) | Quando o ZIP inteiro falha, a linha do item e a notificação mostram o erro bruto, que pode trazer o caminho do ZIP ou do `.txt`. Nenhum `.txt` é gerado nesse caso. | Encurtar o caminho para o nome do arquivo. |
-| P6 | `ProcessList.svelte` (`.details-row`) | `overflow: hidden` no pai poderia cortar o rótulo "N não lidos" numa linha bem mais estreita que 800 px. Não reproduz em 800×600. | Conferir com captura abaixo de 800 px. |
+| P6 (medido em 2026-11-22, 2243370: o rótulo some em 800×600 com o divisor no máximo; o conserto espera decisão do dono) | `ProcessList.svelte` (`.details-row`) | `overflow: hidden` no pai poderia cortar o rótulo "N não lidos" numa linha bem mais estreita que 800 px. Não reproduz em 800×600. | Conferir com captura abaixo de 800 px. |
 | P10 | `internal/etl/pdf_parser.go` (`registrarOCR`, `runOCRBloco`) | `DeadlineExceeded` vindo do contexto de quem chama não grava `ocr_prazo` nem conta para a parada depois de 2 prazos. Sem efeito hoje: a produção só usa `WithCancel`. | Tratar junto se um prazo por ZIP for criado. |
-| P14 | `internal/ocr/poppler.go`, `tesseract.go` | `initPoppler` e `tessdataDoModo` seguram `initMu` durante a extração (só latência na primeira chamada); a falha é registrada duas vezes no log; a regex `Pages:\s+` casa quebra de linha; a saída do `pdftotext` não tem limite de memória. | Limite de leitura na saída e `Pages:[ \t]+`. |
+| P14 (resolvido em 2026-11-22, 23083f7, 74f40cf e 90c2326; `initMu` e o log duplo ficam sem ação) | `internal/ocr/poppler.go`, `tesseract.go` | `initPoppler` e `tessdataDoModo` seguram `initMu` durante a extração (só latência na primeira chamada); a falha é registrada duas vezes no log; a regex `Pages:\s+` casa quebra de linha; a saída do `pdftotext` não tem limite de memória. | Limite de leitura na saída e `Pages:[ \t]+`. |
 
 ## Notas sem ação pedida (M7)
 
@@ -26,18 +26,18 @@ Os ids são os do registro de execução do plano (`docs/superpowers/plans/2026-
 
 | Id | Onde | O que é |
 |---|---|---|
-| P2 | `pipeline_leitura_test.go` | O teste das entradas duplicadas deveria conferir `docs[0].Leitura == "lido"` e o `Estado`. |
+| P2 (resolvido em 2026-11-22, 1d63aed) | `pipeline_leitura_test.go` | O teste das entradas duplicadas deveria conferir `docs[0].Leitura == "lido"` e o `Estado`. |
 | P3 | `pipeline.go`, frontend | Documento `sem_ocr` termina com `Estado=erro` e `Erro=frase`. Quem avisa deve usar `Leitura`, não só `Estado == erro`. Conferir os consumidores. |
-| P4 | `TestSaida_PaginaSemOCRForaDasRegras` | A asserção (b) no nível `aggressive` depende de como `refluir` junta as linhas. |
-| P5 | `queue_nao_lidos_test.go` | `esperarStatus` tem nome genérico no pacote `etl`. |
+| P4 (resolvido em 2026-11-22, 1d63aed) | `TestSaida_PaginaSemOCRForaDasRegras` | A asserção (b) no nível `aggressive` depende de como `refluir` junta as linhas. |
+| P5 (resolvido em 2026-11-22, 1d63aed) | `queue_nao_lidos_test.go` | `esperarStatus` tem nome genérico no pacote `etl`. |
 | P7 | `ProcessList.svelte` | Os mapas por id (`geracaoReprocessar`, `ocrSugerido`, `reprocessarAberto`) guardam entradas de itens removidos. Inofensivo. |
 | P8 | testes do frontend | O `{#key}` do `ReprocessarItem` só é conferido por regex. |
 | P9 | `pipeline.go` | `executarOCR` e `executarOCRPaginas` são variáveis de pacote para injeção em teste; campos no `Pipeline` seriam mais limpos. |
 | P11 | `internal/ocr` | Falta teste de que a reserva em inglês do tesseract ainda roda numa falha que não é prazo. |
-| P12 | `pdf_parser.go` (blocos de OCR) | O `min(..., maxPaginasBlocoOCR)` na sobra nunca age; falta teste de resto pequeno (41 páginas: soma 41, máximo 20). |
-| P13 | `pdf_ocr_despacho.go`, `pdf_parser.go` | `esperar()` não zera `d.pendentes` (uma segunda chamada despacharia de novo; hoje há uma só), e `aguardar`/`esperar` têm nomes quase iguais com efeitos diferentes. |
-| P14 | `internal/ocr` | Sem teste unitário de `ErrSenha` nem de cancelamento diferente de `ErrPrazo` em `rodarPoppler` (o `pdf_classes_test.go` cobre `ErrSenha` com o binário real). |
-| P16 | `pdf_classes_test.go` | A pasta fixa `%TEMP%\eprocia_testes_classes` fica na máquina (dezenas de MB, reaproveitada entre execuções): limpar no `TestMain`. Separar os geradores num arquivo próprio e usar tabela nos casos. |
+| P12 (resolvido em 2026-11-22, 1d63aed) | `pdf_parser.go` (blocos de OCR) | O `min(..., maxPaginasBlocoOCR)` na sobra nunca age; falta teste de resto pequeno (41 páginas: soma 41, máximo 20). |
+| P13 (resolvido em 2026-11-22, 7d4b40a) | `pdf_ocr_despacho.go`, `pdf_parser.go` | `esperar()` não zera `d.pendentes` (uma segunda chamada despacharia de novo; hoje há uma só), e `aguardar`/`esperar` têm nomes quase iguais com efeitos diferentes. |
+| P14 (resolvido em 2026-11-22, 23083f7, 74f40cf e 90c2326) | `internal/ocr` | Sem teste unitário de `ErrSenha` nem de cancelamento diferente de `ErrPrazo` em `rodarPoppler` (o `pdf_classes_test.go` cobre `ErrSenha` com o binário real). |
+| P16 (resolvido em 2026-11-22, 316c9e6) | `pdf_classes_test.go` | A pasta fixa `%TEMP%\eprocia_testes_classes` fica na máquina (dezenas de MB, reaproveitada entre execuções): limpar no `TestMain`. Separar os geradores num arquivo próprio e usar tabela nos casos. |
 
 ## Residuais da v0.4.2 (páginas de conteúdo perdido)
 
@@ -57,9 +57,9 @@ Testes:
 
 | Id | Onde | O que é |
 |---|---|---|
-| CP6 | `pdf_juncao_test.go` | O teste de propriedade usa a `linhaNativaPresente` da própria implementação e não vê linha duplicada nem o caso do CP3. |
-| CP7 | `pdf_juncao.go`, `leitura.go` | Reserva igual ao marcador de ilegível com OCR em branco faz o documento passar de `sem_texto` para `ilegivel`; falta o teste. |
-| CP8 | `pdf_conteudo_perdido_test.go` | Os filtros sobre `paginasSinteticas()` não têm guarda de quantidade mínima (um filtro vazio passaria sem testar nada); o laço das palavras-isca é redundante. |
+| CP6 (resolvido em 2026-11-22, 488f889: oráculo próprio, `fichasOraculo`) | `pdf_juncao_test.go` | O teste de propriedade usa a `linhaNativaPresente` da própria implementação e não vê linha duplicada nem o caso do CP3. |
+| CP7 (resolvido em 2026-11-22, 1d63aed) | `pdf_juncao.go`, `leitura.go` | Reserva igual ao marcador de ilegível com OCR em branco faz o documento passar de `sem_texto` para `ilegivel`; falta o teste. |
+| CP8 (resolvido em 2026-11-22, 39d3e64) | `pdf_conteudo_perdido_test.go` | Os filtros sobre `paginasSinteticas()` não têm guarda de quantidade mínima (um filtro vazio passaria sem testar nada); o laço das palavras-isca é redundante. |
 
 Decisões registradas, sem ação pedida:
 
@@ -74,6 +74,6 @@ Três achados baixos da revisão final da branch, deixados fora do PR. Os ids `R
 
 | Id | Onde | Cenário | Conserto proposto |
 |---|---|---|---|
-| RB1 | `frontend/src/components/ProcessList.svelte:96-102` (mesmo padrão em `App.svelte:273-278` e `Settings.svelte:130-134`) | `anunciar()` não é serializado: duas chamadas no mesmo ciclo zeram, esperam `tick()` e escrevem em sequência, e só a última vai ao DOM. Com o filtro ativo, chega um ZIP que corresponde ao filtro no mesmo `queue:update` em que outro item conclui: `registrarMarcos` escreve "X: concluído, N documentos" e `registrarFiltro` escreve "2 itens correspondem ao filtro" logo depois, e o leitor de tela só ouve o segundo. O mesmo vale para Ctrl+C durante a conclusão de um item. | Juntar as mensagens do mesmo tick numa fila (concatenar com ". " antes de escrever). |
-| RB2 | `frontend/src/lib/atividade.js:36-40` e `:49` | `ordenarDocs` ficou sem uso em produção depois do F-DF-04 (o `AtividadeItem` usa `prepararDocs`); só os testes o usam, como oráculo de ordem. `resumoAtividade` (usado por `anuncios.js`) repete o laço de `prepararDocs`, e as duas contagens podem divergir numa mudança futura. | Mover `ordenarDocs` para o teste, ou documentar que ele é o oráculo; fazer `prepararDocs` e `marcosFila` usarem um contador comum. |
-| RB3 | `.claude/review.json:105` | A chave `alto_contraste` não é lida por nenhum script: `scripts/visual/capturar.mjs` repete a lista no código (`ALTO_CONTRASTE`). Quem acrescentar um estado em `review.json`, como o arquivo de configuração sugere, não ganha captura nenhuma. | `capturar.mjs` ler a lista do `review.json`, ou a chave sair. |
+| RB1 (resolvido em 2026-11-22, f3a1e68 e b67a7a7) | `frontend/src/components/ProcessList.svelte:96-102` (mesmo padrão em `App.svelte:273-278` e `Settings.svelte:130-134`) | `anunciar()` não é serializado: duas chamadas no mesmo ciclo zeram, esperam `tick()` e escrevem em sequência, e só a última vai ao DOM. Com o filtro ativo, chega um ZIP que corresponde ao filtro no mesmo `queue:update` em que outro item conclui: `registrarMarcos` escreve "X: concluído, N documentos" e `registrarFiltro` escreve "2 itens correspondem ao filtro" logo depois, e o leitor de tela só ouve o segundo. O mesmo vale para Ctrl+C durante a conclusão de um item. | Juntar as mensagens do mesmo tick numa fila (concatenar com ". " antes de escrever). |
+| RB2 (resolvido em 2026-11-22, 8df01a1) | `frontend/src/lib/atividade.js:36-40` e `:49` | `ordenarDocs` ficou sem uso em produção depois do F-DF-04 (o `AtividadeItem` usa `prepararDocs`); só os testes o usam, como oráculo de ordem. `resumoAtividade` (usado por `anuncios.js`) repete o laço de `prepararDocs`, e as duas contagens podem divergir numa mudança futura. | Mover `ordenarDocs` para o teste, ou documentar que ele é o oráculo; fazer `prepararDocs` e `marcosFila` usarem um contador comum. |
+| RB3 (resolvido em 2026-11-22, dd363ed) | `.claude/review.json:105` | A chave `alto_contraste` não é lida por nenhum script: `scripts/visual/capturar.mjs` repete a lista no código (`ALTO_CONTRASTE`). Quem acrescentar um estado em `review.json`, como o arquivo de configuração sugere, não ganha captura nenhuma. | `capturar.mjs` ler a lista do `review.json`, ou a chave sair. |
