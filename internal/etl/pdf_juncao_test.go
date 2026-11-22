@@ -7,6 +7,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode"
+	"unicode/utf8"
+
+	"golang.org/x/text/unicode/norm"
 )
 
 type casoJuntar struct {
@@ -99,9 +103,40 @@ func TestJuntar_NuncaPerdeLinhaNativa(t *testing.T) {
 	for _, c := range casos {
 		got := juntarOCRComNativo(c.ocr, c.nativo, c.acima)
 		linhasGot := strings.Split(got, "\n")
+		ocrPal := map[string]struct{}{}
+		for _, p := range palavrasOraculo(c.ocr) {
+			ocrPal[p] = struct{}{}
+		}
+		gotPal := map[string]struct{}{}
+		for _, p := range palavrasOraculo(got) {
+			gotPal[p] = struct{}{}
+		}
+		linhasOCR := linhasDoOCR(c.ocr)
+		cont := func(ls []string, l string) int {
+			n := 0
+			for _, x := range ls {
+				if x == l {
+					n++
+				}
+			}
+			return n
+		}
 		for _, l := range linhasNativas(c.nativo) {
-			if !linhaNativaPresente(l, palavrasDoTexto(l), conjuntoDePalavras(c.ocr), c.ocr) && !slices.Contains(linhasGot, l) {
-				t.Errorf("caso %q/%q: linha nativa %q perdida em %q", c.ocr, c.nativo, l, got)
+			palavras := palavrasOraculo(l)
+			foraDoOCR := false
+			for _, p := range palavras {
+				if _, ok := gotPal[p]; !ok {
+					t.Errorf("caso %q/%q: palavra %q da linha nativa %q perdida em %q", c.ocr, c.nativo, p, l, got)
+				}
+				if _, ok := ocrPal[p]; !ok {
+					foraDoOCR = true
+				}
+			}
+			if foraDoOCR && !slices.Contains(linhasGot, l) {
+				t.Errorf("caso %q/%q: linha nativa %q, com palavra fora do OCR, não entrou inteira em %q", c.ocr, c.nativo, l, got)
+			}
+			if len(palavras) > 0 && !foraDoOCR && cont(linhasGot, l) > cont(linhasOCR, l) {
+				t.Errorf("caso %q/%q: linha nativa %q já coberta pelo OCR entrou de novo em %q", c.ocr, c.nativo, l, got)
 			}
 		}
 		// As linhas do OCR aparecem todas, na ordem.
@@ -117,6 +152,27 @@ func TestJuntar_NuncaPerdeLinhaNativa(t *testing.T) {
 			j++
 		}
 	}
+}
+
+// palavrasOraculo é o oráculo do teste de propriedade, independente de
+// pdf_juncao.go e lingua.go: sequências de letras e dígitos com 3 runas ou
+// mais, em minúsculas e sem acento.
+func palavrasOraculo(s string) []string {
+	var out []string
+	for _, w := range strings.FieldsFunc(s, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) }) {
+		if utf8.RuneCountInString(w) < 3 {
+			continue
+		}
+		d := norm.NFD.String(strings.ToLower(w))
+		d = strings.Map(func(r rune) rune {
+			if unicode.Is(unicode.Mn, r) {
+				return -1
+			}
+			return r
+		}, d)
+		out = append(out, norm.NFC.String(d))
+	}
+	return out
 }
 
 // Entrada hostil: nada de pânico nem de demora com texto vazio, só espaços,
