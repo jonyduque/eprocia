@@ -300,7 +300,7 @@ func TestRodarPoppler_SaidaNoTetoPassa(t *testing.T) {
 
 func TestRodarPoppler_SaidaAcimaDoTetoFalha(t *testing.T) {
 	inicio := time.Now()
-	_, err := jorrarPoppler(t, "1025")
+	_, err := jorrarPoppler(t, "1048576")
 	if d := time.Since(inicio); d > 5*time.Second {
 		t.Errorf("voltou em %v, quero menos de 5 s", d)
 	}

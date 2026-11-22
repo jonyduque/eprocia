@@ -90,7 +90,7 @@ func rodarPoppler(ctx context.Context, popplerDir, exe string, prazo time.Durati
 	if saida.cortou {
 		return "", fmt.Errorf("falha no %s: %w (%d bytes)", exe, errSaidaGrande, maxSaidaPoppler)
 	}
-	// Sem TrimSpace: tiraria o começo da página 1 e os  finais.
+	// Sem TrimSpace: tiraria o começo da página 1 e os \f finais.
 	return saida.buf.String(), nil
 }
 
