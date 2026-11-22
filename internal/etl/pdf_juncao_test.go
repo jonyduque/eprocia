@@ -58,6 +58,16 @@ var casosJuntar = []casoJuntar{
 		"Cabeçalho do documento\nfalta no topo\nfalta embaixo\nRodapé final", 2,
 		"falta embaixo\nRODAPE FINAL\nCABECALHO DO DOCUMENTO\nfalta no topo",
 	},
+	// Um "prazo" do OCR não cobre duas linhas nativas: a segunda entra.
+	{"prazo de defesa\nrecursal contado", "prazo de defesa\nprazo recursal", 0, "prazo de defesa\nprazo recursal\nrecursal contado"},
+	// O dia lido errado ("06" no lugar de "05") faz a linha nativa entrar.
+	{"Data do fato 06/11/2026 conforme autos", "Data do fato 05/11/2026 conforme autos", 0, "Data do fato 06/11/2026 conforme autos\n\nData do fato 05/11/2026 conforme autos"},
+	// A palavra repetida na mesma linha precisa de uma ocorrência própria no OCR.
+	{"Prazo de dez dias", "dias a dias", 0, "Prazo de dez dias\n\ndias a dias"},
+	// Linha só de pedaços curtos com dígito: vale a contagem de "10", não o Contains.
+	{"Folha 210 x", "10 x", 0, "Folha 210 x\n\n10 x"},
+	// A linha ausente não consome o "prazo" do OCR: a presente seguinte fica presente.
+	{"prazo de defesa", "prazo vencido hoje\nprazo de defesa", 0, "prazo vencido hoje\nprazo de defesa"},
 }
 
 func TestJuntar(t *testing.T) {
@@ -100,18 +110,26 @@ func TestJuntar_NuncaPerdeLinhaNativa(t *testing.T) {
 	for _, acima := range []int{0, 2, 6} {
 		casos = append(casos, casoJuntar{ocr: ocrSemPalavrasEmComum, nativo: nativo, acima: acima})
 	}
+	contar := func(s string) map[string]int {
+		m := map[string]int{}
+		for _, f := range fichasOraculo(s) {
+			m[f]++
+		}
+		return m
+	}
+	// P2 e P3 são limites que valem para qualquer ordem de consumo; o caso
+	// exato (consumo em ordem, só das presentes) está em casosJuntar.
 	for _, c := range casos {
 		got := juntarOCRComNativo(c.ocr, c.nativo, c.acima)
 		linhasGot := strings.Split(got, "\n")
-		ocrPal := map[string]struct{}{}
-		for _, p := range palavrasOraculo(c.ocr) {
-			ocrPal[p] = struct{}{}
-		}
-		gotPal := map[string]struct{}{}
-		for _, p := range palavrasOraculo(got) {
-			gotPal[p] = struct{}{}
-		}
+		cOCR, cNat, cGot := contar(c.ocr), contar(c.nativo), contar(got)
 		linhasOCR := linhasDoOCR(c.ocr)
+		// P1: nenhuma ficha nativa perdida.
+		for f, n := range cNat {
+			if cGot[f] < n {
+				t.Errorf("caso %q/%q: ficha nativa %q aparece %d vez(es) em %q, esperava ao menos %d", c.ocr, c.nativo, f, cGot[f], got, n)
+			}
+		}
 		cont := func(ls []string, l string) int {
 			n := 0
 			for _, x := range ls {
@@ -122,20 +140,23 @@ func TestJuntar_NuncaPerdeLinhaNativa(t *testing.T) {
 			return n
 		}
 		for _, l := range linhasNativas(c.nativo) {
-			palavras := palavrasOraculo(l)
-			foraDoOCR := false
-			for _, p := range palavras {
-				if _, ok := gotPal[p]; !ok {
-					t.Errorf("caso %q/%q: palavra %q da linha nativa %q perdida em %q", c.ocr, c.nativo, p, l, got)
+			cLinha := contar(l)
+			// P2: linha com ficha que o OCR não pode cobrir entra inteira.
+			naoCobre := false
+			// P3: linha cujas fichas o OCR cobre para a página nativa inteira.
+			cobreDeSobra := len(cLinha) > 0
+			for f, n := range cLinha {
+				if n > cOCR[f] {
+					naoCobre = true
 				}
-				if _, ok := ocrPal[p]; !ok {
-					foraDoOCR = true
+				if cOCR[f] < cNat[f] {
+					cobreDeSobra = false
 				}
 			}
-			if foraDoOCR && !slices.Contains(linhasGot, l) {
-				t.Errorf("caso %q/%q: linha nativa %q, com palavra fora do OCR, não entrou inteira em %q", c.ocr, c.nativo, l, got)
+			if naoCobre && !slices.Contains(linhasGot, l) {
+				t.Errorf("caso %q/%q: linha nativa %q, com ficha que o OCR não cobre, não entrou inteira em %q", c.ocr, c.nativo, l, got)
 			}
-			if len(palavras) > 0 && !foraDoOCR && cont(linhasGot, l) > cont(linhasOCR, l) {
+			if cobreDeSobra && cont(linhasGot, l) > cont(linhasOCR, l) {
 				t.Errorf("caso %q/%q: linha nativa %q já coberta pelo OCR entrou de novo em %q", c.ocr, c.nativo, l, got)
 			}
 		}
@@ -154,13 +175,15 @@ func TestJuntar_NuncaPerdeLinhaNativa(t *testing.T) {
 	}
 }
 
-// palavrasOraculo é o oráculo do teste de propriedade, independente de
-// pdf_juncao.go e lingua.go: sequências de letras e dígitos com 3 runas ou
-// mais, em minúsculas e sem acento.
-func palavrasOraculo(s string) []string {
+// fichasOraculo é o oráculo do teste de propriedade, independente de
+// pdf_juncao.go e lingua.go: o texto em NFC (sem isso um "Petição" em NFD se
+// parte nas marcas, que não são letra), cortado em sequências de letras e
+// dígitos com 3 runas ou mais ou com algum dígito, em minúsculas e sem acento.
+func fichasOraculo(s string) []string {
 	var out []string
+	s = norm.NFC.String(s)
 	for _, w := range strings.FieldsFunc(s, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) }) {
-		if utf8.RuneCountInString(w) < 3 {
+		if utf8.RuneCountInString(w) < 3 && !strings.ContainsFunc(w, unicode.IsDigit) {
 			continue
 		}
 		d := norm.NFD.String(strings.ToLower(w))
