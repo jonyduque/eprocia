@@ -67,3 +67,13 @@ test('nenhum componente define async function anunciar e todos importam criarAnu
     assert.match(s, /const anunciar = criarAnunciador\(\(t\) => \(anuncio = t\), tick\)/, f);
   }
 });
+
+test('um tick que falha não cala a região', async () => {
+  const escritas = [];
+  let falhar = true;
+  const anunciar = criarAnunciador((t) => escritas.push(t), () => (falhar ? Promise.reject(new Error('x')) : Promise.resolve()));
+  await anunciar('a').catch(() => {});
+  falhar = false;
+  await anunciar('b');
+  assert.deepEqual(escritas, ['', 'a', '', 'b']);
+});

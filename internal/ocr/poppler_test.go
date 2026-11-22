@@ -298,6 +298,13 @@ func TestRodarPoppler_SaidaNoTetoPassa(t *testing.T) {
 	}
 }
 
+// Um byte acima do teto já falha (a fronteira do Write).
+func TestRodarPoppler_UmByteAcimaDoTetoFalha(t *testing.T) {
+	if _, err := jorrarPoppler(t, "1025"); !errors.Is(err, errSaidaGrande) {
+		t.Fatalf("erro = %v, quero errSaidaGrande", err)
+	}
+}
+
 func TestRodarPoppler_SaidaAcimaDoTetoFalha(t *testing.T) {
 	inicio := time.Now()
 	_, err := jorrarPoppler(t, "1048576")

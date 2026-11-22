@@ -8,12 +8,16 @@ export function criarAnunciador(escrever, proximoTick) {
     fila.push(texto);
     if (ciclo) return ciclo;
     escrever('');
+    // finally: um tick que falha não pode deixar o ciclo preso e calar a região.
     ciclo = (async () => {
-      await proximoTick();
-      const junto = fila.join('. ');
-      fila = [];
-      ciclo = null;
-      escrever(junto);
+      try {
+        await proximoTick();
+      } finally {
+        const junto = fila.join('. ');
+        fila = [];
+        ciclo = null;
+        escrever(junto);
+      }
     })();
     return ciclo;
   };
