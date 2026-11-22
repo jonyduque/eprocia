@@ -75,6 +75,13 @@ var casosJuntar = []casoJuntar{
 	// CP5, NFD na âncora: a linha presente em NFD ancora na linha do OCR em NFC,
 	// e a ausente seguinte entra logo depois dela (não no fim).
 	{"OUTRA\nPETIÇÃO", "Petição\nlinha perdida", 0, "OUTRA\nPETIÇÃO\nlinha perdida"},
+	// CP5, OCR em NFD: as fichas do OCR saem em NFC, e a linha nativa em NFC
+	// conta como presente.
+	{"Petic\u0327a\u0303o inicial", "PETIÇÃO INICIAL", 0, "Petic\u0327a\u0303o inicial"},
+	// CP5, OCR em NFD na âncora: a ancoragem usa as linhas do OCR em NFC.
+	{"OUTRA\nPetic\u0327a\u0303o", "PETIÇÃO\nlinha perdida", 0, "OUTRA\nPetic\u0327a\u0303o\nlinha perdida"},
+	// CP5, linha nativa sem ficha em NFD: o Contains compara em NFC.
+	{"abc é xyz", "e\u0301", 0, "abc é xyz"},
 }
 
 func TestProximasPresentes(t *testing.T) {
@@ -259,19 +266,19 @@ func TestJuntar_EntradaHostil(t *testing.T) {
 	if n := strings.Count(got, "linha perdida pelo leitor"); n != 1000 {
 		t.Errorf("linhas encaixadas = %d, esperava 1000", n)
 	}
-	// CP5: 50.000 linhas nativas ausentes, sem nenhuma presente, não podem
+	// CP5: 200.000 linhas nativas ausentes, sem nenhuma presente, não podem
 	// procurar a próxima âncora cada uma até o fim (laço quadrático).
-	ausentes := make([]string, 50_000)
+	ausentes := make([]string, 200_000)
 	for i := range ausentes {
 		ausentes[i] = "registro avulso " + strconv.Itoa(i)
 	}
 	inicio = time.Now()
 	got = juntarOCRComNativo(ocrSemPalavrasEmComum, strings.Join(ausentes, "\n"), 0)
 	if d := time.Since(inicio); d > 10*time.Second {
-		t.Errorf("50.000 linhas ausentes levaram %v", d)
+		t.Errorf("200.000 linhas ausentes levaram %v", d)
 	}
 	if want := ocrSemPalavrasEmComum + "\n\n" + strings.Join(ausentes, "\n"); got != want {
-		t.Errorf("50.000 linhas ausentes: saída com %d bytes, esperava %d", len(got), len(want))
+		t.Errorf("200.000 linhas ausentes: saída com %d bytes, esperava %d", len(got), len(want))
 	}
 	// Linha nativa sem palavras e OCR só com espaços: a linha não se perde.
 	if got := juntarOCRComNativo("   \n  ", "12", 0); got != "12" {
