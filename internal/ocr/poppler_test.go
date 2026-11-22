@@ -145,7 +145,50 @@ func TestInfoPDF_NaoEPDF(t *testing.T) {
 	}
 }
 
+func TestRodarPoppler_SenhaViraErrSenha(t *testing.T) {
+	t.Setenv("EPROCIA_TESTE_FILHO", "1")
+	t.Setenv("EPROCIA_TESTE_SENHA", "1")
+	dir := t.TempDir()
+	if err := copiarArquivo(os.Args[0], filepath.Join(dir, "pdfinfo.exe")); err != nil {
+		t.Fatal(err)
+	}
+	_, err := rodarPoppler(context.Background(), dir, "pdfinfo.exe", prazoInfo, "x.pdf")
+	if !errors.Is(err, ErrSenha) {
+		t.Fatalf("erro = %v, quero ErrSenha", err)
+	}
+	if errors.Is(err, ErrPrazo) {
+		t.Errorf("erro = %v, não pode ser ErrPrazo", err)
+	}
+	if strings.Contains(err.Error(), "Incorrect password") {
+		t.Errorf("a mensagem vaza o stderr: %v", err)
+	}
+}
+
+func TestRodarPoppler_CancelamentoNaoEPrazo(t *testing.T) {
+	t.Setenv("EPROCIA_TESTE_FILHO", "1")
+	t.Setenv("EPROCIA_TESTE_DORMIR", "1")
+	dir := t.TempDir()
+	if err := copiarArquivo(os.Args[0], filepath.Join(dir, "pdfinfo.exe")); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	time.AfterFunc(200*time.Millisecond, cancel)
+	inicio := time.Now()
+	_, err := rodarPoppler(ctx, dir, "pdfinfo.exe", time.Minute, "x.pdf")
+	if d := time.Since(inicio); d > 5*time.Second {
+		t.Errorf("voltou em %v, quero menos de 5 s", d)
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("erro = %v, quero context.Canceled", err)
+	}
+	if errors.Is(err, ErrPrazo) {
+		t.Errorf("erro = %v, cancelamento não é ErrPrazo", err)
+	}
+}
+
 func TestInfoPDF_Prazo(t *testing.T) {
+	t.Setenv("EPROCIA_TESTE_FILHO", "1")
 	t.Setenv("EPROCIA_TESTE_DORMIR", "1")
 	encurtar(t, &prazoInfo, 200*time.Millisecond)
 	// Poppler falso: a pasta de verdade, com pdfinfo.exe trocado pelo binário
