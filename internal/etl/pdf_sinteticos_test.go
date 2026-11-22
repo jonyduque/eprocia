@@ -382,4 +382,28 @@ func TestSinteticas_LinhasAcima(t *testing.T) {
 			}
 		})
 	}
+
+	// CP4: uma segunda imagem útil fora do MediaBox não sobe o topo. Na A4 a
+	// imagem fica acima da página; com o MediaBox deslocado, nenhuma imagem
+	// contém a origem, então trocar o MediaBox da página por caixa{} em
+	// extrairNativoContando também reprova (nenhuma cruzaria e daria 0).
+	legenda := opsTexto(quebrarLinhas(legendaSintetica, 110), 30, 800, 7, 20, "")
+	escaneada := imagemXObject(1240, 1754)
+	casos := []struct {
+		nome, mediaBox, imagens string
+	}{
+		{"fora-do-mediabox-a4", "/MediaBox [0 0 595 842]", "q 595 0 0 700 0 0 cm /Im1 Do Q\nq 595 0 0 100 0 900 cm /Im1 Do Q\n"},
+		{"fora-do-mediabox-deslocado", "/MediaBox [0 100 595 942]", "q 595 0 0 600 0 150 cm /Im1 Do Q\nq 595 0 0 100 0 1000 cm /Im1 Do Q\n"},
+	}
+	for _, c := range casos {
+		t.Run(c.nome, func(t *testing.T) {
+			_, m, err := extrairNativoSeguro(primeiraPagina(t, paginaComXObjectsMB(legenda+c.imagens, "/Im1 6 0 R", c.mediaBox, escaneada)))
+			if err != nil {
+				t.Fatalf("extrairNativoSeguro: %v", err)
+			}
+			if !m.valida || m.linhasAcima != 2 {
+				t.Errorf("valida %v, linhasAcima = %d; quer valida e 2", m.valida, m.linhasAcima)
+			}
+		})
+	}
 }
