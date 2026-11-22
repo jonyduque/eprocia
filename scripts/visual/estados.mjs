@@ -92,6 +92,13 @@ function atividadeNaoLidos(n) {
   return { item_id: item(n, 'success').id, docs, limite_docs: 7, limite_ocr: 7, ocr_ativos: 0 };
 }
 
+// listaAltoContraste: states captured with forced colors, from review.json
+// (visual.alto_contraste). A missing list or key is an empty list.
+export function listaAltoContraste(config) {
+  const lista = config?.visual?.alto_contraste;
+  return Array.isArray(lista) ? lista : [];
+}
+
 export const ESTADOS = {
   vazio: { config: { ...CONFIG, monitored_path: '', watchdog_enabled: false }, fila: [], pausado: false },
   fila: {

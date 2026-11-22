@@ -6,19 +6,19 @@
 // Starts only the Vite dev server (no Go backend, so no real data can show up),
 // stubs the Wails bindings, and saves one PNG per size × theme × state, plus the
 // inner divider dragged to its minimum and maximum and the collapsed sidebar.
-// The states in ALTO_CONTRASTE are also captured once with forced colors on
+// The states in visual.alto_contraste of .claude/review.json are also captured once with forced colors on
 // (Windows high contrast), at 1024x768, with the activity panel open.
 import { execFileSync, execSync, spawn } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ESTADOS, instalarStubs } from './estados.mjs';
+import { ESTADOS, instalarStubs, listaAltoContraste } from './estados.mjs';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PLAYWRIGHT = '1.63.0';
 const PORTA = 5199;
-const ALTO_CONTRASTE = ['processando', 'configuracoes'];
+const ALTO_CONTRASTE = listaAltoContraste(JSON.parse(readFileSync(path.join(RAIZ, '.claude', 'review.json'), 'utf8')));
 
 function opcoes(argv) {
   const o = { saida: null, rapido: false, estados: null };
