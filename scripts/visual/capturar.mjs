@@ -176,6 +176,9 @@ async function main() {
           }
 
           // The divider and collapsed sidebar only vary with the layout, so one state is enough.
+          // O nao-lidos também ganha o divisor no máximo, para conferir o rótulo
+          // "N não lidos" numa linha estreita.
+          if (nome === 'nao-lidos' && (await arrastarDivisor(page, w - 20))) await salvar('-divisor-maximo');
           if (nome === 'processando') {
             if (await arrastarDivisor(page, 20)) await salvar('-divisor-minimo');
             if (await arrastarDivisor(page, w - 20)) await salvar('-divisor-maximo');
