@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -68,6 +69,29 @@ var casosJuntar = []casoJuntar{
 	{"Folha 210 x", "10 x", 0, "Folha 210 x\n\n10 x"},
 	// A linha ausente não consome o "prazo" do OCR: a presente seguinte fica presente.
 	{"prazo de defesa", "prazo vencido hoje\nprazo de defesa", 0, "prazo vencido hoje\nprazo de defesa"},
+	// CP5, NFD: a linha nativa com acentos decompostos já está no OCR em NFC e
+	// não entra de novo.
+	{"PETIÇÃO INICIAL", "Petição inicial", 0, "PETIÇÃO INICIAL"},
+	// CP5, NFD na âncora: a linha presente em NFD ancora na linha do OCR em NFC,
+	// e a ausente seguinte entra logo depois dela (não no fim).
+	{"OUTRA\nPETIÇÃO", "Petição\nlinha perdida", 0, "OUTRA\nPETIÇÃO\nlinha perdida"},
+}
+
+func TestProximasPresentes(t *testing.T) {
+	casos := []struct {
+		presente []bool
+		want     []int
+	}{
+		{nil, []int{}},
+		{[]bool{false}, []int{-1}},
+		{[]bool{true, false, false, true, false}, []int{3, 3, 3, -1, -1}},
+		{[]bool{false, true}, []int{1, -1}},
+	}
+	for _, c := range casos {
+		if got := proximasPresentes(c.presente); !slices.Equal(got, c.want) || got == nil {
+			t.Errorf("proximasPresentes(%v) = %#v, esperava %#v", c.presente, got, c.want)
+		}
+	}
 }
 
 func TestJuntar(t *testing.T) {
@@ -234,6 +258,20 @@ func TestJuntar_EntradaHostil(t *testing.T) {
 	}
 	if n := strings.Count(got, "linha perdida pelo leitor"); n != 1000 {
 		t.Errorf("linhas encaixadas = %d, esperava 1000", n)
+	}
+	// CP5: 50.000 linhas nativas ausentes, sem nenhuma presente, não podem
+	// procurar a próxima âncora cada uma até o fim (laço quadrático).
+	ausentes := make([]string, 50_000)
+	for i := range ausentes {
+		ausentes[i] = "registro avulso " + strconv.Itoa(i)
+	}
+	inicio = time.Now()
+	got = juntarOCRComNativo(ocrSemPalavrasEmComum, strings.Join(ausentes, "\n"), 0)
+	if d := time.Since(inicio); d > 10*time.Second {
+		t.Errorf("50.000 linhas ausentes levaram %v", d)
+	}
+	if want := ocrSemPalavrasEmComum + "\n\n" + strings.Join(ausentes, "\n"); got != want {
+		t.Errorf("50.000 linhas ausentes: saída com %d bytes, esperava %d", len(got), len(want))
 	}
 	// Linha nativa sem palavras e OCR só com espaços: a linha não se perde.
 	if got := juntarOCRComNativo("   \n  ", "12", 0); got != "12" {

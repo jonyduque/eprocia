@@ -3,6 +3,8 @@ package etl
 import (
 	"strings"
 	"unicode"
+
+	"golang.org/x/text/unicode/norm"
 )
 
 // motivoOCR diz por que uma página foi ao OCR; decide o que fazer com o texto
@@ -148,19 +150,26 @@ func linhaNativaPresente(linha string, fichas []string, noOCR, consumido map[str
 // ou mais caracteres ou pedaço com dígito, tem uma ocorrência própria no texto
 // do OCR, consumida na ordem das linhas nativas) não é inserida. Uma linha
 // inserida pode repetir parte do que o OCR já trouxe.
+//
+// Toda comparação (fichas, Contains, âncora) usa o texto em NFC, para que um
+// acento decomposto (NFD) não parta a palavra nas marcas; o que sai são sempre
+// as linhas originais do OCR e da página nativa.
 func juntarOCRComNativo(ocrText, nativo string, linhasAcima int) string {
 	nat := linhasNativas(nativo)
 	if len(nat) == 0 {
 		return ocrText
 	}
-	noOCR := contarFichas(fichasDoTexto(ocrText))
+	ocrNFC := emNFC(ocrText)
+	noOCR := contarFichas(fichasDoTexto(ocrNFC))
 	consumido := make(map[string]int)
+	natNFC := make([]string, len(nat))
 	palavrasNat := make([][]string, len(nat))
 	presente := make([]bool, len(nat))
 	faltando := false
 	for i, l := range nat {
-		palavrasNat[i] = palavrasDoTexto(l)
-		presente[i] = linhaNativaPresente(l, fichasDoTexto(l), noOCR, consumido, ocrText)
+		natNFC[i] = emNFC(l)
+		palavrasNat[i] = palavrasDoTexto(natNFC[i])
+		presente[i] = linhaNativaPresente(natNFC[i], fichasDoTexto(natNFC[i]), noOCR, consumido, ocrNFC)
 		faltando = faltando || !presente[i]
 	}
 	if !faltando {
@@ -168,17 +177,22 @@ func juntarOCRComNativo(ocrText, nativo string, linhasAcima int) string {
 	}
 
 	linhasOCR := linhasDoOCR(ocrText)
-	a := novaAncoragem(linhasOCR)
+	linhasOCRNFC := make([]string, len(linhasOCR))
+	for k, l := range linhasOCR {
+		linhasOCRNFC[k] = emNFC(l)
+	}
+	a := novaAncoragem(linhasOCRNFC)
 	ancora := make([]int, len(nat)) // -2: não calculada; -1: sem âncora
 	for i := range ancora {
 		ancora[i] = -2
 	}
 	ancoraDe := func(i int) int {
 		if ancora[i] == -2 {
-			ancora[i] = a.ancorar(nat[i], palavrasNat[i])
+			ancora[i] = a.ancorar(natNFC[i], palavrasNat[i])
 		}
 		return ancora[i]
 	}
+	prox := proximasPresentes(presente)
 	acima := func(i int) bool { return i < linhasAcima }
 
 	antes := make([][]string, len(linhasOCR))
@@ -203,9 +217,11 @@ func juntarOCRComNativo(ocrText, nativo string, linhasAcima int) string {
 			continue
 		}
 		// 3. antes da âncora da próxima presente.
-		if k := proximaAncora(presente, i, ancoraDe); k >= 0 {
-			antes[k] = append(antes[k], l)
-			continue
+		if prox[i] >= 0 {
+			if k := ancoraDe(prox[i]); k >= 0 {
+				antes[k] = append(antes[k], l)
+				continue
+			}
 		}
 		// 4. no fim.
 		fim = append(fim, l)
@@ -226,15 +242,26 @@ func juntarOCRComNativo(ocrText, nativo string, linhasAcima int) string {
 	return strings.Join(blocos, "\n\n")
 }
 
-// proximaAncora devolve a âncora da primeira linha nativa presente depois de
-// i, ou -1.
-func proximaAncora(presente []bool, i int, ancoraDe func(int) int) int {
-	for j := i + 1; j < len(presente); j++ {
-		if presente[j] {
-			return ancoraDe(j)
+// emNFC devolve s na forma NFC, sem converter o que já está nela.
+func emNFC(s string) string {
+	if norm.NFC.IsNormalString(s) {
+		return s
+	}
+	return norm.NFC.String(s)
+}
+
+// proximasPresentes devolve, para cada i, o índice da primeira linha j > i com
+// presente[j], ou -1. Uma passada de trás para frente.
+func proximasPresentes(presente []bool) []int {
+	prox := make([]int, len(presente))
+	proxima := -1
+	for i := len(presente) - 1; i >= 0; i-- {
+		prox[i] = proxima
+		if presente[i] {
+			proxima = i
 		}
 	}
-	return -1
+	return prox
 }
 
 // ancoragem acha a linha do OCR que corresponde a uma linha nativa. O índice
