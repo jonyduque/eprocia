@@ -131,8 +131,9 @@ $bullet   = [string][char]0x203A
 $ellipsis = [string][char]0x2026
 
 # Texto de mais de $Max caracteres é cortado com reticências (o log guarda o texto inteiro).
+# Texto com caminho (C:\...) sai inteiro: cortado, não mostraria onde as coisas ficam.
 function Limit-Text([string]$Text, [int]$Max = 49) {
-    if ($Text.Length -le $Max) { return $Text }
+    if ($Text.Length -le $Max -or $Text -match '[A-Za-z]:\\') { return $Text }
     $Text.Substring(0, $Max - 1) + $ellipsis
 }
 # O nome do app sempre em negrito.
