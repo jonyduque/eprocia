@@ -21,18 +21,34 @@ var ErrSenha = errors.New("PDF protegido por senha")
 // maxStderr limita quanto do stderr de um processo entra na mensagem de erro.
 const maxStderr = 1024
 
-var reNumPaginas = regexp.MustCompile(`(?m)^Pages:\s+(\d+)\s*$`)
+var reNumPaginas = regexp.MustCompile(`(?m)^Pages:[ \t]+(\d+)[ \t]*$`)
 
-// limitado guarda só os primeiros maxStderr bytes do que lhe escrevem.
-type limitado struct{ buf bytes.Buffer }
+// maxSaidaPoppler é o teto do stdout de um processo do Poppler: muito acima de
+// um documento real e abaixo de um uso de memória que derrube o app.
+var maxSaidaPoppler = 64 << 20
+
+// errSaidaGrande indica que o stdout de um processo do Poppler passou do teto.
+var errSaidaGrande = errors.New("saída do Poppler acima do limite")
+
+// limitado guarda só os primeiros max bytes do que lhe escrevem e marca se
+// descartou algo. Descarta em vez de devolver erro: com erro no Write o exec
+// para de ler e o filho trava no pipe até o prazo.
+type limitado struct {
+	buf    bytes.Buffer
+	max    int
+	cortou bool
+}
 
 func (l *limitado) Write(p []byte) (int, error) {
-	if falta := maxStderr - l.buf.Len(); falta > 0 {
-		l.buf.Write(p[:min(len(p), falta)])
+	falta := max(l.max-l.buf.Len(), 0)
+	if falta < len(p) {
+		l.cortou = true
 	}
+	l.buf.Write(p[:min(len(p), falta)])
 	return len(p), nil
 }
 
+// String serve só ao stderr.
 func (l *limitado) String() string { return strings.TrimSpace(l.buf.String()) }
 
 // popplerFerramentas devolve a pasta do Poppler extraída, sem tocar no
@@ -52,8 +68,8 @@ func rodarPoppler(ctx context.Context, popplerDir, exe string, prazo time.Durati
 	if _, err := os.Stat(caminho); err != nil {
 		return "", fmt.Errorf("%s embutido não encontrado em %s: %w", exe, caminho, err)
 	}
-	var saida bytes.Buffer
-	var erroPadrao limitado
+	saida := limitado{max: maxSaidaPoppler}
+	erroPadrao := limitado{max: maxStderr}
 	err := rodarComPrazo(ctx, prazo, func(ctx context.Context) *exec.Cmd {
 		cmd := exec.CommandContext(ctx, caminho, args...)
 		cmd.Stdout = &saida
@@ -71,7 +87,11 @@ func rodarPoppler(ctx context.Context, popplerDir, exe string, prazo time.Durati
 		}
 		return "", fmt.Errorf("falha no %s: %w", exe, err)
 	}
-	return saida.String(), nil
+	if saida.cortou {
+		return "", fmt.Errorf("falha no %s: %w (%d bytes)", exe, errSaidaGrande, maxSaidaPoppler)
+	}
+	// Sem TrimSpace: tiraria o começo da página 1 e os  finais.
+	return saida.buf.String(), nil
 }
 
 // InfoPDF devolve o número de páginas lido pelo pdfinfo.

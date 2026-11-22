@@ -250,3 +250,64 @@ func copiarArquivo(src, dst string) error {
 	}
 	return os.WriteFile(dst, b, 0o755)
 }
+
+func TestReNumPaginas(t *testing.T) {
+	casos := []struct{ nome, entrada, quero string }{
+		{"espacos", "Pages:          3\n", "3"},
+		{"tab e cauda", "Title: x\nPages: \t 7  \n", "7"},
+		{"numero na linha seguinte", "Pages:\n12\n", ""},
+		{"linha vazia no meio", "Pages:\n\n5", ""},
+	}
+	for _, c := range casos {
+		t.Run(c.nome, func(t *testing.T) {
+			m := reNumPaginas.FindStringSubmatch(c.entrada)
+			if c.quero == "" {
+				if m != nil {
+					t.Fatalf("casou %q, não devia", m)
+				}
+				return
+			}
+			if m == nil || m[1] != c.quero {
+				t.Fatalf("m = %q, quero %q", m, c.quero)
+			}
+		})
+	}
+}
+
+func jorrarPoppler(t *testing.T, bytesSaida string) (string, error) {
+	t.Helper()
+	t.Setenv("EPROCIA_TESTE_FILHO", "1")
+	t.Setenv("EPROCIA_TESTE_JORRAR", bytesSaida)
+	antigo := maxSaidaPoppler
+	maxSaidaPoppler = 1024
+	t.Cleanup(func() { maxSaidaPoppler = antigo })
+	dir := t.TempDir()
+	if err := copiarArquivo(os.Args[0], filepath.Join(dir, "pdftotext.exe")); err != nil {
+		t.Fatal(err)
+	}
+	return rodarPoppler(context.Background(), dir, "pdftotext.exe", 30*time.Second, "x.pdf")
+}
+
+func TestRodarPoppler_SaidaNoTetoPassa(t *testing.T) {
+	saida, err := jorrarPoppler(t, "1024")
+	if err != nil {
+		t.Fatalf("erro = %v", err)
+	}
+	if len(saida) != 1024 {
+		t.Errorf("len(saida) = %d, quero 1024", len(saida))
+	}
+}
+
+func TestRodarPoppler_SaidaAcimaDoTetoFalha(t *testing.T) {
+	inicio := time.Now()
+	_, err := jorrarPoppler(t, "1025")
+	if d := time.Since(inicio); d > 5*time.Second {
+		t.Errorf("voltou em %v, quero menos de 5 s", d)
+	}
+	if !errors.Is(err, errSaidaGrande) {
+		t.Fatalf("erro = %v, quero errSaidaGrande", err)
+	}
+	if errors.Is(err, ErrSenha) || errors.Is(err, ErrPrazo) {
+		t.Errorf("erro = %v, não pode ser senha nem prazo", err)
+	}
+}
