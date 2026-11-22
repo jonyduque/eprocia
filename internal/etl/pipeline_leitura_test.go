@@ -57,7 +57,10 @@ func TestPipeline_EntradasDuplicadas_MotivoNaEntradaCerta(t *testing.T) {
 	if len(docs) != 2 {
 		t.Fatalf("docs = %d, esperava 2", len(docs))
 	}
-	if docs[0].Leitura == "ilegivel" || docs[1].Leitura != "ilegivel" {
-		t.Errorf("motivo na entrada errada: %+v / %+v", docs[0], docs[1])
+	if docs[0].Leitura != string(LeituraLido) || docs[0].Estado != DocConcluido {
+		t.Errorf("entrada 0 devia ser lida e concluída: %+v", docs[0])
+	}
+	if docs[1].Leitura != string(LeituraIlegivel) || docs[1].Estado != DocErro {
+		t.Errorf("entrada 1 devia ser ilegível e com erro: %+v", docs[1])
 	}
 }

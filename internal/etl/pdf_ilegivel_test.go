@@ -130,6 +130,33 @@ func TestParsePages_IlegivelComOCRFalhoViraMarcador(t *testing.T) {
 	}
 }
 
+func TestParsePages_IlegivelComOCREmBrancoFicaIlegivel(t *testing.T) {
+	caminho := pdfPaginaIlegivel(t)
+	lote := func(ctx context.Context, path string, paginas []int, _ func(int)) ([]string, error) {
+		return []string{" \n"}, nil
+	}
+	porPagina := func(ctx context.Context, path string, n int) (string, error) {
+		return " \n", nil // bloco de uma página só usa o OCR por página
+	}
+	pages, err := parserDeArquivo(t, caminho).comOCREmLote(lote, 1).ParsePages(context.Background(), true, porPagina, nil)
+	if err != nil {
+		t.Fatalf("ParsePages: %v", err)
+	}
+	pag := pages["1"].(map[string]any)
+	if pag["content"] != marcadorIlegivel(strings.Repeat("x", 150)) {
+		t.Errorf("conteúdo = %q, quero o marcador", pag["content"])
+	}
+	if pag["ocr"] != false {
+		t.Errorf("ocr = %v, quero false", pag["ocr"])
+	}
+	if _, tem := pag["ocr_erro"]; tem {
+		t.Errorf("OCR em branco não é falha: ocr_erro = %v", pag["ocr_erro"])
+	}
+	if got := classificarPaginas(pages, false); got != LeituraIlegivel {
+		t.Errorf("leitura = %v, quero ilegivel", got)
+	}
+}
+
 func TestTextoIlegivel_SimbolosRepetidosEmLinhas(t *testing.T) {
 	linha := strings.Repeat("#$%&*@", 2)
 	if !textoIlegivel(strings.Join([]string{linha, linha, linha}, "\n")) {
