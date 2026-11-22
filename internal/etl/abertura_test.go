@@ -27,7 +27,11 @@ var errPopplerTeste = errors.New("segundo leitor desligado nos testes do pacote 
 func TestMain(m *testing.M) {
 	infoPDF = func(context.Context, string) (int, error) { return 0, errPopplerTeste }
 	textoPDF = func(context.Context, string, int) ([]string, error) { return nil, errPopplerTeste }
-	os.Exit(m.Run())
+	codigo := m.Run()
+	if dirClasses != "" {
+		os.RemoveAll(dirClasses)
+	}
+	os.Exit(codigo)
 }
 
 // trocarPoppler substitui o segundo leitor até o fim do teste.
