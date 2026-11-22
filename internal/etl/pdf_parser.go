@@ -145,7 +145,7 @@ func (p *PDFParser) ParsePages(
 		// Check for context cancellation
 		if err := ctx.Err(); err != nil {
 			log.Printf("[PDFParser] Contexto cancelado na leitura da página %d: %v", pageNum, err)
-			d.aguardar()
+			d.esperarDespachados()
 			return nil, err
 		}
 

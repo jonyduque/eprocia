@@ -429,3 +429,32 @@ func TestOCREmLote_RestoPequenoNoFim(t *testing.T) {
 		t.Errorf("lote + por página = %d, quero 41", soma)
 	}
 }
+
+// esperar() despacha a sobra uma vez só: uma segunda chamada não a redespacha.
+func TestDespachoOCR_EsperarDuasVezesNaoRedespacha(t *testing.T) {
+	var mu sync.Mutex
+	var tamanhos []int
+	p := parserDeArquivo(t, pdfComPaginas(t, 3, nil)).comOCREmLote(registroLote(&mu, &tamanhos), 2)
+	var chamadas atomic.Int32
+	porPagina := func(context.Context, string, int) (string, error) {
+		chamadas.Add(1)
+		return "ocr", nil
+	}
+	d := p.novoDespachoOCR(context.Background(), 3, porPagina, nil)
+	d.agendar(ocrTask{pageNum: 1})
+	d.esperar()
+	mapa := d.esperar()
+
+	if n := chamadas.Load(); n != 1 {
+		t.Errorf("OCR por página chamado %d vezes, quero 1", n)
+	}
+	mu.Lock()
+	if len(tamanhos) != 0 {
+		t.Errorf("lote chamado %v, quero nenhuma chamada", tamanhos)
+	}
+	mu.Unlock()
+	pag, _ := mapa["1"].(map[string]any)
+	if pag == nil || pag["content"] != "ocr" {
+		t.Errorf("página 1 = %v", mapa["1"])
+	}
+}

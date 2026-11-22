@@ -51,7 +51,7 @@ func (p *PDFParser) parsePoppler(
 	for pageNum := 1; pageNum <= numPages; pageNum++ {
 		if err := ctx.Err(); err != nil {
 			log.Printf("[PDFParser] Contexto cancelado na leitura da página %d: %v", pageNum, err)
-			d.aguardar()
+			d.esperarDespachados()
 			return nil, err
 		}
 		texto := strings.TrimSpace(textos[pageNum-1])
