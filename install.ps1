@@ -110,6 +110,7 @@ $useColor = $fancy -and -not $env:NO_COLOR
 $esc = [char]27
 function Get-Rgb([int]$R, [int]$G, [int]$B) { if ($useColor) { "$esc[38;2;$R;$G;${B}m" } else { '' } }
 $cPurple = Get-Rgb 154 92 219
+$cPeach  = Get-Rgb 255 117 117
 $cGray   = Get-Rgb 128 128 128
 $cPink   = Get-Rgb 224 91 191
 $cBlue   = Get-Rgb 26 124 240
@@ -176,22 +177,18 @@ function Restore-Window {
 # Cada linha da tela junta duas linhas de pixels com meios-blocos, montados com [char]
 # porque o 5.1 lê este arquivo sem BOM como ANSI.
 $bannerPixels = @(
-    '..bbbbbbbbbbbb...........................................'
-    '.bbbbbbbbbbbbbb.................................@@@...@..'
-    'bbbbbbbbbbbbwbbb.................................@...@.@.'
-    'bbbbbbbbbbbwwwbb.................................@...@.@.'
-    'bbbbbbbbbbbbwbbb....###..####..#.##..###...###...@..@...@'
-    'bbbbbbwwwwbbbbbb...#...#.#...#.##...#...#.#...#..@..@...@'
-    'bbbbbwwbbwwbbbbb...#...#.#...#.#....#...#.#......@..@...@'
-    'bbbbwwbbbbwwbbbb...#####.#...#.#....#...#.#......@..@@@@@'
-    'bbbbwwwwwwwwbbbb...#.....#...#.#....#...#.#......@..@...@'
-    'bbbbwwbbbbbbbbbb...#.....#...#.#....#...#.#......@..@...@'
-    'bbbbbwwbbwwbbbbb...#...#.####..#....#...#.#...#..@..@...@'
-    'bbbbbbwwwwbbbbbb....###..#.....#.....###...###..@@@.@...@'
-    'bbbbbbbbbbbbbbbb.........#...............................'
-    'bbbbbbbbbbbbbbbb.........#...............................'
-    '.bbbbbbbbbbbbbb..........#...............................'
-    '..bbbbbbbbbbbb...........................................'
+    '..bbbbbbbbbb...............................................'
+    '.bbbbbbbbbwbb..............................................'
+    'bbbbbbbbbwwwbb..................................@@@@@...@..'
+    'bbbbwwwwbbwbbb......###...........................@....@.@.'
+    'bbbwwbbwwbbbbb.....#...#.####..#.##..###...###....@...@...@'
+    'bbwwbbbbwwbbbb.....#####.#...#.##...#...#.#...#...@...@@@@@'
+    'bbwwwwwwwwbbbb.....#.....#...#.#....#...#.#.......@...@...@'
+    'bbwwbbbbbbbbbb.....#...#.####..#....#...#.#...#...@...@...@'
+    'bbbwwbbwwbbbbb......###..#.....#.....###...###..@@@@@.@...@'
+    'bbbbwwwwbbbbbb...........#.................................'
+    '.bbbbbbbbbbbb............#.................................'
+    '..bbbbbbbbbb...............................................'
 )
 
 # Cor de um pixel como "r;g;b", 'def' (cor padrão do terminal) ou $null (vazio). O azul do
@@ -482,7 +479,7 @@ function Get-Status($ErrorRecord) {
 # ($Total <= 0), só os MB baixados.
 function Format-Bar([long]$Done, [long]$Total, [int]$Width) {
     if ($Width -le 0) { $Width = 80 }
-    if ($Total -le 0) { return "  Baixando  $cPurple$('{0:N1} MB' -f ($Done / 1MB))$cReset" }
+    if ($Total -le 0) { return "  Baixando  $cPeach$('{0:N1} MB' -f ($Done / 1MB))$cReset" }
     $pct = [int][Math]::Floor([Math]::Min(100, $Done * 100.0 / $Total))
     $tail = ' {0}%  {1:N1} de {2:N1} MB' -f $pct, ($Done / 1MB), ($Total / 1MB)
     $head = '  Baixando  '
