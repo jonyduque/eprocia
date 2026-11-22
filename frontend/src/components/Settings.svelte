@@ -13,6 +13,7 @@
   import Salvo from './Salvo.svelte';
   import Segmentado from './Segmentado.svelte';
   import { onDestroy, tick } from 'svelte';
+  import { criarAnunciador } from '../lib/regiaoViva.js';
   import { criarConfirmacao } from '../lib/aviso.js';
   import { OPCOES_OCR, OPCOES_LIMPEZA, descricaoOpcao } from '../lib/atividade.js';
   import { ROTULO_MONITORAMENTO, estadoMonitoramento, reticenciasMeio } from '../lib/monitoramento.js';
@@ -127,11 +128,7 @@
 
   // Esvazia antes para que o mesmo texto seja anunciado de novo.
   let anuncio = '';
-  async function anunciar(texto) {
-    anuncio = '';
-    await tick();
-    anuncio = texto;
-  }
+  const anunciar = criarAnunciador((t) => (anuncio = t), tick);
 </script>
 
 <!-- O título "Configurações" fica na faixa do botão de recolher (App). -->

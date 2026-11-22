@@ -43,6 +43,7 @@
   import { fly, fade, scale } from 'svelte/transition';
   import { flip } from 'svelte/animate';
   import { cubicOut } from 'svelte/easing';
+  import { criarAnunciador } from '../lib/regiaoViva.js';
   import { estadoItem, avisoFila } from '../lib/estado.js';
   import { criarAviso, duracaoMovimento, DUR_FAST, DUR_BASE } from '../lib/aviso.js';
   import { aplicarReprocessarComOCR, alvoAoFecharReprocessar } from '../lib/reprocessar.js';
@@ -94,12 +95,7 @@
   // Região viva única da lista: só marcos (fim do item, erros, pausa, filtro,
   // cópia). Limpar antes de escrever faz o leitor repetir um texto igual.
   let anuncio = '';
-  async function anunciar(texto) {
-    if (!texto) return;
-    anuncio = '';
-    await tick();
-    anuncio = texto;
-  }
+  const anunciar = criarAnunciador((t) => (anuncio = t), tick);
 
   let estadoMarcos = null;
   function registrarMarcos(lista, ativ) {

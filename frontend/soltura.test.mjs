@@ -124,7 +124,11 @@ test('App usa o controlador de soltura, sem clientX/clientY, e anuncia o aceito'
   assert.match(app, /AddFilesToQueue\(zips\)\.then\(\(n\) => \{\s*soltura\.recebido\(n\);/);
   assert.match(app, /anunciar\(n > 0 \? textoAceitos\(n\) : textoJaNaFila\(zips\.length\)\)/);
   assert.doesNotMatch(app, /soltura\.recebido\(zips\.length\)/);
-  assert.match(app, /anuncio = '';\s*await tick\(\);/);
+  // a região viva é esvaziada antes de anunciar: o App escreve pelo anunciador,
+  // que escreve '' e só então espera o tick e escreve o texto
+  assert.match(app, /const anunciar = criarAnunciador\(\(t\) => \(anuncio = t\), tick\)/);
+  const regiao = readFileSync(join(raiz, 'src', 'lib', 'regiaoViva.js'), 'utf8');
+  assert.match(regiao, /escrever\(''\);[\s\S]*await proximoTick\(\);[\s\S]*escrever\(junto\)/);
   assert.match(app, /lucide-svelte\/icons\/check'/);
   assert.match(app, /\{#if soltura?Estado\}|\{#if estadoSoltura\}/);
 });
