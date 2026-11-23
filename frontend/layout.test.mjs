@@ -49,6 +49,15 @@ test('na largura mínima da janela a fila mantém a largura mínima', () => {
   assert.ok(minJanela - larguraMaxPainel(minJanela) >= LARGURA_MIN_FILA);
 });
 
+// P6. Medido em 2026-11-22 (Chromium, stubs, janela 800x600, ZIP
+// 5000000-00.2026.4.00.0001.zip, rótulo "12 não lidos"): o rótulo só fica
+// dentro de .details-row (sem recorte) com a fila em 453 px ou mais; a 451 px
+// já é recortado. 453 + 8 px de margem para o gap = 461.
+test('a fila mínima mantém visível o rótulo "N não lidos"', () => {
+  assert.ok(LARGURA_MIN_FILA >= 461);
+  assert.ok(800 - larguraMaxPainel(800) >= 461);
+});
+
 test('limitarPainel prende a largura entre o mínimo e o máximo da janela', () => {
   assert.equal(limitarPainel(200, 1024), 280);
   assert.equal(limitarPainel(350, 1024), 350);
