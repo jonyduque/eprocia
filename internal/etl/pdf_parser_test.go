@@ -394,10 +394,6 @@ func objetosImagemComXrefTorta() []string {
 }
 
 func TestHasImages_PanicContaComoComImagens(t *testing.T) {
-	pdfPath := filepath.Join(t.TempDir(), "test.pdf")
-	if err := os.WriteFile(pdfPath, buildPDF(objetosImagemComXrefTorta()), 0644); err != nil {
-		t.Fatalf("falha ao gravar pdf de teste: %v", err)
-	}
 	dados := buildPDF(objetosImagemComXrefTorta())
 	r, err := pdf.NewReader(bytes.NewReader(dados), int64(len(dados)))
 	if err != nil {
