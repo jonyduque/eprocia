@@ -1072,8 +1072,10 @@
     white-space: nowrap;
   }
 
-  /* Fila estreita: os botões ficam só com o ícone; o nome segue no aria-label. */
-  @container (max-width: 420px) {
+  /* Fila estreita: os botões ficam só com o ícone; o nome segue no aria-label.
+     O cabeçalho com rótulos (e o ícone do título) só cabe com 484px de card
+     (medido em 2026-11-22); 492 = 484 + 8 de margem. */
+  @container (max-width: 492px) {
     .rotulo-acao {
       display: none;
     }
