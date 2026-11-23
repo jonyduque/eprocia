@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { OPCOES_OCR, OPCOES_LIMPEZA, nivelOpcao, rotuloOpcao, ordenarDocs, resumoAtividade, prepararDocs, LIMITE_AGUARDANDO, segmentos } from './src/lib/atividade.js';
+import { readFileSync } from 'node:fs';
+import { rotuloEstadoDoc, LEITURA_NAO_LIDO, OPCOES_OCR, OPCOES_LIMPEZA, nivelOpcao, rotuloOpcao, ordenarDocs, resumoAtividade, prepararDocs, LIMITE_AGUARDANDO, segmentos } from './src/lib/atividade.js';
 
 describe('opções', () => {
   it('higienização tem quatro níveis: Nenhuma, Básica, Padrão, Máxima', () => {
@@ -47,5 +48,24 @@ describe('atividade', () => {
     assert.equal(segmentos(10, 32).length, 16);
     assert.equal(segmentos(16, 32).filter(Boolean).length, 8);
     assert.deepEqual(segmentos(0, 0), [false]);
+  });
+});
+
+describe('rotuloEstadoDoc (leitor de tela)', () => {
+  it('documento não lido anuncia "Não lido", nunca "Erro"', () => {
+    for (const leitura of LEITURA_NAO_LIDO) {
+      assert.equal(rotuloEstadoDoc({ estado: 'erro', leitura }), 'Não lido');
+    }
+  });
+  it('erro de verdade, outros estados e estado desconhecido', () => {
+    assert.equal(rotuloEstadoDoc({ estado: 'erro' }), 'Erro');
+    assert.equal(rotuloEstadoDoc({ estado: 'concluido' }), 'Concluído');
+    assert.equal(rotuloEstadoDoc({ estado: 'ocr' }), 'Em OCR');
+    assert.equal(rotuloEstadoDoc({ estado: 'xyz' }), 'xyz');
+  });
+  it('AtividadeItem usa rotuloEstadoDoc(d) no sr-only e não o ROTULO local', () => {
+    const src = readFileSync(new URL('./src/components/AtividadeItem.svelte', import.meta.url), 'utf8');
+    assert.match(src, /<span class="sr-only">\{rotuloEstadoDoc\(d\)\}:<\/span>/);
+    assert.doesNotMatch(src, /ROTULO\[d\.estado\]/);
   });
 });

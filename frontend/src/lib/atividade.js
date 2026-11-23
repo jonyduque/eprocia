@@ -48,6 +48,20 @@ export function naoLido(d) {
   return LEITURA_NAO_LIDO.includes(d?.leitura);
 }
 
+const ROTULO = {
+  ocr: 'Em OCR',
+  lendo: 'Lendo texto',
+  aguardando: 'Aguardando vaga',
+  concluido: 'Concluído',
+  erro: 'Erro'
+};
+
+// Estado do documento para o leitor de tela: um documento não lido termina com
+// estado 'erro' no backend, mas não é um erro do processamento.
+export function rotuloEstadoDoc(d) {
+  return naoLido(d) ? 'Não lido' : (ROTULO[d?.estado] ?? d?.estado);
+}
+
 function novoResumo() {
   return { ativos: 0, emOcr: 0, aguardando: 0, concluidos: 0, erros: 0, paginasOcr: 0, naoLidos: 0, semOCR: 0 };
 }

@@ -11,7 +11,7 @@
   import { flip } from 'svelte/animate';
   import { fade, fly } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
-  import { prepararDocs, segmentos, naoLido, LIMITE_AGUARDANDO, LIMITE_FLIP_DOCS } from '../lib/atividade.js';
+  import { prepararDocs, segmentos, naoLido, rotuloEstadoDoc, LIMITE_AGUARDANDO, LIMITE_FLIP_DOCS } from '../lib/atividade.js';
   import { duracaoMovimento, DUR_FAST } from '../lib/aviso.js';
 
   // Instantâneo de etl.InstantaneoAtividade; null enquanto carrega e
@@ -27,14 +27,6 @@
   let expandirAguardando = false;
 
   const ROTULO_LEITURA = { ocr: 'via OCR', segundo_leitor: 'segundo leitor' };
-
-  const ROTULO = {
-    ocr: 'Em OCR',
-    lendo: 'Lendo texto',
-    aguardando: 'Aguardando vaga',
-    concluido: 'Concluído',
-    erro: 'Erro'
-  };
 
   $: ({ visiveis, resumo } = prepararDocs(atividade, { mostrarConcluidos, expandirAguardando }));
   $: limiteDocs = atividade?.limite_docs || 0;
@@ -145,7 +137,7 @@
                 {:else}
                   <Icone icone={Clock} tamanho={12} cor="var(--text-secondary)" />
                 {/if}
-                <span class="sr-only">{ROTULO[d.estado] ?? d.estado}:</span>
+                <span class="sr-only">{rotuloEstadoDoc(d)}:</span>
               </span>
               <span class="doc-nome">{d.nome}</span>
               {#if d.ocr > 0}
