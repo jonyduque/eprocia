@@ -1,6 +1,6 @@
 # Relatório do processamento, forçar OCR, log e telemetria local
 
-Data: 2026-11-22. Autor: jonyduque (redigido pelo Claude Code). Estado: proposta revisada (uma revisão sem contexto já ajustou o texto), aguardando as respostas da seção "Perguntas para o dono".
+Data: 2026-11-22. Autor: jonyduque (redigido pelo Claude Code). Estado: decidida pelo dono em 2026-11-23 (seção "Decisões do dono, 2026-11-23"); pronta para o plano de implementação.
 
 ## Por que
 
@@ -36,22 +36,24 @@ Tudo continua local (PRD RNF01).
 - Página sem imagem não vai ao OCR e não é falha.
 - Estatísticas finais com páginas com OCR e sem, redução da limpeza etc., e opção de forçar OCR.
 - Log bem completo e telemetria, tudo local, sem envio.
-- Da v0.4.2: **sem log diagnóstico por página**. Esta spec não o reverte sozinha: a pergunta Q7 devolve a decisão ao dono.
+- Da v0.4.2: **sem log diagnóstico por página** como comportamento padrão. As respostas de 2026-11-23 mantêm isso: o registro por página só existe no modo `detalhado`, que o dono escolhe pela variável de ambiente (Q6 e Q7).
+- Log e telemetria **só existem se a variável de ambiente `EPROCIA_LOG` estiver definida** (dono, 2026-11-23: "só vamos ativar os logs se houver uma determinada configuração nas variáveis do ambiente. Assim, só serão geradas por quem efetivamente escolher"). Sem ela, o app se comporta como hoje.
 
 ## Objetivos
 
 1. Ao fim de cada ZIP, o usuário vê um relatório curto e honesto do que foi lido e de que jeito, sem alarme onde não há problema.
-2. O usuário pode forçar o OCR em todas as páginas de PDF de um ZIP, sem mexer na configuração global.
-3. Existe um log em arquivo, estruturado, que permite reconstruir o que aconteceu em cada ZIP, documento e (se o dono quiser) página, sem expor o nome do usuário do Windows.
-4. Existe um arquivo de telemetria local, uma linha por ZIP e sem nomes.
-5. Nada disso atrasa nem trava o pipeline, e nada sai da máquina.
+2. O usuário pode forçar o OCR em todas as páginas de PDF, de um ZIP (Reprocessar) ou de todos (Configurações), sem que o Reprocessar mude a configuração global.
+3. Quem ligar `EPROCIA_LOG` ganha um log em arquivo, estruturado, que permite reconstruir o que aconteceu em cada ZIP, documento e (no modo `detalhado`) página, sem expor o nome do usuário do Windows.
+4. Quem ligar `EPROCIA_LOG` ganha também um arquivo de telemetria local, uma linha por ZIP e sem nomes.
+5. Nada disso atrasa nem trava o pipeline, e nada sai da máquina. Sem a variável, nada é criado em disco e a interface não menciona log.
 
 ## Fora do escopo
 
 - Qualquer envio de log ou telemetria para a rede. Quem partilha um log é o dono, à mão.
 - Painel de análise da telemetria dentro do app.
 - Mudar as regras de decisão de OCR (continuam as da v0.4.2).
-- Avisos novos no `.txt` além dos que o PRD já define, **exceto** a linha de cabeçalho da pergunta Q3, se o dono aprovar.
+- Avisos novos no `.txt` além dos que o PRD já define, **exceto** a linha de cabeçalho da Q3 (aprovada).
+- Chave de log ou de telemetria nas Configurações: o único interruptor é a variável de ambiente.
 
 ## Parte 1: o relatório do processamento
 
@@ -98,7 +100,7 @@ O relatório **não** promete que "depois" bata com o tamanho do arquivo (que te
 ### Onde aparece na interface
 
 - **Linha-resumo** no item concluído (`ProcessList.svelte`), só quando há algo a dizer: "142 páginas: 120 do texto do PDF, 18 por OCR, 4 em branco". Se houver página `sem_ocr`, `com_erro` ou `ocr_falhou_com_reserva`, a linha fica em tom de aviso, por exemplo: "6 páginas têm imagem e o OCR estava desligado".
-- **Botão "Ler com OCR"** ao lado desse aviso, quando há página `sem_ocr`: refaz o ZIP com o OCR ligado (modo `normal`, pelo Reprocessar). É uma ação nova visível; Q2 pergunta se o dono a quer.
+- **Botão "Ler com OCR"** ao lado desse aviso, quando há página `sem_ocr`: refaz o ZIP com o OCR ligado (modo `normal`, pelo Reprocessar). É uma ação nova visível, aprovada pelo dono (Q2). Não é o "Forçar OCR": só liga o OCR para as páginas candidatas.
 - **Painel de detalhes** por clique (novo `RelatorioItem.svelte`, no estilo de `AtividadeItem.svelte`): as categorias, tempos, limpeza, duplicatas e omitidos, e a lista dos documentos com páginas `sem_ocr`, `com_erro` ou `ocr_falhou_com_reserva`, com os números de página, para o usuário abrir o PDF original.
 - Texto explicativo, em linguagem simples: "Página em branco ou só com texto não vai ao OCR: isso é normal. O aviso aparece só quando a página tem imagem ou desenho e o texto do PDF não bastou."
 - Estado em `QueueItem` (campo `Relatorio *RelatorioZip` com tag JSON, enviado em `queue:item` e `queue:update`), zerado quando o item volta a `pending` (junto com `UnreadDocs`, em `Reprocessar`). Só na memória; o histórico vai para a telemetria.
@@ -106,7 +108,13 @@ O relatório **não** promete que "depois" bata com o tamanho do arquivo (que te
 
 ### O relatório vai ao `.txt`?
 
-Recomendação: **não**. O `.txt` é colado num LLM; cada linha extra custa tokens e não ajuda a análise. O cabeçalho já leva "Documentos não lidos" e "Tokens estimados", e os marcadores de erro de página. A única adição que vale discutir (Q3) é uma linha com o número de páginas que precisavam de OCR e ficaram sem, para o modelo avisar o usuário de que a análise pode estar incompleta. Isso muda o `.txt` e o PRD §6; por isso é do dono.
+**Só uma linha, aprovada pelo dono (Q3, opção b).** O relatório em si não vai ao `.txt` (é colado num LLM; cada linha extra custa tokens). A única adição é, no cabeçalho do `<contexto>`, a linha
+
+`Páginas que precisavam de OCR e ficaram sem: N`
+
+**só quando N > 0**, onde N é o total da categoria `sem_ocr` do ZIP, para o modelo avisar o usuário de que a análise pode estar incompleta. Com N = 0 a linha não sai e o `.txt` fica byte a byte como hoje.
+
+Onde entra: em `GenerateConsolidatedOutput` (`formatter.go:467`), logo depois de `Documentos não lidos: %d` e antes de `Data de Consolidação`. O PRD §6 hoje lista `Total de Documentos`, `Documentos não lidos`, `Data de Consolidação`, `Tokens estimados`; a linha nova fica entre a 2ª e a 3ª. Ela entra no cálculo de `Tokens estimados`, que já conta o cabeçalho inteiro ("inclusive desta linha"). O formatter recebe N por parâmetro novo, somado pelo pipeline a partir da categoria `sem_ocr` das páginas (as mesmas que o relatório conta); o PRD §6 ganha a linha e um item na lista de explicações ("Páginas que precisavam de OCR e ficaram sem: só aparece quando maior que 0; são as páginas com imagem ou desenho cujo texto do PDF não bastou e o OCR estava desligado").
 
 ## Parte 2: forçar OCR
 
@@ -123,14 +131,17 @@ Achado da revisão: `juntarOCRComNativo` (`pdf_juncao.go:157`) usa o **OCR como 
 - OCR falhou (erro ou prazo) numa página com nativo: fica o nativo, com `ocr_aviso` e sem `ocr_erro`, como nas regras novas (`regraNovaComReserva` em `pdf_ocr_despacho.go:156-157` passa a incluir `motivoForcado`); o documento de uma página não vira "não lido" por causa de um OCR que o próprio usuário pediu a mais;
 - sem nativo: como hoje.
 
-Isso faz do "forçar" uma ferramenta para quem **sabe** que o nativo é ruim (PDF de texto trocado, fonte quebrada que o app não detectou); numa página de texto bom, o OCR é um pouco pior que o nativo, e a interface avisa isso. A alternativa mais ambiciosa (nativo como base e só entram linhas que só o OCR viu, com um algoritmo próprio de comparação) está na Q5 como opção, com o custo de ser um algoritmo novo, a medir em corpus real.
+Isso faz do "forçar" uma ferramenta para quem **sabe** que o nativo é ruim (PDF de texto trocado, fonte quebrada que o app não detectou); numa página de texto bom, o OCR é um pouco pior que o nativo, e a interface avisa isso. A alternativa mais ambiciosa (nativo como base e só entram linhas que só o OCR viu, com um algoritmo próprio de comparação) foi descartada pelo dono na Q5, que escolheu a regra simples acima.
 
 **Custo extra:** cada página duplicada (H7) também faz OCR, porque a duplicata só é decidida depois, no formatter. Aceito e dito ao usuário; evitar isso exigiria decidir H7 antes do OCR e não vale a complexidade.
 
 ### Onde se liga
 
-- **No Reprocessar**, por item (recomendado): `ReprocessarItem.svelte` ganha a caixa "Forçar OCR em todas as páginas" (desligada); `Queue.Reprocessar` e `App.ReprocessarItem` ganham `forcarOCR bool`, guardado em `ajusteConfig`; só vale para essa execução. Exige `wails generate module` e atualizar `frontend/reprocessar.test.mjs`.
-- **Global** (`models.Config.ForcarOCR`, padrão `false`): só se o dono quiser (Q4); é fácil esquecer ligada e dobrar o tempo de todo ZIP.
+Decisão do dono (Q4, opção b): nos dois lugares.
+
+- **Global, nas Configurações:** campo `models.Config.ForcarOCR` (`bool`, JSON `forcar_ocr`), padrão `false` em `DefaultConfig()`. Como todo campo, `Load`/`LoadFromFile` o completam a partir do padrão quando falta no `config.json` (config antiga carrega com `false`). `Settings.svelte` ganha a caixa "Forçar OCR em todas as páginas de PDF", com o aviso de custo de tempo e de leve perda em página boa; desabilitada quando o modo de OCR é `none`. Salva por `SaveConfig`. A validação do back-end recusa `forcar_ocr = true` com `ocr_mode = none` (erro em português) e, ao carregar uma config assim, trata `forcar_ocr` como `false` sem erro.
+- **No Reprocessar, por item:** `ReprocessarItem.svelte` ganha a caixa "Forçar OCR em todas as páginas", cujo valor inicial é o da config global; `Queue.Reprocessar` e `App.ReprocessarItem` ganham `forcarOCR bool`, guardado em `ajusteConfig` (como ponteiro ou par valor/definido, para distinguir "não mexeu" de "desligou"). **Precedência:** o valor do Reprocessar, quando enviado, vale sobre a config global **nessa execução**, nos dois sentidos (pode forçar com a global desligada e pode desligar com a global ligada); o `ajusteConfig` é aplicado sobre a cópia da config (`queue.go:533-536`), então **a config global e o `config.json` não mudam ao reprocessar**. Um ZIP novo (não reprocessado) usa a global. Exige `wails generate module` e atualizar `frontend/reprocessar.test.mjs`.
+- Nos dois lugares o aviso diz que cada página duplicada (H7) também faz OCR.
 - O botão "Ler com OCR" do aviso (Parte 1) resolve páginas `sem_ocr` (liga o OCR). É coisa diferente de forçar em tudo.
 
 ### Custo de tempo
@@ -139,12 +150,25 @@ O OCR é a fase mais cara: um `tesseract` por bloco, limitado a `NumCPU()-1`. Um
 
 ## Parte 3: arquivo de log
 
+### Interruptor: variável de ambiente `EPROCIA_LOG`
+
+Decisão do dono (Q6) e ruling do orquestrador: **log e telemetria só existem quando a variável de ambiente `EPROCIA_LOG` está definida**.
+
+| Valor | Efeito |
+|---|---|
+| ausente ou vazio | **desligado**: nenhum arquivo nem pasta de log/telemetria é criado, o `log` padrão continua indo ao stderr, a interface não mostra nada sobre log. É o comportamento de hoje |
+| `1` | log normal (`INFO`, sem registro por página) e telemetria |
+| `detalhado` | o mesmo, mais o registro por página (`DEBUG`, Q7) |
+| qualquer outro valor | tratado como `1`, com um `WARN` no próprio log dizendo que o valor não foi reconhecido |
+
+A variável é lida **uma vez, na inicialização** (em `main.go`, depois da trava de instância). Mudar o valor exige reiniciar o app (inclusive sair pela bandeja). Não há `log_nivel` no `config.json` nem tela para isso. A decisão é exposta ao resto do app por um pacote só (`internal/registro`), que também diz se está ativo (ver Q8).
+
 ### Local, nome, rotação e retenção
 
-- Pasta: `%AppData%\eprocIA\logs\`. Arquivo ativo `eprocia.log`. Rotação por tamanho, **própria, sem dependência nova**: ao passar de 5 MB vira `eprocia.1.log`, os anteriores se deslocam, no máximo 5 arquivados (cerca de 30 MB no pior caso). Retenção: arquivos com mais de 30 dias são apagados na abertura. (Decisão técnica do autor: uma dependência só para isso não se justifica, e o app é distribuído como executável único.)
+- Só com a variável definida. Pasta: `%AppData%\eprocIA\logs\`, criada só então. Arquivo ativo `eprocia.log`. Rotação por tamanho, **própria, sem dependência nova**: ao passar de 5 MB vira `eprocia.1.log`, os anteriores se deslocam, no máximo 5 arquivados (cerca de 30 MB no pior caso). Retenção: arquivos com mais de 30 dias são apagados na abertura. (Decisão técnica do autor: uma dependência só para isso não se justifica, e o app é distribuído como executável único.)
 - O registro é **iniciado depois da trava de instância** (`main.go:21-30`): a segunda cópia do app, que só avisa e sai, não pode rodar rotação nem retenção no arquivo da primeira (o Windows não renomeia arquivo aberto, e a rotação falharia no meio). Antes disso, e se a trava falhar, o `log` continua indo ao stderr, como hoje. O `log.Fatal` de `main.go:80` passa a descarregar o registro antes de sair (ele faz `os.Exit` sem rodar nada).
-- Falha ao abrir a pasta ou o arquivo nunca impede o app de iniciar: cai no stderr.
-- **Botão "Abrir pasta de logs"** em Configurações, no mesmo `explorer.exe` que o app já usa (Q8). A pasta aberta tem só `eprocia.log*`; o índice de nomes (abaixo) fica **em outra pasta**, para quem partilha a pasta inteira não levar os nomes junto.
+- Falha ao abrir a pasta ou o arquivo nunca impede o app de iniciar: cai no stderr, e o app passa a se comportar como "log desligado" (a interface também não mostra o botão, pois `LogAtivo` devolve `false`).
+- **Botão "Abrir pasta de logs"** em Configurações, no mesmo `explorer.exe` que o app já usa, **só com o log ativo** (Q8, abaixo).
 
 ### Formato
 
@@ -152,18 +176,18 @@ O OCR é a fase mais cara: um `tesseract` por bloco, limitado a `NumCPU()-1`. Um
 
 ### Níveis e volume
 
-`DEBUG`, `INFO`, `WARN`, `ERROR`. Padrão: `INFO`. `DEBUG` liga por `EPROCIA_LOG=debug` ou `log_nivel` no `config.json`, sem tela.
+`DEBUG`, `INFO`, `WARN`, `ERROR`. Com `EPROCIA_LOG=1` o nível é `INFO`; com `EPROCIA_LOG=detalhado` é `DEBUG`. Não há outro caminho para mudar o nível.
 
-O volume atual não cabe em `INFO`: as ~3 linhas por página do `pdf_parser.go` somariam milhares de linhas por ZIP grande e encheriam 5 MB × 5 com um só ZIP. Regra: **nenhuma chamada por página (nem por atualização de progresso) fora de `DEBUG`**, com um teste que varre o código-fonte à procura de `log.Printf` por página fora da lista. Antes de apontar o pacote `log` para o novo arquivo (`slog.SetDefault`), convertem-se para `Debug` as chamadas por página de `pdf_parser.go` (`:108,134,147,168,182,366-373,375-397` e as do extrator posicional `:550,560,566,570`), de `pdf_poppler.go`, de `pdf_ocr_despacho.go:123,176` e o progresso de `queue.go:492` (uma linha a cada atualização). Fica de fora e **sobe para `WARN`** a linha do Form XObject ignorado (`pdf_parser.go:374`), a única linha de log que a v0.4.2 acrescentou por decisão do dono. Em `INFO` ficam só as de documento e de ZIP. Resultado: um ZIP de 500 documentos gera algumas centenas de linhas (da ordem de 150 KB) em `INFO`. O log **por página sempre ligado** reverteria a decisão do dono na v0.4.2 (sem log diagnóstico por página): é a pergunta Q7. A recomendação mantém a decisão: por página só em `DEBUG`, que o dono liga quando precisar.
+O volume atual não cabe em `INFO`: as ~3 linhas por página do `pdf_parser.go` somariam milhares de linhas por ZIP grande e encheriam 5 MB × 5 com um só ZIP. Regra: **nenhuma chamada por página (nem por atualização de progresso) fora de `DEBUG`**, com um teste que varre o código-fonte à procura de `log.Printf` por página fora da lista. Antes de apontar o pacote `log` para o novo arquivo (`slog.SetDefault`), convertem-se para `Debug` as chamadas por página de `pdf_parser.go` (`:108,134,147,168,182,366-373,375-397` e as do extrator posicional `:550,560,566,570`), de `pdf_poppler.go`, de `pdf_ocr_despacho.go:123,176` e o progresso de `queue.go:492` (uma linha a cada atualização). Fica de fora e **sobe para `WARN`** a linha do Form XObject ignorado (`pdf_parser.go:374`), a única linha de log que a v0.4.2 acrescentou por decisão do dono. Em `INFO` ficam só as de documento e de ZIP. Resultado: um ZIP de 500 documentos gera algumas centenas de linhas (da ordem de 150 KB) em `INFO`. O log por página sempre ligado reverteria a decisão do dono na v0.4.2; por isso (Q7) o registro por página só existe com `EPROCIA_LOG=detalhado`, que o dono liga quando precisar.
 
 ### O que registra
 
-Campos fixos em toda linha: `ts` (ISO 8601 com fuso), `nivel`, `msg`, `zip_id` (o `ID` uuid do item da fila, `queue.go:192`; o mesmo da telemetria), `doc_id` (índice do arquivo no ZIP, que distingue entradas de mesmo nome) e `pag` quando couber.
+Campos fixos em toda linha: `ts` (ISO 8601 com fuso), `nivel`, `msg`, `item_id` (o `ID` uuid do item da fila, `queue.go:192`; o mesmo da telemetria; serve só para correlacionar linhas de workers concorrentes e ligar log e telemetria, não substitui nenhum nome), `doc_id` (índice do arquivo no ZIP, que distingue entradas de mesmo nome) e `pag` quando couber.
 
-- **Início do app:** versão (de `wails.json`), versão do Windows, nº de CPUs, tamanho dos dois semáforos (`NumCPU()-1`), pasta de logs e a **configuração efetiva**, já saneada (a pasta monitorada aparece com `%USERPROFILE%` no lugar do perfil).
-- **ZIP:** origem (monitorada, arrastada, manual), tamanho, nº de PDF e HTML, config efetiva do item (com o ajuste do Reprocessar e `forcar_ocr`), duração, resultado, tamanho do `.txt`, tokens e o relatório final (Parte 1) como objeto.
-- **Documento:** nome (ver Privacidade), evento, extensão, tamanho, nº de páginas, leitor usado (biblioteca ou Poppler), estado final, `Leitura` e `Detalhe`, duração, páginas por categoria.
-- **Página (só `DEBUG`):** categoria, motivo de OCR (`motivoPadrao/Ilegivel/ImagemDescoberta/Isca/Forcado`), bytes de texto nativo, se tem imagem ou desenho vetorial, as métricas de `metricasPagina`, se manteve o nativo, se houve junção. Tempo de OCR **por bloco**, não por página.
+- **Início do app:** versão (de `wails.json`), valor de `EPROCIA_LOG` reconhecido (e o aviso se desconhecido), versão do Windows, nº de CPUs, tamanho dos dois semáforos (`NumCPU()-1`), pasta de logs e a **configuração efetiva** (inclui `forcar_ocr`), já saneada (a pasta monitorada aparece com `%USERPROFILE%` no lugar do perfil).
+- **ZIP:** **nome do ZIP** (e o `item_id`), origem (monitorada, arrastada, manual), tamanho, nº de PDF e HTML, config efetiva do item (com o ajuste do Reprocessar e `forcar_ocr`), duração, resultado, tamanho do `.txt`, tokens e o relatório final (Parte 1) como objeto.
+- **Documento:** nome do documento no ZIP, evento, extensão, tamanho, nº de páginas, leitor usado (biblioteca ou Poppler), estado final, `Leitura` e `Detalhe`, duração, páginas por categoria.
+- **Página (só com `EPROCIA_LOG=detalhado`):** categoria, motivo de OCR (`motivoPadrao/Ilegivel/ImagemDescoberta/Isca/Forcado`), bytes de texto nativo, se tem imagem ou desenho vetorial, as métricas de `metricasPagina`, se manteve o nativo, se houve junção. Tempo de OCR **por bloco**, não por página.
 - **OCR:** bloco ou página a página, páginas do bloco, duração, e se foi preciso refazer página a página (`pdf_ocr_despacho.go:195-211`). **Código de saída e stderr** do `tesseract`/`pdftoppm` exigem mudança em `internal/ocr` (`tesseract.go`, `prazo.go`): hoje o erro volta como `error`; o stderr passa a ser devolvido no erro para entrar no log (nível `WARN`/`ERROR`), **nunca** no `.txt`, que só leva a frase fixa (regra do PRD e do CLAUDE.md).
 - **Erros:** a cadeia completa (`%w`), a etapa (`abrir_zip`, `ler_pdf`, `ocr`, `html`, `formatar`, `gravar`), a classe (`classificarErro`) e, em `panic`, a pilha (hoje só uma linha, `pipeline.go:583`).
 - **Limpeza:** nível, bytes antes e depois, duplicatas e tipos omitidos.
@@ -171,21 +195,23 @@ Campos fixos em toda linha: `ts` (ISO 8601 com fuso), `nivel`, `msg`, `zip_id` (
 
 ### Migração do `log.Printf`
 
-As ~112 chamadas viram `slog` com campos, em etapas. Para nenhuma se perder no meio, `slog.SetDefault` redireciona o pacote `log` ao mesmo manipulador, **mas só depois** de três coisas: o saneamento (abaixo) estar no manipulador; as chamadas por página estarem em `Debug`; e as chamadas que gravam **nome ou caminho do ZIP** estarem migradas para `zip_id`: `queue.go:173,187,205,297,445,473,518,558,569`, `app.go:91,294` (que gravam `MonitoredPath`), `abertura.go:70-72`, `pdf_parser.go:129,134,165` e `pdf_poppler.go:29,46,89`. Um teste roda um ZIP sintético com nome falso pela fila e confirma que o nome não aparece em `eprocia.log` (só no índice).
+As ~112 chamadas viram `slog` com campos, em etapas. Para nenhuma se perder no meio, `slog.SetDefault` redireciona o pacote `log` ao mesmo manipulador, **mas só quando `EPROCIA_LOG` está definido e só depois** de duas coisas: o saneamento (abaixo) estar no manipulador; e as chamadas por página estarem em `Debug`. Com a variável ausente, `SetDefault` não é chamado e o `log` segue para o stderr como hoje. Como o dono aceitou todos os nomes no log (Q6), as linhas com nome de ZIP ou de documento **não** precisam ser trocadas por código; o que precisa sair delas é o **caminho do usuário**: `p.filePath` (arquivo temporário sob o perfil) em `pdf_parser.go:129,134,165` e `pdf_poppler.go:29,46,89`, e `MonitoredPath` em `app.go:91,294`, passam a sair saneados (pelo manipulador) ou só com o nome do arquivo.
 
 ## Parte 4: telemetria local
 
 ### Arquivo
 
-`%AppData%\eprocIA\telemetria\telemetria.jsonl`, **um registro por ZIP processado** (também por reprocessamento, com `reprocesso: true`), gravado no fim do ZIP, por acréscimo (`O_APPEND`), uma linha por escrita. Rotação própria: ao passar de 10 MB vira `telemetria.1.jsonl`, com no máximo 5 arquivados. Um registro tem cerca de 1 KB, ou seja, dezenas de milhares de ZIPs antes de passar do primeiro arquivo; sem apagar por idade, para o dono ter a série longa. Decisão técnica do autor.
+Só com `EPROCIA_LOG` definido (qualquer valor). Sem a variável, nem a pasta nem o arquivo são criados. `%AppData%\eprocIA\telemetria\telemetria.jsonl`, **um registro por ZIP processado** (também por reprocessamento, com `reprocesso: true`), gravado no fim do ZIP, por acréscimo (`O_APPEND`), uma linha por escrita. Rotação própria: ao passar de 10 MB vira `telemetria.1.jsonl`, com no máximo 5 arquivados. Um registro tem cerca de 1 KB, ou seja, dezenas de milhares de ZIPs antes de passar do primeiro arquivo; sem apagar por idade, para o dono ter a série longa. Decisão técnica do autor.
 
-**Sem chave para desligar.** Ela fica sempre ligada: é local, sem nomes, e só o dono a lê; uma chave nas Configurações seria uma tela a mais que ninguém pediu. O texto das Configurações, ao lado do botão da pasta de logs, diz "estes arquivos ficam só neste computador".
+**Sem chave nas Configurações.** O interruptor é a mesma variável do log (ligada, a telemetria acompanha). Com o log ativo, o texto das Configurações, ao lado do botão da pasta de logs, diz "estes arquivos ficam só neste computador"; sem log, nada aparece.
 
 ### Campos (sem nomes)
 
-- Versão do app, `ts`, `zip_id` (o mesmo uuid do log, que não deriva do nome do arquivo), `reprocesso`.
+A telemetria continua **sem nomes** (de ZIP, de documento, de pasta), mesmo que o log os leve: ela é a parte pensada para ser agregada e partilhada.
+
+- Versão do app, `ts`, `item_id` (o mesmo uuid do log, que não deriva do nome do arquivo), `reprocesso`.
 - Máquina: nº de CPUs, memória total, versão e build do Windows, arquitetura. Sem nome do computador nem do usuário.
-- Configuração: modo de OCR, nível de limpeza, `forcar_ocr`, quantidade (não os nomes) de tipos omitidos, origem do ZIP.
+- Configuração: modo de OCR, nível de limpeza, `forcar_ocr` (efetivo no ZIP, global ou do Reprocessar), quantidade (não os nomes) de tipos omitidos, origem do ZIP.
 - Tamanhos: bytes do ZIP, nº de documentos PDF e HTML, nº de páginas, bytes do `.txt`, tokens.
 - Tempos por fase (ms): abrir e listar, pré-cálculo de páginas, leitura e extração (soma dos workers e parede), OCR (tempo de trabalho e parede), formatação e limpeza, gravação; total.
 - Páginas por categoria e por motivo de OCR; sub-contadores `ocr_sem_ganho` e `ocr_falhou_com_reserva`.
@@ -202,12 +228,15 @@ Não há cliente de rede, URL nem destino configurável. Um teste impede o pacot
 
 ## Privacidade
 
-- **Onde ficam:** só em `%AppData%\eprocIA\logs`, `...\telemetria` e `...\dados`, fora do repositório e do `.txt`. Defesa em profundidade: `*.log` e `*.jsonl` no `.gitignore` e no hook `proteger-dados` (`.claude/hooks/proteger-dados.mjs`, `arquivoSensivel`), com as mesmas exceções de pasta de documentação que o hook já tem para `.txt`, e teste em `.claude/hooks/hooks.test.mjs`.
-- **O log atual NÃO é partilhável como está.** Ele grava `p.filePath` (arquivo temporário sob o perfil do usuário, `pdf_parser.go:129,134,165`), a configuração efetiva inclui `monitored_path`, e a cadeia de erro (`%w`) e o stderr do Tesseract trazem caminhos. Por isso o **manipulador faz o saneamento**, em toda mensagem e em todo atributo de texto ou de erro: troca o perfil do usuário por `%USERPROFILE%`, o diretório temporário por `%TEMP%` e o nome do usuário **só quando aparece como segmento de caminho** depois de `\Users\` ou `/Users/` por `<usuario>` (trocar o nome solto mutilaria palavras comuns se o usuário tiver nome curto). O saneamento é a rede de segurança; a garantia de que o nome do ZIP não entra vem da migração das chamadas acima, não dele. `slog.SetDefault` só é ligado depois disso, e há teste (abaixo).
-- **Nomes no log:** o nome do documento dentro do ZIP ajuda muito a depurar e é, em geral, genérico ("Evento 12 - PETICAO INICIAL.pdf"). O nome do **ZIP** costuma ser o número do processo e identifica as partes. Recomendação: o log leva o nome do documento, e o ZIP **só pelo `zip_id`**; o mapa `zip_id` para nome real fica em `%AppData%\eprocIA\dados\indice.jsonl`, outra pasta (não a que o botão abre), e o dono não precisa partilhá-lo. Alternativa: todos os nomes no log (Q6).
+- **Quando existem:** só com `EPROCIA_LOG` definido, por escolha de quem roda o app. Sem a variável, nada é gravado.
+- **Onde ficam:** só em `%AppData%\eprocIA\logs` e `...\telemetria`, fora do repositório e do `.txt`. Defesa em profundidade: `*.log` e `*.jsonl` no `.gitignore` e no hook `proteger-dados` (`.claude/hooks/proteger-dados.mjs`, `arquivoSensivel`), com as mesmas exceções de pasta de documentação que o hook já tem para `.txt`, e teste em `.claude/hooks/hooks.test.mjs`.
+- **O log atual NÃO é partilhável como está.** Ele grava `p.filePath` (arquivo temporário sob o perfil do usuário, `pdf_parser.go:129,134,165`), a configuração efetiva inclui `monitored_path`, e a cadeia de erro (`%w`) e o stderr do Tesseract trazem caminhos. Por isso o **manipulador faz o saneamento**, em toda mensagem e em todo atributo de texto ou de erro.
+  - **É saneado** (dado do usuário do Windows que não é nome de arquivo processado): o perfil do usuário vira `%USERPROFILE%`, o diretório temporário vira `%TEMP%`, e o nome do usuário **só quando aparece como segmento de caminho** depois de `\Users\` ou `/Users/` vira `<usuario>` (trocar o nome solto mutilaria palavras comuns se o usuário tiver nome curto). Vale para a pasta monitorada, caminhos de arquivos temporários e caminhos dentro de erros e do stderr.
+  - **NÃO é saneado**, por decisão do dono (Q6): o nome do ZIP, o nome de cada documento dentro do ZIP e o nome do `.txt` gerado. Eles saem como são. Se o nome do ZIP vier dentro de um caminho completo, o trecho do perfil é trocado e o nome do arquivo permanece.
+  - **Nunca entra**, em nenhum nível: texto de página (nem trecho nem hash; o hash de H7 não é gravado).
+- **Nomes no log (Q6, opção b):** o log leva **todos os nomes**, inclusive o do ZIP, que costuma ser o número do processo e identifica as partes. É mais cômodo para depurar e mais difícil de partilhar; por isso o log só existe quando quem roda o app escolhe ligá-lo pela variável. Não há código de ZIP, índice de nomes nem pasta separada de nomes.
 - **Telemetria:** nunca leva nome de ZIP, de documento, de pasta nem texto de página. Só contagens, tempos e classes.
-- **Conteúdo das páginas:** nunca vai a log nem telemetria, em nenhum nível, nem trecho nem hash (o hash de H7 não é gravado).
-- **Como o dono partilha um log:** pelo botão, pega `eprocia.log`. Com o padrão acima ele já não tem nome do ZIP nem do usuário. Para o caso de dúvida, um script em `scripts/` (`anonimizar-log`) troca os nomes de documento por rótulos estáveis (`doc-17`) e confere se sobrou algum caminho de usuário.
+- **Como o dono partilha um log:** pelo botão (com log ativo), pega `eprocia.log`, que já não tem o nome do usuário do Windows mas **tem os nomes dos ZIPs e documentos**. Para partilhar sem eles, um script opcional em `scripts/` (`anonimizar-log`) troca nomes de ZIP e de documento por rótulos estáveis (`zip-3`, `doc-17`) e confere se sobrou algum caminho de usuário.
 
 ## Desempenho e robustez
 
@@ -223,13 +252,13 @@ O pipeline tem workers por documento limitados por semáforo (`NumCPU()-1`) e um
 
 ## Mudanças por arquivo
 
-- **Novos:** `internal/registro` (manipulador `slog` assíncrono, saneamento, rotação, retenção, índice de nomes), `internal/telemetria` (registro por ZIP, coleta da máquina), `frontend/src/components/RelatorioItem.svelte`, `frontend/src/lib/relatorio.js`, `scripts/anonimizar-log`.
-- **`internal/etl`:** `RelatorioZip` e o campo `categoria` na página; contadores de limpeza no laço de saída de `formatter.go` (não em `higienizacao.go`); tempos de fase em `pipeline.go`; `motivoForcado` em `pdf_juncao.go` e em `pdf_ocr_despacho.go`; `forcarOCR` em `Queue`, `ajusteConfig` e `ProcessZip`; conversão dos `log.Printf` por página para `Debug` em `pdf_parser.go`, `pdf_poppler.go`, `pdf_ocr_despacho.go`.
+- **Novos:** `internal/registro` (leitura única de `EPROCIA_LOG`, manipulador `slog` assíncrono, saneamento, rotação, retenção; `Ativo()` e `Detalhado()`), `internal/telemetria` (registro por ZIP, coleta da máquina), `frontend/src/components/RelatorioItem.svelte`, `frontend/src/lib/relatorio.js`, `scripts/anonimizar-log`.
+- **`internal/etl`:** `RelatorioZip` e o campo `categoria` na página; total de páginas `sem_ocr` para o cabeçalho (parâmetro novo de `GenerateConsolidatedOutput`, linha em `formatter.go:467`); contadores de limpeza no laço de saída de `formatter.go` (não em `higienizacao.go`); tempos de fase em `pipeline.go`; `motivoForcado` em `pdf_juncao.go` e em `pdf_ocr_despacho.go`; `forcarOCR` em `Queue`, `ajusteConfig` e `ProcessZip`; conversão dos `log.Printf` por página para `Debug` em `pdf_parser.go`, `pdf_poppler.go`, `pdf_ocr_despacho.go`.
 - **`internal/ocr`** (`tesseract.go`, `prazo.go`): devolver código de saída e stderr no erro, para o log.
-- **`internal/config` e `internal/models`:** `ForcarOCR` (só se Q4 for global) e `LogNivel`.
-- **`app.go` e `main.go`:** iniciar o registro depois da trava de instância; descarregar em `OnShutdown`, `App.Quit` e antes do `log.Fatal`; método `AbrirPastaLogs`; `ReprocessarItem` com `forcarOCR`.
-- **Frontend:** `ProcessList.svelte`, `ReprocessarItem.svelte`, `Settings.svelte`.
-- **Docs e harness:** `PRD.md` (§6, se Q3 for sim, e o novo relatório), `DESIGN.md`, `CLAUDE.md`, `.gitignore`, `.claude/hooks/proteger-dados.mjs` e `hooks.test.mjs`.
+- **`internal/config` e `internal/models`:** `ForcarOCR` (`forcar_ocr`, padrão `false`, completado por `DefaultConfig()` no `Load`; recusado/ignorado com `ocr_mode = none`). Não há `LogNivel`.
+- **`app.go` e `main.go`:** iniciar o registro depois da trava de instância e só com `EPROCIA_LOG`; descarregar em `OnShutdown`, `App.Quit` e antes do `log.Fatal`; métodos `LogAtivo() bool` (verdadeiro só se a variável está definida **e** o arquivo abriu) e `AbrirPastaLogs()` (que não faz nada, ou devolve erro em português, com o log inativo); `ReprocessarItem` com `forcarOCR`. Exige `wails generate module`.
+- **Frontend:** `ProcessList.svelte`, `ReprocessarItem.svelte`, `Settings.svelte` (caixa "Forçar OCR" e, só com `LogAtivo()`, o botão e o texto de log). `App.svelte` chama `LogAtivo()` uma vez ao iniciar e repassa a `Settings.svelte`.
+- **Docs e harness:** `PRD.md` (§6, a linha nova do cabeçalho e a explicação; e o novo relatório), documentação da variável `EPROCIA_LOG` (README e CLAUDE.md), `DESIGN.md`, `CLAUDE.md`, `.gitignore`, `.claude/hooks/proteger-dados.mjs` e `hooks.test.mjs`.
 
 ## Testes
 
@@ -240,16 +269,21 @@ O pipeline tem workers por documento limitados por semáforo (`NumCPU()-1`) e um
 - Sub-contadores: `ocr_falhou_com_reserva` igual ao número de páginas com `ocr_aviso` (inclusive as que também têm `ocr_erro`, que não contam em `com_erro`); `ocr_sem_ganho` igual ao das páginas que foram ao OCR e ficaram com o nativo sem falha.
 - Limpeza: "antes" e "depois" calculados no laço de saída, com um teste que recalcula a soma independente a partir do texto das páginas emitidas; `antes >= depois`; redução 0 em `none`; páginas duplicadas e `sem_ocr` fora das somas.
 - Forçar OCR, com o `ocrRunner` injetável: toda página de PDF de documento lido é despachada; OCR legível substitui o nativo; OCR em branco, ilegível ou com falha mantém o nativo (com `ocr_aviso` na falha, sem `ocr_erro`); combinação com `none` rejeitada; HTML e omitidos não são afetados; o ajuste do Reprocessar não muda a config global.
+- **Forçar OCR global e override:** `ForcarOCR` ausente no `config.json` carrega como `false` (backfill); com `ForcarOCR = true` na config, um ZIP novo leva todas as páginas de PDF ao OCR; `Reprocessar` com `forcarOCR = false` sobre global `true` não força, e com `true` sobre global `false` força; depois de qualquer Reprocessar, `config.json` e a config em memória continuam como estavam; `ForcarOCR = true` com `ocr_mode = none` é recusado ao salvar e tratado como `false` ao carregar.
+- **Linha do cabeçalho (Q3):** com N páginas `sem_ocr` > 0 o cabeçalho tem `Páginas que precisavam de OCR e ficaram sem: N` entre `Documentos não lidos` e `Data de Consolidação`; com N = 0 a linha não existe e a saída é idêntica à de hoje (teste de golden); `Tokens estimados` inclui a linha.
+- **Variável ausente (log desligado):** com `EPROCIA_LOG` não definida ou vazia, processar um ZIP sintético não cria `logs\` nem `telemetria\` (nem arquivos) sob uma pasta de dados temporária, `LogAtivo()` é `false` e o pacote `log` não é redirecionado.
+- **Valores:** `1` liga log e telemetria em `INFO` sem nenhuma linha por página; `detalhado` liga `DEBUG` e registra as páginas (categoria, motivo de OCR); valor desconhecido liga como `1` e grava um `WARN` de valor não reconhecido; mudar a variável depois da inicialização não tem efeito.
 - Log: arquivo criado, linha JSON válida com os campos fixos, rotação aos 5 MB, retenção por idade e por quantidade, descarga no encerramento, e teste de concorrência com `-race` e dezenas de goroutines.
 - **Saneamento:** um teste grava mensagens, atributos e erros com o perfil do usuário e o diretório temporário e confirma que nenhum aparece no arquivo.
 - **Não bloqueia:** com um `io.Writer` que trava e canal cheio, `Info`, `Warn` e `Error` voltam em tempo curto e `linhas_perdidas` sobe; com `Writer` que devolve erro, nada sobe ao chamador e a gravação volta depois dos 60 s (relógio injetável).
-- Privacidade: o log e a telemetria de um ZIP sintético com nome falso não contêm o nome do ZIP nem texto de página; a telemetria não tem nome de documento; o pacote de telemetria não importa `net`/`net/http`.
+- Privacidade: o log de um ZIP sintético com nome falso **contém** o nome do ZIP e o dos documentos (decisão do dono) mas não texto de página; a telemetria não contém nome de ZIP nem de documento nem texto de página; o pacote de telemetria não importa `net`/`net/http`.
 - Falha ao criar a pasta de logs (somente leitura) não impede o início; a segunda instância não toca no arquivo da primeira.
 
 **Frontend (`frontend/*.test.mjs`):**
 
 - `relatorio.test.mjs`: `src/lib/relatorio.js` formata a linha-resumo e as frases; o aviso só aparece com `sem_ocr`, `com_erro` ou `ocr_falhou_com_reserva`, nunca para "em branco".
-- Leitura dos `.svelte` por regex, como nos testes atuais: caixa "Forçar OCR" em `ReprocessarItem.svelte`, desligada por padrão e desabilitada com OCR desligado; botão "Abrir pasta de logs" em `Settings.svelte` (se Q8 for sim); botão "Ler com OCR" (se Q2 for sim); o painel usa as classes de tema e não cor fixa (`contraste.test.mjs`, `paleta.test.mjs`).
+- Leitura dos `.svelte` por regex, como nos testes atuais: caixa "Forçar OCR" em `ReprocessarItem.svelte`, desligada por padrão e desabilitada com OCR desligado; caixa "Forçar OCR" em `Settings.svelte`, desabilitada com OCR desligado; botão "Ler com OCR" no item com aviso;
+- **UI sem log não mostra nada de log:** o botão "Abrir pasta de logs" e qualquer texto sobre log/telemetria em `Settings.svelte` ficam atrás de `{#if logAtivo}`, com `logAtivo` vindo de `LogAtivo()` e `false` por padrão; um teste por regex confirma que nenhuma ocorrência de "log" ou "telemetria" na marcação fica fora desse bloco, e um teste de lógica confirma que `logAtivo = false` não renderiza o botão nem o texto (e que `true` renderiza os dois); o painel usa as classes de tema e não cor fixa (`contraste.test.mjs`, `paleta.test.mjs`).
 - `reprocessar.test.mjs` atualizado.
 - Hooks: `hooks.test.mjs` cobre o bloqueio de `git add` de `.log` e `.jsonl`.
 
@@ -259,42 +293,38 @@ O pipeline tem workers por documento limitados por semáforo (`NumCPU()-1`) e um
 2. Nenhuma página sem imagem aparece como "precisava de OCR e ficou sem" nem como erro.
 3. Com o OCR desligado, páginas candidatas aparecem no aviso; o item continua `success`.
 4. O painel mostra tempo total e tempo de trabalho de OCR, bytes antes e depois da limpeza com a redução %, duplicatas e tipos omitidos; "depois" é igual à soma do texto das páginas emitidas (teste independente).
-5. "Forçar OCR" no Reprocessar leva todas as páginas de PDF ao OCR e não muda a configuração global; com um OCR injetado, o resultado segue a regra da Parte 2 (substitui se legível, mantém o nativo se vazio, ilegível ou falho).
-6. Existe `%AppData%\eprocIA\logs\eprocia.log` em JSON Lines com versão, configuração efetiva saneada, cada ZIP, cada documento e os erros com etapa, classe e causa; a rotação e a retenção funcionam; nenhum caminho com o usuário do Windows aparece.
-7. Existe `telemetria.jsonl` com um registro por ZIP, com os campos listados e sem nome de ZIP, de documento, de pasta nem texto.
+5. "Forçar OCR" (no Reprocessar, por item, e nas Configurações, para todos) leva todas as páginas de PDF ao OCR; o override do Reprocessar vale sobre a global só naquela execução e **não muda** a configuração global; `forcar_ocr` padrão `false`; com um OCR injetado, o resultado segue a regra da Parte 2 (substitui se legível, mantém o nativo se vazio, ilegível ou falho).
+6. Com `EPROCIA_LOG` definida, existe `%AppData%\eprocIA\logs\eprocia.log` em JSON Lines com versão, configuração efetiva saneada, cada ZIP (com o nome), cada documento (com o nome) e os erros com etapa, classe e causa; `detalhado` acrescenta o registro por página, `1` não; a rotação e a retenção funcionam; nenhum caminho com o usuário do Windows aparece.
+7. Com `EPROCIA_LOG` definida, existe `telemetria.jsonl` com um registro por ZIP, com os campos listados e sem nome de ZIP, de documento, de pasta nem texto.
+7a. **Sem `EPROCIA_LOG`** (ausente ou vazia): nenhum arquivo nem pasta de log ou telemetria é criado, o comportamento é o de hoje, e a interface não mostra botão, texto ou configuração de log.
+7b. Com `forcar_ocr` desligado e N = 0, o `.txt` é idêntico ao de hoje; com N > 0, o cabeçalho tem a linha `Páginas que precisavam de OCR e ficaram sem: N` e o PRD §6 a descreve.
 8. Nenhuma chamada de rede foi acrescentada; o log e a telemetria nunca travam um worker, mesmo com disco cheio.
 9. O bench não piora o pipeline (p < 0.05, nenhuma métrica pior que 5%); `go test -race ./...`, `go vet`, `svelte-check`, `npm run build` e o glob do frontend passam.
-10. `*.log` e `*.jsonl` estão no `.gitignore` e no hook `proteger-dados`.
+10. `*.log` e `*.jsonl` estão no `.gitignore` e no hook `proteger-dados` (aprovado pelo dono em 2026-11-23).
 
 ## Decisões técnicas do autor (não são perguntas)
 
-JSON Lines com `slog` (formato); rotação própria do log, 5 MB × 5 arquivos e 30 dias (sem dependência); telemetria em arquivo único com rotação a 10 MB e 5 arquivados, sem apagar por idade; telemetria sempre ligada, sem chave; `zip_id` igual ao uuid do item nos dois arquivos; nível padrão `INFO`, com `DEBUG` por variável de ambiente.
+JSON Lines com `slog` (formato); rotação própria do log, 5 MB × 5 arquivos e 30 dias (sem dependência); telemetria em arquivo único com rotação a 10 MB e 5 arquivados, sem apagar por idade; telemetria ligada junto com o log, sem chave própria; `item_id` igual ao uuid do item nos dois arquivos; variável `EPROCIA_LOG` lida só na inicialização; `LogAtivo()` exposto ao frontend.
 
-## Perguntas para o dono
+## Decisões do dono, 2026-11-23
 
-**Q1. Onde o relatório aparece?** Opções: (a) uma linha-resumo no item concluído e um painel de detalhes ao clicar; (b) só a linha-resumo. Recomendada: (a).
-
-**Q2. Aviso e botão para as páginas que tinham imagem e ficaram sem OCR.** Opções: (a) aviso na linha do item e um botão "Ler com OCR" ao lado, que refaz o ZIP com o OCR ligado; (b) só o aviso, sem botão; (c) nada de aviso, só os números no painel. Recomendada: (a). É comportamento visível novo, além do que você pediu.
-
-**Q3. O arquivo `.txt` ganha alguma informação?** Opções: (a) nada; (b) uma linha no cabeçalho "Páginas que precisavam de OCR e ficaram sem: N", só quando N > 0, para o modelo de IA avisar o usuário. Recomendada: (a). Mudaria o `.txt` e o PRD §6.
-
-**Q4. Onde "Forçar OCR" fica?** Opções: (a) só no Reprocessar, por item; (b) no Reprocessar e também nas Configurações, para todos os ZIPs. Recomendada: (a), porque a opção global é fácil de esquecer ligada e dobra o tempo de tudo.
-
-**Q5. O que "Forçar OCR" faz com a página que já tem texto bom?** Opções: (a) o OCR lido substitui o texto do PDF, e o texto do PDF fica se o OCR vier em branco, ilegível ou falhar (simples e previsível; pode ficar um pouco pior em página boa); (b) o texto do PDF fica e só entram as linhas que só o OCR viu (exige um algoritmo novo, a medir em corpus real); (c) o OCR sempre substitui, mesmo com falha. Recomendada: (a).
-
-**Q6. Nomes dos arquivos no log.** Opções: (a) o log leva o nome do documento, e o ZIP só por um código, com a lista de nomes numa pasta separada; (b) o log leva todos os nomes, inclusive do ZIP (mais cômodo, mais difícil de partilhar). Recomendada: (a).
-
-**Q7. Registrar cada página no log?** Isso reverte sua decisão da v0.4.2 de não ter log por página. Opções: (a) não por padrão: o detalhe por página só aparece quando você ligar o modo detalhado; (b) sempre, mas só números (o arquivo cresce muito e gira mais rápido). Recomendada: (a).
-
-**Q8. Botão "Abrir pasta de logs" nas Configurações?** Opções: (a) sim; (b) não. Recomendada: (a).
-
-**Q9. Em que release isso vai?** Opções: (a) tudo junto numa release; (b) em duas: primeiro log e telemetria (quase sem mudança visível), depois relatório e Forçar OCR. Recomendada: (b), porque o log ajuda a medir o próprio relatório.
+- **Q1:** linha-resumo no item concluído e painel de detalhes ao clicar.
+- **Q2:** aviso na linha e botão "Ler com OCR", que refaz o ZIP com o OCR ligado.
+- **Q3 (b):** uma linha no cabeçalho do `.txt`, "Páginas que precisavam de OCR e ficaram sem: N", só quando N > 0 (entre `Documentos não lidos` e `Data de Consolidação`; PRD §6 atualizado).
+- **Q4 (b):** "Forçar OCR" no Reprocessar (por item) e nas Configurações (todos os ZIPs); `Config.ForcarOCR`, padrão `false`; o Reprocessar vale sobre a global só naquela execução e não a altera.
+- **Q5:** o OCR legível substitui o texto do PDF; o texto do PDF fica se o OCR vier em branco, ilegível ou falhar.
+- **Q6 (b):** todos os nomes no log, inclusive o do ZIP. Dono: "só vamos ativar os logs se houver uma determinada configuração nas variáveis do ambiente. Assim, só serão geradas por quem efetivamente escolher." Ruling do orquestrador: log e telemetria só existem com `EPROCIA_LOG` definida (ausente/vazio desligado; `1` normal; `detalhado` com registro por página; valor desconhecido = `1` com aviso; leitura só na inicialização). Sem código de ZIP, índice nem pasta separada de nomes. Saneamento: só o perfil do usuário do Windows (perfil, `%TEMP%`, nome após `\Users\`), nunca nomes de ZIP ou documento.
+- **Q7:** registro por página só no modo `detalhado` da variável.
+- **Q8:** "Só quando os logs estiverem ativados, caso contrário, não deve mostrar nada sobre log." Botão "Abrir pasta de logs" só com log ativo, informado por `App.LogAtivo() bool`; sem log, nenhum texto ou controle de log na interface.
+- **Q9 (a):** tudo junto, numa release só.
+- **Q10:** aprovado estender o hook `proteger-dados` e o `.gitignore` para barrar `*.log` e `*.jsonl`.
 
 ## Riscos
 
 - O contador de "antes e depois" da limpeza fica no laço de saída de `formatter.go`, que tem muitos testes; a mudança é só somar na entrada e na saída da página.
-- Forçar OCR pode dobrar o tempo e deixar a página boa um pouco pior; a interface avisa, e o texto do PDF fica se o OCR falhar.
-- O nome do ZIP e o nome do usuário do Windows estão nos dados que hoje vão ao log: o saneamento no manipulador é obrigatório, e o teste dele é um critério de aceite.
-- O pacote `log` ainda é usado por código não migrado: a migração por etapas e a ordem (saneamento e `Debug` primeiro, `SetDefault` depois) importam.
+- Forçar OCR (inclusive o global) pode dobrar o tempo e deixar a página boa um pouco pior; a interface avisa, e o texto do PDF fica se o OCR falhar. A global é fácil de esquecer ligada; o texto da caixa diz o custo.
+- Com o log ligado, ele leva nomes de ZIP e de documento (identificam as partes): só quem define `EPROCIA_LOG` o produz, e partilhar exige o script `anonimizar-log` ou aceitar os nomes. O nome do usuário do Windows continua saneado no manipulador, e o teste dele é critério de aceite.
+- O pacote `log` ainda é usado por código não migrado: a migração por etapas e a ordem (saneamento e `Debug` primeiro, `SetDefault` depois, e só com a variável) importam.
 - Mudar `internal/ocr` para devolver stderr toca o código que roda os processos externos (prazos, `CREATE_NO_WINDOW`): cobrir com os testes existentes do pacote.
-- A linha extra no `.txt` (Q3) altera um contrato que o PRD §6 descreve e que a análise em LLM usa.
+- A linha extra no `.txt` (Q3) altera um contrato que o PRD §6 descreve e que a análise em LLM usa; só sai com N > 0, então a saída comum não muda.
+- Release única (Q9): a implementação é grande; o plano deve dividir em tarefas, mas o corte da release é um só (pelo menos o PRD, o `.txt` e a interface saem juntos).
