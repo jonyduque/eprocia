@@ -16,7 +16,7 @@ var ErrPrazo = errors.New("prazo do processo externo esgotado")
 // ErroProcesso é a falha de um processo externo: o nome do executável, o código
 // de saída (-1 se não houve), o começo do stderr (até maxStderr bytes) e o erro
 // do exec. Error() não leva o stderr, que pode trazer caminhos do usuário: quem
-// quiser registrá-lo o lê do campo (ver detalheStderr).
+// quiser registrá-lo o lê do campo, por errors.As.
 type ErroProcesso struct {
 	Programa string
 	Codigo   int
@@ -83,14 +83,4 @@ func rodarComPrazo(ctx context.Context, prazo time.Duration, novo func(ctx conte
 		return fmt.Errorf("%w (%s): %w", ErrPrazo, prazo, ep)
 	}
 	return ep
-}
-
-// detalheStderr devolve ": <stderr>" do *ErroProcesso na cadeia de err, ou ""
-// se não houver stderr. Serve às mensagens que vão ao log; o .txt só leva a
-// frase fixa (fraseOCR, textoErroSaida).
-func detalheStderr(err error) string {
-	if ep, ok := errors.AsType[*ErroProcesso](err); ok && ep.Stderr != "" {
-		return ": " + ep.Stderr
-	}
-	return ""
 }

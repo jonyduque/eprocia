@@ -82,7 +82,7 @@ func rodarPoppler(ctx context.Context, popplerDir, exe string, prazo time.Durati
 			// Sem o stderr na mensagem; o *ErroProcesso segue na cadeia.
 			return "", fmt.Errorf("falha no %s: %w: %w", exe, ErrSenha, err)
 		}
-		return "", fmt.Errorf("falha no %s: %w%s", exe, err, detalheStderr(err))
+		return "", fmt.Errorf("falha no %s: %w", exe, err)
 	}
 	if saida.cortou {
 		return "", fmt.Errorf("falha no %s: %w (%d bytes)", exe, errSaidaGrande, maxSaidaPoppler)

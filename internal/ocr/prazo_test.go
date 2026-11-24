@@ -129,9 +129,9 @@ func TestRodarComPrazo_PrazoContinuaErrPrazo(t *testing.T) {
 	}
 }
 
-// O erro que reconhecer devolve (e que o pipeline registra no log) leva o
-// código de saída e o stderr do tesseract.
-func TestReconhecer_ErroLevaCodigoEStderr(t *testing.T) {
+// O erro que reconhecer devolve leva o código de saída no texto e o stderr só
+// no campo do *ErroProcesso (o log o extrai de lá; no texto sairia duplicado).
+func TestReconhecer_StderrSoNoErroProcesso(t *testing.T) {
 	t.Setenv("EPROCIA_TESTE_FILHO", "1")
 	t.Setenv("EPROCIA_TESTE_STDERR", "1")
 	dir := t.TempDir()
@@ -142,8 +142,28 @@ func TestReconhecer_ErroLevaCodigoEStderr(t *testing.T) {
 	if !errors.As(err, &ep) || ep.Codigo != 3 {
 		t.Fatalf("erro = %v, quero *ErroProcesso com código 3", err)
 	}
-	if !strings.Contains(err.Error(), "erro de teste") || !strings.Contains(err.Error(), "código 3") {
-		t.Errorf("erro = %v, quero o código e o stderr na mensagem para o log", err)
+	if !strings.Contains(err.Error(), "código 3") {
+		t.Errorf("erro = %v, quero o código de saída no texto", err)
+	}
+	if strings.Contains(err.Error(), "erro de teste") {
+		t.Errorf("erro = %v, o texto não pode levar o stderr", err)
+	}
+	if !strings.Contains(ep.Stderr, "erro de teste") {
+		t.Errorf("Stderr = %q, quero o stderr do tesseract", ep.Stderr)
+	}
+}
+
+func TestRodarComPrazo_StderrCortado(t *testing.T) {
+	t.Setenv("EPROCIA_TESTE_FILHO", "1")
+	t.Setenv("EPROCIA_TESTE_STDERR_GRANDE", "1")
+
+	err := rodarComPrazo(context.Background(), time.Minute, comandoDeTeste)
+	ep, ok := errors.AsType[*ErroProcesso](err)
+	if !ok {
+		t.Fatalf("erro = %v, quero *ErroProcesso na cadeia", err)
+	}
+	if ep.Stderr == "" || len(ep.Stderr) > maxStderr {
+		t.Errorf("len(Stderr) = %d, quero entre 1 e %d", len(ep.Stderr), maxStderr)
 	}
 }
 
