@@ -5,20 +5,25 @@ import (
 	"bytes"
 	"compress/flate"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"maps"
 	"os"
 	"path/filepath"
 	stdRuntime "runtime"
+	"runtime/debug"
 	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"eprocia/internal/models"
 	"eprocia/internal/ocr"
+	"eprocia/internal/registro"
 
 	"github.com/dslipak/pdf"
 )
@@ -296,17 +301,52 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 // ProcessZipComAtividade é ProcessZip registrando em atv o estado de cada
 // documento e dos processos de OCR. atv pode ser nil.
 func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int), atv *Atividade) (string, int, int, int, error) {
+	// O logger do ctx já traz o item_id (Queue.processItem); as linhas de ZIP
+	// e de documento são INFO, as por página ficam em Debug.
+	lg := registro.Logger(ctx)
+	inicio := time.Now()
+	var bytesTxt int
+	saida, docs, paginas, tokens, err := p.processarZip(ctx, lg, zipPath, cfg, onProgress, atv, &bytesTxt)
+	attrs := []any{"zip", filepath.Base(zipPath), "duracao_ms", time.Since(inicio).Milliseconds(),
+		"bytes_txt", bytesTxt, "tokens", tokens}
+	switch {
+	case err == nil:
+		lg.Info("zip concluído", attrs...)
+	case ctx.Err() != nil && errors.Is(err, ctx.Err()):
+		lg.Info("zip cancelado", attrs...)
+	default:
+		lg.Info("zip com erro", append(attrs, atributosErro(err)...)...)
+	}
+	return saida, docs, paginas, tokens, err
+}
+
+func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath string, cfg *models.Config, onProgress func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int), atv *Atividade, bytesTxt *int) (string, int, int, int, error) {
 	// 1. Read ZIP files
 	files, rc, err := ReadZipFiles(zipPath)
 	if err != nil {
-		return "", 0, 0, 0, err
+		return "", 0, 0, 0, comEtapa(EtapaAbrirZip, err)
 	}
 	defer rc.Close()
 
 	if len(files) == 0 {
 		errNoFiles := fmt.Errorf("no PDF or HTML documents found in ZIP")
-		return "", 0, 0, 0, errNoFiles
+		return "", 0, 0, 0, comEtapa(EtapaAbrirZip, errNoFiles)
 	}
+
+	var bytesZip int64
+	if st, errStat := os.Stat(zipPath); errStat == nil {
+		bytesZip = st.Size()
+	}
+	nPDF, nHTML := 0, 0
+	for _, f := range files {
+		if f.Extension == ".pdf" {
+			nPDF++
+		} else {
+			nHTML++
+		}
+	}
+	lg.Info("zip iniciado", "zip", filepath.Base(zipPath), "bytes", bytesZip, "pdf", nPDF, "html", nHTML,
+		slog.Group("config", "ocr_mode", cfg.OcrMode, "cleaning_level", cfg.CleaningLevel))
 
 	// 2. Sort documents chronologically and naturally
 	SortProcessFiles(files)
@@ -525,6 +565,15 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 	for i, f := range files {
 		wg.Go(func() {
 			paginasMap, docMap := paginasDoc[i], docsMap[i]
+			// O logger do documento leva doc_id (o índice no ZIP, que distingue
+			// entradas de mesmo nome) e vai no ctx para o leitor de PDF.
+			lgDoc := lg.With("doc_id", i)
+			ctxDoc := registro.ComLogger(ctx, lgDoc)
+			inicioDoc := time.Now()
+			// Leitura, detalhe e erro do documento, para a linha final.
+			var leituraDoc Leitura
+			var detalheDoc string
+			var errDoc error
 			// Páginas deste documento já contadas no progresso. O OCR em lote
 			// avisa páginas de outras goroutines, por isso o contador é atômico.
 			var feitas atomic.Int32
@@ -543,6 +592,22 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 					return
 				}
 				encerrado = true
+				attrs := []any{"doc", f.DocName, "evento", f.EventNum, "extensao", f.Extension,
+					"bytes", int64(f.ZipFileRef.UncompressedSize64), "paginas", contagens[i]}
+				if f.Extension == ".pdf" {
+					leitor := "biblioteca"
+					if viaPoppler[i] {
+						leitor = "poppler"
+					}
+					attrs = append(attrs, "leitor", leitor)
+				}
+				estado := DocConcluido
+				if msgErro != "" {
+					estado = DocErro
+				}
+				attrs = append(attrs, "estado", estado, "leitura", string(leituraDoc), "detalhe", detalheDoc,
+					"duracao_ms", time.Since(inicioDoc).Milliseconds())
+				lgDoc.Info("documento concluído", append(attrs, atributosErro(errDoc)...)...)
 				if falta := contagens[i] - int(feitas.Load()); falta > 0 {
 					processedPagesVal.Add(int32(falta))
 				}
@@ -568,6 +633,7 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 					marcarErro(marcador)
 				}
 				docMap["nao_lido"] = l.Frase()
+				leituraDoc, detalheDoc = l, detalhe
 				atv.docLeitura(i, l, detalhe)
 				encerrar(l.Frase(), msgProgresso)
 			}
@@ -580,7 +646,8 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 				if r == nil {
 					return
 				}
-				log.Printf("[Pipeline] Panic ao processar %s: %v", f.DocName, r)
+				lgDoc.Error("pânico ao processar o documento", "doc", f.DocName, "erro", fmt.Sprint(r),
+					"pilha", string(debug.Stack()))
 				// Um panic depois de encerrar (no onProgress, por exemplo) não
 				// reescreve um documento que já terminou.
 				if encerrado {
@@ -589,6 +656,7 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 				if fonteDoc != nil {
 					fonteDoc.liberarBuffer(false)
 				}
+				errDoc = fmt.Errorf("panic: %v", r)
 				texto := textoErroSaida(fmt.Errorf("%v", r))
 				naoLido(LeituraIlegivel, fmt.Sprintf("[ERRO ao processar documento: %s]", texto),
 					texto, fmt.Sprintf("Erro ao processar %s", f.DocName))
@@ -623,6 +691,7 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 					// segurança. O log leva o erro inteiro, para o "detalhe no
 					// log" valer quando ela dispara.
 					log.Printf("[Pipeline] Falha ao abrir %s: %v", f.DocName, e)
+					errDoc = comEtapa(EtapaLerPDF, e)
 					texto := vetarCaminho(e.Error())
 					naoLido(classificarErro(e), fmt.Sprintf("[ERRO ao analisar PDF: %s]", texto),
 						texto, fmt.Sprintf("Erro ao analisar %s", f.DocName))
@@ -634,6 +703,7 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 					fonte, err = extrairPDF(f, mem)
 					if err != nil {
 						log.Printf("[Pipeline] Falha ao extrair %s do ZIP: %v", f.DocName, err)
+						errDoc = comEtapa(EtapaLerPDF, err)
 						texto := textoErroSaida(err)
 						naoLido(classificarErro(err), fmt.Sprintf("[ERRO ao extrair PDF do ZIP: %s]", texto),
 							texto, fmt.Sprintf("Erro ao abrir %s", f.DocName))
@@ -653,7 +723,7 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 				} else if contados[i] {
 					parser.comPaginas(contagens[i])
 				}
-				pdfPages, errParse := parser.ParsePages(ctx, cfg.OcrMode != "none", ocrRunner, func(pageNum int) {
+				pdfPages, errParse := parser.ParsePages(ctxDoc, cfg.OcrMode != "none", ocrRunner, func(pageNum int) {
 					contarPagina()
 					pDocs := int(processedDocsVal.Load())
 					reportProgress(fmt.Sprintf("Processando %s (pág. %d/%d) [Docs: %d/%d]", f.DocName, pageNum, contagens[i], pDocs, totalFiles))
@@ -671,6 +741,7 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 						return
 					}
 					log.Printf("[Pipeline] Falha ao analisar %s: %v", f.DocName, errParse)
+					errDoc = comEtapa(EtapaLerPDF, errParse)
 					texto := textoErroSaida(errParse)
 					naoLido(classificarErro(errParse), fmt.Sprintf("[ERRO ao analisar PDF: %s]", texto),
 						texto, fmt.Sprintf("Erro ao analisar %s", f.DocName))
@@ -683,6 +754,7 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 				zipReader, err := f.ZipFileRef.Open()
 				if err != nil {
 					log.Printf("[Pipeline] Falha ao abrir %s no ZIP: %v", f.DocName, err)
+					errDoc = comEtapa(EtapaHTML, err)
 					texto := textoErroSaida(err)
 					naoLido(classificarErro(err), fmt.Sprintf("[ERRO ao abrir arquivo no ZIP: %s]", texto),
 						texto, fmt.Sprintf("Erro ao abrir %s", f.DocName))
@@ -693,6 +765,7 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 				zipReader.Close()
 				if errParse != nil {
 					log.Printf("[Pipeline] Falha ao analisar o HTML %s: %v", f.DocName, errParse)
+					errDoc = comEtapa(EtapaHTML, errParse)
 					texto := textoErroSaida(errParse)
 					naoLido(classificarErro(errParse), fmt.Sprintf("[ERRO ao analisar HTML: %s]", texto),
 						texto, fmt.Sprintf("Erro ao analisar HTML %s", f.DocName))
@@ -712,6 +785,7 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 				naoLido(l, "", "", fmt.Sprintf("Concluído %d/%d: %s", int(processedDocsVal.Load())+1, totalFiles, f.DocName))
 				return
 			}
+			leituraDoc = l
 			atv.docLeitura(i, l, "")
 			encerrar("", fmt.Sprintf("Concluído %d/%d: %s", int(processedDocsVal.Load())+1, totalFiles, f.DocName))
 		})
@@ -737,15 +811,16 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 	// WriteString não copia o texto para um []byte, como os.WriteFile exigiria.
 	out, err := os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		return "", 0, 0, 0, err
+		return "", 0, 0, 0, comEtapa(EtapaGravar, err)
 	}
 	_, err = out.WriteString(outputText)
 	if errClose := out.Close(); err == nil {
 		err = errClose
 	}
 	if err != nil {
-		return "", 0, 0, 0, err
+		return "", 0, 0, 0, comEtapa(EtapaGravar, err)
 	}
+	*bytesTxt = len(outputText)
 
 	// Count total pages
 	totalPages := 0

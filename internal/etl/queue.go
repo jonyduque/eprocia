@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"path/filepath"
+	"runtime/debug"
 	"slices"
 	"sync"
 	"time"
@@ -455,7 +457,8 @@ func (q *Queue) startProcessing() {
 func (q *Queue) processItem(item *QueueItem) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("[Queue] ERRO CRÍTICO (panic) no processador de fila para %s: %v", item.Name, r)
+			slog.Default().With("item_id", item.ID).Error("pânico no processador da fila", "zip", item.Name,
+				"erro", fmt.Sprint(r), "pilha", string(debug.Stack()))
 			q.mu.Lock()
 			item.cancel = nil
 			pararEnvioPendente(item)
@@ -476,6 +479,8 @@ func (q *Queue) processItem(item *QueueItem) {
 	q.mu.Lock()
 	ctx, cancel := context.WithCancel(q.baseCtx)
 	defer cancel()
+	// Toda linha do pipeline deste item leva o item_id (o mesmo da telemetria).
+	ctx = registro.ComLogger(ctx, slog.Default().With("item_id", item.ID))
 	item.cancel = cancel
 	item.Status = "processing"
 	item.Message = "Iniciando..."

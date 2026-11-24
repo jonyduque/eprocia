@@ -44,7 +44,7 @@ func (p *PDFParser) parsePoppler(
 		if !comOCR {
 			return nil, resumirSegundoLeitor(filepath.Base(p.filePath), "", err)
 		}
-		lg.Warn("segundo leitor não extraiu o texto; todas as páginas vão ao OCR", "erro", err)
+		lg.Warn("segundo leitor não extraiu o texto; todas as páginas vão ao OCR", atributosErro(comEtapa(EtapaLerPDF, err))...)
 		textos = make([]string, numPages)
 	}
 
@@ -87,7 +87,7 @@ func (p *PDFParser) parsePoppler(
 		return nil, err
 	}
 	if n := d.falhas.Load(); n > 0 {
-		lg.Warn("página com falha de OCR", "paginas", n, "erro", d.erroOCR())
+		lg.Warn("página com falha de OCR", append([]any{"paginas", n}, atributosErro(comEtapa(EtapaOCR, d.erroOCR()))...)...)
 	}
 	return paginasMap, nil
 }

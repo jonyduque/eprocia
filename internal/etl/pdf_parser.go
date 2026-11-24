@@ -207,7 +207,7 @@ func (p *PDFParser) ParsePages(
 	}
 
 	if n := d.falhas.Load(); n > 0 {
-		lg.Warn("página com falha de OCR", "paginas", n, "erro", d.erroOCR())
+		lg.Warn("página com falha de OCR", append([]any{"paginas", n}, atributosErro(comEtapa(EtapaOCR, d.erroOCR()))...)...)
 	}
 	lg.Debug("análise concluída", "paginas", len(paginasMap))
 	return paginasMap, nil
