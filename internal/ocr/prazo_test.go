@@ -1,14 +1,19 @@
 package ocr
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"eprocia/internal/registro"
 )
 
 // encurtar troca *v por d até o fim do teste. Os testes que usam isto não podem
@@ -173,5 +178,41 @@ func TestPrazoDe_SomaPorPagina(t *testing.T) {
 	}
 	if got := prazoDe(30*time.Second, 10*time.Second, 0); got != 30*time.Second {
 		t.Errorf("prazoDe sem páginas = %v, quero a base", got)
+	}
+}
+
+// O fallback do modelo "por" é o único lugar em que o erro do primeiro
+// tesseract aparece: a linha Warn leva código de saída e stderr.
+func TestReconhecer_FallbackLevaStderrNoWarn(t *testing.T) {
+	t.Setenv("EPROCIA_TESTE_FILHO", "1")
+	t.Setenv("EPROCIA_TESTE_STDERR", "1")
+	dir := t.TempDir()
+	f := ferramentas{tess: os.Args[0], pdftoppm: os.Args[0], tessDir: dir, popplerDir: dir, tessdata: dir}
+	var buf bytes.Buffer
+	ctx := registro.ComLogger(context.Background(),
+		slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+
+	if _, err := f.reconhecer(ctx, dir, "p-1.pgm", 1, nil); err == nil {
+		t.Fatal("esperava erro")
+	}
+	achou := false
+	for l := range strings.SplitSeq(strings.TrimSpace(buf.String()), "\n") {
+		var r map[string]any
+		if err := json.Unmarshal([]byte(l), &r); err != nil {
+			t.Fatalf("linha não é JSON: %q", l)
+		}
+		if r["level"] != "WARN" {
+			continue
+		}
+		achou = true
+		if r["codigo_saida"] != 3.0 {
+			t.Errorf("codigo_saida = %v, quero 3", r["codigo_saida"])
+		}
+		if s, _ := r["stderr"].(string); !strings.Contains(s, "erro de teste") {
+			t.Errorf("stderr = %q, quero o stderr do processo", s)
+		}
+	}
+	if !achou {
+		t.Fatalf("sem linha Warn do fallback:\n%s", buf.String())
 	}
 }

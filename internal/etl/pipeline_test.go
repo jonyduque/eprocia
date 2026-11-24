@@ -57,8 +57,11 @@ func TestProcessZip_CanceladoNaoPreCalculaPaginas(t *testing.T) {
 		t.Fatalf("esperava context.Canceled, obtive %v", err)
 	}
 
+	// Se a pré-contagem rodasse, o PDF fictício passaria por abrirPDF e o
+	// segundo leitor falso (TestMain) falharia em Warn. "falha na pré-contagem"
+	// não serve de sinal: ela só sai com o contexto vivo.
 	saida := logBuf.String()
-	if strings.Contains(saida, "falha na pré-contagem") || strings.Contains(saida, "pré-contagem concluída") {
+	if strings.Contains(saida, "segundo leitor falhou") || strings.Contains(saida, "pré-contagem concluída") {
 		t.Errorf("pré-cálculo rodou mesmo com o contexto cancelado:\n%s", saida)
 	}
 

@@ -314,7 +314,7 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 	case ctx.Err() != nil && errors.Is(err, ctx.Err()):
 		lg.Info("zip cancelado", attrs...)
 	default:
-		lg.Info("zip com erro", append(attrs, atributosErro(err)...)...)
+		lg.Warn("zip com erro", append(attrs, atributosErro(err)...)...)
 	}
 	return saida, docs, paginas, tokens, err
 }
@@ -405,7 +405,9 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 			fonte.liberar()
 		} else if err == nil {
 			var ab aberturaPDF
-			if ab, err = abrirPDF(ctx, fonte); err == nil {
+			// As linhas da abertura (segundo leitor) levam o documento.
+			ctxAb := registro.ComLogger(ctx, lg.With("doc_id", i, "doc", f.DocName))
+			if ab, err = abrirPDF(ctxAb, fonte); err == nil {
 				contagens[i], contados[i], viaPoppler[i] = ab.paginas, true, ab.poppler
 			} else if ctx.Err() == nil {
 				// Os dois leitores falharam (ou senha): decidido aqui, o worker
@@ -614,7 +616,12 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 				}
 				attrs = append(attrs, "estado", estado, "leitura", leitura, "detalhe", detalheDoc,
 					"duracao_ms", time.Since(inicioDoc).Milliseconds())
-				lgDoc.Info("documento concluído", append(attrs, atributosErro(errDoc)...)...)
+				// Com erro, WARN; concluído, não lido sem erro e omitido, INFO.
+				nivel := slog.LevelInfo
+				if errDoc != nil {
+					nivel = slog.LevelWarn
+				}
+				lgDoc.Log(ctxDoc, nivel, "documento concluído", append(attrs, atributosErro(errDoc)...)...)
 				if falta := contagens[i] - int(feitas.Load()); falta > 0 {
 					processedPagesVal.Add(int32(falta))
 				}

@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -94,25 +95,93 @@ func TestRegistro_SemLogPrintfEmProducao(t *testing.T) {
 		t.Fatalf("poucos arquivos de produção encontrados (%d): raiz errada?", len(arquivos))
 	}
 	for _, arquivo := range arquivos {
-		f := analisarFonte(t, arquivo)
-		ast.Inspect(f, func(n ast.Node) bool {
-			c, ok := n.(*ast.CallExpr)
-			if !ok {
-				return true
-			}
-			sel, ok := c.Fun.(*ast.SelectorExpr)
-			if !ok {
-				return true
-			}
-			id, ok := sel.X.(*ast.Ident)
-			if !ok || id.Name != "log" {
-				return true
-			}
-			if strings.HasPrefix(sel.Sel.Name, "Print") || strings.HasPrefix(sel.Sel.Name, "Fatal") {
-				t.Errorf("%s: chamada log.%s", arquivo, sel.Sel.Name)
-			}
+		for _, c := range chamadasLogProibidas(analisarFonte(t, arquivo)) {
+			t.Errorf("%s: chamada %s", arquivo, c)
+		}
+	}
+}
+
+// chamadasLogProibidas lista as chamadas Print*, Fatal* e Panic* do pacote log
+// num arquivo, pelo nome local do import (alias incluído), direto
+// (log.Printf) ou pelo logger padrão (log.Default().Printf). Import com ponto
+// conta como proibido: não dá para separar as chamadas.
+func chamadasLogProibidas(f *ast.File) []string {
+	var nomes []string
+	var out []string
+	for _, imp := range f.Imports {
+		if caminho, _ := strconv.Unquote(imp.Path.Value); caminho != "log" {
+			continue
+		}
+		switch {
+		case imp.Name == nil:
+			nomes = append(nomes, "log")
+		case imp.Name.Name == ".":
+			out = append(out, `import . "log"`)
+		case imp.Name.Name != "_":
+			nomes = append(nomes, imp.Name.Name)
+		}
+	}
+	ehLog := func(e ast.Expr) (string, bool) {
+		id, ok := e.(*ast.Ident)
+		if ok && slices.Contains(nomes, id.Name) {
+			return id.Name, true
+		}
+		return "", false
+	}
+	ast.Inspect(f, func(n ast.Node) bool {
+		c, ok := n.(*ast.CallExpr)
+		if !ok {
 			return true
-		})
+		}
+		sel, ok := c.Fun.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		m := sel.Sel.Name
+		if !strings.HasPrefix(m, "Print") && !strings.HasPrefix(m, "Fatal") && !strings.HasPrefix(m, "Panic") {
+			return true
+		}
+		if nome, ok := ehLog(sel.X); ok {
+			out = append(out, nome+"."+m)
+			return true
+		}
+		// log.Default().Printf
+		if dc, ok := sel.X.(*ast.CallExpr); ok {
+			if ds, ok := dc.Fun.(*ast.SelectorExpr); ok && ds.Sel.Name == "Default" {
+				if nome, ok := ehLog(ds.X); ok {
+					out = append(out, nome+".Default()."+m)
+				}
+			}
+		}
+		return true
+	})
+	return out
+}
+
+func TestChamadasLogProibidas_AliasDefaultEPanic(t *testing.T) {
+	const fonte = `package x
+
+import (
+	lg "log"
+	"log/slog"
+)
+
+func f() {
+	lg.Printf("a")
+	lg.Default().Println("b")
+	lg.Panicf("c")
+	lg.SetFlags(0)
+	slog.Info("ok")
+}
+`
+	f, err := parser.ParseFile(token.NewFileSet(), "x.go", fonte, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := chamadasLogProibidas(f)
+	want := []string{"lg.Printf", "lg.Default().Println", "lg.Panicf"}
+	if !slices.Equal(got, want) {
+		t.Errorf("chamadas = %v, quero %v", got, want)
 	}
 }
 

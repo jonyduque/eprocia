@@ -419,7 +419,16 @@ func (f ferramentas) reconhecer(ctx context.Context, dir, entrada string, pagina
 		return "", fmt.Errorf("falha no tesseract embutido: %w", err)
 	}
 	if err != nil {
-		lg.Warn("tesseract em português falhou; tentando o modelo padrão", "erro", err)
+		// Este erro não sobe ao etl (o fallback o substitui): o código de
+		// saída e o stderr só chegam ao log por esta linha.
+		attrs := []any{"erro", err}
+		if ep, ok := errors.AsType[*ErroProcesso](err); ok {
+			attrs = append(attrs, "codigo_saida", ep.Codigo)
+			if ep.Stderr != "" {
+				attrs = append(attrs, "stderr", ep.Stderr)
+			}
+		}
+		lg.Warn("tesseract em português falhou; tentando o modelo padrão", attrs...)
 		texto, err = rodar("--dpi", dpiRender)
 		if err != nil {
 			lg.Debug("tesseract com o modelo padrão falhou", "erro", err)

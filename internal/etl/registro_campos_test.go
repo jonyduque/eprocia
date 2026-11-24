@@ -192,11 +192,47 @@ func TestRegistro_ErroComEtapaEClasse(t *testing.T) {
 		t.Fatalf("zip com erro = %d linhas:\n%s", len(linhas), buf.String())
 	}
 	l := linhas[0]
+	if l["level"] != "WARN" {
+		t.Errorf("zip com erro em %v, quero WARN", l["level"])
+	}
 	if l["etapa"] != "abrir_zip" || l["classe"] != string(LeituraIlegivel) || l["item_id"] != "item-teste" {
 		t.Errorf("linha de erro: %v", l)
 	}
 	if e, _ := l["erro"].(string); e != err.Error() {
 		t.Errorf("erro = %q, quero %q", e, err.Error())
+	}
+}
+
+// O documento com erro sai em WARN e o que deu certo em INFO; as linhas da
+// pré-contagem (segundo leitor falhou) levam doc e doc_id.
+func TestRegistro_DocumentoComErroEmWarn(t *testing.T) {
+	isolarTemp(t)
+	zipPath := gravarZipComo(t, "5000000-00.2026.8.26.0001.zip", []entradaZip{
+		{"Evento 1 - DOC1.pdf", []byte("isto nao e um PDF 0123456789")},
+		{"Evento 2 - PET2.html", []byte("<html><body><p>Peticao do evento dois</p></body></html>")},
+	})
+	ctx, buf := ctxComLogJSON(slog.LevelInfo)
+	if _, _, _, _, err := NewPipeline().ProcessZipComAtividade(ctx, zipPath, cfgSemOCR(), nil, nil); err != nil {
+		t.Fatalf("ProcessZip: %v", err)
+	}
+	linhas := linhasJSON(t, buf.String())
+	niveis := map[string]any{}
+	for _, d := range linhasComMsg(linhas, "documento concluído") {
+		nome, _ := d["doc"].(string)
+		niveis[nome] = d["level"]
+	}
+	if niveis["Evento 1 - DOC1.pdf"] != "WARN" || niveis["Evento 2 - PET2.html"] != "INFO" {
+		t.Errorf("níveis de documento concluído = %v; quero PDF WARN e HTML INFO\n%s", niveis, buf.String())
+	}
+	for _, msg := range []string{"segundo leitor falhou"} {
+		ls := linhasComMsg(linhas, msg)
+		if len(ls) != 1 {
+			t.Errorf("%q = %d linhas, quero 1:\n%s", msg, len(ls), buf.String())
+			continue
+		}
+		if ls[0]["doc"] != "Evento 1 - DOC1.pdf" || ls[0]["doc_id"] != 0.0 || ls[0]["item_id"] != "item-teste" {
+			t.Errorf("%q sem doc/doc_id/item_id: %v", msg, ls[0])
+		}
 	}
 }
 
