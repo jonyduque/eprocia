@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -14,6 +15,11 @@ import (
 // maxLinha limita o tamanho de uma linha do log (a do relatório de um ZIP
 // grande passa de 64 KiB, o padrão do bufio.Scanner).
 const maxLinha = 64 << 20
+
+// usuarioEscapado é <usuario> com o escape de HTML do json.Marshal (barra
+// invertida, u003c, usuario, barra invertida, u003e). Montado por partes
+// para nenhuma ferramenta de edição decodificar a sequência no fonte.
+const usuarioEscapado = `\` + `u003c` + `usuario` + `\` + `u003e`
 
 // usuarioEmCaminho casa \Users\ ou /Users/ (com separador repetido, como em
 // JSON escapado) em qualquer grafia de maiúsculas.
@@ -31,7 +37,22 @@ func (r *rotulos) zip(nome string) {
 		return
 	}
 	r.nZip++
-	r.rotulo[nome] = fmt.Sprintf("zip-%d", r.nZip)
+	rotulo := fmt.Sprintf("zip-%d", r.nZip)
+	r.rotulo[nome] = rotulo
+	// O .txt de saída e a pasta de mesmo nome usam o radical do ZIP: o erro
+	// de gravação traz ...\<radical>.txt.
+	if ext := filepath.Ext(nome); strings.EqualFold(ext, ".zip") {
+		radical := strings.TrimSuffix(nome, ext)
+		r.definir(radical, rotulo)
+		r.definir(radical+".txt", rotulo+".txt")
+	}
+}
+
+// definir dá o rótulo a nome se ele ainda não tiver um.
+func (r *rotulos) definir(nome, rotulo string) {
+	if nome != "" && r.rotulo[nome] == "" {
+		r.rotulo[nome] = rotulo
+	}
 }
 
 func (r *rotulos) doc(nome string) {
@@ -50,6 +71,28 @@ func (r *rotulos) doc(nome string) {
 // (a partir de 1) das linhas de saída com \Users\ ou /Users/ seguido de
 // algo que não seja <usuario>.
 func anonimizar(r io.Reader, w io.Writer) (sobras []int, err error) {
+	linhas, err := lerLinhas(r)
+	if err != nil {
+		return nil, err
+	}
+	rot := novosRotulos()
+	rot.coletarLinhas(linhas)
+	return escrever(linhas, rot.substituidor(), w)
+}
+
+func novosRotulos() *rotulos {
+	return &rotulos{rotulo: map[string]string{}}
+}
+
+// coletarLinhas registra os nomes de todas as linhas, na ordem.
+func (r *rotulos) coletarLinhas(linhas []string) {
+	for _, l := range linhas {
+		coletar(l, r)
+	}
+}
+
+// lerLinhas lê o log inteiro, uma entrada por linha (sem o fim de linha).
+func lerLinhas(r io.Reader) ([]string, error) {
 	var linhas []string
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 0, 64<<10), maxLinha)
@@ -59,13 +102,11 @@ func anonimizar(r io.Reader, w io.Writer) (sobras []int, err error) {
 	if err := sc.Err(); err != nil {
 		return nil, fmt.Errorf("ler o log: %w", err)
 	}
+	return linhas, nil
+}
 
-	rot := &rotulos{rotulo: map[string]string{}}
-	for _, l := range linhas {
-		coletar(l, rot)
-	}
-	troca := substituidor(rot.rotulo)
-
+// escrever grava as linhas com os nomes trocados e devolve as sobras.
+func escrever(linhas []string, troca *strings.Replacer, w io.Writer) (sobras []int, err error) {
 	bw := bufio.NewWriter(w)
 	for i, l := range linhas {
 		l = troca.Replace(l)
@@ -84,7 +125,8 @@ func anonimizar(r io.Reader, w io.Writer) (sobras []int, err error) {
 // coletar percorre a linha JSON na ordem do texto e registra os nomes de ZIP
 // e de documento. Uma linha que não é JSON não registra nada.
 func coletar(linha string, rot *rotulos) {
-	if !json.Valid([]byte(linha)) {
+	// Só objetos: uma linha de texto, número ou lista não tem atributos.
+	if !strings.HasPrefix(strings.TrimSpace(linha), "{") || !json.Valid([]byte(linha)) {
 		return
 	}
 	dec := json.NewDecoder(strings.NewReader(linha))
@@ -127,6 +169,9 @@ func coletar(linha string, rot *rotulos) {
 // registrar decide se o valor de texto no caminho dado é nome de ZIP ou de
 // documento.
 func registrar(caminho []string, valor string, rot *rotulos) {
+	if len(caminho) == 0 {
+		return
+	}
 	chave := caminho[len(caminho)-1]
 	switch {
 	case chave == "zip":
@@ -148,7 +193,8 @@ func dentroDeAtencao(c []string) bool {
 // escapadas de JSON (com e sem o escape de HTML do json.Marshal). Os nomes
 // mais longos vêm primeiro: numa mesma posição, o Replacer usa o primeiro
 // par que casa, e um nome contido em outro não pode cortar o maior.
-func substituidor(rotulo map[string]string) *strings.Replacer {
+func (rt *rotulos) substituidor() *strings.Replacer {
+	rotulo := rt.rotulo
 	type par struct{ de, para string }
 	var pares []par
 	for nome, r := range rotulo {
@@ -187,11 +233,15 @@ func escaparJSON(s string, html bool) string {
 }
 
 // temSobra diz se a linha tem \Users\ ou /Users/ seguido de algo que não
-// seja o <usuario> do saneamento (também na grafia <usuario>).
+// seja o <usuario> do saneamento, cru ou na grafia escapada pelo escape de
+// HTML do json.Marshal (usuarioEscapado).
 func temSobra(linha string) bool {
 	for _, m := range usuarioEmCaminho.FindAllStringIndex(linha, -1) {
 		resto := linha[m[1]:]
-		if resto == "" || strings.HasPrefix(resto, "<usuario>") || strings.HasPrefix(resto, `<usuario>`) {
+		// Na grafia escapada, a barra invertida que abre o escape do < já entrou
+		// no separador casado.
+		escapado := strings.HasPrefix(linha[m[1]-1:], usuarioEscapado)
+		if resto == "" || strings.HasPrefix(resto, "<usuario>") || escapado {
 			continue
 		}
 		return true

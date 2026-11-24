@@ -119,25 +119,85 @@ func TestAnonimizar_LinhaInvalidaSegue(t *testing.T) {
 	}
 }
 
+func TestAnonimizar_RadicalDoZip(t *testing.T) {
+	entrada := `{"msg":"item na vez","zip":"5000000-00.2026.4.00.0006.zip"}` + "\n" +
+		`{"msg":"falha","etapa":"gravar","erro":"open C:\\Usuarios\\exemplo\\5000000-00.2026.4.00.0006.txt: acesso negado","pasta":"C:\\Usuarios\\exemplo\\5000000-00.2026.4.00.0006"}` + "\n"
+	linhas, _ := rodar(t, entrada)
+	if got := campo(t, linhas[1], "erro"); got != `open C:\Usuarios\exemplo\zip-1.txt: acesso negado` {
+		t.Errorf("erro = %q", got)
+	}
+	if got := campo(t, linhas[1], "pasta"); got != `C:\Usuarios\exemplo\zip-1` {
+		t.Errorf("pasta = %q", got)
+	}
+}
+
+func TestAnonimizar_JSONQueNaoEObjeto(t *testing.T) {
+	entrada := `"texto"` + "\n" + "3\n" + "[]\n" + `["a",{"zip":"x.zip"}]` + "\n" +
+		`{"msg":"ok","zip":"5000000-00.2026.4.00.0007.zip"}` + "\n"
+	linhas, _ := rodar(t, entrada)
+	if len(linhas) != 5 || linhas[0] != `"texto"` || linhas[2] != "[]" {
+		t.Errorf("linhas = %q", linhas)
+	}
+	if got := campo(t, linhas[4], "zip"); got != "zip-1" {
+		t.Errorf("zip = %q, esperava zip-1 (só objetos registram nomes)", got)
+	}
+}
+
+func TestTemSobra_GrafiaEscapada(t *testing.T) {
+	escapado := `C:\\Users\\` + `\` + `u003cusuario` + `\` + `u003e\\x`
+	if temSobra(escapado) {
+		t.Errorf("a grafia escapada de <usuario> não é sobra: %s", escapado)
+	}
+}
+
+// gravar cria o arquivo com o conteúdo dado.
+func gravar(t *testing.T, caminho, conteudo string) {
+	t.Helper()
+	if err := os.WriteFile(caminho, []byte(conteudo), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestExecutar_GravaAoLadoESobras(t *testing.T) {
 	dir := t.TempDir()
 	entrada := filepath.Join(dir, "eprocia.1.log")
-	conteudo := `{"msg":"a","zip":"5000000-00.2026.4.00.0005.zip","erro":"C:/Users/fulano/x"}` + "\n"
-	if err := os.WriteFile(entrada, []byte(conteudo), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	sobras, saida, err := executar(entrada)
+	gravar(t, entrada, `{"msg":"a","zip":"5000000-00.2026.4.00.0005.zip","erro":"C:/Users/fulano/x"}`+"\n")
+	res, err := executar([]string{entrada})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := filepath.Join(dir, "eprocia.1.anon.log"); saida != want {
-		t.Errorf("saida = %q, esperava %q", saida, want)
+	if want := filepath.Join(dir, "eprocia.1.anon.log"); res[0].saida != want {
+		t.Errorf("saida = %q, esperava %q", res[0].saida, want)
 	}
-	got, _ := os.ReadFile(saida)
+	got, _ := os.ReadFile(res[0].saida)
 	if want := `{"msg":"a","zip":"zip-1","erro":"C:/Users/fulano/x"}` + "\n"; string(got) != want {
 		t.Errorf("conteúdo = %q", got)
 	}
-	if !slices.Equal(sobras, []int{1}) {
-		t.Errorf("sobras = %v", sobras)
+	if !slices.Equal(res[0].sobras, []int{1}) {
+		t.Errorf("sobras = %v", res[0].sobras)
+	}
+}
+
+func TestExecutar_VariosArquivosMesmosRotulos(t *testing.T) {
+	dir := t.TempDir()
+	a := filepath.Join(dir, "eprocia.log")
+	b := filepath.Join(dir, "eprocia.1.log")
+	gravar(t, a, `{"msg":"a","zip":"5000000-00.2026.4.00.0008.zip","doc":"Evento 1 - INICIAL.pdf"}`+"\n")
+	gravar(t, b, `{"msg":"b","zip":"5000000-00.2026.4.00.0009.zip"}`+"\n"+
+		`{"msg":"c","zip":"5000000-00.2026.4.00.0008.zip","doc":"Evento 1 - INICIAL.pdf"}`+"\n")
+	res, err := executar([]string{a, b})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res) != 2 {
+		t.Fatalf("esperava 2 resultados, veio %d", len(res))
+	}
+	ga, _ := os.ReadFile(filepath.Join(dir, "eprocia.anon.log"))
+	gb, _ := os.ReadFile(filepath.Join(dir, "eprocia.1.anon.log"))
+	if want := `{"msg":"a","zip":"zip-1","doc":"doc-1"}` + "\n"; string(ga) != want {
+		t.Errorf("eprocia.anon.log = %q", ga)
+	}
+	if want := `{"msg":"b","zip":"zip-2"}` + "\n" + `{"msg":"c","zip":"zip-1","doc":"doc-1"}` + "\n"; string(gb) != want {
+		t.Errorf("eprocia.1.anon.log = %q", gb)
 	}
 }
