@@ -3,6 +3,7 @@ package registro
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -96,6 +97,9 @@ func TestManipulador_LinhaJSONComCamposFixos(t *testing.T) {
 	if _, err := time.Parse(time.RFC3339, ts); err != nil {
 		t.Errorf("ts %q não é RFC 3339: %v", ts, err)
 	}
+	if len(ts) < 20 {
+		t.Fatalf("ts %q curto demais para ter fuso", ts)
+	}
 	if !strings.ContainsAny(ts[19:], "Z+-") {
 		t.Errorf("ts %q sem fuso", ts)
 	}
@@ -115,6 +119,34 @@ func TestManipulador_LinhaJSONComCamposFixos(t *testing.T) {
 		if _, ok := l[k]; ok {
 			t.Errorf("chave %q não deveria existir", k)
 		}
+	}
+}
+
+func TestManipulador_HandleDiretoRespeitaNivel(t *testing.T) {
+	saida := &bufSeguro{}
+	g := gravadorTeste(t, saida, time.Now)
+	h := g.manipulador(slog.LevelInfo)
+	if err := h.Handle(context.Background(), slog.NewRecord(time.Now(), slog.LevelDebug, "dbg", 0)); err != nil {
+		t.Fatal(err)
+	}
+	g.encerrar()
+	if s := saida.String(); s != "" {
+		t.Errorf("Handle direto com DEBUG no modo INFO gravou: %q", s)
+	}
+}
+
+func TestGravador_LinhaVaziaDescartada(t *testing.T) {
+	saida := &bufSeguro{}
+	g := gravadorTeste(t, saida, time.Now)
+	g.enviar(nil, slog.LevelInfo)
+	g.enviar([]byte{}, slog.LevelError)
+	g.descarregar()
+	// descarregar sincroniza com a gravadora: ler o campo depois é seguro.
+	if g.linhasNoBuffer != 0 {
+		t.Errorf("linhasNoBuffer = %d, quer 0", g.linhasNoBuffer)
+	}
+	if n := g.perdidas.Load(); n != 0 {
+		t.Errorf("perdidas = %d, quer 0", n)
 	}
 }
 

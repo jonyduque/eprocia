@@ -81,13 +81,19 @@ func Iniciar(o Opcoes) (ativo bool, err error) {
 	}
 	g := novoGravador(cfg)
 
+	// Outro Iniciar concorrente pode ter instalado um gravador depois do
+	// Encerrar do começo: troca sob o lock e encerra o anterior fora dele.
 	estado.mu.Lock()
-	defer estado.mu.Unlock()
+	anterior := estado.g
 	estado.g = g
 	estado.h = g.manipulador(nivel)
 	estado.detalhado = modo == ModoDetalhado
 	estado.pasta = pasta
 	estado.naoReconhecido = !reconhecido
+	estado.mu.Unlock()
+	if anterior != nil {
+		anterior.encerrar()
+	}
 	return true, nil
 }
 

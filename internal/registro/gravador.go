@@ -23,6 +23,10 @@ const (
 // msgPerdidas é a mensagem da linha que conta as linhas descartadas.
 const msgPerdidas = "linhas de log perdidas"
 
+// gravadoresVivos conta as goroutines gravadoras em execução, para os testes
+// confirmarem que nenhuma vaza.
+var gravadoresVivos atomic.Int64
+
 // configGravador monta uma gravadora; intervalo zero vale IntervaloDescarga.
 type configGravador struct {
 	destino   io.Writer
@@ -82,14 +86,16 @@ func novoGravador(c configGravador) *gravador {
 	if a, ok := c.destino.(*ArquivoRotativo); ok {
 		a.aoFalharGiro = func(err error) { g.avisoGiro = err }
 	}
+	gravadoresVivos.Add(1)
 	go g.rodar()
 	return g
 }
 
 // enviar põe a linha no canal sem bloquear: DEBUG e INFO são descartadas na
 // hora com o canal cheio; WARN e ERROR esperam até EsperaAvisoCheio.
+// Uma linha vazia (formatação que falhou) é descartada sem contar.
 func (g *gravador) enviar(b []byte, nivel slog.Level) {
-	if g.encerrado.Load() {
+	if len(b) == 0 || g.encerrado.Load() {
 		return
 	}
 	select {
@@ -141,6 +147,7 @@ func (g *gravador) encerrar() {
 
 func (g *gravador) rodar() {
 	defer close(g.feito)
+	defer gravadoresVivos.Add(-1)
 	tique := time.NewTicker(g.intervalo)
 	defer tique.Stop()
 	for {

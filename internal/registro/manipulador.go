@@ -31,7 +31,7 @@ func (h *manipulador) Enabled(_ context.Context, nivel slog.Level) bool {
 }
 
 func (h *manipulador) Handle(_ context.Context, r slog.Record) error {
-	if h.g.encerrado.Load() {
+	if r.Level < h.nivel || h.g.encerrado.Load() {
 		return nil
 	}
 	h.g.enviar(formatar(h.g.saneador, h.ops, r), r.Level)

@@ -5,8 +5,29 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 )
+
+func TestIniciar_ConcorrenteNaoVazaGravador(t *testing.T) {
+	t.Cleanup(ResetarParaTeste)
+	dir := t.TempDir()
+	for range 20 {
+		var wg sync.WaitGroup
+		for range 8 {
+			wg.Go(func() {
+				if _, err := Iniciar(Opcoes{Valor: "1", PastaDados: dir, Saneador: saneadorTeste(), Saida: &bufSeguro{}}); err != nil {
+					t.Error(err)
+				}
+			})
+		}
+		wg.Wait()
+	}
+	ResetarParaTeste()
+	if n := gravadoresVivos.Load(); n != 0 {
+		t.Errorf("gravadores vivos depois de ResetarParaTeste = %d, quer 0", n)
+	}
+}
 
 func TestIniciar_Desligado(t *testing.T) {
 	t.Cleanup(ResetarParaTeste)
