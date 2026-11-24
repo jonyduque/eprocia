@@ -31,6 +31,7 @@
   import {
     GetConfig,
     AddFilesToQueue,
+    AddDroppedFiles,
     GetQueue,
     SelectZipFiles,
     IsQueuePaused,
@@ -192,7 +193,7 @@
         // um ZIP já pendente ou em processamento é descartado por ela.
         if (zips.length === 0) soltura.recebido(0);
         else {
-          AddFilesToQueue(zips).then((n) => {
+          AddDroppedFiles(zips).then((n) => {
             soltura.recebido(n);
             anunciar(n > 0 ? textoAceitos(n) : textoJaNaFila(zips.length));
           }).catch((err) => {

@@ -6,6 +6,10 @@ export function AbrirPastaLogs() {
   return window['go']['main']['App']['AbrirPastaLogs']();
 }
 
+export function AddDroppedFiles(arg1) {
+  return window['go']['main']['App']['AddDroppedFiles'](arg1);
+}
+
 export function AddFilesToQueue(arg1) {
   return window['go']['main']['App']['AddFilesToQueue'](arg1);
 }

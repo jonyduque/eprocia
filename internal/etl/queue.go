@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"runtime/debug"
 	"slices"
@@ -54,6 +55,8 @@ type QueueItem struct {
 	// ajuste troca OCR, higienização e Forçar OCR da config global só para
 	// este item.
 	ajuste *ajusteConfig
+	// origem é por onde o ZIP entrou: "monitorada", "arrastada" ou "manual".
+	origem string
 	// atividade guarda o estado por documento da execução atual ou da última.
 	atividade *Atividade
 
@@ -101,6 +104,10 @@ type Queue struct {
 	// onFinished recebe uma cópia do item que terminou com sucesso ou erro
 	// (cancelamentos não avisam), para notificar com a janela oculta.
 	onFinished func(item *QueueItem)
+
+	// aoTerminarZip recebe cada execução terminada (sucesso, erro ou
+	// cancelamento), para a telemetria; sempre chamado fora de q.mu.
+	aoTerminarZip func(models.ExecucaoZip)
 }
 
 // prazoShutdown limita quanto o encerramento do app espera o item em curso.
@@ -178,9 +185,54 @@ func (q *Queue) avisarFimLocked(item *QueueItem) func() {
 	return func() { fn(copia) }
 }
 
+// SetAoTerminarZip registra quem recebe, uma vez por execução, o resumo de
+// cada ZIP que terminou com sucesso, erro ou cancelamento (a telemetria). A
+// chamada é feita fora de q.mu.
+func (q *Queue) SetAoTerminarZip(fn func(models.ExecucaoZip)) {
+	q.mu.Lock()
+	q.aoTerminarZip = fn
+	q.mu.Unlock()
+}
+
+// execucaoLocked exige q.mu travado; devolve a chamada a aoTerminarZip a
+// fazer depois de destravar. Um pânico no callback não chega à fila.
+func (q *Queue) execucaoLocked(item *QueueItem, reprocesso bool, cfg *models.Config, bytesZip int64, classeErro string) func() {
+	fn := q.aoTerminarZip
+	if fn == nil {
+		return func() {}
+	}
+	e := models.ExecucaoZip{
+		ItemID:     item.ID,
+		Reprocesso: reprocesso,
+		Origem:     item.origem,
+		BytesZip:   bytesZip,
+		Status:     item.Status,
+		ClasseErro: classeErro,
+		Relatorio:  item.Relatorio,
+	}
+	if cfg != nil {
+		e.Config = *cfg
+		e.Config.ForcarOCR = forcarOCREfetivo(cfg)
+	}
+	return func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("pânico no aviso de fim de ZIP", "item_id", e.ItemID, "erro", fmt.Sprint(r))
+			}
+		}()
+		fn(e)
+	}
+}
+
 // AddFiles adds multiple zip files to the queue and returns how many actually
-// entered (duplicates of pending/processing items are dropped).
+// entered (duplicates of pending/processing items are dropped). Origem manual.
 func (q *Queue) AddFiles(paths []string) int {
+	return q.AddFilesComOrigem(paths, "manual")
+}
+
+// AddFilesComOrigem é AddFiles com a origem do ZIP ("monitorada",
+// "arrastada" ou "manual"), que vai para o log e a telemetria.
+func (q *Queue) AddFilesComOrigem(paths []string, origem string) int {
 	q.mu.Lock()
 	hasPending := false
 	adicionados := 0
@@ -207,12 +259,13 @@ func (q *Queue) AddFiles(paths []string) int {
 			Progress:  0.0,
 			Message:   "Na fila...",
 			Timestamp: time.Now().UnixMilli(),
+			origem:    origem,
 		}
 		// Prepend to show newest on top
 		q.items = append([]*QueueItem{item}, q.items...)
 		hasPending = true
 		adicionados++
-		slog.Info("ZIP adicionado à fila", "item_id", item.ID, "zip", item.Name)
+		slog.Info("ZIP adicionado à fila", "item_id", item.ID, "zip", item.Name, "origem", origem)
 	}
 	q.mu.Unlock()
 
@@ -479,6 +532,12 @@ func (q *Queue) startProcessing() {
 }
 
 func (q *Queue) processItem(item *QueueItem) {
+	// Para a telemetria: a config efetiva, o tamanho do ZIP e se é reprocesso.
+	var (
+		cfgExec    *models.Config
+		bytesZip   int64
+		reprocesso bool
+	)
 	defer func() {
 		if r := recover(); r != nil {
 			slog.Default().With("item_id", item.ID).Error("pânico no processador da fila", "zip", item.Name,
@@ -491,9 +550,11 @@ func (q *Queue) processItem(item *QueueItem) {
 			item.Error = fmt.Sprintf("Panic: %v", r)
 			q.isWorking = false
 			avisar := q.avisarFimLocked(item)
+			telemetria := q.execucaoLocked(item, reprocesso, cfgExec, bytesZip, "panico")
 			q.mu.Unlock()
 			q.broadcast()
 			avisar()
+			telemetria()
 			q.startProcessing()
 		}
 	}()
@@ -514,11 +575,17 @@ func (q *Queue) processItem(item *QueueItem) {
 	item.atividade = atv
 	cfg := q.cfg
 	ajuste := item.ajuste
+	reprocesso = ajuste != nil
+	origem := item.origem
 	q.mu.Unlock()
 
 	q.broadcast()
 
 	lg := registro.Logger(ctx)
+	if info, err := os.Stat(item.Path); err == nil {
+		bytesZip = info.Size()
+	}
+	lg.Info("item na vez", "zip", item.Name, "origem", origem, "reprocesso", reprocesso, "bytes_zip", bytesZip)
 	onProgress := func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int) {
 		lg.Debug("progresso", "zip", item.Name, "progresso", progress, "mensagem", message,
 			"docs", processedDocs, "total_docs", totalDocs, "paginas", processedPages, "total_paginas", totalPages)
@@ -553,9 +620,11 @@ func (q *Queue) processItem(item *QueueItem) {
 			item.Error = err.Error()
 			q.isWorking = false
 			avisar := q.avisarFimLocked(item)
+			telemetria := q.execucaoLocked(item, reprocesso, nil, bytesZip, "config")
 			q.mu.Unlock()
 			q.broadcast()
 			avisar()
+			telemetria()
 			q.startProcessing()
 			return
 		}
@@ -569,6 +638,7 @@ func (q *Queue) processItem(item *QueueItem) {
 		}
 		cfg = &copia
 	}
+	cfgExec = cfg
 	q.mu.Lock()
 	item.OcrMode, item.CleaningLevel = cfg.OcrMode, cfg.CleaningLevel
 	item.ForcarOCR = forcarOCREfetivo(cfg)
@@ -589,6 +659,7 @@ func (q *Queue) processItem(item *QueueItem) {
 	q.isWorking = false
 	pararEnvioPendente(item)
 
+	classeErro := ""
 	if err != nil {
 		if ctx.Err() == context.Canceled {
 			item.Status = "cancelled"
@@ -598,6 +669,7 @@ func (q *Queue) processItem(item *QueueItem) {
 			item.Status = "error"
 			item.Message = err.Error()
 			item.Error = err.Error()
+			classeErro = string(classificarErro(err))
 		}
 	} else {
 		item.Status = "success"
@@ -615,10 +687,12 @@ func (q *Queue) processItem(item *QueueItem) {
 		item.Relatorio = atv.Relatorio()
 	}
 	avisar := q.avisarFimLocked(item)
+	telemetria := q.execucaoLocked(item, reprocesso, cfg, bytesZip, classeErro)
 	q.mu.Unlock()
 
 	q.broadcast()
 	avisar()
+	telemetria()
 	q.startProcessing()
 }
 

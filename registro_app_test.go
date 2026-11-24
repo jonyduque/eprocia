@@ -1,16 +1,21 @@
 package main
 
 import (
+	"archive/zip"
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"eprocia/internal/etl"
 	"eprocia/internal/models"
 	"eprocia/internal/registro"
 )
@@ -233,5 +238,148 @@ func TestPrepararInstancia(t *testing.T) {
 	}
 	if liberado != 1 {
 		t.Errorf("liberar da trava chamado %d vezes, quer 1", liberado)
+	}
+}
+
+// pdfSintetico monta um PDF de texto nativo de uma página.
+func pdfSintetico(texto string) []byte {
+	stream := fmt.Sprintf("BT\n/F1 12 Tf\n72 712 Td\n(%s) Tj\nET", texto)
+	objs := []string{
+		"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
+		"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj",
+		"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> /Contents 4 0 R >>\nendobj",
+		fmt.Sprintf("4 0 obj\n<< /Length %d >>\nstream\n%s\nendstream\nendobj", len(stream), stream),
+	}
+	var buf bytes.Buffer
+	buf.WriteString("%PDF-1.4\n")
+	offsets := make([]int, len(objs))
+	for i, o := range objs {
+		offsets[i] = buf.Len()
+		buf.WriteString(o + "\n")
+	}
+	xref := buf.Len()
+	fmt.Fprintf(&buf, "xref\n0 %d\n0000000000 65535 f \n", len(objs)+1)
+	for _, o := range offsets {
+		fmt.Fprintf(&buf, "%010d 00000 n \n", o)
+	}
+	fmt.Fprintf(&buf, "trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF", len(objs)+1, xref)
+	return buf.Bytes()
+}
+
+// zipSintetico grava, numa pasta própria, um ZIP com um PDF de nome falso.
+func zipSintetico(t *testing.T, nomeZip, nomeDoc, texto string) string {
+	t.Helper()
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	w, err := zw.Create(nomeDoc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Write(pdfSintetico(texto)); err != nil {
+		t.Fatal(err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	caminho := filepath.Join(t.TempDir(), nomeZip)
+	if err := os.WriteFile(caminho, buf.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return caminho
+}
+
+func esperarSucesso(t *testing.T, q *etl.Queue) *etl.QueueItem {
+	t.Helper()
+	limite := time.Now().Add(30 * time.Second)
+	for time.Now().Before(limite) {
+		for _, it := range q.GetItems() {
+			switch it.Status {
+			case "success":
+				return it
+			case "error", "cancelled":
+				t.Fatalf("item terminou %s: %s", it.Status, it.Error)
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatal("o ZIP não terminou")
+	return nil
+}
+
+func TestIniciarRegistro_SemVariavelSemTelemetria(t *testing.T) {
+	const (
+		nomeZip = "5000000-00.2026.8.26.0001.zip"
+		nomeDoc = "Evento 1 - PET1.pdf"
+		texto   = "TEXTO SIGILOSO DE FULANO DE TAL"
+	)
+	for _, valor := range []string{"", "1"} {
+		t.Run("EPROCIA_LOG="+valor, func(t *testing.T) {
+			dir := t.TempDir() // antes de isolarRegistro: o cleanup do registro fecha o log antes de apagar a pasta
+			isolarRegistro(t)
+			zipPath := zipSintetico(t, nomeZip, nomeDoc, texto)
+
+			cfg := cfgDeTeste(t)
+			cfg.OcrMode, cfg.CleaningLevel = "none", "standard"
+			iniciarRegistro(valor, dir, cfg)
+
+			// O mesmo caminho do App.startup: fila criada depois do registro e
+			// telemetria ligada só com o registro ativo.
+			q := etl.NewQueue(etl.NewPipeline())
+			q.SetConfig(cfg)
+			fechar := func() {}
+			if registro.Ativo() {
+				fechar = ligarTelemetria(q, dir)
+			}
+			q.AddFilesComOrigem([]string{zipPath}, "manual")
+			esperarSucesso(t, q)
+			q.Shutdown() // espera o fim do item, aviso de fim de ZIP incluído
+			fechar()
+			registro.Encerrar()
+
+			if valor == "" {
+				for _, sub := range []string{"telemetria", "logs"} {
+					if _, err := os.Stat(filepath.Join(dir, sub)); !errors.Is(err, os.ErrNotExist) {
+						t.Errorf("%s existe com EPROCIA_LOG vazia (err = %v)", sub, err)
+					}
+				}
+				return
+			}
+
+			tel, err := os.ReadFile(filepath.Join(dir, "telemetria", "telemetria.jsonl"))
+			if err != nil {
+				t.Fatalf("telemetria não criada: %v", err)
+			}
+			linhas := strings.Split(strings.TrimSpace(string(tel)), "\n")
+			if len(linhas) != 1 {
+				t.Fatalf("telemetria com %d linhas, quer 1:\n%s", len(linhas), tel)
+			}
+			var reg map[string]any
+			if err := json.Unmarshal([]byte(linhas[0]), &reg); err != nil {
+				t.Fatal(err)
+			}
+			for _, nome := range []string{"5000000", "PET1", "SIGILOSO", "fulano"} {
+				if strings.Contains(strings.ToLower(linhas[0]), strings.ToLower(nome)) {
+					t.Errorf("telemetria contém %q: %s", nome, linhas[0])
+				}
+			}
+
+			concluido := acharMsg(linhasLog(t, dir), "zip concluído")
+			if concluido == nil {
+				t.Fatal("log sem \"zip concluído\"")
+			}
+			if concluido["item_id"] == nil || concluido["item_id"] != reg["item_id"] {
+				t.Errorf("item_id: log %v, telemetria %v", concluido["item_id"], reg["item_id"])
+			}
+			bruto, err := os.ReadFile(filepath.Join(dir, "logs", "eprocia.log"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(bruto), nomeZip) || !strings.Contains(string(bruto), nomeDoc) {
+				t.Errorf("log sem o nome do ZIP ou do documento")
+			}
+			if strings.Contains(string(bruto), "SIGILOSO") {
+				t.Errorf("log contém o texto do PDF")
+			}
+		})
 	}
 }

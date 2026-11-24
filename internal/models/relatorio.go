@@ -108,3 +108,18 @@ type DocAtencao struct {
 	TotalComErro             int `json:"total_com_erro,omitempty"`
 	TotalOCRFalhouComReserva int `json:"total_ocr_falhou_com_reserva,omitempty"`
 }
+
+// ExecucaoZip descreve uma execução de um item da fila que terminou (sucesso,
+// erro ou cancelamento), para a telemetria. Config é a config efetiva do item
+// (com o ajuste do Reprocessar e o Forçar OCR efetivo); Relatorio é nil fora
+// do sucesso. Origem é "monitorada", "arrastada" ou "manual".
+type ExecucaoZip struct {
+	ItemID     string
+	Reprocesso bool
+	Origem     string
+	Config     Config
+	BytesZip   int64
+	Status     string
+	ClasseErro string
+	Relatorio  *RelatorioZip
+}

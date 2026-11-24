@@ -7,9 +7,12 @@ import (
 	"log/slog"
 	"os/exec"
 	stdRuntime "runtime"
+	"time"
 
+	"eprocia/internal/etl"
 	"eprocia/internal/models"
 	"eprocia/internal/registro"
+	"eprocia/internal/telemetria"
 )
 
 //go:embed wails.json
@@ -129,4 +132,26 @@ func (a *App) AbrirPastaLogs() error {
 		return errors.New("o log não está ativo")
 	}
 	return exec.Command("explorer.exe", pasta).Start()
+}
+
+// ligarTelemetria abre <pastaDados>\telemetria\telemetria.jsonl, coleta a
+// máquina uma vez e grava um registro sem nomes por ZIP terminado. Só é
+// chamada com o registro ativo (App.startup); fechar descarrega e fecha o
+// arquivo e nunca é nil. Uma falha ao abrir vira um aviso no log e a
+// telemetria fica desligada.
+func ligarTelemetria(q *etl.Queue, pastaDados string) (fechar func()) {
+	g, err := telemetria.NovoGravador(pastaDados)
+	if err != nil {
+		slog.Warn("não foi possível abrir a telemetria", "erro", err)
+		return func() {}
+	}
+	maquina := telemetria.ColetarMaquina()
+	versao := versaoApp()
+	q.SetAoTerminarZip(func(e models.ExecucaoZip) {
+		g.Gravar(telemetria.Montar(e, maquina, versao, time.Now()))
+	})
+	return func() {
+		q.SetAoTerminarZip(nil)
+		g.Fechar()
+	}
 }

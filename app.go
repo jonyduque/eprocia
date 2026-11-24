@@ -46,6 +46,9 @@ type App struct {
 	emitir func(evento string, dados ...any)
 	// oculta acompanha a janela na bandeja para JanelaVisivel.
 	oculta atomic.Bool
+	// fecharTelemetria descarrega a telemetria no shutdown; nil com o log
+	// desligado.
+	fecharTelemetria func()
 }
 
 // eventoVisibilidade avisa o frontend que a janela sumiu na bandeja (false)
@@ -58,7 +61,7 @@ func NewApp() *App {
 	app := &App{autostart: autostart.Aplicar, clipboard: runtime.ClipboardSetText}
 	app.watcher = watchdog.NewWatcher(func(filePath string) {
 		if app.queue != nil {
-			app.queue.AddFiles([]string{filePath})
+			app.queue.AddFilesComOrigem([]string{filePath}, "monitorada")
 		}
 	})
 	return app
@@ -74,6 +77,11 @@ func (a *App) startup(ctx context.Context) {
 	a.queue.SetContext(ctx)
 	a.iniciarNotificacoes(ctx)
 	a.queue.SetOnFinished(a.aoTerminar)
+	// A fila nasce depois de iniciarRegistro (main): a telemetria se liga
+	// aqui, e só com o log ativo; desligado, nada dela executa.
+	if registro.Ativo() {
+		a.fecharTelemetria = ligarTelemetria(a.queue, pastaDadosApp())
+	}
 
 	// main já leu a config para escolher o fundo da janela.
 	cfg := a.cfg
@@ -174,6 +182,9 @@ func (a *App) shutdown(ctx context.Context) {
 	}
 	if a.queue != nil {
 		a.queue.Shutdown()
+	}
+	if a.fecharTelemetria != nil {
+		a.fecharTelemetria()
 	}
 }
 
@@ -425,6 +436,15 @@ func (a *App) SelectZipFiles() ([]string, error) {
 func (a *App) AddFilesToQueue(filePaths []string) int {
 	if a.queue != nil {
 		return a.queue.AddFiles(filePaths)
+	}
+	return 0
+}
+
+// AddDroppedFiles põe na fila os ZIPs arrastados para a janela (origem
+// "arrastada") e devolve quantos entraram.
+func (a *App) AddDroppedFiles(filePaths []string) int {
+	if a.queue != nil {
+		return a.queue.AddFilesComOrigem(filePaths, "arrastada")
 	}
 	return 0
 }

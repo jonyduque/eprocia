@@ -5,6 +5,8 @@ import {etl} from '../models';
 
 export function AbrirPastaLogs():Promise<void>;
 
+export function AddDroppedFiles(arg1:Array<string>):Promise<number>;
+
 export function AddFilesToQueue(arg1:Array<string>):Promise<number>;
 
 export function CancelQueueItem(arg1:string):Promise<void>;
