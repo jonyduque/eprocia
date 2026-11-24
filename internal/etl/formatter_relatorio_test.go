@@ -44,7 +44,7 @@ func TestGerarSaida_SemLinhaIgualAHoje(t *testing.T) {
 	dir := filepath.Join("testdata", "saida_antes")
 	for nome, mapa := range mapasSaidaAntes() {
 		for _, nivel := range niveisDeLimpeza {
-			arq := filepath.Join(dir, nome+"-"+nivel+".txt")
+			arq := filepath.Join(dir, nome+"-"+nivel+".golden")
 			if *atualizarSaidaAntes {
 				saida, _ := GenerateConsolidatedOutput(mapa, nivel)
 				if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -204,5 +204,21 @@ func TestGerarSaida_ForaDasSomas(t *testing.T) {
 	}
 	if l.BytesDepois > l.BytesAntes || l.BytesDepois == 0 {
 		t.Errorf("BytesDepois = %d fora de (0, %d]", l.BytesDepois, l.BytesAntes)
+	}
+
+	// Página com ocr_aviso que a limpeza esvazia: conta no antes, 0 no depois,
+	// e só o aviso sai no texto.
+	const soMarcador = "Página 2 de 2\n   \n----------\n"
+	e := eventosDocs([]string{normal, soMarcador})
+	marcarPagina(e["1"].(map[string]any)["documentos"].(map[string]any)["d"].(map[string]any), "2", "ocr_aviso", true)
+	av := GerarSaida(e, NivelPadrao, 0)
+	if quer := int64(len(normal) + len(soMarcador)); av.Limpeza.BytesAntes != quer {
+		t.Errorf("aviso: BytesAntes = %d, quer %d", av.Limpeza.BytesAntes, quer)
+	}
+	if quer := int64(len(normal)); av.Limpeza.BytesDepois != quer {
+		t.Errorf("aviso: BytesDepois = %d, quer %d (a página esvaziada conta 0)", av.Limpeza.BytesDepois, quer)
+	}
+	if !strings.Contains(av.Texto, "<pag n=\"2\">\n"+avisoOCRComReserva+"\n</pag>\n") {
+		t.Errorf("aviso: a página 2 devia sair só com o aviso:\n%s", av.Texto)
 	}
 }

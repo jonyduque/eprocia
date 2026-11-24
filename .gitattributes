@@ -5,4 +5,4 @@ scripts/bench/fixtures/** binary
 internal/ocr/embed/** binary
 
 # Goldens of the formatter output, compared byte-for-byte (CR and invalid UTF-8 inside).
-internal/etl/testdata/** binary
+internal/etl/testdata/** -text
