@@ -167,7 +167,9 @@ func (d *despachoOCR) registrarOCR(task ocrTask, ocrText string, err error) {
 		}
 		// Com texto de reserva, em qualquer regra, a página leva ocr_aviso: o
 		// formatter põe antes do texto o aviso de que o OCR falhou. A forçada
-		// leva o aviso mesmo com o nativo vazio.
+		// leva o aviso mesmo com o nativo vazio, e por isso conta como reserva
+		// no relatório (ocr_falhou_com_reserva e a lista de Atencao) também
+		// quando é uma página em branco.
 		if task.fallback != "" || forcado {
 			pageData["ocr_aviso"] = true
 		}

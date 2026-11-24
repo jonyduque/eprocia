@@ -436,3 +436,55 @@ func TestForcarOCR_LogZipIniciadoValorEfetivo(t *testing.T) {
 		})
 	}
 }
+
+// O relatório do ZIP com Forçar OCR: por_motivo conta "forcado" à parte do
+// motivo padrão, e a página forçada cujo OCR falhou conta como reserva
+// (ocr_falhou_com_reserva) mesmo com o nativo vazio; o OCR em branco conta
+// como sem ganho.
+func TestForcarOCR_RelatorioDoZip(t *testing.T) {
+	isolarTemp(t)
+	o := &ocrForcadoFalso{marcasPDF: []string{"FALHA", "BRANCO", "LIDO"}}
+	o.instalar(t)
+	zipPath := gravarZip(t, []entradaZip{
+		// Em branco e texto, o OCR falha nas duas.
+		{"Evento 1 - DOC1.pdf", pdfComTexto("", textoLongo("FALHA um", 300))},
+		// Texto, OCR legível.
+		{"Evento 2 - DOC2.pdf", pdfComTexto(textoLongo("LIDO dois", 300))},
+		// Escaneado: motivo padrão, OCR legível.
+		{"Evento 3 - DOC3.pdf", buildPDF(append(objetosPaginasComImagem(1), "6 0 obj\n(LIDO)\nendobj"))},
+		// Em branco e texto, o OCR volta em branco nas duas.
+		{"Evento 4 - DOC4.pdf", pdfComTexto("", textoLongo("BRANCO quatro", 300))},
+	})
+	r, _ := processarComRelatorio(t, zipPath, &models.Config{CleaningLevel: "standard", OcrMode: "normal", ForcarOCR: true})
+
+	p := r.Paginas
+	if p.PorMotivo["forcado"] != 5 || p.PorMotivo["padrao"] != 1 || len(p.PorMotivo) != 2 {
+		t.Errorf("PorMotivo = %v; quero forcado 5 e padrao 1", p.PorMotivo)
+	}
+	if p.Total != 6 || p.LidaOCR != 2 || p.Vazia != 2 || p.LidaNativa != 2 || p.ComErro != 0 || p.SemOCR != 0 {
+		t.Errorf("categorias = %+v; quero total 6: 2 OCR, 2 vazias, 2 nativas", p)
+	}
+	if p.OCRFalhouComReserva != 2 {
+		t.Errorf("OCRFalhouComReserva = %d, quero 2 (a em branco forçada conta)", p.OCRFalhouComReserva)
+	}
+	if p.OCRSemGanho != 2 {
+		t.Errorf("OCRSemGanho = %d, quero 2", p.OCRSemGanho)
+	}
+	if r.Documentos.Lidos != 4 || r.Documentos.NaoLidos != 0 {
+		t.Errorf("documentos = %+v; quero 4 lidos", r.Documentos)
+	}
+	var doc1 *models.DocAtencao
+	for i := range r.Atencao {
+		if strings.Contains(r.Atencao[i].Nome, "DOC1") {
+			doc1 = &r.Atencao[i]
+		} else {
+			t.Errorf("documento em Atencao sem caso de atenção: %+v", r.Atencao[i])
+		}
+	}
+	if doc1 == nil {
+		t.Fatalf("DOC1 fora de Atencao: %+v", r.Atencao)
+	}
+	if !slices.Equal(doc1.OCRFalhouComReserva, []int{1, 2}) || doc1.TotalOCRFalhouComReserva != 2 || len(doc1.ComErro) != 0 {
+		t.Errorf("Atencao DOC1 = %+v; quero ocr_falhou_com_reserva [1 2]", *doc1)
+	}
+}

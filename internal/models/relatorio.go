@@ -46,6 +46,8 @@ type DocsRelatorio struct {
 // PaginasRelatorio conta as páginas dos documentos lidos por categoria (a soma
 // das cinco é Total) e, à parte, os sub-contadores, as páginas de documentos
 // não lidos e omitidos, as duplicadas (H7) e as páginas por motivo de OCR.
+// OCRFalhouComReserva conta as páginas com ocr_aviso, inclusive a que só foi
+// ao OCR por Forçar OCR e cujo OCR falhou, mesmo com o nativo vazio.
 type PaginasRelatorio struct {
 	Total               int            `json:"total"`
 	LidaNativa          int            `json:"lida_nativa"`
