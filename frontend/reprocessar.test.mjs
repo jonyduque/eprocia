@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { aplicarReprocessarComOCR, ESTADO_REPROCESSAR_INICIAL } from './src/lib/reprocessar.js';
+import { aplicarReprocessarComOCR, ESTADO_REPROCESSAR_INICIAL, argumentosLerComOCR } from './src/lib/reprocessar.js';
 
 describe('reprocessar com OCR', () => {
   it('painel fechado: abre com OCR normal', () => {
@@ -30,5 +30,30 @@ describe('reprocessar com OCR', () => {
     const f = readFileSync(new URL('./src/components/ProcessList.svelte', import.meta.url), 'utf8');
     assert.match(f, /aplicarReprocessarComOCR\(/);
     assert.match(f, /\{#key /);
+  });
+});
+
+describe('argumentosLerComOCR', () => {
+  it('global none dá normal', () => {
+    const a = argumentosLerComOCR({ cleaning_level: 'basic' }, { ocr_mode: 'none', cleaning_level: 'standard' });
+    assert.equal(a.ocr, 'normal');
+  });
+  it('global best dá best', () => {
+    const a = argumentosLerComOCR({}, { ocr_mode: 'best', cleaning_level: 'standard' });
+    assert.equal(a.ocr, 'best');
+  });
+  it('forcar é sempre false, mesmo com a global ligada ou o item forçado', () => {
+    assert.equal(argumentosLerComOCR({}, { ocr_mode: 'fast', forcar_ocr: true }).forcar, false);
+    assert.equal(argumentosLerComOCR({ forcar_ocr: true }, { ocr_mode: 'none', forcar_ocr: true }).forcar, false);
+  });
+  it('mantém o nível de limpeza do item; sem ele, o global', () => {
+    assert.equal(argumentosLerComOCR({ cleaning_level: 'aggressive' }, { ocr_mode: 'normal', cleaning_level: 'basic' }).limpeza, 'aggressive');
+    assert.equal(argumentosLerComOCR({}, { ocr_mode: 'normal', cleaning_level: 'basic' }).limpeza, 'basic');
+  });
+  it('não usa o modo de OCR do item (o item ficou sem OCR)', () => {
+    assert.equal(argumentosLerComOCR({ ocr_mode: 'none' }, { ocr_mode: 'fast' }).ocr, 'fast');
+  });
+  it('config ausente não lança', () => {
+    assert.deepEqual(argumentosLerComOCR({}, null), { ocr: 'normal', limpeza: 'standard', forcar: false });
   });
 });

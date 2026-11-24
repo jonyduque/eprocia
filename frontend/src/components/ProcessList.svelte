@@ -37,6 +37,7 @@
     ReprocessQueueItem
   } from '../wailsjs/go/main/App.js';
   import AtividadeItem from './AtividadeItem.svelte';
+  import RelatorioItem from './RelatorioItem.svelte';
   import ReprocessarItem from './ReprocessarItem.svelte';
   import Aviso from './Aviso.svelte';
   import { onDestroy, tick } from 'svelte';
@@ -46,7 +47,9 @@
   import { criarAnunciador } from '../lib/regiaoViva.js';
   import { estadoItem, avisoFila } from '../lib/estado.js';
   import { criarAviso, duracaoMovimento, DUR_FAST, DUR_BASE } from '../lib/aviso.js';
-  import { aplicarReprocessarComOCR, alvoAoFecharReprocessar } from '../lib/reprocessar.js';
+  import { aplicarReprocessarComOCR, alvoAoFecharReprocessar, argumentosLerComOCR } from '../lib/reprocessar.js';
+  import { resumoPaginas, avisosPaginas, mostrarLerComOCR } from '../lib/relatorio.js';
+  import { EXPLICACAO_OCR, ROTULO_LER_COM_OCR, DICA_LER_COM_OCR, DICA_ABRIR_RELATORIO, DICA_FECHAR_RELATORIO } from '../lib/textos.js';
   import { dica } from '../lib/dica.js';
   import { rotuloNaoLidos, avisoCopiaNaoLidos, tituloNaoLidos } from '../lib/naoLidos.js';
   import { rolagem } from '../lib/rolagem.js';
@@ -197,6 +200,30 @@
     alternarReprocessar(id);
     await tick();
     (alvoAoFecharReprocessar(origem, botaoReprocessarDa(id)) ?? tituloEl)?.focus();
+  }
+
+  // Painel de detalhes do relatório (linha-resumo do item concluído).
+  let relatorioAberto = {};
+  function alternarRelatorio(id) {
+    relatorioAberto = { ...relatorioAberto, [id]: !relatorioAberto[id] };
+  }
+
+  // Botão ROTULO_LER_COM_OCR: refaz o ZIP com o OCR ligado só nas páginas candidatas,
+  // sem Forçar OCR e com a limpeza do item (a config global não muda).
+  async function lerComOCR(item) {
+    const a = argumentosLerComOCR(item, config);
+    try {
+      await ReprocessQueueItem(item.id, a.ocr, a.limpeza, a.forcar);
+      const botao = botaoReprocessarDa(item.id);
+      botao?.focus();
+      guardarFoco(item.id, { currentTarget: botao }, 'cancelar');
+      relatorioAberto = { ...relatorioAberto, [item.id]: false };
+      const { [item.id]: _, ...resto } = atividadesBuscadas;
+      atividadesBuscadas = resto;
+    } catch (err) {
+      console.error('Erro ao reprocessar com OCR:', err);
+      avisoAcao.mostrar('Erro ao reprocessar: ' + (err?.message ?? err), 'error');
+    }
   }
 
   async function confirmarReprocessar(item, ocr, limpeza) {
@@ -815,6 +842,55 @@
                 <p class="erro-detalhe-texto">{item.message || 'Erro no processamento'}</p>
                 <p class="erro-detalhe-caminho">Arquivo: {item.path}</p>
               </div>
+            {/if}
+
+            {#if estado === 'sucesso' && item.relatorio}
+              {@const resumo = resumoPaginas(item.relatorio)}
+              {@const avisos = avisosPaginas(item.relatorio)}
+              {#if resumo || avisos.length > 0 || mostrarLerComOCR(item.relatorio)}
+                <div class="relatorio-linha">
+                  {#if resumo}
+                    <button
+                      type="button"
+                      class="resumo-relatorio"
+                      aria-expanded={!!relatorioAberto[item.id]}
+                      aria-controls="relatorio-{item.id}"
+                      title={relatorioAberto[item.id] ? DICA_FECHAR_RELATORIO : DICA_ABRIR_RELATORIO}
+                      on:click={() => alternarRelatorio(item.id)}
+                    >
+                      <span class="chevron" class:aberto={relatorioAberto[item.id]} aria-hidden="true">
+                        <Icone icone={ChevronDown} tamanho={12} />
+                      </span>
+                      <span class="resumo-texto">{resumo}</span>
+                    </button>
+                  {/if}
+                  {#if avisos.length > 0}
+                    <ul class="avisos-relatorio">
+                      {#each avisos as a (a.tipo)}
+                        <li class="aviso-relatorio">
+                          <Icone icone={CircleAlert} tamanho={12} cor="var(--warning)" />
+                          <span>{a.texto}</span>
+                        </li>
+                      {/each}
+                    </ul>
+                    <p class="explicacao-ocr">{EXPLICACAO_OCR}</p>
+                  {/if}
+                  {#if mostrarLerComOCR(item.relatorio)}
+                    <button
+                      type="button"
+                      class="btn-ler-ocr"
+                      title={DICA_LER_COM_OCR}
+                      on:click={() => lerComOCR(item)}
+                    >
+                      <Icone icone={RotateCcw} tamanho={12} />
+                      {ROTULO_LER_COM_OCR}
+                    </button>
+                  {/if}
+                </div>
+                {#if resumo && relatorioAberto[item.id]}
+                  <RelatorioItem id="relatorio-{item.id}" relatorio={item.relatorio} />
+                {/if}
+              {/if}
             {/if}
 
             {#if expansivel && atividadeAberta[item.id]}
@@ -1568,6 +1644,107 @@
     cursor: text;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+  }
+
+  /* Linha-resumo do relatório: largura inteira, abaixo da linha do item. */
+  .relatorio-linha {
+    flex-basis: 100%;
+    margin-left: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    min-width: 0;
+    font-size: var(--fs-meta);
+  }
+
+  .resumo-relatorio {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    min-height: 20px;
+    padding: 0 4px;
+    margin-left: -4px;
+    border: none;
+    border-radius: 3px;
+    background: transparent;
+    font: inherit;
+    color: var(--text-secondary);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .resumo-relatorio:hover .resumo-texto {
+    color: var(--text-primary);
+    text-decoration: underline;
+  }
+
+  .resumo-relatorio:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+
+  .resumo-texto {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .avisos-relatorio {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .aviso-relatorio {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    color: var(--warning-strong);
+    font-weight: 500;
+  }
+
+  .aviso-relatorio :global(svg) {
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .explicacao-ocr {
+    margin: 0;
+    color: var(--text-secondary);
+  }
+
+  .btn-ler-ocr {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 24px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--warning-line);
+    background-color: var(--warning-soft);
+    color: var(--warning-strong);
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .btn-ler-ocr:hover {
+    border-color: var(--warning);
+  }
+
+  .btn-ler-ocr:focus-visible {
+    outline: 2px solid var(--warning);
+    outline-offset: 1px;
+  }
+
+  @container (max-width: 420px) {
+    .relatorio-linha {
+      margin-left: 0;
+    }
   }
 
   .erro-detalhe p {
