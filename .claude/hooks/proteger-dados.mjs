@@ -1,6 +1,8 @@
-// PreToolUse (Bash): keeps real process data (ZIPs, PDFs, processing outputs,
-// the benchmark corpus) out of git.
+// PreToolUse (Bash and PowerShell): keeps real process data (ZIPs, PDFs,
+// processing outputs, the benchmark corpus) out of git. The event's tool_name
+// picks the syntax the command is read with.
 import { execFileSync } from 'node:child_process';
+import os from 'node:os';
 import path from 'node:path';
 import { executar, normalizar, RAIZ } from './lib.mjs';
 
@@ -66,6 +68,116 @@ function comandosESubshells(linha) {
   return lista;
 }
 
+// comandosPowerShell splits a PowerShell command line into simple commands.
+// Quotes: '...' with '' for a literal quote; "..." with `x and "" as escapes.
+// Outside quotes ` escapes the next character (` + newline continues the line),
+// # at the start of a word comments out the rest of the line, a comma separates
+// array items (a native command gets each as its own argument), and newline
+// ; & | ( ) { } separate commands. Parentheses are not subshells: a cd inside
+// them persists. Words with $ (outside single quotes) or starting with @ are
+// computed at run time; each command lists them in its .dinamicas Set.
+export function comandosPowerShell(linha) {
+  const lista = [];
+  let atual = [];
+  let dinamicas = new Set();
+  let palavra = null;
+  let dinamica = false;
+  const fecharPalavra = () => {
+    if (palavra !== null) {
+      atual.push(palavra);
+      if (dinamica) dinamicas.add(palavra);
+    }
+    palavra = null;
+    dinamica = false;
+  };
+  const fecharComando = () => {
+    fecharPalavra();
+    if (atual.length) lista.push(Object.assign(atual, { dinamicas }));
+    atual = [];
+    dinamicas = new Set();
+  };
+  for (let i = 0; i < linha.length; i++) {
+    const c = linha[i];
+    if (c === "'") {
+      let trecho = '';
+      let j = i + 1;
+      for (; j < linha.length; j++) {
+        if (linha[j] === "'") {
+          if (linha[j + 1] === "'") { trecho += "'"; j++; continue; }
+          break;
+        }
+        trecho += linha[j];
+      }
+      palavra = (palavra ?? '') + trecho;
+      i = j;
+    } else if (c === '"') {
+      let trecho = '';
+      let j = i + 1;
+      for (; j < linha.length; j++) {
+        const d = linha[j];
+        if (d === '`' && j + 1 < linha.length) { trecho += linha[++j]; continue; }
+        if (d === '"') {
+          if (linha[j + 1] === '"') { trecho += '"'; j++; continue; }
+          break;
+        }
+        if (d === '$') dinamica = true;
+        trecho += d;
+      }
+      palavra = (palavra ?? '') + trecho;
+      i = j;
+    } else if (c === '`') {
+      i++;
+      const d = linha[i];
+      if (d === undefined) continue;
+      if (d === '\n' || d === '\r') {
+        if (d === '\r' && linha[i + 1] === '\n') i++;
+        fecharPalavra();
+        continue;
+      }
+      palavra = (palavra ?? '') + d;
+    } else if (c === '#' && palavra === null) {
+      while (i + 1 < linha.length && linha[i + 1] !== '\n') i++;
+    } else if (/[\n;&|(){}]/.test(c)) {
+      fecharComando();
+    } else if (c === ',' || /\s/.test(c)) {
+      fecharPalavra();
+    } else {
+      if (c === '$' || (c === '@' && palavra === null)) dinamica = true;
+      palavra = (palavra ?? '') + c;
+    }
+  }
+  fecharComando();
+  return lista;
+}
+
+// Location cmdlets and their aliases (PowerShell is case-insensitive).
+const CD_PS = new Set(['cd', 'chdir', 'sl', 'set-location', 'pushd', 'push-location']);
+const PUSHD_PS = new Set(['pushd', 'push-location']);
+const POPD_PS = new Set(['popd', 'pop-location']);
+
+// destinoCdPowerShell is where Set-Location/Push-Location (or an alias) lands,
+// or null when the hook cannot know: no target, a computed one ($x, or a
+// parenthesised expression the tokenizer dropped), - and + (history), or a
+// relative target from an already unknown dir.
+function destinoCdPowerShell(palavras, dir) {
+  const args = palavras.slice(1);
+  let alvo;
+  for (let k = 0; k < args.length; k++) {
+    const a = args[k];
+    const m = a.match(/^-(path|literalpath|pspath|lp)(?::(.*))?$/i);
+    if (m) { alvo = m[2] ? m[2] : args[k + 1]; break; }
+    if (/^-stackname$/i.test(a)) { k++; continue; }
+    if (a.startsWith('-') && a !== '-') continue;
+    alvo = a;
+    break;
+  }
+  if (alvo === undefined || alvo === '-' || alvo === '+' || palavras.dinamicas?.has(alvo)) return null;
+  if (alvo === '~' || /^~[\\/]/.test(alvo)) alvo = os.homedir() + alvo.slice(1);
+  const destino = caminhoWindows(alvo);
+  if (path.isAbsolute(destino)) return path.resolve(destino);
+  return dir === null ? null : path.resolve(caminhoWindows(dir), destino);
+}
+
 // subcomandoGit returns { sub, args, dirC } for a git invocation, skipping global
 // options such as -C <dir>, -c <k=v> and --no-pager (dirC lists the -C dirs).
 function subcomandoGit(palavras) {
@@ -100,6 +212,20 @@ function destinoCd(args, dir, inicio) {
   return resolverDir(dir, alvo);
 }
 
+// dirGitPowerShell applies `git -C` dirs to dir; null when any is computed or
+// relative to an unknown dir.
+function dirGitPowerShell(dirC, dir, dinamicas) {
+  let atual = dir;
+  for (const c of dirC) {
+    if (!c) continue;
+    if (dinamicas.has(c)) return null;
+    const destino = caminhoWindows(c);
+    if (path.isAbsolute(destino)) atual = path.resolve(destino);
+    else if (atual !== null) atual = path.resolve(caminhoWindows(atual), destino);
+  }
+  return atual;
+}
+
 // opcoesComValor are commit options whose next word is a value, not a path.
 const OPCOES_COM_VALOR = new Set(['-m', '--message', '-F', '--file', '-C', '-c', '--author', '--date', '-t', '--template', '--fixup', '--squash']);
 
@@ -127,28 +253,49 @@ export function avaliar(evento, ctx = {}) {
   // the one holding this hook ($CLAUDE_PROJECT_DIR): start at the event's cwd
   // and follow `cd` and `git -C` (f5b7a48 slipped .txt files in otherwise).
   const inicio = typeof evento.cwd === 'string' && evento.cwd ? evento.cwd : RAIZ;
+  // PowerShell tool: its own syntax; dir becomes null when a cd goes somewhere
+  // the hook cannot resolve, and a broad add/commit from there is blocked.
+  const powershell = evento?.tool_name === 'PowerShell';
   let dir = inicio;
   const subshells = []; // dir to restore when each open subshell closes
   const pushd = [];
 
   // Limitation: the `)` of a case pattern inside a subshell is read as closing
   // the subshell, so a later cd may be undone too early.
-  for (const item of comandosESubshells(cmd)) {
+  for (const item of powershell ? comandosPowerShell(cmd) : comandosESubshells(cmd)) {
     if (item === '(') { subshells.push(dir); continue; }
     if (item === ')') { if (subshells.length) dir = subshells.pop(); continue; }
     let p = 0;
     while (p < item.length && PALAVRAS_CHAVE.has(item[p])) p++;
-    const palavras = item.slice(p);
-    if (palavras[0] === 'cd' || palavras[0] === 'pushd') {
-      if (palavras[0] === 'pushd') pushd.push(dir);
-      dir = destinoCd(palavras.slice(1), dir, inicio);
-      continue;
+    const palavras = Object.assign(item.slice(p), { dinamicas: item.dinamicas ?? new Set() });
+    if (powershell) {
+      const nome = String(palavras[0]).toLowerCase();
+      if (CD_PS.has(nome)) {
+        if (PUSHD_PS.has(nome)) pushd.push(dir);
+        dir = destinoCdPowerShell(palavras, dir);
+        continue;
+      }
+      if (POPD_PS.has(nome)) { if (pushd.length) dir = pushd.pop(); continue; }
+    } else {
+      if (palavras[0] === 'cd' || palavras[0] === 'pushd') {
+        if (palavras[0] === 'pushd') pushd.push(dir);
+        dir = destinoCd(palavras.slice(1), dir, inicio);
+        continue;
+      }
+      if (palavras[0] === 'popd') { if (pushd.length) dir = pushd.pop(); continue; }
     }
-    if (palavras[0] === 'popd') { if (pushd.length) dir = pushd.pop(); continue; }
     const g = subcomandoGit(palavras);
     if (!g || (g.sub !== 'add' && g.sub !== 'commit')) continue;
 
-    const caminhos = caminhosDeArgs(g.args);
+    let caminhos = caminhosDeArgs(g.args);
+    if (powershell) {
+      const calculados = caminhos.filter((a) => palavras.dinamicas.has(a) || a.startsWith('@'));
+      if (calculados.length) {
+        return { codigo: 2, stderr: `Bloqueado: \`git ${g.sub}\` com argumento calculado (${calculados.join(', ')}); o hook não sabe que arquivos são. Adicione os arquivos pelo nome.` };
+      }
+      // .\x and dir\ read like ./x and dir/ (amplo, normalizar).
+      caminhos = caminhos.map((a) => a.replace(/\\/g, '/'));
+    }
     const diretos = caminhos.filter((a) => !amplo(a) && arquivoSensivel(a, benchDir));
     if (diretos.length) {
       return { codigo: 2, stderr: `Bloqueado: dados reais não entram no git (${diretos.join(', ')}). Adicione ao .gitignore se for saída local.` };
@@ -161,7 +308,10 @@ export function avaliar(evento, ctx = {}) {
     const outros = todos ? [] : caminhos.filter((a) => !amplo(a) && !/\.[a-z0-9]+$/i.test(a));
     if (!todos && !pathspecs.length && !outros.length) continue;
 
-    const dirGit = g.dirC.reduce(resolverDir, dir);
+    const dirGit = powershell ? dirGitPowerShell(g.dirC, dir, palavras.dinamicas) : g.dirC.reduce(resolverDir, dir);
+    if (dirGit === null) {
+      return { codigo: 2, stderr: `Bloqueado: não sei em que pasta \`git ${g.sub}\` roda (cd ou -C para um caminho calculado, histórico ou desconhecido), então não consigo listar o que ele incluiria. Use um caminho literal ou adicione os arquivos pelo nome.` };
+    }
     const candidatos = listar(todos ? [] : [...pathspecs, ...outros], dirGit);
     if (candidatos === null) {
       return { codigo: 2, stderr: `Bloqueado: não consegui listar o que \`git ${g.sub}\` incluiria (git status falhou ou demorou). Adicione os arquivos pelo nome.` };

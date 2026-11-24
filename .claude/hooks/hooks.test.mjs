@@ -14,6 +14,7 @@ import * as ambiente from './ambiente.mjs';
 
 const edit = (file_path) => ({ tool_name: 'Edit', tool_input: { file_path } });
 const bash = (command) => ({ tool_name: 'Bash', tool_input: { command } });
+const ps = (command) => ({ tool_name: 'PowerShell', tool_input: { command } });
 
 describe('lib.normalizar', () => {
   it('torna relativo à raiz e usa barras normais', () => {
@@ -176,6 +177,110 @@ describe('proteger-dados', () => {
       }
     });
   });
+  // d5 (2026-11-24): o mesmo hook na ferramenta PowerShell, com a sintaxe dela.
+  describe('ferramenta PowerShell', () => {
+    const naoLista = () => { throw new Error('não devia listar'); };
+    const dirDe = (c, ev = {}) => {
+      let visto;
+      const r = dados.avaliar({ ...ps(c), ...ev }, { ...ctx, listar: (p, d) => { visto = d; return []; } });
+      return { r, dir: visto && path.resolve(visto) };
+    };
+    for (const c of [
+      'git add x.pdf',
+      "git add 'pasta com espaço\\y.PDF'",
+      'git add "a b.zip"',
+      'git status; git add x.zip',
+      'git status && git add x.zip',
+      'git status || git add x.zip',
+      'Get-Date | git add x.zip',
+      '& git add x.zip',
+      "& 'C:\\Program Files\\Git\\cmd\\git.exe' add x.zip",
+      'git -C sub add x.zip',
+      'git add a.go,x.zip',
+      'git add a.go `\n  x.zip',
+      'if ($true) { git add x.zip }',
+      'git commit -m "msg" dados.zip',
+      'git add saida.txt',
+      'git add D:\\corpus\\proc.json',
+    ]) {
+      it(`bloqueia: ${JSON.stringify(c)}`, () => assert.equal(dados.avaliar(ps(c), { ...ctx, listar: () => [] }).codigo, 2));
+    }
+    it('bloqueia git add -A com .zip não ignorado', () => {
+      const r = dados.avaliar(ps('git add -A'), { ...ctx, listar: () => ['a.go', 'Processo 1.zip'] });
+      assert.equal(r.codigo, 2);
+      assert.match(r.stderr, /Processo 1\.zip/);
+    });
+    for (const c of ['git add .', 'git add .\\', 'git add *', 'git add dir\\', 'git add internal', 'git commit -am "x"', 'git commit --all -m x', 'git add --all']) {
+      it(`expande e bloqueia amplo com dado real: ${c}`, () => {
+        const r = dados.avaliar(ps(c), { ...ctx, listar: () => ['Processo 1.zip'] });
+        assert.equal(r.codigo, 2);
+      });
+    }
+    it('segue Set-Location sub; git add .', () => {
+      const { dir } = dirDe('Set-Location sub; git add .', { cwd: 'D:\\wt' });
+      assert.equal(dir, path.resolve('D:/wt/sub'));
+    });
+    it('Set-Location sub; git add . com .zip lá bloqueia', () => {
+      const vistos = [];
+      const r = dados.avaliar({ ...ps('Set-Location sub; git add .'), cwd: 'D:\\wt' },
+        { ...ctx, listar: (p, d) => { vistos.push(path.resolve(d)); return ['sub/Processo.zip']; } });
+      assert.equal(r.codigo, 2);
+      assert.deepEqual(vistos, [path.resolve('D:/wt/sub')]);
+    });
+    for (const [c, esperado] of [
+      ['cd sub; git add .', 'D:/wt/sub'],
+      ['sl sub; git add .', 'D:/wt/sub'],
+      ['chdir sub; git add .', 'D:/wt/sub'],
+      ['Set-Location -Path sub; git add .', 'D:/wt/sub'],
+      ['Set-Location -LiteralPath "com espaço"; git add .', 'D:/wt/com espaço'],
+      ['set-location -Path:sub; git add .', 'D:/wt/sub'],
+      ["cd 'E:\\outra'; git add -A", 'E:/outra'],
+      ['Push-Location sub; git add .', 'D:/wt/sub'],
+      ['pushd sub; popd; git add .', 'D:/wt'],
+      ['Push-Location sub; Pop-Location; git add .', 'D:/wt'],
+      ['git -C sub add -A', 'D:/wt/sub'],
+      ['if (Test-Path sub) { cd sub }; git add .', 'D:/wt/sub'],
+      ['(cd sub); git add .', 'D:/wt/sub'],
+    ]) {
+      it(`pasta de ${JSON.stringify(c)}`, () => {
+        const { r, dir } = dirDe(c, { cwd: 'D:\\wt' });
+        assert.equal(r.codigo, 0);
+        assert.equal(dir, path.resolve(esperado));
+      });
+    }
+    it('cd ~ vai para a pasta do usuário', () => {
+      assert.equal(dirDe('cd ~; git add .', { cwd: 'D:\\wt' }).dir, path.resolve(os.homedir()));
+    });
+    for (const c of ['cd $env:TEMP; git add .', 'cd -; git add -A', 'Set-Location (Get-Item x); git add .']) {
+      it(`pasta desconhecida falha fechada: ${JSON.stringify(c)}`, () => {
+        const r = dados.avaliar({ ...ps(c), cwd: 'D:\\wt' }, { ...ctx, listar: naoLista });
+        assert.equal(r.codigo, 2);
+        assert.match(r.stderr, /pasta/);
+      });
+    }
+    for (const c of ['git add $arquivo', 'Get-ChildItem *.zip | ForEach-Object { git add $_ }', 'git add $(Get-ChildItem)', 'git add @lista']) {
+      it(`argumento dinâmico falha fechada: ${JSON.stringify(c)}`, () => {
+        const r = dados.avaliar(ps(c), { ...ctx, listar: naoLista });
+        assert.equal(r.codigo, 2);
+        assert.match(r.stderr, /pelo nome/);
+      });
+    }
+    for (const c of ['git add arquivo.go', 'git add frontend\\src\\App.svelte', "git commit -m 'remove a.zip'",
+      'git commit -m "fix $(x)" -- a.go', 'git status', 'Get-ChildItem *.zip', 'git add a.go # x.zip', 'echo "git add a.zip"',
+      'cd $env:TEMP; git status', 'git add scripts\\bench\\fixtures\\misto.zip']) {
+      it(`deixa: ${JSON.stringify(c)}`, () => assert.equal(dados.avaliar(ps(c), { ...ctx, listar: naoLista }).codigo, 0));
+    }
+    it('no Bash, a sintaxe continua a do Bash', () => {
+      // Subshell desfaz o cd (no PowerShell, parênteses não desfazem).
+      let visto;
+      dados.avaliar({ ...bash('(cd sub); git add .'), cwd: 'D:\\wt' }, { ...ctx, listar: (p, d) => { visto = d; return []; } });
+      assert.equal(path.resolve(visto), path.resolve('D:/wt'));
+      // Sem a regra de argumento dinâmico do PowerShell.
+      assert.equal(dados.avaliar(bash('git add $arquivo'), { ...ctx, listar: () => [] }).codigo, 0);
+      // Sem tool_name vale o Bash.
+      assert.equal(dados.avaliar({ tool_input: { command: 'git add $arquivo' } }, { ...ctx, listar: () => [] }).codigo, 0);
+    });
+  });
   it('bloqueia git add eprocia.log', () => assert.equal(dados.avaliar(bash('git add eprocia.log'), ctx).codigo, 2));
   it('bloqueia git add -A com .jsonl não ignorado', () => {
     const r = dados.avaliar(bash('git add -A'), { ...ctx, listar: () => ['a.go', 'telemetria.jsonl'] });
@@ -257,6 +362,11 @@ describe('execução como script', () => {
   });
   it('bloqueio sai 2 com mensagem', () => {
     const r = rodarHook('proteger-gerados.mjs', JSON.stringify(edit('frontend/dist/x.js')));
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /Bloqueado/);
+  });
+  it('proteger-dados bloqueia pela ferramenta PowerShell', () => {
+    const r = rodarHook('proteger-dados.mjs', JSON.stringify(ps("git add 'x.pdf'")));
     assert.equal(r.status, 2);
     assert.match(r.stderr, /Bloqueado/);
   });
