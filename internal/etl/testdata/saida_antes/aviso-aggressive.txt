@@ -1,0 +1,766 @@
+<contexto>
+PROCESSO JUDICIAL - ORDEM CRONOLÓGICA
+Total de Documentos: 6
+Documentos não lidos: 1
+Data de Consolidação: DATA
+Tokens estimados: 10880
+
+<summary>
+- Evento 1 - DOC1: 6 páginas
+- Evento 2 - DOC2: 6 páginas
+- Evento 2 - PROC1: 3 páginas
+- Evento 2 - X1: NÃO LIDO
+- Evento 3 - DOC3: 6 páginas
+- Evento 4 - DOC4: 6 páginas
+</summary>
+</contexto>
+
+<evento num="1">
+<documento index="1" nome="Evento 1 - DOC1.pdf">
+<pag n="1">
+PODER JUDICIÁRIO
+TRIBUNAL DE JUSTIÇA DO ESTADO FICTÍCIO
+Comarca de Exemplo - Vara Cível
+Considerando os fatos narrados na petição inicial, item 38, o pedido é procedente em parte.
+Linha 39 com espaço duplo e tab
+Valor de R$ 1.040,00 em favor da parte autora (NBSP)
+Texto com espaço largo 41
+Byte inválido � no meio 42
+a parte requerida, citada em 45, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 47, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 48, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 49, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 50, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 51, o pedido é procedente em parte.
+Linha 52 com espaço duplo e tab
+Valor de R$ 1.053,00 em favor da parte autora (NBSP)
+Texto com espaço largo 54
+Byte inválido � no meio 55
+a parte requerida, citada em 58, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 60, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 61, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 62, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 63, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 64, o pedido é procedente em parte.
+Linha 65 com espaço duplo e tab
+Valor de R$ 1.066,00 em favor da parte autora (NBSP)
+Texto com espaço largo 67
+Byte inválido � no meio 68
+a parte requerida, citada em 71, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 73, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 74, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 75, o pedido é procedente em parte.
+[assinado: FULANO DE TAL, 01/02/2026]
+Rua Fictícia, 100 - Centro - CEP 00000-000
+fl. 1
+</pag>
+<pag n="2">
+a parte requerida, citada em 45, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 47, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 48, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 49, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 50, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 51, o pedido é procedente em parte.
+Linha 52 com espaço duplo e tab
+Valor de R$ 1.053,00 em favor da parte autora (NBSP)
+Texto com espaço largo 54
+Byte inválido � no meio 55
+a parte requerida, citada em 58, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 60, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 61, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 62, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 63, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 64, o pedido é procedente em parte.
+Linha 65 com espaço duplo e tab
+Valor de R$ 1.066,00 em favor da parte autora (NBSP)
+Texto com espaço largo 67
+Byte inválido � no meio 68
+a parte requerida, citada em 71, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 73, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 74, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 75, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 76, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 77, o pedido é procedente em parte.
+Linha 78 com espaço duplo e tab
+Valor de R$ 1.079,00 em favor da parte autora (NBSP)
+Texto com espaço largo 80
+Byte inválido � no meio 81
+</pag>
+<pag n="3">
+Linha 52 com espaço duplo e tab
+Valor de R$ 1.053,00 em favor da parte autora (NBSP)
+Texto com espaço largo 54
+Byte inválido � no meio 55
+a parte requerida, citada em 58, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 60, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 61, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 62, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 63, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 64, o pedido é procedente em parte.
+Linha 65 com espaço duplo e tab
+Valor de R$ 1.066,00 em favor da parte autora (NBSP)
+Texto com espaço largo 67
+Byte inválido � no meio 68
+a parte requerida, citada em 71, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 73, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 74, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 75, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 76, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 77, o pedido é procedente em parte.
+Linha 78 com espaço duplo e tab
+Valor de R$ 1.079,00 em favor da parte autora (NBSP)
+Texto com espaço largo 80
+Byte inválido � no meio 81
+a parte requerida, citada em 84, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 86, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 87, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 88, o pedido é procedente em parte.
+</pag>
+<pag n="4">
+Considerando os fatos narrados na petição inicial, item 61, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 62, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 63, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 64, o pedido é procedente em parte.
+Linha 65 com espaço duplo e tab
+Valor de R$ 1.066,00 em favor da parte autora (NBSP)
+Texto com espaço largo 67
+Byte inválido � no meio 68
+a parte requerida, citada em 71, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 73, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 74, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 75, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 76, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 77, o pedido é procedente em parte.
+Linha 78 com espaço duplo e tab
+Valor de R$ 1.079,00 em favor da parte autora (NBSP)
+Texto com espaço largo 80
+Byte inválido � no meio 81
+a parte requerida, citada em 84, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 86, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 87, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 88, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 89, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 90, o pedido é procedente em parte.
+Linha 91 com espaço duplo e tab
+Valor de R$ 1.092,00 em favor da parte autora (NBSP)
+Texto com espaço largo 93
+Byte inválido � no meio 94
+</pag>
+<pag n="5">
+Valor de R$ 1.066,00 em favor da parte autora (NBSP)
+Texto com espaço largo 67
+Byte inválido � no meio 68
+a parte requerida, citada em 71, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 73, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 74, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 75, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 76, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 77, o pedido é procedente em parte.
+Linha 78 com espaço duplo e tab
+Valor de R$ 1.079,00 em favor da parte autora (NBSP)
+Texto com espaço largo 80
+Byte inválido � no meio 81
+a parte requerida, citada em 84, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 86, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 87, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 88, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 89, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 90, o pedido é procedente em parte.
+Linha 91 com espaço duplo e tab
+Valor de R$ 1.092,00 em favor da parte autora (NBSP)
+Texto com espaço largo 93
+Byte inválido � no meio 94
+Linha 0 com espaço duplo e tab
+Valor de R$ 1.001,00 em favor da parte autora (NBSP)
+Texto com espaço largo 2
+Byte inválido � no meio 3
+a parte requerida, citada em 6, apresentou contestação
+</pag>
+<pag n="6">
+Considerando os fatos narrados na petição inicial, item 75, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 76, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 77, o pedido é procedente em parte.
+Linha 78 com espaço duplo e tab
+Valor de R$ 1.079,00 em favor da parte autora (NBSP)
+Texto com espaço largo 80
+Byte inválido � no meio 81
+a parte requerida, citada em 84, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 86, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 87, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 88, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 89, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 90, o pedido é procedente em parte.
+Linha 91 com espaço duplo e tab
+Valor de R$ 1.092,00 em favor da parte autora (NBSP)
+Texto com espaço largo 93
+Byte inválido � no meio 94
+Linha 0 com espaço duplo e tab
+Valor de R$ 1.001,00 em favor da parte autora (NBSP)
+Texto com espaço largo 2
+Byte inválido � no meio 3
+a parte requerida, citada em 6, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 8, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 9, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 10, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 11, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 12, o pedido é procedente em parte.
+Linha 13 com espaço duplo e tab
+</pag>
+</documento>
+</evento>
+<evento num="2">
+<documento index="1" nome="Evento 2 - DOC2.pdf">
+<pag n="1">
+PODER JUDICIÁRIO
+TRIBUNAL DE JUSTIÇA DO ESTADO FICTÍCIO
+Comarca de Exemplo - Vara Cível
+a parte requerida, citada em 71, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 73, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 74, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 75, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 76, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 77, o pedido é procedente em parte.
+Linha 78 com espaço duplo e tab
+Valor de R$ 1.079,00 em favor da parte autora (NBSP)
+Texto com espaço largo 80
+Byte inválido � no meio 81
+a parte requerida, citada em 84, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 86, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 87, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 88, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 89, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 90, o pedido é procedente em parte.
+Linha 91 com espaço duplo e tab
+Valor de R$ 1.092,00 em favor da parte autora (NBSP)
+Texto com espaço largo 93
+Byte inválido � no meio 94
+Linha 0 com espaço duplo e tab
+Valor de R$ 1.001,00 em favor da parte autora (NBSP)
+Texto com espaço largo 2
+Byte inválido � no meio 3
+a parte requerida, citada em 6, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 8, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 9, o pedido é procedente em parte.
+[assinado: FULANO DE TAL, 01/02/2026]
+Rua Fictícia, 100 - Centro - CEP 00000-000
+fl. 1
+</pag>
+<pag n="2">
+Considerando os fatos narrados na petição inicial, item 76, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 77, o pedido é procedente em parte.
+Linha 78 com espaço duplo e tab
+Valor de R$ 1.079,00 em favor da parte autora (NBSP)
+Texto com espaço largo 80
+Byte inválido � no meio 81
+a parte requerida, citada em 84, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 86, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 87, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 88, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 89, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 90, o pedido é procedente em parte.
+Linha 91 com espaço duplo e tab
+Valor de R$ 1.092,00 em favor da parte autora (NBSP)
+Texto com espaço largo 93
+Byte inválido � no meio 94
+Linha 0 com espaço duplo e tab
+Valor de R$ 1.001,00 em favor da parte autora (NBSP)
+Texto com espaço largo 2
+Byte inválido � no meio 3
+a parte requerida, citada em 6, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 8, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 9, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 10, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 11, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 12, o pedido é procedente em parte.
+Linha 13 com espaço duplo e tab
+Valor de R$ 1.014,00 em favor da parte autora (NBSP)
+Texto com espaço largo 15
+Byte inválido � no meio 16
+</pag>
+<pag n="3">
+a parte requerida, citada em 84, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 86, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 87, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 88, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 89, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 90, o pedido é procedente em parte.
+Linha 91 com espaço duplo e tab
+Valor de R$ 1.092,00 em favor da parte autora (NBSP)
+Texto com espaço largo 93
+Byte inválido � no meio 94
+Linha 0 com espaço duplo e tab
+Valor de R$ 1.001,00 em favor da parte autora (NBSP)
+Texto com espaço largo 2
+Byte inválido � no meio 3
+a parte requerida, citada em 6, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 8, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 9, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 10, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 11, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 12, o pedido é procedente em parte.
+Linha 13 com espaço duplo e tab
+Valor de R$ 1.014,00 em favor da parte autora (NBSP)
+Texto com espaço largo 15
+Byte inválido � no meio 16
+a parte requerida, citada em 19, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 21, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 22, o pedido é procedente em parte.
+</pag>
+<pag n="4">
+Linha 91 com espaço duplo e tab
+Valor de R$ 1.092,00 em favor da parte autora (NBSP)
+Texto com espaço largo 93
+Byte inválido � no meio 94
+Linha 0 com espaço duplo e tab
+Valor de R$ 1.001,00 em favor da parte autora (NBSP)
+Texto com espaço largo 2
+Byte inválido � no meio 3
+a parte requerida, citada em 6, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 8, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 9, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 10, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 11, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 12, o pedido é procedente em parte.
+Linha 13 com espaço duplo e tab
+Valor de R$ 1.014,00 em favor da parte autora (NBSP)
+Texto com espaço largo 15
+Byte inválido � no meio 16
+a parte requerida, citada em 19, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 21, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 22, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 23, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 24, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 25, o pedido é procedente em parte.
+Linha 26 com espaço duplo e tab
+Valor de R$ 1.027,00 em favor da parte autora (NBSP)
+Texto com espaço largo 28
+Byte inválido � no meio 29
+</pag>
+<pag n="5">
+Linha 0 com espaço duplo e tab
+Valor de R$ 1.001,00 em favor da parte autora (NBSP)
+Texto com espaço largo 2
+Byte inválido � no meio 3
+a parte requerida, citada em 6, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 8, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 9, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 10, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 11, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 12, o pedido é procedente em parte.
+Linha 13 com espaço duplo e tab
+Valor de R$ 1.014,00 em favor da parte autora (NBSP)
+Texto com espaço largo 15
+Byte inválido � no meio 16
+a parte requerida, citada em 19, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 21, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 22, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 23, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 24, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 25, o pedido é procedente em parte.
+Linha 26 com espaço duplo e tab
+Valor de R$ 1.027,00 em favor da parte autora (NBSP)
+Texto com espaço largo 28
+Byte inválido � no meio 29
+a parte requerida, citada em 32, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 34, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 35, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 36, o pedido é procedente em parte.
+</pag>
+<pag n="6">
+Considerando os fatos narrados na petição inicial, item 8, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 9, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 10, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 11, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 12, o pedido é procedente em parte.
+Linha 13 com espaço duplo e tab
+Valor de R$ 1.014,00 em favor da parte autora (NBSP)
+Texto com espaço largo 15
+Byte inválido � no meio 16
+a parte requerida, citada em 19, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 21, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 22, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 23, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 24, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 25, o pedido é procedente em parte.
+Linha 26 com espaço duplo e tab
+Valor de R$ 1.027,00 em favor da parte autora (NBSP)
+Texto com espaço largo 28
+Byte inválido � no meio 29
+a parte requerida, citada em 32, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 34, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 35, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 36, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 37, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 38, o pedido é procedente em parte.
+Linha 39 com espaço duplo e tab
+Valor de R$ 1.040,00 em favor da parte autora (NBSP)
+Texto com espaço largo 41
+Byte inválido � no meio 42
+</pag>
+</documento>
+<documento index="2" nome="Evento 2 - PROC1.pdf">
+[documento omitido: PROC, 3 páginas]
+</documento>
+<documento index="3" nome="Evento 2 - X1.pdf">
+[documento não lido: arquivo ilegível; consulte o PDF original]
+[ERRO ao analisar PDF: x]
+</documento>
+</evento>
+<evento num="3">
+<documento index="1" nome="Evento 3 - DOC3.pdf">
+<pag n="1">
+PODER JUDICIÁRIO
+TRIBUNAL DE JUSTIÇA DO ESTADO FICTÍCIO
+Comarca de Exemplo - Vara Cível
+Byte inválido � no meio 3
+a parte requerida, citada em 6, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 8, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 9, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 10, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 11, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 12, o pedido é procedente em parte.
+Linha 13 com espaço duplo e tab
+Valor de R$ 1.014,00 em favor da parte autora (NBSP)
+Texto com espaço largo 15
+Byte inválido � no meio 16
+a parte requerida, citada em 19, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 21, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 22, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 23, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 24, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 25, o pedido é procedente em parte.
+Linha 26 com espaço duplo e tab
+Valor de R$ 1.027,00 em favor da parte autora (NBSP)
+Texto com espaço largo 28
+Byte inválido � no meio 29
+a parte requerida, citada em 32, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 34, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 35, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 36, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 37, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 38, o pedido é procedente em parte.
+Linha 39 com espaço duplo e tab
+Valor de R$ 1.040,00 em favor da parte autora (NBSP)
+[assinado: FULANO DE TAL, 01/02/2026]
+Rua Fictícia, 100 - Centro - CEP 00000-000
+fl. 1
+</pag>
+<pag n="2">
+[aviso de OCR: houve erro no OCR desta página e o texto dela pode estar incompleto; avise o usuário e recomende a consulta ao PDF original]
+Considerando os fatos narrados na petição inicial, item 10, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 11, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 12, o pedido é procedente em parte.
+Linha 13 com espaço duplo e tab
+Valor de R$ 1.014,00 em favor da parte autora (NBSP)
+Texto com espaço largo 15
+Byte inválido � no meio 16
+a parte requerida, citada em 19, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 21, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 22, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 23, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 24, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 25, o pedido é procedente em parte.
+Linha 26 com espaço duplo e tab
+Valor de R$ 1.027,00 em favor da parte autora (NBSP)
+Texto com espaço largo 28
+Byte inválido � no meio 29
+a parte requerida, citada em 32, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 34, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 35, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 36, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 37, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 38, o pedido é procedente em parte.
+Linha 39 com espaço duplo e tab
+Valor de R$ 1.040,00 em favor da parte autora (NBSP)
+Texto com espaço largo 41
+Byte inválido � no meio 42
+a parte requerida, citada em 45, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 47, o pedido é procedente em parte.
+</pag>
+<pag n="3">
+a parte requerida, citada em 19, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 21, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 22, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 23, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 24, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 25, o pedido é procedente em parte.
+Linha 26 com espaço duplo e tab
+Valor de R$ 1.027,00 em favor da parte autora (NBSP)
+Texto com espaço largo 28
+Byte inválido � no meio 29
+a parte requerida, citada em 32, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 34, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 35, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 36, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 37, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 38, o pedido é procedente em parte.
+Linha 39 com espaço duplo e tab
+Valor de R$ 1.040,00 em favor da parte autora (NBSP)
+Texto com espaço largo 41
+Byte inválido � no meio 42
+a parte requerida, citada em 45, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 47, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 48, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 49, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 50, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 51, o pedido é procedente em parte.
+Linha 52 com espaço duplo e tab
+Valor de R$ 1.053,00 em favor da parte autora (NBSP)
+Texto com espaço largo 54
+</pag>
+<pag n="4">
+Linha 26 com espaço duplo e tab
+Valor de R$ 1.027,00 em favor da parte autora (NBSP)
+Texto com espaço largo 28
+Byte inválido � no meio 29
+a parte requerida, citada em 32, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 34, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 35, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 36, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 37, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 38, o pedido é procedente em parte.
+Linha 39 com espaço duplo e tab
+Valor de R$ 1.040,00 em favor da parte autora (NBSP)
+Texto com espaço largo 41
+Byte inválido � no meio 42
+a parte requerida, citada em 45, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 47, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 48, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 49, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 50, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 51, o pedido é procedente em parte.
+Linha 52 com espaço duplo e tab
+Valor de R$ 1.053,00 em favor da parte autora (NBSP)
+Texto com espaço largo 54
+Byte inválido � no meio 55
+a parte requerida, citada em 58, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 60, o pedido é procedente em parte.
+</pag>
+<pag n="5">
+[aviso de OCR: houve erro no OCR desta página e o texto dela pode estar incompleto; avise o usuário e recomende a consulta ao PDF original]
+Linha 26 com espaço duplo e tab
+Valor de R$ 1.027,00 em favor da parte autora (NBSP)
+Texto com espaço largo 28
+Byte inválido � no meio 29
+a parte requerida, citada em 32, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 34, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 35, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 36, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 37, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 38, o pedido é procedente em parte.
+Linha 39 com espaço duplo e tab
+Valor de R$ 1.040,00 em favor da parte autora (NBSP)
+Texto com espaço largo 41
+Byte inválido � no meio 42
+a parte requerida, citada em 45, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 47, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 48, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 49, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 50, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 51, o pedido é procedente em parte.
+Linha 52 com espaço duplo e tab
+Valor de R$ 1.053,00 em favor da parte autora (NBSP)
+Texto com espaço largo 54
+Byte inválido � no meio 55
+a parte requerida, citada em 58, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 60, o pedido é procedente em parte.
+</pag>
+<pag n="6">
+Linha 39 com espaço duplo e tab
+Valor de R$ 1.040,00 em favor da parte autora (NBSP)
+Texto com espaço largo 41
+Byte inválido � no meio 42
+a parte requerida, citada em 45, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 47, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 48, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 49, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 50, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 51, o pedido é procedente em parte.
+Linha 52 com espaço duplo e tab
+Valor de R$ 1.053,00 em favor da parte autora (NBSP)
+Texto com espaço largo 54
+Byte inválido � no meio 55
+a parte requerida, citada em 58, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 60, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 61, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 62, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 63, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 64, o pedido é procedente em parte.
+Linha 65 com espaço duplo e tab
+Valor de R$ 1.066,00 em favor da parte autora (NBSP)
+Texto com espaço largo 67
+Byte inválido � no meio 68
+a parte requerida, citada em 71, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 73, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 74, o pedido é procedente em parte.
+</pag>
+</documento>
+</evento>
+<evento num="4">
+<documento index="1" nome="Evento 4 - DOC4.pdf">
+<pag n="1">
+PODER JUDICIÁRIO
+TRIBUNAL DE JUSTIÇA DO ESTADO FICTÍCIO
+Comarca de Exemplo - Vara Cível
+Considerando os fatos narrados na petição inicial, item 34, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 35, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 36, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 37, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 38, o pedido é procedente em parte.
+Linha 39 com espaço duplo e tab
+Valor de R$ 1.040,00 em favor da parte autora (NBSP)
+Texto com espaço largo 41
+Byte inválido � no meio 42
+a parte requerida, citada em 45, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 47, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 48, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 49, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 50, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 51, o pedido é procedente em parte.
+Linha 52 com espaço duplo e tab
+Valor de R$ 1.053,00 em favor da parte autora (NBSP)
+Texto com espaço largo 54
+Byte inválido � no meio 55
+a parte requerida, citada em 58, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 60, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 61, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 62, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 63, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 64, o pedido é procedente em parte.
+Linha 65 com espaço duplo e tab
+Valor de R$ 1.066,00 em favor da parte autora (NBSP)
+Texto com espaço largo 67
+Byte inválido � no meio 68
+a parte requerida, citada em 71, apresentou contestação
+[assinado: FULANO DE TAL, 01/02/2026]
+Rua Fictícia, 100 - Centro - CEP 00000-000
+fl. 1
+</pag>
+<pag n="2">
+Texto com espaço largo 41
+Byte inválido � no meio 42
+a parte requerida, citada em 45, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 47, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 48, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 49, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 50, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 51, o pedido é procedente em parte.
+Linha 52 com espaço duplo e tab
+Valor de R$ 1.053,00 em favor da parte autora (NBSP)
+Texto com espaço largo 54
+Byte inválido � no meio 55
+a parte requerida, citada em 58, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 60, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 61, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 62, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 63, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 64, o pedido é procedente em parte.
+Linha 65 com espaço duplo e tab
+Valor de R$ 1.066,00 em favor da parte autora (NBSP)
+Texto com espaço largo 67
+Byte inválido � no meio 68
+a parte requerida, citada em 71, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 73, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 74, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 75, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 76, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 77, o pedido é procedente em parte.
+Linha 78 com espaço duplo e tab
+</pag>
+<pag n="3">
+[página digitalizada sem OCR]
+</pag>
+<pag n="4">
+Byte inválido � no meio 55
+a parte requerida, citada em 58, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 60, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 61, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 62, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 63, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 64, o pedido é procedente em parte.
+Linha 65 com espaço duplo e tab
+Valor de R$ 1.066,00 em favor da parte autora (NBSP)
+Texto com espaço largo 67
+Byte inválido � no meio 68
+a parte requerida, citada em 71, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 73, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 74, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 75, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 76, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 77, o pedido é procedente em parte.
+Linha 78 com espaço duplo e tab
+Valor de R$ 1.079,00 em favor da parte autora (NBSP)
+Texto com espaço largo 80
+Byte inválido � no meio 81
+a parte requerida, citada em 84, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 86, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 87, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 88, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 89, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 90, o pedido é procedente em parte.
+Linha 91 com espaço duplo e tab
+Valor de R$ 1.092,00 em favor da parte autora (NBSP)
+</pag>
+<pag n="5">
+Considerando os fatos narrados na petição inicial, item 62, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 63, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 64, o pedido é procedente em parte.
+Linha 65 com espaço duplo e tab
+Valor de R$ 1.066,00 em favor da parte autora (NBSP)
+Texto com espaço largo 67
+Byte inválido � no meio 68
+a parte requerida, citada em 71, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 73, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 74, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 75, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 76, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 77, o pedido é procedente em parte.
+Linha 78 com espaço duplo e tab
+Valor de R$ 1.079,00 em favor da parte autora (NBSP)
+Texto com espaço largo 80
+Byte inválido � no meio 81
+a parte requerida, citada em 84, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 86, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 87, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 88, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 89, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 90, o pedido é procedente em parte.
+Linha 91 com espaço duplo e tab
+Valor de R$ 1.092,00 em favor da parte autora (NBSP)
+Texto com espaço largo 93
+Byte inválido � no meio 94
+Linha 0 com espaço duplo e tab
+Valor de R$ 1.001,00 em favor da parte autora (NBSP)
+Texto com espaço largo 2
+</pag>
+<pag n="6">
+a parte requerida, citada em 71, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 73, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 74, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 75, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 76, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 77, o pedido é procedente em parte.
+Linha 78 com espaço duplo e tab
+Valor de R$ 1.079,00 em favor da parte autora (NBSP)
+Texto com espaço largo 80
+Byte inválido � no meio 81
+a parte requerida, citada em 84, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 86, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 87, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 88, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 89, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 90, o pedido é procedente em parte.
+Linha 91 com espaço duplo e tab
+Valor de R$ 1.092,00 em favor da parte autora (NBSP)
+Texto com espaço largo 93
+Byte inválido � no meio 94
+Linha 0 com espaço duplo e tab
+Valor de R$ 1.001,00 em favor da parte autora (NBSP)
+Texto com espaço largo 2
+Byte inválido � no meio 3
+a parte requerida, citada em 6, apresentou contestação
+Considerando os fatos narrados na petição inicial, item 8, o pedido é procedente em parte.
+Considerando os fatos narrados na petição inicial, item 9, o pedido é procedente em parte.
+</pag>
+</documento>
+</evento>

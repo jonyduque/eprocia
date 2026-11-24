@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"eprocia/internal/models"
 )
 
 // pageMarkerRegex matches a line that is *only* a page marker, such as
@@ -433,11 +435,34 @@ func tokensLine(n int) string {
 	return fmt.Sprintf("Tokens estimados: %d\n", n)
 }
 
+// SaidaConsolidada é o .txt montado e o que a montagem mediu.
+type SaidaConsolidada struct {
+	Texto             string
+	Tokens            int
+	Limpeza           models.LimpezaRelatorio
+	DocsDuplicados    int
+	PaginasDuplicadas int
+}
+
 // GenerateConsolidatedOutput formats all extracted process data into structured
 // XML tags and returns it with the token estimate written in <contexto>, which
 // equals EstimateTokens of the returned text.
 func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (string, int) {
+	s := GerarSaida(eventos, cleaningLevel, 0)
+	return s.Texto, s.Tokens
+}
+
+// GerarSaida monta o .txt consolidado e mede a limpeza. paginasSemOCR > 0 põe
+// no cabeçalho a linha das páginas que precisavam de OCR e ficaram sem.
+// Limpeza soma, por página de documento lido, o conteúdo original (antes) e o
+// texto limpo sem o aviso de OCR (depois). Páginas sem OCR, omitidos e não
+// lidos ficam fora; as páginas trocadas por referência de H7 (todas as do
+// documento idêntico inteiro também) vão só para BytesDuplicatas. Os tokens
+// seguem a regra de EstimateTokens sobre os mesmos textos.
+func GerarSaida(eventos map[string]any, cleaningLevel string, paginasSemOCR int) SaidaConsolidada {
 	var sb strings.Builder
+	res := SaidaConsolidada{Limpeza: models.LimpezaRelatorio{Nivel: cleaningLevel}}
+	var runasAntes, runasDepois int
 
 	// 1. Sort event numbers chronologically
 	var eventNums []int
@@ -465,6 +490,9 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 	sb.WriteString("PROCESSO JUDICIAL - ORDEM CRONOLÓGICA\n")
 	sb.WriteString(fmt.Sprintf("Total de Documentos: %d\n", totalDocs))
 	sb.WriteString(fmt.Sprintf("Documentos não lidos: %d\n", naoLidos))
+	if paginasSemOCR > 0 {
+		sb.WriteString(fmt.Sprintf("Páginas que precisavam de OCR e ficaram sem: %d\n", paginasSemOCR))
+	}
 	sb.WriteString(fmt.Sprintf("Data de Consolidação: %s\n", time.Now().Format("02/01/2006 15:04:05")))
 	tokensAt := sb.Len()
 	sb.WriteString("\n<summary>\n")
@@ -558,6 +586,11 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 			}
 
 			if o, ok := h7.documentos[chaveDoc{num, d.index}]; ok {
+				res.DocsDuplicados++
+				for _, p := range d.paginas {
+					res.PaginasDuplicadas++
+					res.Limpeza.BytesDuplicatas += int64(len(p.content))
+				}
 				sb.WriteString(refDocumento(o.evento, o.nome))
 				sb.WriteString("\n</documento>\n")
 				continue
@@ -597,6 +630,17 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 				}
 				if o, ok := h7.paginas[chavePagina{num, d.index, p.index}]; ok {
 					cleanedText = o.refPagina()
+					res.PaginasDuplicadas++
+					res.Limpeza.BytesDuplicatas += int64(len(p.content))
+				} else {
+					// A página que a limpeza esvaziou (ou deixou só com espaços,
+					// e por isso não sai) conta no antes com depois 0.
+					res.Limpeza.BytesAntes += int64(len(p.content))
+					runasAntes += utf8.RuneCountInString(p.content)
+					if strings.TrimSpace(cleanedText) != "" {
+						res.Limpeza.BytesDepois += int64(len(cleanedText))
+						runasDepois += utf8.RuneCountInString(cleanedText)
+					}
 				}
 				if p.avisoOCR {
 					// O aviso entra depois da limpeza, que nunca o vê, e sai
@@ -654,5 +698,7 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 	out.WriteString(line)
 	out.WriteString(header[tokensAt:])
 	out.WriteString(body)
-	return out.String(), tokens
+	res.Texto, res.Tokens = out.String(), tokens
+	res.Limpeza.TokensAntes, res.Limpeza.TokensDepois = runasAntes/4, runasDepois/4
+	return res
 }

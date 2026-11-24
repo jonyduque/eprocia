@@ -79,6 +79,7 @@ Para garantir que o Gemini entenda a separação dos documentos, o arquivo final
 PROCESSO JUDICIAL - ORDEM CRONOLÓGICA
 Total de Documentos: [N]
 Documentos não lidos: [N]
+Páginas que precisavam de OCR e ficaram sem: [N]
 Data de Consolidação: [DD/MM/AAAA HH:MM:SS]
 Tokens estimados: [T]
 
@@ -119,6 +120,7 @@ Tokens estimados: [T]
 ```
 
 - **Documentos não lidos:** quantos documentos o app não conseguiu ler (arquivo ilegível, PDF digitalizado com o OCR desligado, nenhum texto encontrado etc.). Sai sempre, também com 0.
+- **Páginas que precisavam de OCR e ficaram sem:** só aparece quando maior que 0; são as páginas com imagem ou desenho cujo texto do PDF não bastou e o OCR estava desligado.
 - **`NÃO LIDO` no `<summary>`:** o documento não lido aparece como `- Evento N - NOME: NÃO LIDO`, no lugar do total de páginas.
 - **Corpo de um documento não lido:** uma única linha `[documento não lido: <motivo>; consulte o PDF original]` (em HTML, `consulte o arquivo original`), seguida do `[ERRO ...]` técnico quando houver. Documento não lido não entra na detecção de duplicatas.
 - **Falha do OCR:** o texto diz que houve erro no OCR e pede ao modelo de IA que avise o usuário; do erro só leva uma frase fixa (`tempo esgotado` ou `o OCR não conseguiu ler a página`), nunca caminho nem saída do programa. A página que ficou sem texto leva `[ERRO de OCR: <frase>; avise o usuário de que houve erro no OCR desta página e recomende a consulta ao PDF original]` como conteúdo. A página que ficou com o texto nativo leva, antes dele, a linha `[aviso de OCR: houve erro no OCR desta página e o texto dela pode estar incompleto; avise o usuário e recomende a consulta ao PDF original]`; essa página não entra na detecção de duplicatas. No documento não lido por falha do OCR, o `[ERRO de OCR: ...]` vem logo depois da linha `[documento não lido: ...]`.

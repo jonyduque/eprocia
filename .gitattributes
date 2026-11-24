@@ -4,3 +4,5 @@ scripts/bench/fixtures/** binary
 # OCR binaries embedded via go:embed; the version stamp hashes their exact bytes.
 internal/ocr/embed/** binary
 
+# Goldens of the formatter output, compared byte-for-byte (CR and invalid UTF-8 inside).
+internal/etl/testdata/** binary
