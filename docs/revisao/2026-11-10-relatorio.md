@@ -59,7 +59,7 @@ Dependências que vale conhecer antes de aprovar:
 | 36 | F-AN-10 | Spinner, pulso e barras provavelmente seguem animando com a janela oculta na bandeja (inferência do código, falta medir) | baixa | M | Nenhuma renderização com o app na bandeja (≈23% de um núcleo durante o OCR, medido) | mantido |
 | 37 | F-DF-03 | Cada queue:item refaz todas as linhas da fila e mede a posição de todas elas (animate:flip), não só a linha que mudou | baixa | M | Custo por flush de progresso deixa de crescer com a fila (12 ms com 100 itens, 24,6 ms com 300) | rebaixado |
 | 38 | F-DF-04 | Painel de atividade reordena, clona e reavalia todos os documentos a cada 200 ms, e mantém no DOM todos os que aguardam | baixa | M | Custo por evento proporcional aos documentos que mudaram; painel abre rápido em ZIP grande (hoje 219 ms com 400 documentos) | rebaixado |
-| 39 | B-EF-05 | Higienização e montagem da saída rodam em uma thread só depois da fase paralela | baixa | M | Formatação até 3,6x mais rápida na limpeza (menos de 0,3 s a cada 1000 páginas) | rebaixado |
+| 39 | B-EF-05 (não implementar por decisão do dono (2026-11-22): ZIP sem OCR é raro) | Higienização e montagem da saída rodam em uma thread só depois da fase paralela | baixa | M | Formatação até 3,6x mais rápida na limpeza (menos de 0,3 s a cada 1000 páginas) | rebaixado |
 | 40 | F-VI-08 | Toast do painel cobre o interruptor que o disparou e não tem ícone de estado | baixa | M | O aviso deixa de cobrir o controle, ganha ícone e vira um componente só | rebaixado |
 | 41 | F-VI-09 | Linha da fila trunca o número do processo enquanto mensagem redundante e rótulos ocupam espaço; contadores podem usar ícones | baixa | M | Número do processo legível em 800x600; contadores com cerca de metade da largura | rebaixado |
 | 42 | F-AN-11 | Conclusão e erro de um item não têm retorno: o ícone troca seco e a barra some antes de chegar ao fim | baixa | M | Término ou falha de um ZIP perceptível de relance | rebaixado |
@@ -3197,7 +3197,7 @@ Capturas (antes / depois):
 - 800x600-escuro-processando-recolhido: [antes](capturas/2026-11-10/antes/800x600-escuro-processando-recolhido.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-escuro-processando-recolhido.png)
 - 800x600-escuro-processando: [antes](capturas/2026-11-10/antes/800x600-escuro-processando.png) / [depois](capturas/2026-11-10/depois-F-DF-04%2BF-AN-09/800x600-escuro-processando.png)
 
-### B-EF-05 — Higienização e montagem da saída rodam em uma thread só depois da fase paralela
+### B-EF-05 (não implementar por decisão do dono (2026-11-22): ZIP sem OCR é raro) — Higienização e montagem da saída rodam em uma thread só depois da fase paralela
 
 - **Arquivo:** `internal/etl/formatter.go:347`
 - **Lente:** EF

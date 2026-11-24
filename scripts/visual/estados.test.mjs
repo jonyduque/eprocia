@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ESTADOS, instalarStubs } from './estados.mjs';
+import { readFileSync } from 'node:fs';
+import { ESTADOS, instalarStubs, listaAltoContraste } from './estados.mjs';
 
 // Fields of etl.QueueItem (internal/etl/queue.go) the UI reads.
 const CAMPOS = ['id', 'name', 'path', 'status', 'progress', 'message', 'output_path', 'docs_count', 'pages_count', 'estimated_tokens',
@@ -50,5 +51,28 @@ describe('estados visuais', () => {
       delete globalThis.localStorage;
       if (original) Object.defineProperty(globalThis, 'localStorage', original);
     }
+  });
+});
+
+describe('lista de alto contraste', () => {
+  const review = JSON.parse(readFileSync(new URL('../../.claude/review.json', import.meta.url), 'utf8'));
+
+  it('toda entrada do review.json é um estado', () => {
+    const lista = listaAltoContraste(review);
+    assert.ok(lista.length > 0);
+    for (const e of lista) assert.ok(e in ESTADOS, `estado desconhecido: ${e}`);
+  });
+
+  it('config falso: lista presente, ausente e chave visual ausente', () => {
+    assert.deepEqual(listaAltoContraste({ visual: { alto_contraste: ['fila'] } }), ['fila']);
+    assert.deepEqual(listaAltoContraste({ visual: {} }), []);
+    assert.deepEqual(listaAltoContraste({}), []);
+  });
+
+  it('capturar.mjs não tem a lista literal e lê alto_contraste', () => {
+    const src = readFileSync(new URL('./capturar.mjs', import.meta.url), 'utf8');
+    assert.doesNotMatch(src, /ALTO_CONTRASTE\s*=\s*\[/);
+    assert.match(src, /listaAltoContraste/);
+    assert.match(src, /review\.json/);
   });
 });

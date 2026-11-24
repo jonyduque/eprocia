@@ -3,6 +3,8 @@ package etl
 import (
 	"strings"
 	"unicode"
+
+	"golang.org/x/text/unicode/norm"
 )
 
 // motivoOCR diz por que uma página foi ao OCR; decide o que fazer com o texto
@@ -37,27 +39,44 @@ func conteudoAposOCR(task ocrTask, ocrText string) (content string, ocr bool) {
 
 // palavrasDoTexto devolve as palavras de s (pedaços de letras e dígitos com
 // juncaoMinRunasPalavra caracteres ou mais, normalizados), com repetição.
+// Servem à âncora.
 func palavrasDoTexto(s string) []string {
-	var palavras []string
-	inicio, runas := -1, 0
+	return pedacosDoTexto(s, false)
+}
+
+// fichasDoTexto devolve as fichas de s: as palavras de palavrasDoTexto mais os
+// pedaços curtos que têm algum dígito (dia, mês, centavos), com repetição.
+// Servem à presença da linha nativa.
+func fichasDoTexto(s string) []string {
+	return pedacosDoTexto(s, true)
+}
+
+// pedacosDoTexto corta s em pedaços de letras e dígitos e guarda, normalizados,
+// os de juncaoMinRunasPalavra runas ou mais e, com curtosComDigito, também os
+// mais curtos que têm algum dígito.
+func pedacosDoTexto(s string, curtosComDigito bool) []string {
+	var pedacos []string
+	inicio, runas, digito := -1, 0, false
 	fechar := func(fim int) {
-		if inicio >= 0 && runas >= juncaoMinRunasPalavra {
-			palavras = append(palavras, normalizarPalavra(s[inicio:fim]))
+		if inicio >= 0 && (runas >= juncaoMinRunasPalavra || (curtosComDigito && digito)) {
+			pedacos = append(pedacos, normalizarPalavra(s[inicio:fim]))
 		}
-		inicio, runas = -1, 0
+		inicio, runas, digito = -1, 0, false
 	}
 	for i, r := range s {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+		ehDigito := unicode.IsDigit(r)
+		if ehDigito || unicode.IsLetter(r) {
 			if inicio < 0 {
 				inicio = i
 			}
 			runas++
+			digito = digito || ehDigito
 			continue
 		}
 		fechar(i)
 	}
 	fechar(len(s))
-	return palavras
+	return pedacos
 }
 
 // linhasNativas: as linhas de nativo sem espaços nas pontas e não vazias.
@@ -81,36 +100,45 @@ func linhasDoOCR(ocrText string) []string {
 	return strings.Split(ocrText, "\n")
 }
 
-// conjuntoDePalavras: o conjunto das palavras de s.
-func conjuntoDePalavras(s string) map[string]struct{} {
-	conjunto := make(map[string]struct{})
-	for _, p := range palavrasDoTexto(s) {
-		conjunto[p] = struct{}{}
+// contarFichas: quantas vezes cada ficha aparece.
+func contarFichas(fichas []string) map[string]int {
+	contagem := make(map[string]int, len(fichas))
+	for _, f := range fichas {
+		contagem[f]++
 	}
-	return conjunto
+	return contagem
 }
 
-// linhaNativaPresente diz se a linha nativa (com as palavras dela) já está no
-// texto do OCR: todas as palavras estão no conjunto do OCR; sem palavras, se o
-// texto dela aparece no texto do OCR. Exigir todas (e não uma fração) evita
-// perder o pedaço que o OCR não leu, quase sempre um número (decisão do dono em
-// 2026-11-17, medida em ZIPs reais: com 60%, 182 de 4.971 palavras nativas
-// sumiam; com todas, nenhuma, ao custo de 4,7% de texto a mais nessas páginas).
-func linhaNativaPresente(linha string, palavras []string, conjuntoOCR map[string]struct{}, ocrText string) bool {
-	if len(palavras) == 0 {
+// linhaNativaPresente diz se a linha nativa (com as fichas dela) já está no
+// texto do OCR e, se está, consome as ocorrências que usou: cada ficha da linha,
+// com as vezes que ela aparece na linha, precisa de ocorrências próprias no OCR
+// (noOCR) além das já consumidas pelas linhas presentes anteriores (consumido).
+// Sem fichas, vale se o texto dela aparece no texto do OCR. A linha ausente não
+// consome nada.
+//
+// Exigir todas as palavras (e não uma fração) evita perder o pedaço que o OCR
+// não leu, quase sempre um número (decisão do dono em 2026-11-17, medida em
+// ZIPs reais: com 60%, 182 de 4.971 palavras nativas sumiam; com todas,
+// nenhuma, ao custo de 4,7% de texto a mais nessas páginas). Contar as
+// ocorrências e incluir os pedaços curtos com dígito (regra R100m, medida em
+// 2026-11-22 em 117 páginas reais) fecha as duas perdas que sobravam, uma
+// ocorrência do OCR cobrindo várias linhas e o dia ou o mês lido errado:
+// palavras nativas perdidas 18 -> 0 e fichas com dígito perdidas 32 -> 0, ao
+// custo de 9 linhas inseridas a mais.
+func linhaNativaPresente(linha string, fichas []string, noOCR, consumido map[string]int, ocrText string) bool {
+	if len(fichas) == 0 {
 		return strings.Contains(ocrText, linha)
 	}
-	return contarPresentes(palavras, conjuntoOCR) == len(palavras)
-}
-
-func contarPresentes(palavras []string, conjunto map[string]struct{}) int {
-	n := 0
-	for _, p := range palavras {
-		if _, ok := conjunto[p]; ok {
-			n++
+	naLinha := contarFichas(fichas)
+	for f, v := range naLinha {
+		if noOCR[f] < consumido[f]+v {
+			return false
 		}
 	}
-	return n
+	for f, v := range naLinha {
+		consumido[f] += v
+	}
+	return true
 }
 
 // juntarOCRComNativo devolve o texto do OCR com as linhas de nativo que o OCR
@@ -118,21 +146,30 @@ func contarPresentes(palavras []string, conjunto map[string]struct{}) int {
 // a linha nativa vizinha, ou, sem vizinha, antes do texto do OCR (linha acima
 // das imagens) ou depois dele. linhasAcima diz quantas das primeiras linhas de
 // nativo ficam acima das imagens. Só entra a linha nativa ausente do OCR: a que
-// conta como presente (linhaNativaPresente: todas as palavras de 3 ou mais
-// caracteres aparecem no texto do OCR) não é inserida. Uma linha inserida pode
-// repetir parte do que o OCR já trouxe.
+// conta como presente (linhaNativaPresente: cada ficha da linha, palavra de 3
+// ou mais caracteres ou pedaço com dígito, tem uma ocorrência própria no texto
+// do OCR, consumida na ordem das linhas nativas) não é inserida. Uma linha
+// inserida pode repetir parte do que o OCR já trouxe.
+//
+// Toda comparação (fichas, Contains, âncora) usa o texto em NFC, para que um
+// acento decomposto (NFD) não parta a palavra nas marcas; o que sai são sempre
+// as linhas originais do OCR e da página nativa.
 func juntarOCRComNativo(ocrText, nativo string, linhasAcima int) string {
 	nat := linhasNativas(nativo)
 	if len(nat) == 0 {
 		return ocrText
 	}
-	conjuntoOCR := conjuntoDePalavras(ocrText)
+	ocrNFC := emNFC(ocrText)
+	noOCR := contarFichas(fichasDoTexto(ocrNFC))
+	consumido := make(map[string]int)
+	natNFC := make([]string, len(nat))
 	palavrasNat := make([][]string, len(nat))
 	presente := make([]bool, len(nat))
 	faltando := false
 	for i, l := range nat {
-		palavrasNat[i] = palavrasDoTexto(l)
-		presente[i] = linhaNativaPresente(l, palavrasNat[i], conjuntoOCR, ocrText)
+		natNFC[i] = emNFC(l)
+		palavrasNat[i] = palavrasDoTexto(natNFC[i])
+		presente[i] = linhaNativaPresente(natNFC[i], fichasDoTexto(natNFC[i]), noOCR, consumido, ocrNFC)
 		faltando = faltando || !presente[i]
 	}
 	if !faltando {
@@ -140,17 +177,22 @@ func juntarOCRComNativo(ocrText, nativo string, linhasAcima int) string {
 	}
 
 	linhasOCR := linhasDoOCR(ocrText)
-	a := novaAncoragem(linhasOCR)
+	linhasOCRNFC := make([]string, len(linhasOCR))
+	for k, l := range linhasOCR {
+		linhasOCRNFC[k] = emNFC(l)
+	}
+	a := novaAncoragem(linhasOCRNFC)
 	ancora := make([]int, len(nat)) // -2: não calculada; -1: sem âncora
 	for i := range ancora {
 		ancora[i] = -2
 	}
 	ancoraDe := func(i int) int {
 		if ancora[i] == -2 {
-			ancora[i] = a.ancorar(nat[i], palavrasNat[i])
+			ancora[i] = a.ancorar(natNFC[i], palavrasNat[i])
 		}
 		return ancora[i]
 	}
+	prox := proximasPresentes(presente)
 	acima := func(i int) bool { return i < linhasAcima }
 
 	antes := make([][]string, len(linhasOCR))
@@ -175,9 +217,11 @@ func juntarOCRComNativo(ocrText, nativo string, linhasAcima int) string {
 			continue
 		}
 		// 3. antes da âncora da próxima presente.
-		if k := proximaAncora(presente, i, ancoraDe); k >= 0 {
-			antes[k] = append(antes[k], l)
-			continue
+		if prox[i] >= 0 {
+			if k := ancoraDe(prox[i]); k >= 0 {
+				antes[k] = append(antes[k], l)
+				continue
+			}
 		}
 		// 4. no fim.
 		fim = append(fim, l)
@@ -198,15 +242,26 @@ func juntarOCRComNativo(ocrText, nativo string, linhasAcima int) string {
 	return strings.Join(blocos, "\n\n")
 }
 
-// proximaAncora devolve a âncora da primeira linha nativa presente depois de
-// i, ou -1.
-func proximaAncora(presente []bool, i int, ancoraDe func(int) int) int {
-	for j := i + 1; j < len(presente); j++ {
-		if presente[j] {
-			return ancoraDe(j)
+// emNFC devolve s na forma NFC, sem converter o que já está nela.
+func emNFC(s string) string {
+	if norm.NFC.IsNormalString(s) {
+		return s
+	}
+	return norm.NFC.String(s)
+}
+
+// proximasPresentes devolve, para cada i, o índice da primeira linha j > i com
+// presente[j], ou -1. Uma passada de trás para frente.
+func proximasPresentes(presente []bool) []int {
+	prox := make([]int, len(presente))
+	proxima := -1
+	for i := len(presente) - 1; i >= 0; i-- {
+		prox[i] = proxima
+		if presente[i] {
+			proxima = i
 		}
 	}
-	return -1
+	return prox
 }
 
 // ancoragem acha a linha do OCR que corresponde a uma linha nativa. O índice

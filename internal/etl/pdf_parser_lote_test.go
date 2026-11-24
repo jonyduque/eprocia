@@ -7,8 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -392,5 +394,67 @@ func TestPipeline_PrazoNaoTravaAFila(t *testing.T) {
 	}
 	if docs[1].Leitura != "lido" {
 		t.Errorf("documento de texto: Leitura = %q, quero \"lido\" (%+v)", docs[1].Leitura, docs[1])
+	}
+}
+
+// 41 páginas em blocos de 20: sobra 1, que vai ao OCR por página, não ao lote.
+func TestOCREmLote_RestoPequenoNoFim(t *testing.T) {
+	caminho := pdfComPaginas(t, 41, nil)
+	var mu sync.Mutex
+	var tamanhos []int
+	var porPaginaChamadas atomic.Int32
+	porPagina := func(context.Context, string, int) (string, error) {
+		porPaginaChamadas.Add(1)
+		return "", nil
+	}
+	if _, err := parserDeArquivo(t, caminho).comOCREmLote(registroLote(&mu, &tamanhos), 2).
+		ParsePages(context.Background(), true, porPagina, func(int) {}); err != nil {
+		t.Fatalf("ParsePages: %v", err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	ordenado := append([]int(nil), tamanhos...)
+	slices.Sort(ordenado)
+	if !reflect.DeepEqual(ordenado, []int{20, 20}) {
+		t.Errorf("blocos do lote = %v, quero [20 20]", tamanhos)
+	}
+	if n := porPaginaChamadas.Load(); n != 1 {
+		t.Errorf("OCR por página chamado %d vezes, quero 1", n)
+	}
+	soma := int(porPaginaChamadas.Load())
+	for _, n := range tamanhos {
+		soma += n
+	}
+	if soma != 41 {
+		t.Errorf("lote + por página = %d, quero 41", soma)
+	}
+}
+
+// esperar() despacha a sobra uma vez só: uma segunda chamada não a redespacha.
+func TestDespachoOCR_EsperarDuasVezesNaoRedespacha(t *testing.T) {
+	var mu sync.Mutex
+	var tamanhos []int
+	p := parserDeArquivo(t, pdfComPaginas(t, 3, nil)).comOCREmLote(registroLote(&mu, &tamanhos), 2)
+	var chamadas atomic.Int32
+	porPagina := func(context.Context, string, int) (string, error) {
+		chamadas.Add(1)
+		return "ocr", nil
+	}
+	d := p.novoDespachoOCR(context.Background(), 3, porPagina, nil)
+	d.agendar(ocrTask{pageNum: 1})
+	d.esperar()
+	mapa := d.esperar()
+
+	if n := chamadas.Load(); n != 1 {
+		t.Errorf("OCR por página chamado %d vezes, quero 1", n)
+	}
+	mu.Lock()
+	if len(tamanhos) != 0 {
+		t.Errorf("lote chamado %v, quero nenhuma chamada", tamanhos)
+	}
+	mu.Unlock()
+	pag, _ := mapa["1"].(map[string]any)
+	if pag == nil || pag["content"] != "ocr" {
+		t.Errorf("página 1 = %v", mapa["1"])
 	}
 }

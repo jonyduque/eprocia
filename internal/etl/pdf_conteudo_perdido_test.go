@@ -40,11 +40,24 @@ func conteudoDe(p map[string]any) string {
 // vetores, então vai ao OCR pela regra antiga, que substitui o texto nativo.
 func ehMosaicoCurta(p paginaSintetica) bool { return p.nome == "mosaico-legenda-curta" }
 
-func TestConteudoPerdido_ControlesNaoVaoAoOCR(t *testing.T) {
+// sinteticasOnde filtra paginasSinteticas() e reprova se sobrarem menos de
+// minimo: um filtro que deixa de casar faria o laço do teste passar vazio.
+func sinteticasOnde(t *testing.T, minimo int, filtro func(paginaSintetica) bool) []paginaSintetica {
+	t.Helper()
+	var r []paginaSintetica
 	for _, p := range paginasSinteticas() {
-		if p.isca || p.candidataImagem {
-			continue
+		if filtro(p) {
+			r = append(r, p)
 		}
+	}
+	if len(r) < minimo {
+		t.Fatalf("filtro selecionou %d página(s) sintética(s), quer ao menos %d", len(r), minimo)
+	}
+	return r
+}
+
+func TestConteudoPerdido_ControlesNaoVaoAoOCR(t *testing.T) {
+	for _, p := range sinteticasOnde(t, 11, func(p paginaSintetica) bool { return !p.isca && !p.candidataImagem }) {
 		t.Run(p.nome, func(t *testing.T) {
 			runner, n := ocrFalso(ocrFalsoTexto, nil)
 			pages := parsePagesWithDeadline(t, p.objetos, runner)
@@ -63,10 +76,8 @@ func TestConteudoPerdido_ControlesNaoVaoAoOCR(t *testing.T) {
 }
 
 func TestConteudoPerdido_ImagemDescobertaJuntaOCRENativo(t *testing.T) {
-	for _, p := range paginasSinteticas() {
-		if !p.candidataImagem || p.isca || ehMosaicoCurta(p) { // mosaico-legenda-curta: regra antiga, ver MosaicoLegendaCurta
-			continue
-		}
+	// mosaico-legenda-curta: regra antiga, ver MosaicoLegendaCurta
+	for _, p := range sinteticasOnde(t, 7, func(p paginaSintetica) bool { return p.candidataImagem && !p.isca && !ehMosaicoCurta(p) }) {
 		t.Run(p.nome, func(t *testing.T) {
 			runner, n := ocrFalso(ocrFalsoTexto, nil)
 			pg := paginaUm(t, parsePagesWithDeadline(t, p.objetos, runner))
@@ -118,11 +129,7 @@ func TestConteudoPerdido_TimbreTresLinhasMantemONativo(t *testing.T) {
 }
 
 func TestConteudoPerdido_IscaTrocaPeloOCR(t *testing.T) {
-	palavras := palavrasIsca(80, 42)
-	for _, p := range paginasSinteticas() {
-		if !p.isca {
-			continue
-		}
+	for _, p := range sinteticasOnde(t, 3, func(p paginaSintetica) bool { return p.isca }) {
 		t.Run(p.nome, func(t *testing.T) {
 			runner, n := ocrFalso(ocrFalsoTexto, nil)
 			pg := paginaUm(t, parsePagesWithDeadline(t, p.objetos, runner))
@@ -133,28 +140,19 @@ func TestConteudoPerdido_IscaTrocaPeloOCR(t *testing.T) {
 			if c != ocrFalsoTexto {
 				t.Errorf("conteúdo = %q, quer o texto do OCR", c)
 			}
-			for _, w := range palavras {
-				if strings.Contains(c, w) {
-					t.Fatalf("palavra da isca %q no conteúdo", w)
-				}
-			}
 		})
 	}
 }
 
 // paginasComNativoEOCR percorre as páginas que vão ao OCR e mantêm o nativo.
-func paginasComNativoEOCR() []paginaSintetica {
-	var r []paginaSintetica
-	for _, p := range paginasSinteticas() {
-		if (p.isca || p.candidataImagem) && !ehMosaicoCurta(p) { // mosaico-legenda-curta: regra antiga, o OCR substitui o nativo
-			r = append(r, p)
-		}
-	}
-	return r
+// mosaico-legenda-curta fica de fora: regra antiga, o OCR substitui o nativo.
+func paginasComNativoEOCR(t *testing.T, minimo int) []paginaSintetica {
+	t.Helper()
+	return sinteticasOnde(t, minimo, func(p paginaSintetica) bool { return (p.isca || p.candidataImagem) && !ehMosaicoCurta(p) })
 }
 
 func TestConteudoPerdido_OCREmBrancoMantemONativo(t *testing.T) {
-	for _, p := range paginasComNativoEOCR() {
+	for _, p := range paginasComNativoEOCR(t, 10) {
 		t.Run(p.nome, func(t *testing.T) {
 			runner, _ := ocrFalso("\n\f", nil)
 			pg := paginaUm(t, parsePagesWithDeadline(t, p.objetos, runner))
@@ -184,7 +182,7 @@ var errosOCR = []struct {
 // novas grava o texto nativo sem ocr_erro nem ocr_prazo (a página conta como
 // lida) e com ocr_aviso, que faz o formatter pôr o aviso antes do texto.
 func TestConteudoPerdido_OCRComErroMantemONativo(t *testing.T) {
-	for _, p := range paginasComNativoEOCR() {
+	for _, p := range paginasComNativoEOCR(t, 10) {
 		for _, e := range errosOCR {
 			t.Run(p.nome+"/"+e.nome, func(t *testing.T) {
 				runner, _ := ocrFalso("", e.err)
@@ -275,7 +273,7 @@ func TestConteudoPerdido_OCRComErroRegraAntigaMarca(t *testing.T) {
 }
 
 func TestConteudoPerdido_OCRDesligado(t *testing.T) {
-	for _, p := range paginasComNativoEOCR() {
+	for _, p := range paginasComNativoEOCR(t, 10) {
 		t.Run(p.nome, func(t *testing.T) {
 			pages := parsearSemOCR(t, buildPDF(p.objetos), false)
 			c := conteudoDe(paginaUm(t, pages))

@@ -2,7 +2,7 @@
 
 Plano para a rodada do `/corrigir` sobre os 46 achados pendentes de [`2026-11-10-relatorio.md`](2026-11-10-relatorio.md), na branch `revisao/2026-11-10` (worktree `.worktrees/revisao-2026-11-10`, criada da `main` com a v0.4.2 mesclada, HEAD `333a371`). Nada foi corrigido. Este documento decide validade, grupos, ordem, perguntas ao dono, residuais e riscos. Foi revisado por um agente sem contexto; a resposta a essa revisão está na seção 7.
 
-Resumo: **30 achados valem como estão, 16 valem com ajuste e nenhum ficou obsoleto**. O dono respondeu 13 das 14 perguntas em 2026-11-18 (seção 4). Três achados ficam adiados: B-EF-05 (medir depois do bloco 1), F-DF-03 (decisão d10) e F-AC-13 (backlog, decisão d8). F-AC-14 aguarda a resposta de d2 e fica sozinho no bloco 5, o último. A rodada tem **22 tarefas em 5 blocos** (4 de backend e 18 de frontend).
+Resumo: **30 achados valem como estão, 16 valem com ajuste e nenhum ficou obsoleto**. O dono respondeu 13 das 14 perguntas em 2026-11-18 (seção 4). Três achados ficam adiados: B-EF-05 (não implementar por decisão do dono (2026-11-22): ZIP sem OCR é raro; medir depois do bloco 1), F-DF-03 (decisão d10) e F-AC-13 (backlog, decisão d8). F-AC-14 aguarda a resposta de d2 e fica sozinho no bloco 5, o último. A rodada tem **22 tarefas em 5 blocos** (4 de backend e 18 de frontend).
 
 As decisões e os ajustes já estão no começo do item Proposta de cada achado do relatório, e os três adiados têm `Status: adiado` com o motivo. Isso foi feito no commit `docs(revisao): plano de correção e decisões do dono`, que cumpre o passo 0.5.
 
@@ -31,7 +31,7 @@ Conferido no HEAD `333a371`. Desde o relatório, `App.svelte` e `Settings.svelte
 | B-EF-02 | com ajuste | `formatter.go:88` (`edgeLines`), `:140` (`cleanPage`), `:310` (`chaveConteudo`); `higienizacao.go:46-63` | A v0.4.2 tirou da pré-passada H7 as páginas com `ocr_aviso` e as `sem_ocr` (`formatter.go:288-289`). O cache de linhas por página precisa servir as três etapas sem mudar quem entra no H7. O teste de saída idêntica precisa cobrir uma página com `ocr_aviso` (a linha `avisoOCRComReserva` entra depois da limpeza). B-EF-02 cria em `internal/etl` um benchmark versionado de `GenerateConsolidatedOutput` (níveis `standard` e `aggressive`, páginas sintéticas), que B-EF-04 reaproveita. Métrica-alvo: alocações e sec/op desse benchmark. |
 | B-EF-03 | com ajuste | `pdf_parser.go:542-561` (`extrairNativoSeguro`); contador em `pdf_texto.go:292` (`mostrar`) | O extrator posicional agora segue Forms (`Do`): o contador de operações de texto precisa contar também as que ocorrem dentro de Forms. Pular o `GetTextByRow` deixa válidas as métricas de uma página sem texto (hoje elas são zeradas na linha 556). O teste precisa provar que a rota da página não muda: escaneada e vetorial sem texto continuam indo ao OCR pelo texto curto e, com OCR desligado, continuam com o marcador de página digitalizada. Métrica-alvo: alocações do `BenchmarkParsePDF` nas fixtures escaneada e vetorial. |
 | B-EF-04 | com ajuste | `formatter.go:73` e `:177`; `higienizacao.go:322` e `:359-362` | Valem as ressalvas do cético: pré-filtros estritamente equivalentes, com caso de teste para `"ﬁﬁ"` e `"$ 100 pagos"`. O pré-filtro não muda as alocações e só mexe em sec/op, que oscila. Por isso, a métrica-alvo é o sec/op do benchmark do formatador que B-EF-02 cria, no nível `aggressive`, comparado em rodadas alternadas (skill `eprocia-bench`). Os micro-benchmarks do relatório eram overlays fora do repositório. |
-| B-EF-05 | com ajuste | `pipeline.go:733` (chamada serial de `GenerateConsolidatedOutput`) | O relatório pede medir de novo depois de B-EF-02 e B-EF-04. Adiado: fica fora desta rodada e é medido depois do bloco 1 (seção 5). |
+| B-EF-05 (não implementar por decisão do dono (2026-11-22): ZIP sem OCR é raro) | com ajuste | `pipeline.go:733` (chamada serial de `GenerateConsolidatedOutput`) | O relatório pede medir de novo depois de B-EF-02 e B-EF-04. Adiado: fica fora desta rodada e é medido depois do bloco 1 (seção 5). |
 | F-VI-01 | como está | `Settings.svelte:264-271`, `App.svelte:893-899` | |
 | F-AC-01 | com ajuste | `ProcessList.svelte:214-219` (`handleCopy`), `:455-466` (botão) | Desde a v0.4.1, copiar um TXT com documentos não lidos mostra um aviso do tipo `aviso` na região `role="alert"`. O anúncio "TXT copiado" e esse aviso não podem se sobrepor nem ser lidos duas vezes: com não lidos, vale o aviso; sem eles, o anúncio de sucesso. O Ctrl+C da Proposta sai daqui e vai para F-AC-15, que define o foco de linha (hoje a linha não é focável). Pela d5, Copiar não muda de lugar nem ganha destaque. |
 | F-AC-02 | com ajuste | `ProcessList.svelte:684` (`.queue-chip`), `:951` (`.meta-badge.success`), `:964`, `:987`, `:1000`; `AtividadeItem.svelte` (chips e `.doc-erro`); `App.svelte:780` | A v0.4.1 acrescentou cinco textos em `var(--warning)`, que dá 2,81:1 no tema claro: `.nao-lidos` e `.aviso-erro.aviso-atencao` (ProcessList), `.chip.aviso`, `.btn-ocr` e `.doc-erro.aviso` (AtividadeItem). Eles entram na mesma troca para `--warning-strong` e no teste de pares de contraste. Cor: `#9A5B00` (5,43:1 sobre branco, 4,78:1 sobre `--warning-soft`, mais perto do âmbar atual). |
@@ -109,7 +109,7 @@ Cada grupo é da mesma camada e muda o mesmo componente ou a mesma regra. Separe
 
 Adiados, com `Status: adiado` e o motivo no relatório:
 
-- **B-EF-05**: medir de novo depois do bloco 1.
+- **B-EF-05** (não implementar por decisão do dono (2026-11-22): ZIP sem OCR é raro): medir de novo depois do bloco 1.
 - **F-DF-03**: decisão d10, outra rodada.
 - **F-AC-13**: decisão d8. Vai para o backlog, na direção do catálogo de tipos com binding no Go.
 
@@ -188,7 +188,7 @@ Escolhas que ficaram como recomendação, sem pergunta, porque a Proposta do rel
 - Retorno completo com realce ao terminar (F-AN-11).
 - Botão simples no estado vazio (F-AC-08).
 - PGM com volta para PPM se o texto mudar (B-EF-01).
-- B-EF-05 adiado.
+- B-EF-05 adiado (não implementar por decisão do dono (2026-11-22): ZIP sem OCR é raro).
 
 ## 5. Residuais
 
@@ -211,7 +211,7 @@ Os ids do arquivo de residuais não são aceitos pelo workflow, que só lê o re
 - CP2: limiar de isca, que só dá para medir com uma página-isca real.
 - CP4 e CP5: vivem na junção e no encaixe por posição e devem esperar o resultado do CP10. O quadrático do CP5 só pesa com 50 mil linhas ausentes, e a duplicação por NFD não perde texto.
 - A conferência do texto de B-EF-01 em ZIPs reais.
-- A nova medição de B-EF-05 depois do bloco 1. Esta pode usar o benchmark sintético (e o benchmark do formatador que B1 cria), mas a decisão de seguir depende do ganho em ZIPs reais de texto nativo.
+- A nova medição de B-EF-05 (não implementar por decisão do dono (2026-11-22): ZIP sem OCR é raro) depois do bloco 1. Esta pode usar o benchmark sintético (e o benchmark do formatador que B1 cria), mas a decisão de seguir depende do ganho em ZIPs reais de texto nativo.
 
 **Não valem a pena agora:**
 

@@ -1,10 +1,11 @@
 // Limites do divisor entre o painel e a fila. O máximo desconta a largura
 // mínima da fila para que, na janela mínima (800px, main.go), o cabeçalho da
-// fila ainda caiba com todos os botões.
+// fila ainda caiba com todos os botões e o rótulo "N não lidos" apareça inteiro
+// (medido em 2026-11-22: some abaixo de 453px com "12 não lidos"; 461 = 453 + 8).
 
 export const LARGURA_MIN_PAINEL = 280;
 export const LARGURA_MAX_PAINEL = 480;
-export const LARGURA_MIN_FILA = 340;
+export const LARGURA_MIN_FILA = 461;
 
 export function larguraMaxPainel(larguraJanela) {
   return Math.max(LARGURA_MIN_PAINEL, Math.min(LARGURA_MAX_PAINEL, larguraJanela - LARGURA_MIN_FILA));

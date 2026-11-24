@@ -4,9 +4,14 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+	"unicode"
+	"unicode/utf8"
+
+	"golang.org/x/text/unicode/norm"
 )
 
 type casoJuntar struct {
@@ -54,6 +59,46 @@ var casosJuntar = []casoJuntar{
 		"Cabeçalho do documento\nfalta no topo\nfalta embaixo\nRodapé final", 2,
 		"falta embaixo\nRODAPE FINAL\nCABECALHO DO DOCUMENTO\nfalta no topo",
 	},
+	// Um "prazo" do OCR não cobre duas linhas nativas: a segunda entra.
+	{"prazo de defesa\nrecursal contado", "prazo de defesa\nprazo recursal", 0, "prazo de defesa\nprazo recursal\nrecursal contado"},
+	// O dia lido errado ("06" no lugar de "05") faz a linha nativa entrar.
+	{"Data do fato 06/11/2026 conforme autos", "Data do fato 05/11/2026 conforme autos", 0, "Data do fato 06/11/2026 conforme autos\n\nData do fato 05/11/2026 conforme autos"},
+	// A palavra repetida na mesma linha precisa de uma ocorrência própria no OCR.
+	{"Prazo de dez dias", "dias a dias", 0, "Prazo de dez dias\n\ndias a dias"},
+	// Linha só de pedaços curtos com dígito: vale a contagem de "10", não o Contains.
+	{"Folha 210 x", "10 x", 0, "Folha 210 x\n\n10 x"},
+	// A linha ausente não consome o "prazo" do OCR: a presente seguinte fica presente.
+	{"prazo de defesa", "prazo vencido hoje\nprazo de defesa", 0, "prazo vencido hoje\nprazo de defesa"},
+	// CP5, NFD: a linha nativa com acentos decompostos já está no OCR em NFC e
+	// não entra de novo.
+	{"PETIÇÃO INICIAL", "Petição inicial", 0, "PETIÇÃO INICIAL"},
+	// CP5, NFD na âncora: a linha presente em NFD ancora na linha do OCR em NFC,
+	// e a ausente seguinte entra logo depois dela (não no fim).
+	{"OUTRA\nPETIÇÃO", "Petição\nlinha perdida", 0, "OUTRA\nPETIÇÃO\nlinha perdida"},
+	// CP5, OCR em NFD: as fichas do OCR saem em NFC, e a linha nativa em NFC
+	// conta como presente.
+	{"Petic\u0327a\u0303o inicial", "PETIÇÃO INICIAL", 0, "Petic\u0327a\u0303o inicial"},
+	// CP5, OCR em NFD na âncora: a ancoragem usa as linhas do OCR em NFC.
+	{"OUTRA\nPetic\u0327a\u0303o", "PETIÇÃO\nlinha perdida", 0, "OUTRA\nPetic\u0327a\u0303o\nlinha perdida"},
+	// CP5, linha nativa sem ficha em NFD: o Contains compara em NFC.
+	{"abc é xyz", "e\u0301", 0, "abc é xyz"},
+}
+
+func TestProximasPresentes(t *testing.T) {
+	casos := []struct {
+		presente []bool
+		want     []int
+	}{
+		{nil, []int{}},
+		{[]bool{false}, []int{-1}},
+		{[]bool{true, false, false, true, false}, []int{3, 3, 3, -1, -1}},
+		{[]bool{false, true}, []int{1, -1}},
+	}
+	for _, c := range casos {
+		if got := proximasPresentes(c.presente); !slices.Equal(got, c.want) || got == nil {
+			t.Errorf("proximasPresentes(%v) = %#v, esperava %#v", c.presente, got, c.want)
+		}
+	}
 }
 
 func TestJuntar(t *testing.T) {
@@ -96,12 +141,54 @@ func TestJuntar_NuncaPerdeLinhaNativa(t *testing.T) {
 	for _, acima := range []int{0, 2, 6} {
 		casos = append(casos, casoJuntar{ocr: ocrSemPalavrasEmComum, nativo: nativo, acima: acima})
 	}
+	contar := func(s string) map[string]int {
+		m := map[string]int{}
+		for _, f := range fichasOraculo(s) {
+			m[f]++
+		}
+		return m
+	}
+	// P2 e P3 são limites que valem para qualquer ordem de consumo; o caso
+	// exato (consumo em ordem, só das presentes) está em casosJuntar.
 	for _, c := range casos {
 		got := juntarOCRComNativo(c.ocr, c.nativo, c.acima)
 		linhasGot := strings.Split(got, "\n")
+		cOCR, cNat, cGot := contar(c.ocr), contar(c.nativo), contar(got)
+		linhasOCR := linhasDoOCR(c.ocr)
+		// P1: nenhuma ficha nativa perdida.
+		for f, n := range cNat {
+			if cGot[f] < n {
+				t.Errorf("caso %q/%q: ficha nativa %q aparece %d vez(es) em %q, esperava ao menos %d", c.ocr, c.nativo, f, cGot[f], got, n)
+			}
+		}
+		cont := func(ls []string, l string) int {
+			n := 0
+			for _, x := range ls {
+				if x == l {
+					n++
+				}
+			}
+			return n
+		}
 		for _, l := range linhasNativas(c.nativo) {
-			if !linhaNativaPresente(l, palavrasDoTexto(l), conjuntoDePalavras(c.ocr), c.ocr) && !slices.Contains(linhasGot, l) {
-				t.Errorf("caso %q/%q: linha nativa %q perdida em %q", c.ocr, c.nativo, l, got)
+			cLinha := contar(l)
+			// P2: linha com ficha que o OCR não pode cobrir entra inteira.
+			naoCobre := false
+			// P3: linha cujas fichas o OCR cobre para a página nativa inteira.
+			cobreDeSobra := len(cLinha) > 0
+			for f, n := range cLinha {
+				if n > cOCR[f] {
+					naoCobre = true
+				}
+				if cOCR[f] < cNat[f] {
+					cobreDeSobra = false
+				}
+			}
+			if naoCobre && !slices.Contains(linhasGot, l) {
+				t.Errorf("caso %q/%q: linha nativa %q, com ficha que o OCR não cobre, não entrou inteira em %q", c.ocr, c.nativo, l, got)
+			}
+			if cobreDeSobra && cont(linhasGot, l) > cont(linhasOCR, l) {
+				t.Errorf("caso %q/%q: linha nativa %q já coberta pelo OCR entrou de novo em %q", c.ocr, c.nativo, l, got)
 			}
 		}
 		// As linhas do OCR aparecem todas, na ordem.
@@ -117,6 +204,29 @@ func TestJuntar_NuncaPerdeLinhaNativa(t *testing.T) {
 			j++
 		}
 	}
+}
+
+// fichasOraculo é o oráculo do teste de propriedade, independente de
+// pdf_juncao.go e lingua.go: o texto em NFC (sem isso um "Petição" em NFD se
+// parte nas marcas, que não são letra), cortado em sequências de letras e
+// dígitos com 3 runas ou mais ou com algum dígito, em minúsculas e sem acento.
+func fichasOraculo(s string) []string {
+	var out []string
+	s = norm.NFC.String(s)
+	for _, w := range strings.FieldsFunc(s, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) }) {
+		if utf8.RuneCountInString(w) < 3 && !strings.ContainsFunc(w, unicode.IsDigit) {
+			continue
+		}
+		d := norm.NFD.String(strings.ToLower(w))
+		d = strings.Map(func(r rune) rune {
+			if unicode.Is(unicode.Mn, r) {
+				return -1
+			}
+			return r
+		}, d)
+		out = append(out, norm.NFC.String(d))
+	}
+	return out
 }
 
 // Entrada hostil: nada de pânico nem de demora com texto vazio, só espaços,
@@ -155,6 +265,20 @@ func TestJuntar_EntradaHostil(t *testing.T) {
 	}
 	if n := strings.Count(got, "linha perdida pelo leitor"); n != 1000 {
 		t.Errorf("linhas encaixadas = %d, esperava 1000", n)
+	}
+	// CP5: 200.000 linhas nativas ausentes, sem nenhuma presente, não podem
+	// procurar a próxima âncora cada uma até o fim (laço quadrático).
+	ausentes := make([]string, 200_000)
+	for i := range ausentes {
+		ausentes[i] = "registro avulso " + strconv.Itoa(i)
+	}
+	inicio = time.Now()
+	got = juntarOCRComNativo(ocrSemPalavrasEmComum, strings.Join(ausentes, "\n"), 0)
+	if d := time.Since(inicio); d > 10*time.Second {
+		t.Errorf("200.000 linhas ausentes levaram %v", d)
+	}
+	if want := ocrSemPalavrasEmComum + "\n\n" + strings.Join(ausentes, "\n"); got != want {
+		t.Errorf("200.000 linhas ausentes: saída com %d bytes, esperava %d", len(got), len(want))
 	}
 	// Linha nativa sem palavras e OCR só com espaços: a linha não se perde.
 	if got := juntarOCRComNativo("   \n  ", "12", 0); got != "12" {

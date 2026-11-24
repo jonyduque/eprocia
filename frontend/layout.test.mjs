@@ -49,6 +49,15 @@ test('na largura mínima da janela a fila mantém a largura mínima', () => {
   assert.ok(minJanela - larguraMaxPainel(minJanela) >= LARGURA_MIN_FILA);
 });
 
+// P6. Medido em 2026-11-22 (Chromium, stubs, janela 800x600, ZIP
+// 5000000-00.2026.4.00.0001.zip, rótulo "12 não lidos"): o rótulo só fica
+// dentro de .details-row (sem recorte) com a fila em 453 px ou mais; a 451 px
+// já é recortado. 453 + 8 px de margem para o gap = 461.
+test('a fila mínima mantém visível o rótulo "N não lidos"', () => {
+  assert.ok(LARGURA_MIN_FILA >= 461);
+  assert.ok(800 - larguraMaxPainel(800) >= 461);
+});
+
 test('limitarPainel prende a largura entre o mínimo e o máximo da janela', () => {
   assert.equal(limitarPainel(200, 1024), 280);
   assert.equal(limitarPainel(350, 1024), 350);
@@ -98,12 +107,21 @@ test('campo Filtrar não cresce no foco', () => {
 test('em contêiner estreito os botões ficam só com ícone e mantêm nome acessível', () => {
   const css = estilo(lista);
   assert.match(regra(css, '.list-card'), /container-type:\s*inline-size/);
-  assert.match(css, /@container[^{]*\(max-width:\s*420px\)\s*\{[^}]*\.rotulo-acao\s*\{[^}]*display:\s*none/);
+  assert.match(css, /@container[^{]*\(max-width:\s*492px\)\s*\{[^}]*\.rotulo-acao\s*\{[^}]*display:\s*none/);
   for (const nome of ['Retomar', 'Pausar', 'Limpar concluídos', 'Limpar tudo']) {
     assert.match(lista, new RegExp(`aria-label="${nome}"`), `${nome} sem aria-label`);
     assert.match(lista, new RegExp(`<span class="rotulo-acao">${nome}</span>`), `${nome} sem rótulo ocultável`);
   }
   assert.match(lista, /class="btn-clear"[^>]*>\s*<Icone icone=\{ListX\}/);
+});
+
+// P6. Medido em 2026-11-22 (Chromium, stubs nao-lidos e fila, claro e escuro,
+// painel 280, card de 440 a 536 px): o cabeçalho com rótulos e o ícone do
+// título só cabe sem corte com card >= 484 px (480 corta). Breakpoint = 484 + 8.
+test('o breakpoint dos rótulos do cabeçalho cobre a largura medida de 484px', () => {
+  const m = lista.match(/@container\s*\(max-width:\s*(\d+)px\)\s*\{\s*\.rotulo-acao/);
+  assert.ok(m, 'regra de .rotulo-acao não encontrada');
+  assert.ok(Number(m[1]) >= 484 + 8);
 });
 
 // --- F-VI-01 ---------------------------------------------------------------

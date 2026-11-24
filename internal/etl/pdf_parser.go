@@ -145,7 +145,7 @@ func (p *PDFParser) ParsePages(
 		// Check for context cancellation
 		if err := ctx.Err(); err != nil {
 			log.Printf("[PDFParser] Contexto cancelado na leitura da página %d: %v", pageNum, err)
-			d.aguardar()
+			d.esperarDespachados()
 			return nil, err
 		}
 
@@ -583,7 +583,15 @@ func extrairNativoSeguro(page pdf.Page) (text string, m metricasPagina, err erro
 }
 
 // HasImages checks if a page contains any image XObject of significant resolution.
-func HasImages(page pdf.Page) bool {
+// Decisão do dono (2026-11-22): se o exame panica (tabela xref inconsistente), a
+// página é tratada como página com imagens, para ir ao OCR em vez de sair com [ERRO.
+func HasImages(page pdf.Page) (temImagens bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[PDFParser] Falha ao examinar as imagens da página (%v); tratada como página com imagens para ir ao OCR", r)
+			temImagens = true
+		}
+	}()
 	resources := page.Resources()
 	if resources.IsNull() {
 		return false

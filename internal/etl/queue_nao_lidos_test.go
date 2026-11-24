@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func esperarStatus(t *testing.T, q *Queue, status string) *QueueItem {
+func esperarItemComStatus(t *testing.T, q *Queue, status string) *QueueItem {
 	t.Helper()
 	prazo := time.Now().Add(30 * time.Second)
 	for time.Now().Before(prazo) {
@@ -34,7 +34,7 @@ func TestQueue_ContaNaoLidos(t *testing.T) {
 	q.cfg = cfgSemOCR()
 
 	q.AddFiles([]string{zipPath})
-	item := esperarStatus(t, q, "success")
+	item := esperarItemComStatus(t, q, "success")
 	if item.Message != "Concluído" {
 		t.Errorf("Message = %q, esperava Concluído", item.Message)
 	}

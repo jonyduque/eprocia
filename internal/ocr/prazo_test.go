@@ -21,6 +21,7 @@ func encurtar(t *testing.T, v *time.Duration, d time.Duration) {
 // de teste, que dorme 1 minuto (ver TestMain).
 func presos(t *testing.T) ferramentas {
 	t.Helper()
+	t.Setenv("EPROCIA_TESTE_FILHO", "1")
 	t.Setenv("EPROCIA_TESTE_DORMIR", "1")
 	dir := t.TempDir()
 	return ferramentas{tess: os.Args[0], pdftoppm: os.Args[0], tessDir: dir, popplerDir: dir, tessdata: dir}

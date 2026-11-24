@@ -98,11 +98,12 @@ func (d *despachoOCR) despachar(bloco []ocrTask) {
 	d.wg.Go(func() { d.runOCRBloco(bloco) })
 }
 
-// aguardar espera os blocos já despachados, sem despachar o que sobrou.
-func (d *despachoOCR) aguardar() { d.wg.Wait() }
+// esperarDespachados espera os blocos já despachados, sem despachar o que
+// sobrou. Só o cancelamento a usa.
+func (d *despachoOCR) esperarDespachados() { d.wg.Wait() }
 
-// esperar despacha o que sobrou, espera todos os blocos e devolve o mapa de
-// páginas.
+// esperar despacha o que sobrou (uma vez: zera os pendentes), espera todos os
+// blocos e devolve o mapa de páginas.
 func (d *despachoOCR) esperar() map[string]any {
 	if len(d.pendentes) > 0 {
 		restantes := max(d.p.blocosOCR-d.despachados, 1)
@@ -110,6 +111,7 @@ func (d *despachoOCR) esperar() map[string]any {
 		for bloco := range slices.Chunk(d.pendentes, k) {
 			d.despachar(bloco)
 		}
+		d.pendentes = nil
 	}
 	d.wg.Wait()
 	return d.paginasMap

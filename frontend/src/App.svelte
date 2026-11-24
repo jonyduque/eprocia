@@ -43,6 +43,7 @@
   import Settings from './components/Settings.svelte';
   import ProcessList from './components/ProcessList.svelte';
   import Aviso from './components/Aviso.svelte';
+  import { criarAnunciador } from './lib/regiaoViva.js';
   import { contarAtivos, rotuloFila } from './lib/estado.js';
   import { criarFilaPorQuadro } from './lib/quadro.js';
   import { fade } from 'svelte/transition';
@@ -276,12 +277,7 @@
   let anuncio = '';
 
   // Esvazia antes de escrever: o mesmo texto duas vezes seguidas é anunciado de novo.
-  async function anunciar(texto) {
-    if (!texto) return;
-    anuncio = '';
-    await tick();
-    anuncio = texto;
-  }
+  const anunciar = criarAnunciador((t) => (anuncio = t), tick);
 
   async function salvarRapido(mudanca, texto) {
     if (!config) return false;

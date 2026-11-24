@@ -33,6 +33,8 @@ export function descricaoOpcao(opcoes, valor) {
 // estado vale a ordem do ZIP (cronológica).
 const ORDEM_ESTADO = { ocr: 0, lendo: 1, erro: 2, aguardando: 3, concluido: 4 };
 
+// Oráculo de ordem dos testes (atividade.test.mjs, desempenho.test.mjs): sem
+// uso em produção, que ordena e resume em prepararDocs.
 export function ordenarDocs(docs) {
   return (docs ?? [])
     .map((d, i) => ({ ...d, i }))
@@ -46,18 +48,40 @@ export function naoLido(d) {
   return LEITURA_NAO_LIDO.includes(d?.leitura);
 }
 
+const ROTULO = {
+  ocr: 'Em OCR',
+  lendo: 'Lendo texto',
+  aguardando: 'Aguardando vaga',
+  concluido: 'Concluído',
+  erro: 'Erro'
+};
+
+// Estado do documento para o leitor de tela: um documento não lido termina com
+// estado 'erro' no backend, mas não é um erro do processamento.
+export function rotuloEstadoDoc(d) {
+  return naoLido(d) ? 'Não lido' : (ROTULO[d?.estado] ?? d?.estado);
+}
+
+function novoResumo() {
+  return { ativos: 0, emOcr: 0, aguardando: 0, concluidos: 0, erros: 0, paginasOcr: 0, naoLidos: 0, semOCR: 0 };
+}
+
+// Aplica a um resumo as contagens de um documento.
+function contarDoc(r, d) {
+  const nl = naoLido(d);
+  if (nl) r.naoLidos++;
+  if (d.leitura === 'sem_ocr') r.semOCR++;
+  if (d.estado === 'lendo' || d.estado === 'ocr') r.ativos++;
+  if (d.estado === 'ocr') r.emOcr++;
+  if (d.estado === 'aguardando') r.aguardando++;
+  if (d.estado === 'concluido') r.concluidos++;
+  if (d.estado === 'erro' && !nl) r.erros++;
+  r.paginasOcr += d.ocr || 0;
+}
+
 export function resumoAtividade(inst) {
-  const r = { ativos: 0, emOcr: 0, aguardando: 0, concluidos: 0, erros: 0, paginasOcr: 0, naoLidos: 0, semOCR: 0 };
-  for (const d of inst?.docs ?? []) {
-    if (naoLido(d)) r.naoLidos++;
-    if (d.leitura === 'sem_ocr') r.semOCR++;
-    if (d.estado === 'lendo' || d.estado === 'ocr') r.ativos++;
-    if (d.estado === 'ocr') r.emOcr++;
-    if (d.estado === 'aguardando') r.aguardando++;
-    if (d.estado === 'concluido') r.concluidos++;
-    if (d.estado === 'erro' && !naoLido(d)) r.erros++;
-    r.paginasOcr += d.ocr || 0;
-  }
+  const r = novoResumo();
+  for (const d of inst?.docs ?? []) contarDoc(r, d);
   return r;
 }
 
@@ -74,21 +98,15 @@ export const LIMITE_FLIP_DOCS = 60;
 // aguardando e os concluídos.
 export function prepararDocs(inst, { mostrarConcluidos = false, expandirAguardando = false } = {}) {
   const docs = inst?.docs ?? [];
-  const resumo = { ativos: 0, emOcr: 0, aguardando: 0, concluidos: 0, erros: 0, paginasOcr: 0, naoLidos: 0, semOCR: 0 };
+  const resumo = novoResumo();
   const grupos = [[], [], [], [], [], []];
   for (let i = 0; i < docs.length; i++) {
     const d = docs[i];
-    const nl = naoLido(d);
-    if (nl) resumo.naoLidos++;
-    if (d.leitura === 'sem_ocr') resumo.semOCR++;
-    if (d.estado === 'lendo' || d.estado === 'ocr') resumo.ativos++;
-    if (d.estado === 'ocr') resumo.emOcr++;
-    if (d.estado === 'concluido') resumo.concluidos++;
-    if (d.estado === 'erro' && !nl) resumo.erros++;
-    resumo.paginasOcr += d.ocr || 0;
+    const aguardandoAntes = resumo.aguardando;
+    contarDoc(resumo, d);
     const g = ORDEM_ESTADO[d.estado] ?? 5;
     if (d.estado === 'aguardando') {
-      if (resumo.aguardando++ >= LIMITE_AGUARDANDO && !expandirAguardando) continue;
+      if (aguardandoAntes >= LIMITE_AGUARDANDO && !expandirAguardando) continue;
     } else if (d.estado === 'concluido' && !mostrarConcluidos) continue;
     grupos[g].push({ ...d, i });
   }

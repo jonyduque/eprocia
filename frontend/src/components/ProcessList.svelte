@@ -43,6 +43,7 @@
   import { fly, fade, scale } from 'svelte/transition';
   import { flip } from 'svelte/animate';
   import { cubicOut } from 'svelte/easing';
+  import { criarAnunciador } from '../lib/regiaoViva.js';
   import { estadoItem, avisoFila } from '../lib/estado.js';
   import { criarAviso, duracaoMovimento, DUR_FAST, DUR_BASE } from '../lib/aviso.js';
   import { aplicarReprocessarComOCR, alvoAoFecharReprocessar } from '../lib/reprocessar.js';
@@ -94,12 +95,7 @@
   // Região viva única da lista: só marcos (fim do item, erros, pausa, filtro,
   // cópia). Limpar antes de escrever faz o leitor repetir um texto igual.
   let anuncio = '';
-  async function anunciar(texto) {
-    if (!texto) return;
-    anuncio = '';
-    await tick();
-    anuncio = texto;
-  }
+  const anunciar = criarAnunciador((t) => (anuncio = t), tick);
 
   let estadoMarcos = null;
   function registrarMarcos(lista, ativ) {
@@ -1076,8 +1072,10 @@
     white-space: nowrap;
   }
 
-  /* Fila estreita: os botões ficam só com o ícone; o nome segue no aria-label. */
-  @container (max-width: 420px) {
+  /* Fila estreita: os botões ficam só com o ícone; o nome segue no aria-label.
+     O cabeçalho com rótulos (e o ícone do título) só cabe com 484px de card
+     (medido em 2026-11-22); 492 = 484 + 8 de margem. */
+  @container (max-width: 492px) {
     .rotulo-acao {
       display: none;
     }

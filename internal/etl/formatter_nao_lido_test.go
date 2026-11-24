@@ -174,8 +174,12 @@ func TestSaida_PaginaSemOCRForaDasRegras(t *testing.T) {
 		d = docNL(1, "Evento 1 - B.pdf", "", false, pb...)
 		marcaSemOCR(d, "3", "4", "5", "6")
 		saida, _ = GenerateConsolidatedOutput(eventoNL(d), nivel)
-		if !strings.Contains(saida, pb[0]) || !strings.Contains(saida, pb[1]) {
-			t.Errorf("%s: página nativa perdeu a borda por causa das sem_ocr:\n%s", nivel, saida)
+		// 2 nativas que não podem perder a borda + 4 sem_ocr, que saem inteiras.
+		if n := strings.Count(saida, cab); n != 6 {
+			t.Errorf("%s: cabeçalho aparece %d vezes, quero 6:\n%s", nivel, n, saida)
+		}
+		if n := strings.Count(saida, rod); n != 6 {
+			t.Errorf("%s: rodapé aparece %d vezes, quero 6:\n%s", nivel, n, saida)
 		}
 
 		// (c) uma página nativa igual (200+ runas) a uma sem_ocr não vira referência.
