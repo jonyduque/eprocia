@@ -3,6 +3,7 @@ package etl
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 )
 
@@ -41,9 +42,9 @@ func (p *PDFParser) parsePoppler(
 			return nil, errCtx
 		}
 		if !comOCR {
-			return nil, resumirSegundoLeitor(p.filePath, "", err)
+			return nil, resumirSegundoLeitor(filepath.Base(p.filePath), "", err)
 		}
-		lg.Debug("segundo leitor não extraiu o texto; todas as páginas vão ao OCR", "erro", err)
+		lg.Warn("segundo leitor não extraiu o texto; todas as páginas vão ao OCR", "erro", err)
 		textos = make([]string, numPages)
 	}
 
@@ -86,7 +87,7 @@ func (p *PDFParser) parsePoppler(
 		return nil, err
 	}
 	if n := d.falhas.Load(); n > 0 {
-		lg.Warn("página com falha de OCR", "paginas", n)
+		lg.Warn("página com falha de OCR", "paginas", n, "erro", d.erroOCR())
 	}
 	return paginasMap, nil
 }

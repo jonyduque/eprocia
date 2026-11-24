@@ -33,6 +33,9 @@ type despachoOCR struct {
 	mapMu      sync.Mutex
 	wg         sync.WaitGroup
 	falhas     atomic.Int32
+	// primeiroErro: o erro da primeira página com OCR falho, para a linha
+	// Warn do documento (página a página, o erro só sai em Debug).
+	primeiroErro atomic.Pointer[error]
 
 	// O OCR em lote avisa cada página assim que o texto dela sai do tesseract;
 	// se o bloco cair depois e for refeito página a página, a página não pode
@@ -100,6 +103,14 @@ func (d *despachoOCR) despachar(bloco []ocrTask) {
 	d.wg.Go(func() { d.runOCRBloco(bloco) })
 }
 
+// erroOCR devolve o erro da primeira página com OCR falho, ou nil.
+func (d *despachoOCR) erroOCR() error {
+	if e := d.primeiroErro.Load(); e != nil {
+		return *e
+	}
+	return nil
+}
+
 // esperarDespachados espera os blocos já despachados, sem despachar o que
 // sobrou. Só o cancelamento a usa.
 func (d *despachoOCR) esperarDespachados() { d.wg.Wait() }
@@ -142,6 +153,7 @@ func (d *despachoOCR) registrarOCR(task ocrTask, ocrText string, err error) {
 		}
 		d.lg.Debug("falha no OCR; fica o texto de reserva", "pag", task.pageNum, "erro", err, "bytes_reserva", len(task.fallback))
 		d.falhas.Add(1)
+		d.primeiroErro.CompareAndSwap(nil, &err)
 		pageData = map[string]any{
 			"index":   task.pageNum,
 			"ocr":     false,

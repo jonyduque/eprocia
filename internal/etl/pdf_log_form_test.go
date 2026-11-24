@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"eprocia/internal/registro"
 )
@@ -30,8 +31,19 @@ func TestLogFormIgnorado_SoNumerosEMotivoFixo(t *testing.T) {
 		t.Fatal(err)
 	}
 	runner, _ := ocrFalso(ocrFalsoTexto, nil)
-	if _, err := parserDeArquivo(t, caminho).ParsePages(ctx, true, runner, nil); err != nil {
-		t.Fatalf("ParsePages: %v", err)
+	parser := parserDeArquivo(t, caminho)
+	feito := make(chan error, 1)
+	go func() {
+		_, err := parser.ParsePages(ctx, true, runner, nil)
+		feito <- err
+	}()
+	select {
+	case err := <-feito:
+		if err != nil {
+			t.Fatalf("ParsePages: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatalf("ParsePages travou (loop infinito na extração de texto nativo)")
 	}
 
 	motivos := map[string]bool{"stream ilegível": true, "profundidade": true, "limite por página": true, "pânico": true}
