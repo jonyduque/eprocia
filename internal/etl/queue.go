@@ -11,6 +11,7 @@ import (
 
 	"eprocia/internal/config"
 	"eprocia/internal/models"
+	"eprocia/internal/registro"
 
 	"github.com/google/uuid"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -488,9 +489,10 @@ func (q *Queue) processItem(item *QueueItem) {
 
 	q.broadcast()
 
+	lg := registro.Logger(ctx)
 	onProgress := func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int) {
-		log.Printf("[Queue] Progresso [%s]: %.2f%% - %s (Docs: %d/%d, Páginas: %d/%d)",
-			item.Name, progress*100, message, processedDocs, totalDocs, processedPages, totalPages)
+		lg.Debug("progresso", "zip", item.Name, "progresso", progress, "mensagem", message,
+			"docs", processedDocs, "total_docs", totalDocs, "paginas", processedPages, "total_paginas", totalPages)
 		q.mu.Lock()
 		if item.Status == "processing" {
 			// Os documentos rodam em paralelo e o pipeline lê os contadores sem

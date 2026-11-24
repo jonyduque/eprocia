@@ -3,7 +3,6 @@ package etl
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 )
 
@@ -26,7 +25,8 @@ func (p *PDFParser) parsePoppler(
 ) (map[string]any, error) {
 	numPages := p.numPaginas
 	comOCR := ocrEnabled && ocrRunner != nil
-	log.Printf("[PDFParser] PDF %s lido pelo segundo leitor: %d páginas", p.filePath, numPages)
+	lg := p.logger(ctx)
+	lg.Debug("PDF lido pelo segundo leitor", "paginas", numPages)
 
 	caminho, err := p.caminhoParaOCR()
 	var textos []string
@@ -43,14 +43,14 @@ func (p *PDFParser) parsePoppler(
 		if !comOCR {
 			return nil, resumirSegundoLeitor(p.filePath, "", err)
 		}
-		log.Printf("[PDFParser] Segundo leitor não extraiu o texto de %s: %v. Todas as páginas vão ao OCR.", p.filePath, err)
+		lg.Debug("segundo leitor não extraiu o texto; todas as páginas vão ao OCR", "erro", err)
 		textos = make([]string, numPages)
 	}
 
 	d := p.novoDespachoOCR(ctx, numPages, ocrRunner, onPageComplete)
 	for pageNum := 1; pageNum <= numPages; pageNum++ {
 		if err := ctx.Err(); err != nil {
-			log.Printf("[PDFParser] Contexto cancelado na leitura da página %d: %v", pageNum, err)
+			lg.Debug("leitura cancelada", "pag", pageNum, "erro", err)
 			d.esperarDespachados()
 			return nil, err
 		}
@@ -82,11 +82,11 @@ func (p *PDFParser) parsePoppler(
 
 	paginasMap := d.esperar()
 	if err := ctx.Err(); err != nil {
-		log.Printf("[PDFParser] Análise abortada devido a cancelamento do contexto: %v", err)
+		lg.Debug("análise cancelada", "erro", err)
 		return nil, err
 	}
 	if n := d.falhas.Load(); n > 0 {
-		log.Printf("[PDFParser] ATENÇÃO: %d página(s) de %s com falha de OCR.", n, p.filePath)
+		lg.Warn("página com falha de OCR", "paginas", n)
 	}
 	return paginasMap, nil
 }

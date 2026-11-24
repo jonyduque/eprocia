@@ -1,6 +1,7 @@
 package etl
 
 import (
+	"log/slog"
 	"strings"
 	"testing"
 )
@@ -49,7 +50,7 @@ func TestAnalisarPagina_Sinteticas(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ExtractNativeText: %v", err)
 			}
-			an, err := analisarPagina(page, 1, true)
+			an, err := analisarPagina(page, 1, true, slog.Default())
 			if err != nil {
 				t.Fatalf("analisarPagina: %v", err)
 			}
@@ -102,7 +103,7 @@ func TestAnalisarPagina_SinteticasComOCRDesligado(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ExtractNativeText: %v", err)
 			}
-			an, err := analisarPagina(primeiraPagina(t, p.objetos), 1, false)
+			an, err := analisarPagina(primeiraPagina(t, p.objetos), 1, false, slog.Default())
 			if err != nil {
 				t.Fatalf("analisarPagina: %v", err)
 			}

@@ -2,6 +2,7 @@ package etl
 
 import (
 	"bytes"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
@@ -61,7 +62,7 @@ func TestSemTexto_ContinuaIndoAoOCR(t *testing.T) {
 	for _, nome := range fixturesSemTexto {
 		t.Run(nome, func(t *testing.T) {
 			dados := lerFixtureBench(t, nome)
-			an, err := analisarPagina(primeiraPaginaDe(t, dados), 1, true)
+			an, err := analisarPagina(primeiraPaginaDe(t, dados), 1, true, slog.Default())
 			if err != nil {
 				t.Fatalf("analisarPagina: %v", err)
 			}

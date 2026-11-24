@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -27,6 +27,7 @@ type despachoOCR struct {
 	numPages       int
 	ocrRunner      func(context.Context, string, int) (string, error)
 	onPageComplete func(pageNum int)
+	lg             *slog.Logger // o do contexto, com o documento
 
 	paginasMap map[string]any
 	mapMu      sync.Mutex
@@ -56,6 +57,7 @@ func (p *PDFParser) novoDespachoOCR(ctx context.Context, numPages int,
 		numPages:       numPages,
 		ocrRunner:      ocrRunner,
 		onPageComplete: onPageComplete,
+		lg:             p.logger(ctx),
 		paginasMap:     make(map[string]any),
 		reportadas:     make([]atomic.Bool, numPages+1),
 		tamBloco:       min((numPages+p.blocosOCR-1)/max(p.blocosOCR, 1), maxPaginasBlocoOCR),
@@ -120,7 +122,7 @@ func (d *despachoOCR) esperar() map[string]any {
 func (d *despachoOCR) registrarOCR(task ocrTask, ocrText string, err error) {
 	var pageData map[string]any
 	if err == nil {
-		log.Printf("[PDFParser] OCR concluído para página %d (tamanho: %d)", task.pageNum, len(ocrText))
+		d.lg.Debug("OCR concluído", "pag", task.pageNum, "bytes", len(ocrText))
 		// Um OCR em branco ou ilegível não apaga a reserva; com imagem
 		// descoberta, o texto nativo que o OCR não trouxe entra junto.
 		content, comOCR := conteudoAposOCR(task, ocrText)
@@ -138,7 +140,7 @@ func (d *despachoOCR) registrarOCR(task ocrTask, ocrText string, err error) {
 		if content == "" {
 			content = marcadorErroOCR(frase)
 		}
-		log.Printf("[PDFParser] Falha no OCR para página %d: %v. Usando o texto de reserva (%d chars).", task.pageNum, err, len(task.fallback))
+		d.lg.Debug("falha no OCR; fica o texto de reserva", "pag", task.pageNum, "erro", err, "bytes_reserva", len(task.fallback))
 		d.falhas.Add(1)
 		pageData = map[string]any{
 			"index":   task.pageNum,
@@ -173,7 +175,7 @@ func (d *despachoOCR) runOCRTask(task ocrTask) error {
 	if err := d.ctx.Err(); err != nil {
 		return err
 	}
-	log.Printf("[PDFParser] Iniciando OCR para página %d...", task.pageNum)
+	d.lg.Debug("iniciando o OCR", "pag", task.pageNum)
 	caminho, err := d.p.caminhoParaOCR()
 	var ocrText string
 	if err == nil {
@@ -192,7 +194,7 @@ func (d *despachoOCR) runOCRBloco(tasks []ocrTask) {
 	for i, task := range tasks {
 		paginas[i] = task.pageNum
 	}
-	log.Printf("[PDFParser] Iniciando OCR em bloco das páginas %v...", paginas)
+	d.lg.Debug("iniciando o OCR em bloco", "paginas", paginas)
 	caminho, err := d.p.caminhoParaOCR()
 	var textos []string
 	if err == nil {
@@ -202,13 +204,13 @@ func (d *despachoOCR) runOCRBloco(tasks []ocrTask) {
 		err = fmt.Errorf("OCR em bloco devolveu %d textos para %d páginas", len(textos), len(tasks))
 	}
 	if err != nil && d.ctx.Err() != nil {
-		log.Printf("[PDFParser] OCR em bloco das páginas %v interrompido por cancelamento: %v", paginas, d.ctx.Err())
+		d.lg.Debug("OCR em bloco cancelado", "paginas", paginas, "erro", d.ctx.Err())
 		return
 	}
 	if err != nil {
 		// Uma página ruim derruba o tesseract do bloco inteiro; sozinhas,
 		// as outras ainda saem.
-		log.Printf("[PDFParser] OCR em bloco das páginas %v falhou: %v. Refazendo página a página...", paginas, err)
+		d.lg.Warn("OCR em bloco falhou; refazendo página a página", "paginas", paginas, "erro", err)
 		// Cada página que estoura o prazo custa o prazo inteiro: depois de
 		// maxPrazosSeguidos seguidas, as outras do bloco nem rodam.
 		seguidas := 0
