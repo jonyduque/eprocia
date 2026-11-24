@@ -11,15 +11,18 @@ import (
 const sep = `[\\/]+`
 
 // limite é o que pode vir depois de um prefixo de caminho para ele valer
-// como segmento inteiro: separador, aspas ou fim do texto. Fica num grupo
-// porque o RE2 não tem lookahead; a troca o devolve com ${1}.
-const limite = `([\\/"'` + "`" + `]|$)`
+// como segmento inteiro: qualquer caractere que não continue um nome
+// (separador, aspas, pontuação, espaço) ou o fim do texto. Letra, dígito,
+// '_', '~' e '-' continuam o nome: C:\Users\fulano2 não é o perfil fulano.
+// Fica num grupo porque o RE2 não tem lookahead; a troca o devolve com ${1}.
+const limite = `([^\p{L}\p{N}_~\-]|$)`
 
 // usuarioEmCaminho casa o segmento depois de \Users\ (ou /Users/) quando ele
-// é seguido por um separador. Um segmento sem separador depois é nome de
+// é seguido por um separador, por ':' com espaço ou fim depois (mensagem de
+// erro do Windows), por ',' ou por ')'. Um segmento no fim do texto é nome de
 // arquivo e fica como está. O segmento pode ter espaço (nome de usuário com
 // espaço), mas não aspas, quebra de linha nem caracteres proibidos em nome.
-var usuarioEmCaminho = regexp.MustCompile(`(?i)(` + sep + `Users` + sep + `)[^\\/"'` + "`" + `<>|:*?\r\n\t]+(` + sep + `)`)
+var usuarioEmCaminho = regexp.MustCompile(`(?i)(` + sep + `Users` + sep + `)[^\\/"'` + "`" + `<>|:*?\r\n\t]+(` + sep + `|:(?:\s|$)|[,)])`)
 
 // Saneador troca, num texto de log, o perfil e o diretório temporário do
 // usuário do Windows por %USERPROFILE% e %TEMP%, e o nome do usuário que
@@ -27,9 +30,10 @@ var usuarioEmCaminho = regexp.MustCompile(`(?i)(` + sep + `Users` + sep + `)[^\\
 type Saneador struct {
 	temp   *regexp.Regexp
 	perfil *regexp.Regexp
-	// tempSemUsers: o temporário não fica sob \Users\, então um texto sem
-	// "users" ainda pode conter o temporário.
-	tempSemUsers bool
+	// tempSemUsers e perfilSemUsers: o caminho não fica sob \Users\, então
+	// um texto sem "users" ainda pode contê-lo.
+	tempSemUsers   bool
+	perfilSemUsers bool
 }
 
 // NovoSaneador prepara o saneamento para o perfil e o temporário dados.
@@ -40,6 +44,7 @@ func NovoSaneador(perfil, temp string) *Saneador {
 		perfil: regexCaminho(perfil),
 	}
 	s.tempSemUsers = s.temp != nil && !contemUsers(temp)
+	s.perfilSemUsers = s.perfil != nil && !contemUsers(perfil)
 	return s
 }
 
@@ -55,10 +60,10 @@ func SaneadorDoSistema() *Saneador {
 // Sanear devolve o texto sem o perfil, o temporário nem o nome do usuário.
 // O temporário vem antes do perfil porque costuma ficar dentro dele.
 func (s *Saneador) Sanear(texto string) string {
-	if !contemUsers(texto) {
-		if !s.tempSemUsers || !s.temp.MatchString(texto) {
-			return texto
-		}
+	if !contemUsers(texto) &&
+		!(s.tempSemUsers && s.temp.MatchString(texto)) &&
+		!(s.perfilSemUsers && s.perfil.MatchString(texto)) {
+		return texto
 	}
 	if s.temp != nil {
 		texto = s.temp.ReplaceAllString(texto, `%TEMP%${1}`)

@@ -75,3 +75,53 @@ func TestSanear_TempForaDoPerfil(t *testing.T) {
 		t.Errorf("got %q", got)
 	}
 }
+
+func TestSanear_PerfilForaDeUsers(t *testing.T) {
+	s := NovoSaneador(`D:\Perfis\fulano`, `D:\Perfis\fulano\Temp`)
+	casos := map[string]string{
+		`abrir D:\Perfis\fulano\x.zip`:      `abrir %USERPROFILE%\x.zip`,
+		`abrir D:\perfis\FULANO\Temp\y.pdf`: `abrir %TEMP%\y.pdf`,
+	}
+	for entrada, quero := range casos {
+		if got := s.Sanear(entrada); got != quero {
+			t.Errorf("Sanear(%q) = %q, quero %q", entrada, got, quero)
+		}
+	}
+}
+
+// O perfil seguido de pontuação (mensagens de erro do Windows, parênteses,
+// fim de frase) também é trocado: o critério 6 da spec proíbe o nome no log.
+func TestSanear_PerfilSeguidoDePontuacao(t *testing.T) {
+	s := NovoSaneador(perfilTeste, tempTeste)
+	casos := map[string]string{
+		`open C:\Users\fulano: Access is denied.`: `open %USERPROFILE%: Access is denied.`,
+		`(C:\Users\fulano)`:                       `(%USERPROFILE%)`,
+		`C:\Users\fulano.`:                        `%USERPROFILE%.`,
+		`C:\Users\FULANO~1: x`:                    `C:\Users\<usuario>: x`,
+		`D:\Users\beltrano: x`:                    `D:\Users\<usuario>: x`,
+		`D:\Users\beltrano, x`:                    `D:\Users\<usuario>, x`,
+		`(D:\Users\beltrano)`:                     `(D:\Users\<usuario>)`,
+		`D:\Users\beltrano:`:                      `D:\Users\<usuario>:`,
+	}
+	for entrada, quero := range casos {
+		if got := s.Sanear(entrada); got != quero {
+			t.Errorf("Sanear(%q) = %q, quero %q", entrada, got, quero)
+		}
+	}
+}
+
+// As grafias do perfil são trocadas pela regex do perfil (saída exata), não
+// só pela regex genérica de <usuario>.
+func TestSanear_GrafiasSaidaExata(t *testing.T) {
+	s := NovoSaneador(perfilTeste, tempTeste)
+	casos := map[string]string{
+		`c:\users\FULANO\x`:    `%USERPROFILE%\x`,
+		`C:/Users/fulano/x`:    `%USERPROFILE%/x`,
+		`C:\\Users\\fulano\\x`: `%USERPROFILE%\\x`,
+	}
+	for entrada, quero := range casos {
+		if got := s.Sanear(entrada); got != quero {
+			t.Errorf("Sanear(%q) = %q, quero %q", entrada, got, quero)
+		}
+	}
+}
