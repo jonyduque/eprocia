@@ -55,7 +55,8 @@ O eprocIA faz tudo isso sozinho. Ele fica na bandeja do Windows, vigia a pasta d
 | 🧹 | **Higieniza o texto** | Quatro níveis. O Padrão remove cabeçalhos, rodapés e timbres que se repetem, resume as chancelas de assinatura numa linha e troca páginas e documentos repetidos por uma referência ao original. O Máxima também tira ruído de OCR e junta parágrafos quebrados. |
 | 🚫 | **Omite tipos de documento** | Informe os códigos (por exemplo `EXTR, COMP`) e esses documentos não são lidos nem passam por OCR: viram um aviso de uma linha no texto. |
 | 📊 | **Mostra o andamento por documento** | Abra o item em processamento para ver cada documento (aguardando, lendo, em OCR, concluído ou com erro) e quantos processos de OCR estão rodando. |
-| 🔁 | **Reprocessa com outras opções** | Um item terminado pode ser refeito com outro modo de OCR ou outro nível de higienização, só para aquele arquivo. |
+| 🧾 | **Relata o que leu** | O item concluído diz quantas páginas vieram do texto do PDF, do OCR ou estavam em branco, e avisa as que precisavam de OCR e ficaram sem. Um clique abre os detalhes: tempos, limpeza e os documentos para conferir no PDF original. |
+| 🔁 | **Reprocessa com outras opções** | Um item terminado pode ser refeito com outro modo de OCR, outro nível de higienização ou com Forçar OCR, só para aquele arquivo. |
 | 🔤 | **Estima tokens** | Cada processo concluído mostra quantos tokens o texto deve ocupar no modelo. |
 | 📋 | **Copia com um clique** | O botão de copiar põe o `.txt` inteiro na área de transferência. |
 | 🔔 | **Avisa quando termina** | Notificação do Windows quando o processamento acaba com a janela oculta. |
@@ -163,7 +164,8 @@ Tokens estimados: 98450
 - A linha `Documentos não lidos:` sai sempre, também com 0. O documento não lido aparece no `<summary>` como `NÃO LIDO` e, no corpo, como `[documento não lido: <motivo>; consulte o PDF original]`.
 - Página digitalizada com o OCR desligado sai como `[página digitalizada: o OCR está desativado]`.
 - A higienização deixa marcadores no lugar do que tirou: `[assinado: NOME, CARGO, DATA]` para a chancela de assinatura, `[conteúdo idêntico a: evento N, DOCUMENTO, pág. P]` e `[documento idêntico a: evento N, DOCUMENTO]` para repetições, e `[documento omitido: TIPO, N páginas]` para os tipos omitidos.
-- Uma falha numa página fica escrita no lugar do texto, começando por `[ERRO`, com um motivo curto. O detalhe técnico fica só no log local.
+- Quando alguma página com imagem ou desenho ficou sem texto porque o OCR estava desligado, o cabeçalho ganha a linha `Páginas que precisavam de OCR e ficaram sem: N`, logo depois de `Documentos não lidos:`. Com 0, a linha não sai.
+- Uma falha numa página fica escrita no lugar do texto, começando por `[ERRO`, com um motivo curto. O detalhe técnico vai só para o log local, quando ele está ligado (veja [Log e telemetria](#-log-e-telemetria-opcional)).
 
 > [!TIP]
 > As tags `<evento>`, `<documento>` e `<pag>` deixam a IA citar a peça e a página exatas ("Evento 5, despacho, página 1").
@@ -225,6 +227,7 @@ Com opções:
 | Opção | Valores | O que muda |
 |---|---|---|
 | 🔍 **Processamento de imagens (OCR)** | Desativado · Rápido · **Normal** · Preciso | Modelo do Tesseract usado nas páginas escaneadas. "Desativado" deixa essas páginas sem texto. |
+| 🔎 **Forçar OCR em todas as páginas de PDF** | liga/desliga (**desligado**) | Toda página de PDF passa pelo OCR, inclusive as que já têm texto. Veja abaixo. |
 | 🧹 **Higienização de texto** | Nenhuma · Básica · **Padrão** · Máxima | Nenhuma preserva o texto como extraído; Básica remove espaços e linhas vazias; Padrão também remove cabeçalhos, rodapés e duplicatas e resume assinaturas; Máxima acrescenta a limpeza de ruído de OCR e junta parágrafos. |
 | 🚫 **Omitir documentos dos tipos** | códigos separados por vírgula (ex.: `EXTR, COMP`) | O documento desses tipos vira um aviso no texto e não é lido. |
 | 👀 **Monitoramento ativo** | liga/desliga | Vigia ou não a pasta escolhida. Arrastar ZIPs para a janela funciona sempre. |
@@ -232,9 +235,59 @@ Com opções:
 
 As configurações ficam em `%APPDATA%\eprocIA\config.json`.
 
+### 🧾 Relatório e Forçar OCR
+
+- O item concluído mostra uma linha-resumo ("142 páginas: 120 do texto do PDF, 18 por OCR, 4 em branco") e, em âmbar, só o que pede atenção: páginas que precisavam de OCR e ficaram sem, páginas que não puderam ser lidas, páginas em que o OCR falhou e ficou o texto do PDF, documentos digitalizados não lidos com o OCR desligado. Página em branco ou só com texto não vai ao OCR, e isso é normal.
+- Clicar na linha-resumo abre os detalhes: páginas por categoria, tempo total e de OCR, a redução da higienização, os tipos omitidos e os documentos para conferir no PDF original, com os números das páginas.
+- Quando faltou OCR, o botão **Ler com OCR** refaz o ZIP com o OCR ligado (o modo das Configurações, ou Normal se ele estiver desativado), só nas páginas que precisam e com a mesma higienização. As Configurações não mudam.
+- **Forçar OCR** manda ao OCR toda página de PDF, mesmo com texto (HTML não passa). Existe nas Configurações (vale para todo ZIP) e no Reprocessar (vale só para aquele arquivo). Não tem efeito com o OCR desativado. É bem mais lento, e numa página com texto bom o resultado pode sair um pouco pior; mas, quando o OCR falha, sai em branco ou ilegível numa página que só foi a ele por Forçar OCR, fica o texto do PDF, como sem forçar.
+
+## 📝 Log e telemetria (opcional)
+
+Desligados por padrão: sem a variável de ambiente `EPROCIA_LOG`, o app não grava log nem telemetria e as Configurações não mostram nada sobre eles.
+
+| `EPROCIA_LOG` | Efeito |
+|---|---|
+| ausente ou vazia | Nada é gravado. |
+| `1` | Log (eventos de ZIP e de documento, avisos e erros) e telemetria. |
+| `detalhado` | O mesmo, mais uma linha por página (nível Debug). |
+
+Um valor diferente vale como `1`, com um aviso no log. A variável é lida só na partida do app.
+
+**Para ligar**, crie a variável de usuário em **Editar as variáveis de ambiente para sua conta** (procure "variáveis de ambiente" no menu Iniciar) ou, num terminal:
+
+```powershell
+setx EPROCIA_LOG 1          # ou: setx EPROCIA_LOG detalhado
+```
+
+A variável só chega a processos novos. Feche o app por **Sair** na bandeja (fechar a janela só oculta) e abra de novo. O atalho, o início com o Windows e o app aberto pelo `install.ps1` herdam o ambiente do Explorer, que só relê a variável depois de reiniciar o Explorer ou de sair e entrar no Windows; o mesmo vale para um terminal que já estava aberto.
+
+**Para desligar**, apague a variável nas Variáveis de Ambiente ou rode `[Environment]::SetEnvironmentVariable('EPROCIA_LOG', $null, 'User')` no PowerShell, e reabra o app do mesmo jeito.
+
+Com o log ligado, as Configurações mostram **Abrir pasta de logs**. Os arquivos ficam só neste computador:
+
+| Arquivo | Conteúdo | Rotação |
+|---|---|---|
+| `%APPDATA%\eprocIA\logs\eprocia.log` | JSON Lines. Leva os **nomes dos ZIPs e dos documentos** (o nome do ZIP costuma ser o número do processo). O nome do usuário do Windows nos caminhos vira `<usuario>`. | 5 MB, guarda `eprocia.1.log` a `eprocia.5.log`; `eprocia*.log` com mais de 30 dias é apagado quando o app abre com o log ligado. |
+| `%APPDATA%\eprocIA\telemetria\telemetria.jsonl` | Uma linha por ZIP terminado: contagens de páginas e documentos, tamanhos, tempos, a configuração usada (sem a pasta) e o resultado. Da máquina, só número de núcleos, memória total, versão e build do Windows e arquitetura. **Nenhum nome** de ZIP, documento, pasta, computador ou usuário, e nenhum texto de página. | 10 MB, guarda 5 arquivos; não apaga por idade. |
+
+Nada disso é enviado: log e telemetria não usam a rede. Para partilhar, prefira **só a telemetria**. O log e a telemetria têm o mesmo `item_id`, então quem recebe os dois consegue ligar a telemetria aos nomes.
+
+Para partilhar um log sem os nomes, passe-o pelo `scripts/anonimizar-log` (precisa do Go e deste repositório):
+
+```bash
+go run ./scripts/anonimizar-log eprocia.log eprocia.1.log
+```
+
+- Troca cada nome de ZIP por `zip-N` e cada nome de documento por `doc-N`. Vários arquivos numa mesma execução partilham a tabela, então o mesmo nome tem o mesmo rótulo em todos.
+- Grava `<nome>.anon.log` ao lado de cada entrada e lista as linhas em que ainda sobrou caminho com nome de usuário (sai com código 1 nesse caso).
+- Copie os arquivos para fora da pasta de logs antes de rodar: um `eprocia.anon.log` gravado lá dentro casa com `eprocia*.log` e é apagado pela limpeza de 30 dias.
+- O nome do ZIP sem a extensão também é trocado onde aparece sozinho (delimitado), mas só com 4 caracteres ou mais; um nome mais curto só é trocado nas formas com extensão (`.zip`, `.txt`).
+- Números de processo que aparecem fora dos nomes de ZIP e de documento ficam como estão. Leia o arquivo antes de partilhar.
+
 ## 🔒 Privacidade
 
-Nada sai da sua máquina. O eprocIA não faz nenhuma chamada de rede: o OCR, as fontes e a interface vêm embutidos no executável. O texto só vai para uma IA quando **você** cola.
+Nada sai da sua máquina. O eprocIA não faz nenhuma chamada de rede: o OCR, as fontes e a interface vêm embutidos no executável. O texto só vai para uma IA quando **você** cola. O log e a telemetria, quando ligados por `EPROCIA_LOG`, ficam só no computador.
 
 ## 🛠️ Desenvolvimento
 
@@ -282,8 +335,10 @@ Para relatar uma vulnerabilidade, siga o [`SECURITY.md`](SECURITY.md).
 | `internal/watchdog/` | Vigia da pasta (fsnotify) e varredura de ZIPs pendentes ao abrir |
 | `internal/config/` | `config.json` com valores padrão e gravação atômica |
 | `internal/autostart/` | Chave `Run` do registro para iniciar com o Windows |
+| `internal/registro/` | Log em arquivo com `EPROCIA_LOG`: rotação, retenção e troca do nome do usuário |
+| `internal/telemetria/` | Registro local por ZIP, sem nomes |
 | `frontend/src/` | Interface em Svelte 5 |
-| `scripts/` | Gate de build, benchmarks, capturas visuais e gerador de ícone |
+| `scripts/` | Gate de build, benchmarks, capturas visuais, gerador de ícone e `anonimizar-log` |
 | `.github/workflows/` | CI, varredura de segurança e release |
 | `PRD.md`, `DESIGN.md` | Especificação do produto e do visual |
 
