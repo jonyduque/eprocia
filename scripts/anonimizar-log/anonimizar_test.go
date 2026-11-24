@@ -166,6 +166,22 @@ func TestAnonimizar_RadicalNaoTrocaChave(t *testing.T) {
 	}
 }
 
+func TestAnonimizar_RadicalComMaisDelimitadores(t *testing.T) {
+	entrada := `{"msg":"x","zip":"5000000-00.2026.4.00.0010.zip"}` + "\n" +
+		`{"msg":"y","pasta":"C:\\Usuarios\\exemplo\\5000000-00.2026.4.00.0010_anexos (5000000-00.2026.4.00.0010)","lista":"[5000000-00.2026.4.00.0010],5000000-00.2026.4.00.0010-b"}` + "\n"
+	linhas, _ := rodar(t, entrada)
+	todasValidas(t, linhas)
+	if strings.Contains(linhas[1], "5000000-00.2026.4.00.0010") {
+		t.Errorf("o CNJ sobrou: %s", linhas[1])
+	}
+	if got := campo(t, linhas[1], "pasta"); got != `C:\Usuarios\exemplo\zip-1_anexos (zip-1)` {
+		t.Errorf("pasta = %q", got)
+	}
+	if got := campo(t, linhas[1], "lista"); got != `[zip-1],zip-1-b` {
+		t.Errorf("lista = %q", got)
+	}
+}
+
 func TestAnonimizar_JSONQueNaoEObjeto(t *testing.T) {
 	entrada := `"texto"` + "\n" + "3\n" + "[]\n" + `["a",{"zip":"x.zip"}]` + "\n" +
 		`{"msg":"ok","zip":"5000000-00.2026.4.00.0007.zip"}` + "\n"

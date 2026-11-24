@@ -256,9 +256,16 @@ func (t *trocador) Replace(linha string) string {
 	return linha
 }
 
+// Delimitadores do radical de ZIP: antes (além do início da linha) e
+// depois (além do fim). '_' e '-' depois cobrem pastas como <CNJ>_anexos.
+const (
+	delimAntes  = `\/"' ([,`
+	delimDepois = `\/"'.: )],_-`
+)
+
 // trocarDelimitado troca as ocorrências de de que têm antes o início da
-// linha, \, /, aspas ou espaço e depois \, /, aspas, '.', ':', espaço ou o
-// fim. Uma chave JSON ("de":) fica como está. A busca é feita à mão, e não
+// linha ou um byte de delimAntes e depois o fim ou um byte de delimDepois.
+// Uma chave JSON ("de":) fica como está. A busca é feita à mão, e não
 // por regex, porque o RE2 não tem lookaround: uma regex consumiria o
 // delimitador e perderia a ocorrência seguinte que o partilha.
 func trocarDelimitado(linha, de, para string) string {
@@ -282,8 +289,8 @@ func trocarDelimitado(linha, de, para string) string {
 			depois = linha[fim]
 		}
 		chave := antes == '"' && depois == '"' && fim+1 < len(linha) && linha[fim+1] == ':'
-		if (j == 0 || strings.IndexByte(`\/"' `, antes) >= 0) &&
-			(fim == len(linha) || strings.IndexByte(`\/"'.: `, depois) >= 0) && !chave {
+		if (j == 0 || strings.IndexByte(delimAntes, antes) >= 0) &&
+			(fim == len(linha) || strings.IndexByte(delimDepois, depois) >= 0) && !chave {
 			b.WriteString(linha[ini:j])
 			b.WriteString(para)
 			ini = fim
