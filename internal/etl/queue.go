@@ -44,11 +44,15 @@ type QueueItem struct {
 	Timestamp int64                `json:"timestamp"`
 	// OcrMode e CleaningLevel são os da última execução do item (ou os que a
 	// próxima vai usar, num item reprocessado que ainda aguarda).
-	OcrMode       string             `json:"ocr_mode,omitempty"`
-	CleaningLevel string             `json:"cleaning_level,omitempty"`
-	cancel        context.CancelFunc `json:"-"`
+	OcrMode       string `json:"ocr_mode,omitempty"`
+	CleaningLevel string `json:"cleaning_level,omitempty"`
+	// ForcarOCR é o Forçar OCR efetivo da última execução (false com OCR
+	// desligado), ou o que a próxima vai usar se o Reprocessar o informou.
+	ForcarOCR bool               `json:"forcar_ocr,omitempty"`
+	cancel    context.CancelFunc `json:"-"`
 
-	// ajuste troca OCR e higienização da config global só para este item.
+	// ajuste troca OCR, higienização e Forçar OCR da config global só para
+	// este item.
 	ajuste *ajusteConfig
 	// atividade guarda o estado por documento da execução atual ou da última.
 	atividade *Atividade
@@ -60,6 +64,8 @@ type QueueItem struct {
 
 type ajusteConfig struct {
 	ocrMode, cleaningLevel string
+	// forcarOCR nil usa o Forçar OCR da config global.
+	forcarOCR *bool
 }
 
 // Queue handles file processing sequentially in a thread-safe manner.
@@ -257,12 +263,15 @@ func copiarItem(item *QueueItem) *QueueItem {
 		Timestamp:     item.Timestamp,
 		OcrMode:       item.OcrMode,
 		CleaningLevel: item.CleaningLevel,
+		ForcarOCR:     item.ForcarOCR,
 	}
 }
 
 // Reprocessar devolve à fila um item que já terminou, com OCR e higienização
-// próprios. A config global não muda; o .txt anterior é sobrescrito.
-func (q *Queue) Reprocessar(id, ocrMode, cleaningLevel string) error {
+// próprios e, se forcarOCR não for nil, com Forçar OCR próprio (nil usa o da
+// config global; com ocrMode "none" ele não tem efeito). A config global não
+// muda; o .txt anterior é sobrescrito.
+func (q *Queue) Reprocessar(id, ocrMode, cleaningLevel string, forcarOCR *bool) error {
 	if !config.ModoOCRValido(ocrMode) {
 		return fmt.Errorf("modo de OCR inválido: %q", ocrMode)
 	}
@@ -281,7 +290,13 @@ func (q *Queue) Reprocessar(id, ocrMode, cleaningLevel string) error {
 		return fmt.Errorf("o item ainda está na fila ou em processamento")
 	}
 	pararEnvioPendente(item)
-	item.ajuste = &ajusteConfig{ocrMode: ocrMode, cleaningLevel: cleaningLevel}
+	var forcar *bool
+	if forcarOCR != nil {
+		v := *forcarOCR
+		forcar = &v
+		item.ForcarOCR = v && ocrMode != "none"
+	}
+	item.ajuste = &ajusteConfig{ocrMode: ocrMode, cleaningLevel: cleaningLevel, forcarOCR: forcar}
 	item.OcrMode, item.CleaningLevel = ocrMode, cleaningLevel
 	item.Status = "pending"
 	item.Message = "Na fila..."
@@ -298,7 +313,11 @@ func (q *Queue) Reprocessar(id, ocrMode, cleaningLevel string) error {
 	q.items = append([]*QueueItem{item}, q.items...)
 	q.mu.Unlock()
 
-	slog.Info("reprocessar", "item_id", item.ID, "zip", item.Name, "ocr_mode", ocrMode, "cleaning_level", cleaningLevel)
+	attrs := []any{"item_id", item.ID, "zip", item.Name, "ocr_mode", ocrMode, "cleaning_level", cleaningLevel}
+	if forcar != nil {
+		attrs = append(attrs, "forcar_ocr", *forcar)
+	}
+	slog.Info("reprocessar", attrs...)
 	q.broadcast()
 	q.startProcessing()
 	return nil
@@ -541,10 +560,14 @@ func (q *Queue) processItem(item *QueueItem) {
 	if ajuste != nil {
 		copia := *cfg
 		copia.OcrMode, copia.CleaningLevel = ajuste.ocrMode, ajuste.cleaningLevel
+		if ajuste.forcarOCR != nil {
+			copia.ForcarOCR = *ajuste.forcarOCR
+		}
 		cfg = &copia
 	}
 	q.mu.Lock()
 	item.OcrMode, item.CleaningLevel = cfg.OcrMode, cfg.CleaningLevel
+	item.ForcarOCR = forcarOCREfetivo(cfg)
 	q.mu.Unlock()
 
 	processar := q.processar

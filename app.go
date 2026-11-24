@@ -474,12 +474,14 @@ func (a *App) RemoveQueueItem(id string) {
 }
 
 // ReprocessQueueItem devolve à fila um item concluído, com erro ou cancelado,
-// usando o OCR e a higienização informados só para ele.
-func (a *App) ReprocessQueueItem(id, ocrMode, cleaningLevel string) error {
+// usando o OCR, a higienização e o Forçar OCR informados só para ele. O
+// Forçar OCR é sempre explícito: a tela decide o valor (a caixa nasce da
+// config global; "Ler com OCR" manda false).
+func (a *App) ReprocessQueueItem(id, ocrMode, cleaningLevel string, forcarOCR bool) error {
 	if a.queue == nil {
 		return fmt.Errorf("fila não inicializada")
 	}
-	return a.queue.Reprocessar(id, ocrMode, cleaningLevel)
+	return a.queue.Reprocessar(id, ocrMode, cleaningLevel, &forcarOCR)
 }
 
 // GetQueueActivity devolve o estado de cada documento do item (o que está em

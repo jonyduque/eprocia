@@ -82,7 +82,7 @@ func TestQueue_RelatorioZeradoAoReprocessarECancelar(t *testing.T) {
 		t.Helper()
 		modo = m
 		q.Pause()
-		if err := q.Reprocessar(item.ID, "none", "none"); err != nil {
+		if err := q.Reprocessar(item.ID, "none", "none", nil); err != nil {
 			t.Fatalf("Reprocessar: %v", err)
 		}
 		if got := q.GetItems()[0]; got.Relatorio != nil {
@@ -103,7 +103,7 @@ func TestQueue_RelatorioZeradoAoReprocessarECancelar(t *testing.T) {
 	// Um item com relatório (de uma execução anterior) que é cancelado termina sem.
 	modo = "ok"
 	q.Pause()
-	if err := q.Reprocessar(item.ID, "none", "none"); err != nil {
+	if err := q.Reprocessar(item.ID, "none", "none", nil); err != nil {
 		t.Fatalf("Reprocessar: %v", err)
 	}
 	q.Resume()

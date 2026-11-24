@@ -78,8 +78,8 @@ export function RemoveQueueItem(arg1) {
   return window['go']['main']['App']['RemoveQueueItem'](arg1);
 }
 
-export function ReprocessQueueItem(arg1, arg2, arg3) {
-  return window['go']['main']['App']['ReprocessQueueItem'](arg1, arg2, arg3);
+export function ReprocessQueueItem(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['ReprocessQueueItem'](arg1, arg2, arg3, arg4);
 }
 
 export function ResumeQueue() {

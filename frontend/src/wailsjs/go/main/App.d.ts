@@ -41,7 +41,7 @@ export function Quit():Promise<void>;
 
 export function RemoveQueueItem(arg1:string):Promise<void>;
 
-export function ReprocessQueueItem(arg1:string,arg2:string,arg3:string):Promise<void>;
+export function ReprocessQueueItem(arg1:string,arg2:string,arg3:string,arg4:boolean):Promise<void>;
 
 export function ResumeQueue():Promise<void>;
 

@@ -87,6 +87,7 @@ export namespace etl {
 	    timestamp: number;
 	    ocr_mode?: string;
 	    cleaning_level?: string;
+	    forcar_ocr?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new QueueItem(source);
@@ -114,6 +115,7 @@ export namespace etl {
 	        this.timestamp = source["timestamp"];
 	        this.ocr_mode = source["ocr_mode"];
 	        this.cleaning_level = source["cleaning_level"];
+	        this.forcar_ocr = source["forcar_ocr"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -147,6 +149,7 @@ export namespace models {
 	    watchdog_enabled: boolean;
 	    theme: string;
 	    omitir_tipos: string[];
+	    forcar_ocr: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -161,6 +164,7 @@ export namespace models {
 	        this.watchdog_enabled = source["watchdog_enabled"];
 	        this.theme = source["theme"];
 	        this.omitir_tipos = source["omitir_tipos"];
+	        this.forcar_ocr = source["forcar_ocr"];
 	    }
 	}
 	export class DocAtencao {
