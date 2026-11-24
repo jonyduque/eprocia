@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { AJUDA_FORCAR_OCR_SEM_OCR } from './src/lib/textos.js';
 
 const ler = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const settings = ler('./src/components/Settings.svelte');
@@ -15,10 +16,15 @@ function inputCom(fonte, atributo) {
 
 describe('Forçar OCR nas Configurações', () => {
   const caixa = inputCom(settings, 'config\\.forcar_ocr');
-  it('caixa ligada a config.forcar_ocr', () => {
+  it('interruptor ligado a config.forcar_ocr, como o do autostart', () => {
     assert.ok(caixa, 'falta o input ligado a config.forcar_ocr');
     assert.match(caixa, /type="checkbox"/);
+    assert.match(caixa, /role="switch"/);
     assert.match(caixa, /bind:checked=\{config\.forcar_ocr\}/);
+    // Rótulo à esquerda (label for) e o switch à direita, numa .toggle-group.
+    const grupo = settings.match(/<div class="toggle-group">\s*<label for="forcar-ocr">[\s\S]*?<\/div>/)?.[0] ?? '';
+    assert.ok(grupo, 'falta a .toggle-group com o rótulo à esquerda');
+    assert.match(grupo, /\{ROTULO_FORCAR_OCR_CONFIG\}[\s\S]*<label class="switch">[\s\S]*id="forcar-ocr"[\s\S]*<span class="slider" aria-hidden="true"><\/span>/);
   });
   it('desabilitada com ocr_mode none, sem mexer no valor', () => {
     assert.match(caixa, /disabled=\{config\.ocr_mode === 'none'\}/);
@@ -30,8 +36,20 @@ describe('Forçar OCR nas Configurações', () => {
   });
   it('rótulo e ajuda vêm de textos.js', () => {
     assert.match(settings, /\{ROTULO_FORCAR_OCR_CONFIG\}/);
-    assert.match(settings, /\{AJUDA_FORCAR_OCR_CONFIG\}/);
+    assert.match(settings, /\bAJUDA_FORCAR_OCR_CONFIG\b/);
     assert.match(caixa, /aria-describedby="ajuda-forcar-ocr"/);
+  });
+  it('com OCR desligado a ajuda diz por que não tem efeito, no mesmo id', () => {
+    assert.match(
+      settings,
+      /<p class="help-text" id="ajuda-forcar-ocr">\{config\.ocr_mode === 'none' \? AJUDA_FORCAR_OCR_SEM_OCR : AJUDA_FORCAR_OCR_CONFIG\}<\/p>/
+    );
+  });
+});
+
+describe('AJUDA_FORCAR_OCR_SEM_OCR', () => {
+  it('texto exato', () => {
+    assert.equal(AJUDA_FORCAR_OCR_SEM_OCR, 'Sem efeito com o OCR desligado; escolha um modo de OCR para usar.');
   });
 });
 
@@ -51,7 +69,17 @@ describe('Forçar OCR no Reprocessar', () => {
   });
   it('rótulo e ajuda vêm de textos.js', () => {
     assert.match(reprocessar, /\{ROTULO_FORCAR_OCR_REPROCESSAR\}/);
-    assert.match(reprocessar, /\{AJUDA_FORCAR_OCR_REPROCESSAR\}/);
+    assert.match(reprocessar, /\bAJUDA_FORCAR_OCR_REPROCESSAR\b/);
+  });
+  it('com OCR desligado a ajuda diz por que não tem efeito, no mesmo id', () => {
+    assert.match(caixa, /aria-describedby="\{id\}-ajuda-forcar"/);
+    assert.match(
+      reprocessar,
+      /id="\{id\}-ajuda-forcar">\{ocr === 'none' \? AJUDA_FORCAR_OCR_SEM_OCR : AJUDA_FORCAR_OCR_REPROCESSAR\}<\/p>/
+    );
+  });
+  it('no Reprocessar fica a caixa nativa, sem switch', () => {
+    assert.doesNotMatch(caixa, /role="switch"/);
   });
 });
 

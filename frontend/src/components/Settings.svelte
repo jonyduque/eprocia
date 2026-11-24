@@ -8,6 +8,7 @@
   import FolderX from 'lucide-svelte/icons/folder-x';
   import LoaderCircle from 'lucide-svelte/icons/loader-circle';
   import Power from 'lucide-svelte/icons/power';
+  import ScanEye from 'lucide-svelte/icons/scan-eye';
   import ScanText from 'lucide-svelte/icons/scan-text';
   import Sparkles from 'lucide-svelte/icons/sparkles';
   import Salvo from './Salvo.svelte';
@@ -20,6 +21,7 @@
   import { itensLog } from '../lib/log.js';
   import {
     AJUDA_FORCAR_OCR_CONFIG,
+    AJUDA_FORCAR_OCR_SEM_OCR,
     ERRO_ABRIR_LOGS,
     ROTULO_FORCAR_OCR_CONFIG
   } from '../lib/textos.js';
@@ -236,22 +238,29 @@
         <p class="help-text" id="ajuda-ocr">{descricaoOpcao(OPCOES_OCR, previaOcr ?? config.ocr_mode)}</p>
       </div>
 
-      <!-- Com o OCR desligado a caixa fica desabilitada e o valor salvo não muda:
-           voltando a um modo com OCR, ela reaparece como estava. -->
+      <!-- Com o OCR desligado o interruptor fica desabilitado e o valor salvo não
+           muda (voltando a um modo com OCR, reaparece como estava); a ajuda diz por quê. -->
       <div class="form-group">
-        <label class="caixa" for="forcar-ocr">
-          <input
-            id="forcar-ocr"
-            type="checkbox"
-            bind:checked={config.forcar_ocr}
-            disabled={config.ocr_mode === 'none'}
-            aria-describedby="ajuda-forcar-ocr"
-            on:change={() => handleSave('forcar')}
-          />
-          <span>{ROTULO_FORCAR_OCR_CONFIG}</span>
-          <Salvo campo="forcar" {confirmado} />
-        </label>
-        <p class="help-text" id="ajuda-forcar-ocr">{AJUDA_FORCAR_OCR_CONFIG}</p>
+        <div class="toggle-group">
+          <label for="forcar-ocr">
+            <span class="icone-rotulo"><Icone icone={ScanEye} tamanho={14} /></span>
+            <span class="rotulo-texto">{ROTULO_FORCAR_OCR_CONFIG}</span>
+            <Salvo campo="forcar" {confirmado} />
+          </label>
+          <label class="switch">
+            <input
+              id="forcar-ocr"
+              type="checkbox"
+              role="switch"
+              bind:checked={config.forcar_ocr}
+              disabled={config.ocr_mode === 'none'}
+              aria-describedby="ajuda-forcar-ocr"
+              on:change={() => handleSave('forcar')}
+            />
+            <span class="slider" aria-hidden="true"></span>
+          </label>
+        </div>
+        <p class="help-text" id="ajuda-forcar-ocr">{config.ocr_mode === 'none' ? AJUDA_FORCAR_OCR_SEM_OCR : AJUDA_FORCAR_OCR_CONFIG}</p>
       </div>
 
       <div class="form-group">
@@ -448,27 +457,18 @@
     gap: 4px;
   }
 
+  /* No .form-group (coluna flex): não estica e, a 280px, quebra em vez de cortar. */
   .btn-log {
     align-self: flex-start;
+    width: fit-content;
+    max-width: 100%;
+    white-space: normal;
+    text-align: left;
   }
 
-  /* Caixa de marcar com o rótulo à direita; o texto quebra em vez de cortar. */
-  .caixa {
-    display: flex;
-    align-items: flex-start;
-    gap: 6px;
-    cursor: pointer;
-  }
-
-  .caixa input {
-    margin: 2px 0 0;
-    flex-shrink: 0;
-    accent-color: var(--accent);
-  }
-
-  .caixa:has(input:disabled) {
-    cursor: default;
-    color: var(--text-secondary);
+  /* Rótulo longo quebra a linha em vez de empurrar o switch. */
+  .rotulo-texto {
+    min-width: 0;
   }
 
   input[type="text"] {

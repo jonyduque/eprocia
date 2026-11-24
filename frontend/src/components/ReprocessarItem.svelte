@@ -4,7 +4,11 @@
   import { cubicOut } from 'svelte/easing';
   import { duracaoMovimento, DUR_FAST } from '../lib/aviso.js';
   import { OPCOES_OCR, OPCOES_LIMPEZA } from '../lib/atividade.js';
-  import { AJUDA_FORCAR_OCR_REPROCESSAR, ROTULO_FORCAR_OCR_REPROCESSAR } from '../lib/textos.js';
+  import {
+    AJUDA_FORCAR_OCR_REPROCESSAR,
+    AJUDA_FORCAR_OCR_SEM_OCR,
+    ROTULO_FORCAR_OCR_REPROCESSAR
+  } from '../lib/textos.js';
   import Segmentado from './Segmentado.svelte';
   import Icone from './Icone.svelte';
   import RotateCcw from 'lucide-svelte/icons/rotate-ccw';
@@ -66,7 +70,7 @@
       />
       <span>{ROTULO_FORCAR_OCR_REPROCESSAR}</span>
     </label>
-    <p class="ajuda" id="{id}-ajuda-forcar">{AJUDA_FORCAR_OCR_REPROCESSAR}</p>
+    <p class="ajuda" id="{id}-ajuda-forcar">{ocr === 'none' ? AJUDA_FORCAR_OCR_SEM_OCR : AJUDA_FORCAR_OCR_REPROCESSAR}</p>
   </div>
   <div class="botoes">
     <button type="button" class="secundario" on:click={aoCancelar}>Cancelar</button>

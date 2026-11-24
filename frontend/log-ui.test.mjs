@@ -59,6 +59,14 @@ describe('log na interface só com o log ativo', () => {
     assert.match(dentro, /on:click=\{abrirPastaLogs\}/);
     assert.match(settings, /AbrirPastaLogs\(\)/);
   });
+  it('o botão da pasta não estica nem corta o texto a 280 px', () => {
+    const regra = settings.match(/\.btn-log \{[^}]*\}/)?.[0] ?? '';
+    assert.match(regra, /align-self: flex-start;/);
+    assert.match(regra, /width: fit-content;/);
+    assert.match(regra, /max-width: 100%;/);
+    assert.match(regra, /white-space: normal;/);
+    assert.match(settings, /\.form-group \{\s*display: flex;\s*flex-direction: column;/);
+  });
   it('Settings recebe logAtivo, falso por padrão', () => {
     assert.match(settings, /export let logAtivo = false;/);
   });
