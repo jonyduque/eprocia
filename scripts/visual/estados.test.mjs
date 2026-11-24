@@ -23,12 +23,12 @@ const CHAVES_RELATORIO = {
 };
 // As cinco categorias disjuntas da spec (2026-11-22-relatorio-processamento-design.md).
 const CATEGORIAS = ['lida_nativa', 'lida_ocr', 'vazia', 'sem_ocr', 'com_erro'];
-const NOVOS = ['relatorio', 'configuracoes-log', 'configuracoes-none'];
+const NOVOS = ['relatorio', 'configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida'];
 
 describe('estados visuais', () => {
   it('cobre os estados da review.json', () => {
     assert.deepEqual(Object.keys(ESTADOS).sort(),
-      ['configuracoes', 'configuracoes-log', 'configuracoes-none', 'erro', 'fila', 'nao-lidos', 'processando', 'relatorio', 'vazio']);
+      ['configuracoes', 'configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida', 'erro', 'fila', 'nao-lidos', 'processando', 'relatorio', 'vazio']);
   });
 
   it('relatorio: três concluídos, um só nativo, um com OCR e em branco, um com os três avisos e atencao', () => {
@@ -136,6 +136,10 @@ describe('estados visuais', () => {
       assert.equal(await window.go.main.App.ReprocessQueueItem('x', 'normal', 'standard', true), undefined);
       instalarStubs({ estado: ESTADOS['configuracoes-log'], tema: 'escuro' });
       assert.equal(await window.go.main.App.LogAtivo(), true);
+      // Categorias recolhidas só quando o estado pede (o app lê eprocia.categorias ao abrir).
+      assert.equal(store['eprocia.categorias'], undefined, 'categorias gravadas sem o estado pedir');
+      instalarStubs({ estado: ESTADOS['configuracoes-recolhida'], tema: 'escuro' });
+      assert.deepEqual(JSON.parse(store['eprocia.categorias']), { monitoramento: false, processamento: true, sistema: false });
     } finally {
       delete globalThis.go;
       delete globalThis.runtime;

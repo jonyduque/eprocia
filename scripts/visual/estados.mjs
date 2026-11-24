@@ -242,6 +242,15 @@ export const ESTADOS = {
     pausado: false,
     LogAtivo: false,
   },
+  // Categoria Processamento recolhida (eprocia.categorias, lib/categorias.js),
+  // com o log ligado para o bloco Sistema mostrar o conteúdo todo.
+  'configuracoes-recolhida': {
+    config: { ...CONFIG, ocr_mode: 'normal' },
+    fila: [],
+    pausado: false,
+    LogAtivo: true,
+    categorias: { monitoramento: false, processamento: true, sistema: false },
+  },
 };
 
 // instalarStubs runs in the browser (page.addInitScript) before any app code.
@@ -249,6 +258,7 @@ export const ESTADOS = {
 // with fakes that serve the given state. Unknown calls resolve to undefined.
 export function instalarStubs({ estado, tema }) {
   localStorage.setItem('theme', tema === 'claro' ? 'light' : 'dark');
+  if (estado.categorias) localStorage.setItem('eprocia.categorias', JSON.stringify(estado.categorias));
   const dados = {
     GetConfig: estado.config,
     GetQueue: estado.fila,
