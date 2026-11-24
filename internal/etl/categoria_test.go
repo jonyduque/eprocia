@@ -47,6 +47,7 @@ func TestMotivoOCR_String(t *testing.T) {
 	for m, quer := range map[motivoOCR]string{
 		motivoPadrao: "padrao", motivoIlegivel: "ilegivel",
 		motivoImagemDescoberta: "imagem_descoberta", motivoIsca: "isca",
+		motivoForcado: "forcado",
 	} {
 		if got := m.String(); got != quer {
 			t.Errorf("motivoOCR(%d).String() = %q, quero %q", int(m), got, quer)

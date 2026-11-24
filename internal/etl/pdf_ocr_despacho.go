@@ -151,8 +151,10 @@ func (d *despachoOCR) registrarOCR(task ocrTask, ocrText string, err error) {
 		// e o stderr: a página e ocr_erro recebem só a frase fixa da classe, e
 		// o erro inteiro fica no log.
 		frase := fraseOCR(err)
+		// Forçar OCR nunca piora a página: ela fica com o nativo, mesmo vazio.
+		forcado := task.motivo == motivoForcado
 		content := task.fallback
-		if content == "" {
+		if content == "" && !forcado {
 			content = marcadorErroOCR(frase)
 		}
 		d.lg.Debug("falha no OCR; fica o texto de reserva", "pag", task.pageNum, "erro", err, "bytes_reserva", len(task.fallback))
@@ -164,15 +166,17 @@ func (d *despachoOCR) registrarOCR(task ocrTask, ocrText string, err error) {
 			"content": content,
 		}
 		// Com texto de reserva, em qualquer regra, a página leva ocr_aviso: o
-		// formatter põe antes do texto o aviso de que o OCR falhou.
-		if task.fallback != "" {
+		// formatter põe antes do texto o aviso de que o OCR falhou. A forçada
+		// leva o aviso mesmo com o nativo vazio.
+		if task.fallback != "" || forcado {
 			pageData["ocr_aviso"] = true
 		}
-		// Nas regras novas (imagem descoberta, isca) e no Forçar OCR a reserva
-		// é o texto nativo que a página teria sem o OCR: a página fica sem
-		// ocr_erro nem ocr_prazo, para a falha não tirar o documento de lido.
-		regraNovaComReserva := task.fallback != "" &&
-			(task.motivo == motivoImagemDescoberta || task.motivo == motivoIsca || task.motivo == motivoForcado)
+		// Nas regras novas (imagem descoberta, isca) a reserva é o texto
+		// nativo que a v0.4.1 gravaria, e no Forçar OCR é o que a página teria
+		// sem forçar (mesmo vazio): a página fica sem ocr_erro nem ocr_prazo,
+		// para a falha não tirar o documento de lido.
+		regraNovaComReserva := forcado || (task.fallback != "" &&
+			(task.motivo == motivoImagemDescoberta || task.motivo == motivoIsca))
 		if !regraNovaComReserva {
 			pageData["ocr_erro"] = frase
 			if errors.Is(err, ocr.ErrPrazo) {

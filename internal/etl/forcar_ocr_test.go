@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"slices"
 	"strings"
@@ -330,5 +331,108 @@ func TestForcarOCR_Poppler(t *testing.T) {
 	}
 	if !slices.Equal(r2.paginas, []int{2}) {
 		t.Errorf("sem forçar, despachadas %v, quero [2]", r2.paginas)
+	}
+}
+
+// pdfEmBrancoComMarca monta um PDF de uma página sem texto e sem imagem (fora
+// do OCR sem forçar), com a marca num objeto solto para o OCR falso.
+func pdfEmBrancoComMarca(marca string) []byte {
+	stream := "BT\n/F1 12 Tf\n72 712 Td\n() Tj\nET"
+	return buildPDF([]string{
+		"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
+		"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj",
+		"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> /Contents 4 0 R >>\nendobj",
+		fmt.Sprintf("4 0 obj\n<< /Length %d >>\nstream\n%s\nendstream\nendobj", len(stream), stream),
+		fmt.Sprintf("5 0 obj\n(%s)\nendobj", marca),
+	})
+}
+
+// A página que só foi ao OCR por Forçar OCR nunca fica pior que sem forçar:
+// com o OCR falho, em branco ou ilegível, fica o nativo (mesmo vazio), sem
+// ocr_erro, na categoria que teria sem forçar, e o documento não muda de
+// leitura.
+func TestForcarOCR_NuncaPioraAPagina(t *testing.T) {
+	isolarTemp(t)
+	o := &ocrForcadoFalso{marcasPDF: []string{"FALHA", "LIXO", "BRANCO"}}
+	o.instalar(t)
+	entradas := []entradaZip{
+		// Página em branco e página de texto, as duas com o OCR falhando.
+		{"Evento 1 - DOC1.pdf", pdfComTexto("", textoLongo("FALHA um", 300))},
+		// Documento de uma página em branco, OCR falhando.
+		{"Evento 2 - DOC2.pdf", pdfEmBrancoComMarca("FALHA dois")},
+		// Página em branco com OCR ilegível e com OCR em branco.
+		{"Evento 3 - DOC3.pdf", pdfEmBrancoComMarca("LIXO tres")},
+		{"Evento 4 - DOC4.pdf", pdfEmBrancoComMarca("BRANCO quatro")},
+	}
+	zipPath := gravarZip(t, entradas)
+	forcado := processarCapturando(t, zipPath, &models.Config{CleaningLevel: "standard", OcrMode: "normal", ForcarOCR: true})
+	if got := len(o.lista()); got != 5 {
+		t.Fatalf("despachadas %d páginas, quero 5: %v", got, o.lista())
+	}
+	semForcar := processarCapturando(t, gravarZip(t, entradas), &models.Config{CleaningLevel: "standard", OcrMode: "normal"})
+
+	doc1 := docForcado(t, forcado, "DOC1")
+	if nl, ok := doc1["nao_lido"]; ok {
+		t.Errorf("DOC1 não lido: %v", nl)
+	}
+	p := paginaN(t, paginasDe(doc1), 1)
+	if _, ok := p["ocr_erro"]; ok {
+		t.Errorf("página em branco forçada com ocr_erro: %v", p)
+	}
+	if p["ocr_aviso"] != true || p["motivo_ocr"] != "forcado" || conteudoDe(p) != "" {
+		t.Errorf("página em branco forçada com OCR falho: %v", p)
+	}
+	if p["categoria"] != CatVazia {
+		t.Errorf("categoria = %v, quero %s", p["categoria"], CatVazia)
+	}
+
+	for _, nome := range []string{"DOC2", "DOC3", "DOC4"} {
+		f, s := docForcado(t, forcado, nome), docForcado(t, semForcar, nome)
+		if f["nao_lido"] != s["nao_lido"] {
+			t.Errorf("%s: nao_lido forçado = %v, sem forçar = %v", nome, f["nao_lido"], s["nao_lido"])
+		}
+		pf, ps := paginaN(t, paginasDe(f), 1), paginaN(t, paginasDe(s), 1)
+		if pf["categoria"] != ps["categoria"] || conteudoDe(pf) != conteudoDe(ps) {
+			t.Errorf("%s: forçado %v, sem forçar %v", nome, pf, ps)
+		}
+		if _, ok := pf["ocr_erro"]; ok {
+			t.Errorf("%s com ocr_erro: %v", nome, pf)
+		}
+		if pf["ocr"] != false {
+			t.Errorf("%s: ocr = %v, quero false (ficou o nativo)", nome, pf["ocr"])
+		}
+	}
+	if got := docForcado(t, forcado, "DOC2")["nao_lido"]; got != LeituraSemTexto.Frase() {
+		t.Errorf("DOC2: nao_lido = %v, quero %q", got, LeituraSemTexto.Frase())
+	}
+}
+
+func TestForcarOCR_LogZipIniciadoValorEfetivo(t *testing.T) {
+	isolarTemp(t)
+	o := &ocrForcadoFalso{}
+	o.instalar(t)
+	for _, c := range []struct {
+		modo           string
+		efetivo, salvo bool
+	}{
+		{"none", false, true},
+		{"normal", true, true},
+	} {
+		t.Run(c.modo, func(t *testing.T) {
+			zipPath := gravarZip(t, []entradaZip{{"Evento 1 - DOC1.pdf", pdfComTexto(textoLongo("Log", 300))}})
+			ctx, buf := ctxComLogJSON(slog.LevelInfo)
+			cfg := &models.Config{CleaningLevel: "none", OcrMode: c.modo, ForcarOCR: true}
+			if _, _, _, _, err := NewPipeline().ProcessZipComAtividade(ctx, zipPath, cfg, nil, nil); err != nil {
+				t.Fatalf("ProcessZip: %v", err)
+			}
+			ini := linhasComMsg(linhasJSON(t, buf.String()), "zip iniciado")
+			if len(ini) != 1 {
+				t.Fatalf("zip iniciado = %d linhas:\n%s", len(ini), buf.String())
+			}
+			g, _ := ini[0]["config"].(map[string]any)
+			if g["forcar_ocr"] != c.efetivo || g["forcar_ocr_salvo"] != c.salvo {
+				t.Errorf("config = %v; quero forcar_ocr=%t forcar_ocr_salvo=%t", g, c.efetivo, c.salvo)
+			}
+		})
 	}
 }
