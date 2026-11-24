@@ -1,0 +1,67 @@
+diff --git a/build/windows/installer/project.nsi b/build/windows/installer/project.nsi
+index 654ae2e..a96594c 100644
+--- a/build/windows/installer/project.nsi
++++ b/build/windows/installer/project.nsi
+@@ -32,6 +32,9 @@ Unicode true
+ ####
+ ## Include the wails tools
+ ####
++# Mensagens do wails_tools.nsh em português (ele só define as que faltarem).
++!define WAILS_WIN10_REQUIRED "O eprocIA precisa do Windows 10 (Server 2016) ou mais novo."
++!define WAILS_INSTALL_WEBVIEW_DETAILPRINT "Instalando: WebView2 Runtime"
+ !include "wails_tools.nsh"
+ 
+ # The version information for this two must consist of 4 parts
+@@ -58,13 +61,14 @@ ManifestDPIAware true
+ 
+ !insertmacro MUI_PAGE_WELCOME # Welcome to the installer page.
+ # !insertmacro MUI_PAGE_LICENSE "resources\eula.txt" # Adds a EULA page to the installer
++!insertmacro MUI_PAGE_COMPONENTS # Atalho na área de trabalho (opcional).
+ !insertmacro MUI_PAGE_DIRECTORY # In which folder install page.
+ !insertmacro MUI_PAGE_INSTFILES # Installing page.
+ !insertmacro MUI_PAGE_FINISH # Finished installation page.
+ 
+ !insertmacro MUI_UNPAGE_INSTFILES # Uinstalling page
+ 
+-!insertmacro MUI_LANGUAGE "English" # Set the Language of the installer
++!insertmacro MUI_LANGUAGE "PortugueseBR" # Set the Language of the installer
+ 
+ ## The following two statements can be used to sign the installer and the uninstaller. The path to the binaries are provided in %1
+ #!uninstfinalize 'signtool --file "%1"'
+@@ -79,7 +83,8 @@ Function .onInit
+    !insertmacro wails.checkArchitecture
+ FunctionEnd
+ 
+-Section
++Section "${INFO_PRODUCTNAME} e atalho no menu Iniciar" SecApp
++    SectionIn RO # Sempre instalado.
+     !insertmacro wails.setShellContext
+ 
+     !insertmacro wails.webview2runtime
+@@ -89,7 +94,8 @@ Section
+     !insertmacro wails.files
+ 
+     CreateShortcut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
+-    CreateShortCut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
++    # Uma reinstalação sem a opção abaixo não deixa o atalho antigo para trás.
++    Delete "$DESKTOP\${INFO_PRODUCTNAME}.lnk"
+ 
+     !insertmacro wails.associateFiles
+     !insertmacro wails.associateCustomProtocols
+@@ -97,6 +103,16 @@ Section
+     !insertmacro wails.writeUninstaller
+ SectionEnd
+ 
++Section "Atalho na área de trabalho" SecDesktop
++    !insertmacro wails.setShellContext
++    CreateShortCut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
++SectionEnd
++
++!insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
++    !insertmacro MUI_DESCRIPTION_TEXT ${SecApp} "O programa, com atalho no menu Iniciar."
++    !insertmacro MUI_DESCRIPTION_TEXT ${SecDesktop} "Cria o atalho do ${INFO_PRODUCTNAME} na área de trabalho."
++!insertmacro MUI_FUNCTION_DESCRIPTION_END
++
+ Section "uninstall"
+     !insertmacro wails.setShellContext
+ 
