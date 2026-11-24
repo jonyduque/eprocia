@@ -147,6 +147,12 @@ func TestIniciarRegistro_Normal(t *testing.T) {
 	if ini["eprocia_log"] != "1" {
 		t.Errorf("eprocia_log = %v, quer \"1\"", ini["eprocia_log"])
 	}
+	// t.TempDir() fica no temporário do usuário: a pasta chega saneada.
+	pl, _ := ini["pasta_logs"].(string)
+	if strings.Contains(strings.ToLower(pl), strings.ToLower(dir)) ||
+		!(strings.HasPrefix(pl, "%TEMP%") || strings.HasPrefix(pl, "%USERPROFILE%")) {
+		t.Errorf("pasta_logs = %q, quer saneada (começando por %%TEMP%% ou %%USERPROFILE%%)", pl)
+	}
 	cfg, _ := ini["config"].(map[string]any)
 	mp, _ := cfg["monitored_path"].(string)
 	if !strings.HasPrefix(mp, "%USERPROFILE%") {
@@ -174,6 +180,9 @@ func TestIniciarRegistro_ValorDesconhecido(t *testing.T) {
 	}
 }
 
+// TestIniciarRegistro_LidoSoNaPartida documenta o contrato: o registro não
+// relê a variável depois de iniciado. A leitura única em si é garantida por
+// main.go, que chama os.Getenv("EPROCIA_LOG") uma vez, na partida.
 func TestIniciarRegistro_LidoSoNaPartida(t *testing.T) {
 	dir := t.TempDir() // antes de isolarRegistro: o cleanup do registro fecha o log antes de apagar a pasta
 	isolarRegistro(t)
