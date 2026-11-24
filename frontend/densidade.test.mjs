@@ -132,7 +132,8 @@ test('Configurações vira seção com rótulo pequeno, sem Importação Manual'
 });
 
 test('Configurações em três blocos rotulados: Monitoramento, Processamento, Sistema', () => {
-  const blocos = [...settings.matchAll(/<h3 class="rotulo-grupo"[^>]*>([^<]+)<\/h3>/g)].map((m) => m[1]);
+  // O rótulo é o texto do botão que recolhe a categoria (depois do chevron).
+  const blocos = [...settings.matchAll(/<h3 class="rotulo-grupo">[\s\S]*?<\/span>\s*([^<\s][^<]*?)\s*<\/button>\s*<\/h3>/g)].map((m) => m[1]);
   assert.deepEqual(blocos, ['Monitoramento', 'Processamento', 'Sistema']);
   rotuloSecao(regra(estilo(settings), '.rotulo-grupo'), 'blocos');
   const ordem = ['Monitoramento', 'id="watchdog-toggle"', 'id="monitored-path"', 'Processamento',
