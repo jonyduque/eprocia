@@ -6,7 +6,7 @@
 
 **Architecture:** Pacote novo `internal/atualizacao`, o único do programa que importa `net/http`: versão, cliente HTTPS restrito, consulta, download com conferência (tamanho, SHA-256 do `SHA256SUMS.txt`, `MZ`, versão do PE), detecção do tipo de instalação, protocolo de troca entre processos (sinal em arquivo, `--apos-atualizar=<pid>`), abertura do instalador e um coordenador (`Atualizador`) que guarda a fase e faz a preparação da troca por funções injetadas. A `Queue` ganha a retenção (`Reter`/`Soltar`) e o aviso de fila ociosa; `app.go` só liga as peças (`app_atualizacao.go`). O frontend lê o estado por uma lib pura (`atualizacao.js`, textos em `textos.js`) e um componente novo dentro de Configurações.
 
-**Tech Stack:** Go 1.27 (`net/http`, `crypto/sha256`, `golang.org/x/sys/windows` já direto no `go.mod`: `registry`, `GetFileVersionInfo`/`VerQueryValue`, `ShellExecuteEx`, `OpenProcess`, `BeginUpdateResource` só nos testes), Wails v2.13.0, Svelte 5 em sintaxe legada, `node --test`, NSIS (MUI2), Playwright das capturas. Nenhuma dependência nova.
+**Tech Stack:** Go 1.27 (`net/http`, `crypto/sha256`, `golang.org/x/sys/windows` v0.49.0 já direto no `go.mod`: `registry`, `GetFileVersionInfoSize`/`GetFileVersionInfo`/`VerQueryValue`, `OpenProcess`, `WaitForSingleObject`, `CreateFile`; o que o x/sys não tem vai por `windows.NewLazySystemDLL`: `shell32.dll` `ShellExecuteExW` com struct `SHELLEXECUTEINFOW` própria, e, só nos testes, `kernel32.dll` `BeginUpdateResourceW`/`UpdateResourceW`/`EndUpdateResourceW`), Wails v2.13.0, Svelte 5 em sintaxe legada, `node --test`, NSIS (MUI2), Playwright das capturas. Nenhuma dependência nova.
 
 **Spec:** `docs/superpowers/specs/2026-11-18-autoupdate-design.md` (decisões a1-a4 e e7 na seção 10). Contrato de release: `install.ps1` (`Get-Release`, `Save-ReleaseExe`) e `.claude/skills/eprocia-release/SKILL.md`. Visual: `DESIGN.md`.
 
@@ -24,7 +24,7 @@ O plano roda sobre a `main` que já contém `feat/relatorio-processamento`. Dest
 - Tetos: asset 300 MiB (no `Content-Length` e na contagem), `SHA256SUMS.txt` 64 KiB.
 - Só se renomeia para `eprocia.exe` ou se abre como instalador o arquivo que passou por `conferir`: tamanho igual ao do asset, SHA-256 recalculado sobre o arquivo fechado (instalador: sobre o handle aberto com `FILE_SHARE_READ` só), início `MZ`, versão do PE (campos numéricos `FileVersion` major.minor.build, como o `install.ps1`) igual à da tag. A atestação (a3) fica fora; entra depois dentro de `conferir`.
 - Nunca instala versão menor ou igual à atual. Build com `productVersion` vazia ou `0.0.0` desliga o recurso inteiro.
-- Contrato entre versões (não muda sem plano de compatibilidade): flag `--apos-atualizar=<pid>`; arquivo `%APPDATA%\eprocIA\atualizacao-sinal-<pid antigo>`; nomes `eprocia.anterior.exe`, `eprocia.falhou.exe`, `eprocia.exe.download-*`; o processo novo nasce com a fila retida, sem watcher, e só os liga depois de o antigo sair; com `--apos-atualizar` a trava de instância é adiada até o antigo sair (Task 14); o botão "Voltar" só aparece com `eprocia.anterior.exe` de versão menor que a atual.
+- Contrato entre versões (não muda sem plano de compatibilidade): flag `--apos-atualizar=<pid>`; arquivo `%APPDATA%\eprocIA\atualizacao-sinal-<pid antigo>`; nomes `eprocia.anterior.exe`, `eprocia.falhou.exe`, `eprocia.exe.download-*`; o processo novo nasce com a fila retida, sem watcher, e só os liga depois de o antigo sair; com `--apos-atualizar` a trava de instância é adiada até o antigo sair (Task 14); o sinal é dado no `OnDomReady` ou, com a janela nascendo oculta (`--tray`), no `startup`; o botão "Voltar" só aparece com `eprocia.anterior.exe` de versão menor que a atual **e** maior ou igual a `PrimeiraVersaoComProtocolo` (versões anteriores ao recurso não conhecem a flag nem a trava adiada: sairiam na hora por achar a trava ocupada, e a volta sempre reverteria).
 - Prazos: sinal de vida 90 s; espera do antigo sair 60 s.
 - Pasta do instalador: subpasta nova por download (`os.MkdirTemp`) em `%LOCALAPPDATA%\eprocIA\atualizacao\`.
 - Textos de interface novos em `frontend/src/lib/textos.js`; mensagens que o Go manda em `Estado.mensagem` ficam em `internal/atualizacao/mensagens.go`, com o texto exato da spec. Tudo em pt-BR.
@@ -46,7 +46,7 @@ O plano roda sobre a `main` que já contém `feat/relatorio-processamento`. Dest
 - Create: `docs/revisao/capturas/2026-11-24-autoupdate/antes/` (PNGs)
 
 **Interfaces:**
-- Produces: as capturas "antes" de `vazio`, `fila` e `configuracoes`, para os pares da Task 19.
+- Produces: as capturas "antes" de `vazio`, `fila` e `configuracoes`, para os pares da Task 20.
 
 - [ ] **Passo 1:** confira a base (regras, "Base e onde trabalhar"). Anote o hash do HEAD no relatório.
 - [ ] **Passo 2:** `node scripts/visual/capturar.mjs --saida docs/revisao/capturas/2026-11-24-autoupdate/antes --estados vazio,fila,configuracoes`. Confira `[visual] N capturas em ...` e que o Vite (porta 5199) foi encerrado.
@@ -89,7 +89,7 @@ O plano roda sobre a `main` que já contém `feat/relatorio-processamento`. Dest
   - `TestCliente_RedirecionamentoParaOutroHostDaListaAceito` (o papel de `objects.githubusercontent.com`): 302 de `127.0.0.1` para `[::1]` (na lista) chega ao segundo servidor.
   - `TestCliente_Cabecalhos`: a requisição chega com `User-Agent: eprocIA/0.4.4`, o `Accept` pedido, sem `Authorization` nem `Cookie`, mesmo depois de o servidor mandar `Set-Cookie` numa resposta anterior.
   - `TestRegrasGitHub_Valores`: os quatro hosts e os dois prefixos exatos.
-- [ ] **Passo 2: teste de isolamento** (`rede_test.go`) `TestRede_SoAtualizacaoImportaNetHTTP`: percorre com `go/parser` (só imports) os `.go` de produção em `../..` e `../../internal/...` (fora de `_test.go`, `node_modules`, `frontend`, `scripts`) e falha se algum fora de `internal/atualizacao` importar `net/http`.
+- [ ] **Passo 2: teste de isolamento** (`rede_test.go`) `TestRede_SoAtualizacaoImportaNetHTTP`: roda `go list -f '{{.ImportPath}} {{join .Imports " "}}' ./...` a partir da raiz do módulo (`../..` como diretório do comando, nunca percorrendo pastas à mão: `.worktrees`, `node_modules` e `testdata` ficam fora porque o `go list` só vê os pacotes do módulo) e falha se algum pacote além de `eprocia/internal/atualizacao` importar `net/http` diretamente.
 - [ ] **Passo 3: rodar** `go test ./internal/atualizacao -run "Cliente|Regras|Rede" -v`: falham.
 - [ ] **Passo 4: implementar.** `http.Client` com `Jar` nil, `CheckRedirect` que aplica host e esquema a cada salto (e no máximo 10 saltos), `Transport` com `Proxy: http.ProxyFromEnvironment`, `TLSClientConfig.RootCAs = raizes`, `TLSHandshakeTimeout` e `ResponseHeaderTimeout` de 15 s. Host comparado por `url.Hostname()`, sem caixa. O prefixo vale só para a URL inicial.
 - [ ] **Passo 5: rodar** de novo: passam.
@@ -111,12 +111,12 @@ O plano roda sobre a `main` que já contém `feat/relatorio-processamento`. Dest
   - `TestVerificar_VersaoMaiorAceita`: tag `v0.5.0` com os três assets devolve `Release` com tag, versão, `NotasURL`, URLs e tamanhos dos três.
   - `TestVerificar_EmDia`: `v0.4.4` e `v0.4.3` devolvem `(nil, nil)`; tag `0.5.0`, `v0.5.0-rc1` e `release-5` também.
   - `TestVerificar_DraftEPrereleaseIgnorados`: `draft: true` ou `prerelease: true` com tag maior devolvem `(nil, nil)`.
-  - `TestVerificar_Incompleta` (tabela): sem exe; dois `eprocia-*-windows-amd64.exe`; sem instalador; exe `eprocia-0.4.9-windows-amd64.exe` com tag `v0.5.0`; sem `SHA256SUMS.txt`; dois `SHA256SUMS.txt`. Cada caso devolve `errors.Is(err, ErrIncompleta)` e um `*Release` com só `Tag`, `Versao` e `NotasURL` preenchidos (assets zerados).
+  - `TestVerificar_Incompleta` (tabela): sem exe; dois `eprocia-*-windows-amd64.exe`; sem instalador; exe `eprocia-0.4.9-windows-amd64.exe` com tag `v0.5.0`; sem `SHA256SUMS.txt`; dois `SHA256SUMS.txt`; `browser_download_url` de um asset diferente de `PrefixoDownload + tag + "/" + nome` (outra tag, outro nome, ou outro repositório). Cada caso devolve `errors.Is(err, ErrIncompleta)` e um `*Release` com só `Tag`, `Versao` e `NotasURL` preenchidos (assets zerados).
   - `TestVerificar_RespostaAcimaDe1MiB`: corpo de 1 MiB + 1 byte devolve erro comum (não `ErrIncompleta`, não `nil`).
   - `TestVerificar_JSONInvalidoEStatus`: corpo inválido e status 500 devolvem erro comum; 403 e 429 devolvem `ErrRecusada`.
   - `TestVerificar_Prazo`: servidor que demora mais que o prazo (prazo reduzido por campo interno do cliente) devolve erro dentro de 2 s.
 - [ ] **Passo 2: rodar** `go test ./internal/atualizacao -run Verificar -v`: falham.
-- [ ] **Passo 3: implementar.** Corpo lido com `io.LimitReader(LimiteAPI+1)`; mais que o limite é erro. Asset do exe casado por `^eprocia-(\d+\.\d+\.\d+)-windows-amd64\.exe$`, instalador por `^eprocia-(\d+\.\d+\.\d+)-windows-amd64-instalador\.exe$`; versão do nome igual à da tag. Log `slog.Info("consulta de atualização", "resultado", ...)` com `em_dia`, `disponivel`, `incompleta` ou `erro`, sem URL.
+- [ ] **Passo 3: implementar.** Corpo lido com `io.LimitReader(LimiteAPI+1)`; mais que o limite é erro. Asset do exe casado por `^eprocia-(\d+\.\d+\.\d+)-windows-amd64\.exe$`, instalador por `^eprocia-(\d+\.\d+\.\d+)-windows-amd64-instalador\.exe$`; versão do nome igual à da tag; a URL de cada asset precisa ser exatamente `Regras.PrefixoDownload + tag + "/" + nome` (senão `ErrIncompleta`). Log `slog.Info("consulta de atualização", "resultado", ...)` com `em_dia`, `disponivel`, `incompleta` ou `erro`, sem URL.
 - [ ] **Passo 4: rodar** de novo: passam.
 - [ ] **Passo 5: commit** `feat(atualizacao): consulta da última release com assets conferidos`.
 
@@ -126,15 +126,16 @@ O plano roda sobre a `main` que já contém `feat/relatorio-processamento`. Dest
 
 **Files:**
 - Create: `internal/atualizacao/pe_windows.go`, `internal/atualizacao/pe_outros.go`
-- Test: `internal/atualizacao/pe_windows_test.go`, `internal/atualizacao/carimbo_windows_test.go` (ajudante), `internal/atualizacao/main_test.go` (`TestMain` com os modos do auxiliar; a Task 11 acrescenta modos)
+- Create: `internal/atualizacao/testdata/aux/main.go` (auxiliar pequeno, `package main`; o `go list ./...` não o vê por estar em `testdata`)
+- Test: `internal/atualizacao/pe_windows_test.go`, `internal/atualizacao/carimbo_windows_test.go` (ajudante), `internal/atualizacao/main_test.go` (`TestMain` que compila o auxiliar uma vez)
 
 **Interfaces:**
-- Produces: `func VersaoPE(caminho string) (Versao, error)` (Windows: `windows.GetFileVersionResourceInfoSize`, `GetFileVersionInfo`, `VerQueryValue(\`\\\`)` em `VS_FIXEDFILEINFO`, `FileVersionMS/LS` para major.minor.build; fora do Windows devolve erro); ajudantes de teste `copiarAuxiliar(t *testing.T, destino string)` (copia `os.Args[0]`) e `carimbarVersao(t *testing.T, exe string, v Versao)` (grava um recurso `RT_VERSION` id 1, idioma 0, com `VS_FIXEDFILEINFO` montado no teste, por `BeginUpdateResource`/`UpdateResource`/`EndUpdateResource` de `kernel32`).
+- Produces: `func VersaoPE(caminho string) (Versao, error)` (Windows: `windows.GetFileVersionInfoSize`, `windows.GetFileVersionInfo`, `windows.VerQueryValue(\`\\\`)` em `VS_FIXEDFILEINFO`, `FileVersionMS/LS` para major.minor.build; fora do Windows devolve erro). Ajudantes de teste: `var auxiliar string` (caminho do `aux.exe` que o `TestMain` compila com `go build -o <MkdirTemp>\aux.exe ./testdata/aux`, apagado depois de `m.Run`; falha da compilação encerra a suíte com a mensagem do compilador); `copiarAuxiliar(t *testing.T, destino string, v Versao)` (copia o `aux.exe` e chama `carimbarVersao`); `carimbarVersao(t *testing.T, exe string, v Versao)` (grava um recurso `RT_VERSION` id 1, idioma 0, com `VS_FIXEDFILEINFO` montado no teste, por `BeginUpdateResourceW`/`UpdateResourceW`/`EndUpdateResourceW` de `windows.NewLazySystemDLL("kernel32.dll")`, que o x/sys v0.49.0 não expõe). O auxiliar escolhe o comportamento por `EPROCIA_TESTE_AUX`; nesta tarefa só o modo `versao` (imprime `VersaoPE(os.Executable())` e sai 0); as Tasks 10 e 11 acrescentam modos no mesmo `main.go`. O auxiliar importa `eprocia/internal/atualizacao` (permitido: está sob `internal/atualizacao`).
 
-- [ ] **Passo 1: testes** `TestVersaoPE_Carimbada`: cópia do binário de teste carimbada com `0.5.0` lê `0.5.0`; carimbada com `0.4.9` lê `0.4.9`. `TestVersaoPE_SemRecurso`: cópia sem carimbo devolve erro. `TestVersaoPE_NaoPE`: arquivo de texto devolve erro.
-- [ ] **Passo 2: rodar** `go test ./internal/atualizacao -run VersaoPE -v`: falham (esqueleto).
-- [ ] **Passo 3: implementar** `VersaoPE` e os ajudantes. Se o `UpdateResource` corromper a cópia do binário de teste (o carimbado não roda), responda `BLOCKED` com a mensagem: sem ele as Tasks 6, 11 e 12 não têm exe de teste.
-- [ ] **Passo 4: rodar** de novo: passam. Rode também a cópia carimbada com `EPROCIA_TESTE_FILHO=1 EPROCIA_TESTE_AUX=versao` (modo do `TestMain` que imprime `VersaoPE(os.Executable())` e sai 0) e confira que ela executa: prova que o carimbo não estraga o exe.
+- [ ] **Passo 1: testes** `TestVersaoPE_Carimbada`: cópia do auxiliar carimbada com `0.5.0` lê `0.5.0`; carimbada com `0.4.9` lê `0.4.9`. `TestVersaoPE_SemRecurso`: cópia sem carimbo devolve erro. `TestVersaoPE_NaoPE`: arquivo de texto devolve erro. `TestCarimbo_AuxiliarContinuaExecutando`: a cópia carimbada, rodada com `EPROCIA_TESTE_AUX=versao`, sai 0 e imprime a versão carimbada.
+- [ ] **Passo 2: rodar** `go test ./internal/atualizacao -run "VersaoPE|Carimbo" -v`: falham (esqueleto).
+- [ ] **Passo 3: implementar** `VersaoPE`, o auxiliar e os ajudantes. Se o carimbo estragar também o auxiliar pequeno (ele não roda depois do `UpdateResource`), responda `BLOCKED` com a mensagem: sem ele as Tasks 6, 10, 11 e 12 não têm exe de teste.
+- [ ] **Passo 4: rodar** de novo: passam.
 - [ ] **Passo 5: commit** `feat(atualizacao): versão do recurso do executável`.
 
 ---
@@ -161,6 +162,7 @@ O plano roda sobre a `main` que já contém `feat/relatorio-processamento`. Dest
   - `TestBaixar_NaoPEOuVersaoErrada`: corpo sem `MZ` e exe carimbado `0.4.9` numa release `v0.5.0` (somas certas) devolvem `ErrNaoConferiu` e apagam.
   - `TestBaixar_ProgressoCrescente`: `progresso` recebe valores não decrescentes, o último igual ao tamanho.
   - `TestBaixar_NomeJaExistente`: com `pasta\nome` já existente, devolve erro sem sobrescrever (`O_EXCL`).
+  - `TestBaixar_URLDiferenteDaEsperada`: `Asset.URL` diferente de `PrefixoDownload + rel.Tag + "/" + asset.Nome` devolve `ErrURLRecusada` sem requisição (a mesma regra vale para o `SHA256SUMS.txt`).
 - [ ] **Passo 3: rodar** `go test ./internal/atualizacao -run "Baixar|linhaSoma" -v`: falham.
 - [ ] **Passo 4: implementar.** Somas primeiro (teto 64 KiB), depois o asset; cópia com um leitor que renova o prazo de 60 s a cada bloco recebido e cancela a requisição quando ele vence; fechar o arquivo, reabrir só leitura e chamar `conferir`; qualquer erro apaga o arquivo.
 - [ ] **Passo 5: rodar** de novo: passam.
@@ -175,15 +177,16 @@ O plano roda sobre a `main` que já contém `feat/relatorio-processamento`. Dest
 - Test: `internal/etl/queue_retida_test.go` (novo)
 
 **Interfaces:**
-- Produces: `func (q *Queue) Reter()`; `func (q *Queue) Soltar()` (limpa e chama `startProcessing`); `func (q *Queue) Ociosa() bool` (nenhum item `pending` nem `processing`); `func (q *Queue) SetAoFicarOciosa(fn func())` (chamado numa goroutine, fora de `q.mu`, sempre que `broadcast` vê `isWorking` falso e a fila ociosa).
+- Produces: `func (q *Queue) Reter()`; `func (q *Queue) Soltar()` (limpa e chama `startProcessing`); `func (q *Queue) Ociosa() bool` (nenhum item `pending` nem `processing`); `func (q *Queue) SetAoFicarOciosa(fn func())` (chamado numa goroutine, fora de `q.mu`, no fim de `startProcessing` quando ele não inicia nada e a fila está ociosa: é o ponto por onde passa o fim de cada item, e não depende de `wailsCtx`; o `broadcast` retorna cedo com `wailsCtx` nil e por isso não serve).
 
 - [ ] **Passo 1: testes** (fila com `processar` falso que registra as chamadas e `emitir` falso que registra os eventos):
   - `TestQueue_RetidaAceitaMasNaoInicia`: `Reter()`; `AddFiles` de dois caminhos e `Reprocessar` de um item concluído deixam os itens `pending`; `processar` não é chamado em 200 ms.
   - `TestQueue_SoltarIniciaMaisAntigo`: depois de `Soltar()`, o primeiro `processar` é o do primeiro caminho adicionado.
   - `TestQueue_ReterNaoMudaStatus`: `Reter`/`Soltar` não emitem `queue:status`, `IsPaused()` continua falso, e `Resume()` com a fila retida não inicia nada.
   - `TestQueue_AvisoOciosa`: o aviso chega depois que o último item termina; com a fila pausada e um `pending`, `Ociosa()` é falso e o aviso não chega; `Ociosa()` é verdadeiro com só itens `success`/`error`/`cancelled`.
+  - `TestQueue_AvisoOciosaSemContexto`: fila sem `SetContext` (`wailsCtx` nil): o aviso chega depois que o último item termina.
 - [ ] **Passo 2: rodar** `go test -race ./internal/etl -run "TestQueue_(Retida|Soltar|ReterNao|AvisoOciosa)" -v`: falham.
-- [ ] **Passo 3: implementar.** Campo `retida bool` sob `q.mu`, conferido em `startProcessing` ao lado de `isPaused`; o aviso lido sob `q.mu` e disparado depois do `Unlock`, a partir de `broadcast`.
+- [ ] **Passo 3: implementar.** Campo `retida bool` sob `q.mu`, conferido em `startProcessing` ao lado de `isPaused`; o aviso lido sob `q.mu` no fim de `startProcessing` (nenhum item iniciado e fila ociosa) e disparado depois do `Unlock`.
 - [ ] **Passo 4: rodar** de novo e a suíte do pacote com `-race`: passam.
 - [ ] **Passo 5: commit** `feat(etl): fila retida e aviso de fila ociosa para a atualização`.
 
@@ -235,18 +238,19 @@ O plano roda sobre a `main` que já contém `feat/relatorio-processamento`. Dest
 
 **Files:**
 - Create: `internal/atualizacao/sinal.go`, `internal/atualizacao/arranque.go`, `internal/atualizacao/processo_windows.go`, `internal/atualizacao/processo_outros.go`, `internal/atualizacao/limpeza.go`
-- Modify: `internal/atualizacao/main_test.go` (modo `dorme` do auxiliar: dorme o tempo de `EPROCIA_TESTE_MS` e sai 0)
+- Modify: `internal/atualizacao/testdata/aux/main.go` (modo `dorme`: dorme o tempo de `EPROCIA_TESTE_MS` e sai 0)
 - Test: `internal/atualizacao/sinal_test.go`, `internal/atualizacao/arranque_test.go`, `internal/atualizacao/limpeza_test.go`
 
 **Interfaces:**
-- Produces: constantes `NomeExe = "eprocia.exe"`, `NomeAnterior = "eprocia.anterior.exe"`, `NomeFalhou = "eprocia.falhou.exe"`, `PrefixoTemp = "eprocia.exe.download-"`, `PrefixoSinal = "atualizacao-sinal-"`, `FlagAposAtualizar = "--apos-atualizar="`, `PrazoSinal = 90 * time.Second`, `PrazoAntigoSair = 60 * time.Second`; `func CaminhoSinal(pastaDados string, pidAntigo int) string`; `func GravarSinal(pastaDados string, pidAntigo int, versao string) error` (temporário + rename, para o antigo nunca ler meio arquivo); `func lerSinal(caminho string) (versao string, ok bool)` (lê e apaga); `func AposAtualizar(args []string) (pid int, ok bool)` (só `--apos-atualizar=<inteiro positivo>`); `func EsperarSair(pid int, prazo time.Duration) bool` (Windows: `OpenProcess(SYNCHRONIZE)` e `WaitForSingleObject`; processo inexistente = verdadeiro na hora); `func PastaAtualizacao(localAppData string) string` (`<local>\eprocIA\atualizacao`); `func Limpar(pastaInstalacao, pastaDados, pastaAtualizacao string)` (apaga `eprocia.falhou.exe`, `eprocia.exe.download-*`, `atualizacao-sinal-*` e o conteúdo da pasta de atualização com subpastas; mantém `eprocia.anterior.exe`; ignora erros, com um `slog.Warn` por arquivo que ficou); `func VersaoAnterior(pastaInstalacao string, atual Versao) (Versao, bool)` (lê `VersaoPE` de `eprocia.anterior.exe`; verdadeiro só se menor que `atual`).
+- Produces: constantes `NomeExe = "eprocia.exe"`, `NomeAnterior = "eprocia.anterior.exe"`, `NomeFalhou = "eprocia.falhou.exe"`, `PrefixoTemp = "eprocia.exe.download-"`, `PrefixoSinal = "atualizacao-sinal-"`, `FlagAposAtualizar = "--apos-atualizar="`, `PrazoSinal = 90 * time.Second`, `PrazoAntigoSair = 60 * time.Second`; `func CaminhoSinal(pastaDados string, pidAntigo int) string`; `func GravarSinal(pastaDados string, pidAntigo int, versao string) error` (temporário + rename, para o antigo nunca ler meio arquivo); `func lerSinal(caminho string) (versao string, ok bool)` (lê e apaga); `func AposAtualizar(args []string) (pid int, ok bool)` (só `--apos-atualizar=<inteiro positivo>`); `func EsperarSair(pid int, prazo time.Duration) bool` (Windows: `OpenProcess(SYNCHRONIZE)` e `WaitForSingleObject`; processo inexistente = verdadeiro na hora); `func PastaAtualizacao(localAppData string) string` (`<local>\eprocIA\atualizacao`); `func Limpar(pastaInstalacao, pastaDados, pastaAtualizacao string)` (apaga `eprocia.falhou.exe`, `eprocia.exe.download-*`, `atualizacao-sinal-*` e o conteúdo da pasta de atualização com subpastas; mantém `eprocia.anterior.exe`; ignora erros, com um `slog.Warn` por arquivo que ficou); `var PrimeiraVersaoComProtocolo = Versao{0, 5, 0}` (a primeira release que sai com este recurso; se ela tiver outro número, a constante muda antes da release, e a skill `eprocia-release` diz isso; é `var` só para o teste, nunca muda em produção); `func VersaoAnterior(pastaInstalacao string, atual Versao) (Versao, bool)` (lê `VersaoPE` de `eprocia.anterior.exe`; verdadeiro só se menor que `atual` **e** maior ou igual a `PrimeiraVersaoComProtocolo`: uma versão anterior ao recurso, como a 0.4.4, não conhece `--apos-atualizar` nem a trava adiada, sai na hora por achar a trava ocupada, e o "Voltar" sempre reverteria).
 
 - [ ] **Passo 1: testes:**
   - `TestSinal_GravarELer`: `GravarSinal(dir, 4242, "0.5.0")` cria `dir\atualizacao-sinal-4242`; `lerSinal` devolve `"0.5.0", true` e o arquivo some.
   - `TestAposAtualizar`: `["eprocia.exe", "--apos-atualizar=4242"]` devolve 4242; `--apos-atualizar=`, `=-1`, `=0`, `=abc`, `=12 34`, `--apos-atualizar 4242` e um caminho `=C:\x` não são aceitos.
   - `TestEsperarSair`: um filho auxiliar (`EPROCIA_TESTE_AUX=dorme`, `EPROCIA_TESTE_MS=300`) devolve verdadeiro antes do prazo de 5 s; um PID de processo já encerrado devolve verdadeiro na hora; com prazo de 100 ms e o filho dormindo 3 s, devolve falso (o teste encerra o filho no cleanup).
   - `TestLimpar`: pasta de instalação com `eprocia.exe`, `eprocia.anterior.exe`, `eprocia.falhou.exe`, `eprocia.exe.download-abc` e `install.ps1`; pasta de dados com `atualizacao-sinal-1` e `config.json`; pasta de atualização com uma subpasta e um arquivo. Depois de `Limpar`, sobram `eprocia.exe`, `eprocia.anterior.exe`, `install.ps1` e `config.json`, e a pasta de atualização existe vazia ou não existe.
-  - `TestVersaoAnterior`: sem o arquivo, falso; anterior carimbado `0.4.3` com atual `0.4.4`, verdadeiro e `0.4.3`; anterior `0.4.4` ou `0.5.0`, falso.
+  - `TestVersaoAnterior` (com `PrimeiraVersaoComProtocolo` trocada no teste por `0.4.0` e restaurada no cleanup, para usar versões de teste baixas): sem o arquivo, falso; anterior carimbado `0.4.3` com atual `0.4.4`, verdadeiro e `0.4.3`; anterior `0.4.4` ou `0.5.0`, falso.
+  - `TestVersaoAnterior_AntesDoProtocolo` (constante no valor real `0.5.0`): atual `0.5.0` e anterior `0.4.4` devolvem falso (o "Voltar" para uma versão sem o protocolo não aparece); atual `0.5.1` e anterior `0.5.0`, verdadeiro.
 - [ ] **Passo 2: rodar** `go test ./internal/atualizacao -run "Sinal|AposAtualizar|EsperarSair|Limpar|VersaoAnterior" -v`: falham.
 - [ ] **Passo 3: implementar.**
 - [ ] **Passo 4: rodar** de novo: passam.
@@ -258,18 +262,19 @@ O plano roda sobre a `main` que já contém `feat/relatorio-processamento`. Dest
 
 **Files:**
 - Create: `internal/atualizacao/troca.go`
-- Modify: `internal/atualizacao/main_test.go` (modos do auxiliar)
+- Modify: `internal/atualizacao/testdata/aux/main.go` (modos do auxiliar)
 - Test: `internal/atualizacao/troca_test.go`
 
 **Interfaces:**
-- Consumes: constantes, `CaminhoSinal`, `lerSinal` (Task 10); `VersaoPE` e ajudantes de teste (Task 5).
-- Produces: `type Troca struct { Pasta, PastaDados string; PIDAtual int; Extras []string; PrazoSinal time.Duration; renomear func(de, para string) error }` (`Extras` recebe `autostart.FlagTray` quando a janela está oculta; `renomear` nil = `os.Rename`); `func (t *Troca) Aplicar(ctx context.Context, baixado string) error`; `func (t *Troca) Voltar(ctx context.Context) error`; `type ErrNaoAbriu struct { Versao string }` (o novo não mandou sinal; nomes já revertidos); `var ErrReversaoIncompleta` (uma reversão não conseguiu restaurar; a pasta ainda tem um `eprocia.exe`). Com `nil`, o sinal chegou e o chamador encerra o processo antigo.
+- Consumes: constantes, `CaminhoSinal`, `lerSinal` (Task 10); `Baixado`, `conferir` (Task 6); `VersaoPE` e ajudantes de teste (Task 5).
+- Produces: `type Troca struct { Pasta, PastaDados string; PIDAtual int; Extras []string; PrazoSinal time.Duration; renomear func(de, para string) error }` (`Extras` recebe `autostart.FlagTray` quando a janela está oculta; `renomear` nil = `os.Rename`); `func (t *Troca) Aplicar(ctx context.Context, b Baixado) error` (logo antes do primeiro rename, reabre `b.Caminho` só leitura e chama `conferir(b, f)` de novo: o arquivo pode ter esperado a fila por horas na pasta de instalação; falhou = `ErrNaoConferiu`, nenhum rename, e o baixado é apagado); `func (t *Troca) Voltar(ctx context.Context) error`; `type ErrNaoAbriu struct { Versao string }` (o novo não mandou sinal; nomes já revertidos); `var ErrReversaoIncompleta` (uma reversão não conseguiu restaurar; a pasta ainda tem um `eprocia.exe`). Com `nil`, o sinal chegou e o chamador encerra o processo antigo.
 
-Sequências (spec 3.1, ao pé da letra): `Aplicar` = apaga `eprocia.anterior.exe` velho, `eprocia.exe` para `eprocia.anterior.exe`, baixado para `eprocia.exe` (falhou: desfaz o primeiro na hora), inicia `eprocia.exe` com `--apos-atualizar=<PIDAtual>` + `Extras`, espera o sinal até `PrazoSinal`; sem sinal (o novo saiu ou o prazo passou): encerra o novo pelo PID e espera ele sair (até 10 s), `eprocia.exe` para `eprocia.falhou.exe` (apagando um `falhou` velho antes), `eprocia.anterior.exe` para `eprocia.exe`. `Voltar` = `eprocia.anterior.exe` para `eprocia.exe.download-<aleatório>`, `eprocia.exe` para `eprocia.anterior.exe` (falhou: desfaz o primeiro), temporário para `eprocia.exe` (falhou: desfaz o segundo e o primeiro), inicia e espera como em `Aplicar`, e a reversão é a mesma. Se um rename da reversão falhar, tenta pôr de volta qualquer um dos dois em `eprocia.exe` e devolve `ErrReversaoIncompleta`, com `slog.Error`.
+Sequências (spec 3.1, ao pé da letra, mais a reconferência): `Aplicar` = reconfere o baixado (`conferir`), apaga `eprocia.anterior.exe` velho, `eprocia.exe` para `eprocia.anterior.exe`, baixado para `eprocia.exe` (falhou: desfaz o primeiro na hora), inicia `eprocia.exe` com `--apos-atualizar=<PIDAtual>` + `Extras`, espera o sinal até `PrazoSinal`; sem sinal (o novo saiu ou o prazo passou): encerra o novo pelo PID e espera ele sair (até 10 s), `eprocia.exe` para `eprocia.falhou.exe` (apagando um `falhou` velho antes), `eprocia.anterior.exe` para `eprocia.exe`. `Voltar` = `eprocia.anterior.exe` para `eprocia.exe.download-<aleatório>`, `eprocia.exe` para `eprocia.anterior.exe` (falhou: desfaz o primeiro), temporário para `eprocia.exe` (falhou: desfaz o segundo e o primeiro), inicia e espera como em `Aplicar`, e a reversão é a mesma. Se um rename da reversão falhar, tenta pôr de volta qualquer um dos dois em `eprocia.exe` e devolve `ErrReversaoIncompleta`, com `slog.Error`.
 
-- [ ] **Passo 1: modos do auxiliar** no `TestMain` (`EPROCIA_TESTE_FILHO=1` e `EPROCIA_TESTE_AUX`), ao lado de `versao` (Task 5) e `dorme` (Task 10): `sinal` (lê `--apos-atualizar`, grava `GravarSinal(os.Getenv("EPROCIA_TESTE_DADOS"), pid, VersaoPE(os.Executable()))` e fica 30 s parado), `sai1` (sai com código 1 na hora), `parado` (fica 30 s sem sinal). Todo auxiliar grava em `EPROCIA_TESTE_DADOS\args-<pid>.txt` os argumentos que recebeu.
-- [ ] **Passo 2: testes** (pasta `t.TempDir()` com `eprocia.exe` = auxiliar carimbado N `0.4.4`, iniciado no teste e mantido rodando durante a troca, para provar o rename de exe em execução; baixado = auxiliar carimbado `0.5.0`; `PrazoSinal` de 5 s, ou 1 s nos casos sem sinal; todo filho encerrado no cleanup):
+- [ ] **Passo 1: modos do auxiliar** em `testdata/aux/main.go` (`EPROCIA_TESTE_AUX`), ao lado de `versao` (Task 5) e `dorme` (Task 10): `sinal` (lê `--apos-atualizar`, grava `GravarSinal(os.Getenv("EPROCIA_TESTE_DADOS"), pid, VersaoPE(os.Executable()))` e fica 30 s parado), `sai1` (sai com código 1 na hora), `parado` (fica 30 s sem sinal). Todo auxiliar grava em `EPROCIA_TESTE_DADOS\args-<pid>.txt` os argumentos que recebeu.
+- [ ] **Passo 2: testes** (pasta `t.TempDir()` com `eprocia.exe` = auxiliar carimbado N `0.4.4`, iniciado no teste e mantido rodando durante a troca, para provar o rename de exe em execução; baixado = auxiliar carimbado `0.5.0`, num `Baixado` com o SHA certo; `PrazoSinal` de 30 s nos casos de sucesso (o primeiro arranque de um exe novo pode demorar com o antivírus, e o teste não pode depender disso), 1 s nos casos sem sinal; todo filho encerrado no cleanup):
   - `TestAplicar_Sucesso`: devolve `nil`; `eprocia.exe` tem versão `0.5.0`, `eprocia.anterior.exe` `0.4.4`; o filho recebeu `--apos-atualizar=<PIDAtual>` e, com `Extras: {"--tray"}`, também `--tray`; o sinal foi lido e apagado.
+  - `TestAplicar_ArquivoAlteradoAntesDoRename`: um byte do baixado é trocado depois do `Baixar` e antes de `Aplicar`; devolve `ErrNaoConferiu`; `eprocia.exe` continua o `0.4.4` (mesmo SHA-256), não existe `eprocia.anterior.exe` novo, o baixado foi apagado e nenhum processo foi iniciado.
   - `TestAplicar_AnteriorVelhoApagado`: um `eprocia.anterior.exe` `0.4.2` pré-existente dá lugar ao `0.4.4`.
   - `TestAplicar_NovoSaiComErroReverte` (modo `sai1`) e `TestAplicar_PrazoReverte` (modo `parado`): devolvem `ErrNaoAbriu{"0.5.0"}`; `eprocia.exe` volta a ser o `0.4.4` (mesmo SHA-256 de antes), `eprocia.falhou.exe` é o `0.5.0`; no caso do prazo, o filho `parado` já não existe quando `Aplicar` devolve.
   - `TestAplicar_FalhaNoSegundoRename`: `renomear` falso que falha só no segundo rename; `eprocia.exe` continua o `0.4.4`, sem `eprocia.anterior.exe`, e o baixado continua no lugar para a limpeza; nenhum processo foi iniciado.
@@ -292,15 +297,16 @@ Sequências (spec 3.1, ao pé da letra): `Aplicar` = apaga `eprocia.anterior.exe
 
 **Interfaces:**
 - Consumes: `Baixado`, `conferir` (Task 6); `PastaAtualizacao` (Task 10).
-- Produces: `func NovaPastaInstalador(pastaAtualizacao string) (string, error)` (cria a pasta sob demanda e devolve `os.MkdirTemp(pastaAtualizacao, "")`); `type Travado struct` (handle não exportado); `func ReabrirConferido(b Baixado) (*Travado, error)` (reabre com `windows.CreateFile(GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING)` e chama `conferir` sobre esse handle); `func (t *Travado) Abrir(shell func(caminho string) error) error` (chama `shell` e fecha o handle depois que ele devolve, com erro ou não); `func (t *Travado) Fechar()`; `var ErrCancelado` (UAC recusado); `func ShellExecuteEx(caminho string) error` (verbo `open`, `SEE_MASK_NOCLOSEPROCESS` não é necessário; `ERROR_CANCELLED` vira `ErrCancelado`).
+- Produces: `func NovaPastaInstalador(pastaAtualizacao string) (string, error)` (cria a pasta sob demanda e devolve `os.MkdirTemp(pastaAtualizacao, "")`); `type Travado struct` (handle não exportado); `func ReabrirConferido(b Baixado) (*Travado, error)` (reabre com `windows.CreateFile(GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING)` e chama `conferir` sobre esse handle); `func (t *Travado) Abrir(shell func(caminho string) error) error` (chama `shell` e fecha o handle depois que ele devolve, com erro ou não); `func (t *Travado) Fechar()`; `var ErrCancelado` (UAC recusado); `func ShellExecuteEx(caminho string) error` (detalhes abaixo); `func erroShell(errno syscall.Errno) error` (mapeia o `errno`; testável sem chamar o shell).
 
-O instalador baixado guarda o nome do asset (`eprocia-X.Y.Z-windows-amd64-instalador.exe`) dentro da subpasta nova: o `ShellExecuteEx` precisa da extensão `.exe`, e a subpasta aleatória cumpre o "nome aleatório" da spec.
+O instalador baixado guarda o nome do asset (`eprocia-X.Y.Z-windows-amd64-instalador.exe`) dentro da subpasta nova: o `ShellExecuteEx` precisa da extensão `.exe`, e a subpasta aleatória cumpre o "nome aleatório" da spec. O x/sys v0.49.0 não tem `ShellExecuteEx` nem `SHELLEXECUTEINFO`: `shell_windows.go` declara a struct `shellExecuteInfoW` (layout de `SHELLEXECUTEINFOW` em 64 bits, `cbSize` preenchido com `unsafe.Sizeof`) e chama `windows.NewLazySystemDLL("shell32.dll").NewProc("ShellExecuteExW")` com `fMask = SEE_MASK_FLAG_NO_UI` (0x400, para o Windows não mostrar caixa de erro própria), verbo `open`, `nShow = SW_SHOWNORMAL`. Retorno zero = falha; o erro é o `errno` devolvido pelo `Call` (`syscall.Errno`), e `windows.ERROR_CANCELLED` (1223) vira `ErrCancelado`.
 
 - [ ] **Passo 1: testes** (exe carimbado como "instalador" `0.5.0`, `Baixado` montado com o SHA certo; `shell` falso):
   - `TestReabrirConferido_TravaEscrita`: com o `Travado` aberto, `os.OpenFile(caminho, O_WRONLY)` falha e `os.Remove` falha; `VersaoPE` sobre o caminho funciona (o `conferir` já passou); depois de `Abrir` devolver, a escrita volta a funcionar.
   - `TestReabrirConferido_SHAErrado`: `Baixado` com SHA diferente devolve `ErrNaoConferiu` e `shell` nunca é chamado.
   - `TestAbrir_PassaCaminhoEFechaHandle`: `shell` recebe o caminho exato; o handle continua aberto durante a chamada (o falso tenta escrever e falha) e fecha depois.
   - `TestAbrir_Cancelado`: `shell` que devolve `ErrCancelado` faz `Abrir` devolver `ErrCancelado` (`errors.Is`).
+  - `TestErroShell`: `erroShell(windows.ERROR_CANCELLED)` é `ErrCancelado` (`errors.Is`); `erroShell(windows.ERROR_FILE_NOT_FOUND)` não é. `TestShellExecuteInfo_Tamanho`: `unsafe.Sizeof(shellExecuteInfoW{})` é 112 em amd64 (tamanho de `SHELLEXECUTEINFOW`).
   - `TestNovaPastaInstalador_UmaPorDownload`: duas chamadas devolvem duas subpastas diferentes, ambas dentro de `pastaAtualizacao`, que foi criada.
 - [ ] **Passo 2: rodar** `go test ./internal/atualizacao -run "Reabrir|Abrir|NovaPasta" -v`: falham.
 - [ ] **Passo 3: implementar.** `conferir` recebe um `*os.File` criado de `os.NewFile(uintptr(handle), caminho)` sem fechá-lo antes da hora. Se o `GetFileVersionInfo` não conseguir abrir o arquivo travado (violação de compartilhamento), não mude o modo de compartilhamento: leia a versão pelo `debug/pe` sobre o mesmo handle (recurso `RT_VERSION`, assinatura `0xFEEF04BD`) e registre o desvio no relatório.
@@ -323,10 +329,10 @@ O instalador baixado guarda o nome do asset (`eprocia-X.Y.Z-windows-amd64-instal
   - `type Rede interface { Verificar(ctx context.Context, atual Versao) (*Release, error); Baixar(ctx context.Context, rel *Release, asset Asset, pasta, nome string, progresso func(feito, total int64)) (Baixado, error) }` (`*Cliente` a implementa).
   - `type Gravador interface { Fechar() error; Reabrir() error }` (histórico, spec vizinha; nil neste plano).
   - `type Ambiente struct { PararMonitor, ReligarMonitor, Reter, Soltar func(); Ociosa, Pausada, Oculta func() bool; Gravador Gravador; Sair func(); Emitir func(Estado) }` (`Sair` esconde a janela e chama `App.Quit`).
-  - `type Opcoes struct { Atual Versao; Instalacao Instalacao; PastaDados, PastaAtualizacao string; PID int; Rede Rede; Trocador func(extras []string) Trocador; Shell func(caminho string) error }` com `type Trocador interface { Aplicar(ctx context.Context, baixado string) error; Voltar(ctx context.Context) error }` (`*Troca` a implementa).
+  - `type Opcoes struct { Atual Versao; Instalacao Instalacao; PastaDados, PastaAtualizacao string; PID int; Rede Rede; Trocador func(extras []string) Trocador; Shell func(caminho string) error }` com `type Trocador interface { Aplicar(ctx context.Context, b Baixado) error; Voltar(ctx context.Context) error }` (`*Troca` a implementa).
   - `func NovoAtualizador(o Opcoes, amb Ambiente) *Atualizador`; métodos `Estado() Estado`, `Verificar(ctx context.Context) (Info, error)`, `Instalar() error` (valida e devolve; o resto corre numa goroutine e se reporta por `Emitir`), `Cancelar()`, `Voltar() error`, `AoFicarOciosa()`, `NotasURL() string`, `Encerrar()`; `var ErrSemConsulta`, `var ErrNaoInstalavel`, `var ErrEmCurso`, `var ErrDesligado`.
 
-Regras que o código decide: `Verificar` com `Atual` inválida devolve `ErrDesligado` sem rede; `ErrIncompleta` vira `Info{Modo: "incompleta"}` sem erro; `(nil, nil)` vira `em_dia`; versão maior vira o modo da `Instalacao`. `Instalar` só depois de um `Verificar` com modo `trocar` ou `instalador` (senão `ErrSemConsulta` ou `ErrNaoInstalavel`, sem rede). Download do exe em `Instalacao.Pasta` com nome `PrefixoTemp + <aleatório>`; do instalador em `NovaPastaInstalador`. Depois do download, `tentar()`: fila não ociosa = fase `aguardando_fila` (mensagem `MsgRetomeFila` se `Pausada()`) e espera `AoFicarOciosa`; ociosa = preparação na ordem `PararMonitor`, `Reter`, conferência `Ociosa()` (falhou: `Soltar`, `ReligarMonitor`, volta a `aguardando_fila`), `Gravador.Fechar` (se houver). Depois: modo `trocar` chama `Trocador(extras).Aplicar` (fase `aplicando`, mensagem `MsgAbrindo`), com `extras = {autostart.FlagTray}` se `Oculta()`; modo `instalador` chama `ReabrirConferido` antes da preparação e `Travado.Abrir(Shell)` depois (fase `abrindo_instalador`). Sucesso = `Sair()`. Falha = desfaz na ordem inversa (`Gravador.Reabrir`, `Soltar`, `ReligarMonitor`) e fase `erro` com `MsgNaoAbriu`, `MsgInstalacaoCancelada`, `MsgNaoConferiu` ou `MsgInterrompido`, mantendo `Modo`. Erros de consulta: `MsgRecusada` para `ErrRecusada`, `MsgSemRede` para os demais. `Cancelar` durante o download volta a `disponivel`; em `aguardando_fila` apaga o baixado e volta a `disponivel`; em `aplicando` ou `abrindo_instalador` não faz nada. `Voltar` só no modo `trocar` com `VersaoAnterior` verdadeira, mesma preparação, sem rede. `Encerrar` cancela o download e apaga o baixado que ainda não foi renomeado nem aberto. `Estado().Atual` é a versão em execução; `Estado().Anterior` vem de `VersaoAnterior(Instalacao.Pasta, Atual)`, lida em `NovoAtualizador` e de novo depois de cada operação que termina, só no modo `trocar` (nos outros, vazio).
+Regras que o código decide: `Verificar` com `Atual` inválida devolve `ErrDesligado` sem rede; `ErrIncompleta` vira `Info{Modo: "incompleta"}` sem erro; `(nil, nil)` vira `em_dia`; versão maior vira o modo da `Instalacao`. `Instalar` só depois de um `Verificar` com modo `trocar` ou `instalador` (senão `ErrSemConsulta` ou `ErrNaoInstalavel`, sem rede). Download do exe em `Instalacao.Pasta` com nome `PrefixoTemp + <aleatório>`; do instalador em `NovaPastaInstalador`. Depois do download, `tentar()`: fila não ociosa = fase `aguardando_fila` (mensagem `MsgRetomeFila` se `Pausada()`) e espera `AoFicarOciosa`. Corridas: a fase `aguardando_fila` é gravada sob o mutex e, **depois** de gravada e fora dele, `Ociosa()` é conferida de novo (um aviso que chegou entre a primeira conferência e a gravação da fase não se perde); a passagem para a preparação é uma transição sob o mutex de `aguardando_fila` (ou da conferência inicial) para uma fase interna `preparando`, e só quem a faz segue: `AoFicarOciosa` em qualquer outra fase não faz nada, e dois avisos simultâneos levam a uma preparação só. `preparando` não é emitida: o frontend já vê `aplicando` ou `abrindo_instalador`. Ociosa = preparação na ordem `PararMonitor`, `Reter`, conferência `Ociosa()` (falhou: `Soltar`, `ReligarMonitor`, volta a `aguardando_fila`), `Gravador.Fechar` (se houver). Depois: modo `trocar` chama `Trocador(extras).Aplicar` (fase `aplicando`, mensagem `MsgAbrindo`), com `extras = {autostart.FlagTray}` se `Oculta()`; modo `instalador` chama `ReabrirConferido` antes da preparação e `Travado.Abrir(Shell)` depois (fase `abrindo_instalador`). Sucesso = `Sair()`. Falha = desfaz na ordem inversa (`Gravador.Reabrir`, `Soltar`, `ReligarMonitor`) e fase `erro` com `MsgNaoAbriu`, `MsgInstalacaoCancelada`, `MsgNaoConferiu` ou `MsgInterrompido`, mantendo `Modo`. Erros de consulta: `MsgRecusada` para `ErrRecusada`, `MsgSemRede` para os demais. `Cancelar` durante o download volta a `disponivel`; em `aguardando_fila` apaga o baixado e volta a `disponivel`; em `aplicando` ou `abrindo_instalador` não faz nada. `Voltar` só no modo `trocar` com `VersaoAnterior` verdadeira, mesma preparação, sem rede. `Encerrar` cancela o download e apaga o baixado que ainda não foi entregue a `Aplicar` nem a `ReabrirConferido`; da preparação em diante (inclusive depois de um `Aplicar` bem-sucedido, quando o `Sair` leva ao `shutdown`), não apaga nem renomeia nada. `Estado().Atual` é a versão em execução; `Estado().Anterior` vem de `VersaoAnterior(Instalacao.Pasta, Atual)`, lida em `NovoAtualizador` e de novo depois de cada operação que termina, só no modo `trocar` (nos outros, vazio).
 
 - [ ] **Passo 1: testes** (`Rede`, `Trocador` e `Shell` falsos; `Ambiente` que registra a ordem das chamadas num slice):
   - `TestAtualizador_VerificarModos`: maior com instalação `trocar` dá `Info{Modo: "trocar", Versao: "0.5.0", NotasURL}`; `ErrIncompleta` dá `incompleta` sem erro; `(nil, nil)` dá `em_dia` com a versão atual; instalação `so_avisar` dá `so_avisar` com o motivo; erro de rede dá fase `erro` com `MsgSemRede` e `Modo` vazio; `ErrRecusada` dá `MsgRecusada`.
@@ -334,6 +340,9 @@ Regras que o código decide: `Verificar` com `Atual` inválida devolve `ErrDesli
   - `TestAtualizador_InstalarSemConsulta` e `TestAtualizador_InstalarDepoisDeIncompleta`: `ErrSemConsulta` e `ErrNaoInstalavel`; `Baixar` não é chamado. O mesmo para `em_dia` e `so_avisar`.
   - `TestAtualizador_OrdemDaPreparacao`: fila ociosa; ordem registrada `PararMonitor`, `Reter`, `Ociosa`, `Gravador.Fechar`, `Aplicar`, `Sair`.
   - `TestAtualizador_FilaOcupadaEspera`: `Ociosa` falso: fase `aguardando_fila`, `Aplicar` não chamado; `Ociosa` passa a verdadeiro e `AoFicarOciosa()` faz aplicar.
+  - `TestAtualizador_AvisoAntesDaFase`: `Ociosa` falso na primeira conferência; o falso de `Ociosa` dispara `AoFicarOciosa()` e passa a verdadeiro nesse mesmo momento, antes de a fase `aguardando_fila` ser gravada: `Aplicar` é chamado mesmo assim (pela reconferência), uma vez.
+  - `TestAtualizador_DoisAvisosSimultaneos`: em `aguardando_fila`, com `Ociosa` verdadeiro, 20 goroutines chamam `AoFicarOciosa()` ao mesmo tempo (`-race`): `PararMonitor` e `Aplicar` são chamados uma vez cada.
+  - `TestAtualizador_AvisoForaDeHora`: `AoFicarOciosa()` em fase `''`, `disponivel`, `baixando` e `em_dia` não chama nada do `Ambiente`.
   - `TestAtualizador_PausadaComPendentes`: fase `aguardando_fila` com `MsgRetomeFila`.
   - `TestAtualizador_ItemEntraNaConferencia`: `Ociosa` verdadeiro na primeira chamada (antes da preparação) e falso na conferência com a fila retida: ordem `PararMonitor`, `Reter`, `Ociosa`, `Soltar`, `ReligarMonitor`; fase `aguardando_fila`; `Aplicar` não chamado.
   - `TestAtualizador_NaoAbriuDesfaz`: `Aplicar` devolve `ErrNaoAbriu`: ordem termina com `Gravador.Reabrir`, `Soltar`, `ReligarMonitor`; `Sair` não chamado; fase `erro`, mensagem `MsgNaoAbriu("0.5.0", "0.4.4")`, `Modo` `trocar`.
@@ -342,8 +351,9 @@ Regras que o código decide: `Verificar` com `Atual` inválida devolve `ErrDesli
   - `TestAtualizador_UmaOperacaoPorVez`: com um `Baixar` falso bloqueado, um segundo `Instalar` e um `Verificar` devolvem `ErrEmCurso`; `Baixar` foi chamado uma vez.
   - `TestAtualizador_CancelarDuranteDownload`: `Cancelar()` faz o `ctx` do `Baixar` ser cancelado e a fase voltar a `disponivel`.
   - `TestAtualizador_EncerrarApagaTemporario`: em `aguardando_fila`, com o baixado num `t.TempDir()`, `Encerrar()` apaga o arquivo e não chama `Aplicar`.
+  - `TestAtualizador_EncerrarDepoisDeAplicarNaoTocaOExe`: `Aplicar` falso que renomeia o baixado para `eprocia.exe` num `t.TempDir()` e devolve `nil`; `Sair` chama `Encerrar()` (como o `shutdown` fará); `eprocia.exe` continua lá com o mesmo conteúdo e nada mais na pasta foi apagado.
   - `TestAtualizador_TrocaComJanelaOcultaPassaTray`: `Oculta` verdadeiro: o `Trocador` é criado com `extras` `{"--tray"}`; falso, com `extras` vazio.
-  - `TestAtualizador_VoltarSemRede`: modo `trocar`, anterior `0.4.3` (pasta com o auxiliar carimbado): `Voltar` faz a preparação e chama `Trocador.Voltar`, sem nenhuma chamada à `Rede`; sem anterior, devolve `ErrNaoInstalavel`. O `Estado().Anterior` é `"0.4.3"` no primeiro caso e vazio no segundo.
+  - `TestAtualizador_VoltarSemRede`: modo `trocar`, anterior `0.4.3` (pasta com o auxiliar carimbado; `PrimeiraVersaoComProtocolo` trocada para `0.4.0` no teste e restaurada no cleanup): `Voltar` faz a preparação e chama `Trocador.Voltar`, sem nenhuma chamada à `Rede`; sem anterior, devolve `ErrNaoInstalavel`. O `Estado().Anterior` é `"0.4.3"` no primeiro caso e vazio no segundo.
   - `TestAtualizador_ProgressoEmInteiros`: `Baixar` falso que chama `progresso` 1000 vezes emite no máximo 101 estados `baixando`.
 - [ ] **Passo 2: rodar** `go test -race ./internal/atualizacao -run Atualizador -v`: falham.
 - [ ] **Passo 3: implementar** com um `sync.Mutex` sobre o estado e um `context.CancelFunc` da operação em curso; `Emitir` sempre fora do mutex.
@@ -352,36 +362,59 @@ Regras que o código decide: `Verificar` com `Atual` inválida devolve `ErrDesli
 
 ---
 
-### Task 14: ligação no App (bindings, arranque em dois tempos, trava de instância)
+### Task 14: arranque em dois tempos, fila e trava de instância no App
 
 **Files:**
 - Create: `app_atualizacao.go`
-- Modify: `app.go` (`startup`, `shutdown`, campos do `App`), `main.go` (flag, trava, `OnDomReady`), `registro_app.go` (só se a trava adiada precisar de um parâmetro em `prepararInstancia`; preferir envolver `travar`)
-- Modify (gerados): `frontend/src/wailsjs/go/main/App.js`, `App.d.ts`, `frontend/src/wailsjs/go/models.ts`
-- Test: `app_atualizacao_test.go`
+- Modify: `app.go` (`startup` dividido, `shutdown`, campos do `App`), `main.go` (flag, trava, `OnDomReady`), `registro_app.go` (só se a trava adiada precisar de um parâmetro em `prepararInstancia`; preferir envolver `travar`)
+- Test: `app_atualizacao_test.go`, `internal/registro/rotativo_append_test.go` (novo; pré-condição)
 
 **Interfaces:**
-- Consumes: Tasks 7, 9, 10, 13; `versaoApp()`, `prepararInstancia`, `pastaDadosApp()` (base).
-- Produces (bindings): `func (a *App) GetVersao() string`; `func (a *App) EstadoAtualizacao() atualizacao.Estado` (instantâneo, sem rede); `func (a *App) VerificarAtualizacao() (*atualizacao.Info, error)`; `func (a *App) InstalarAtualizacao() error`; `func (a *App) CancelarAtualizacao()`; `func (a *App) VoltarVersaoAnterior() error`; `func (a *App) AbrirNovidades() error` (abre `NotasURL()` com `runtime.BrowserOpenURL` só se começar com `https://github.com/jonyduque/eprocia/releases/`; senão erro, sem abrir); `func (a *App) AbrirPaginaVersoes() error` (abre `https://github.com/jonyduque/eprocia/releases`). Evento `atualizacao:estado` com o `Estado`. Internos: `func travaAposAtualizar(travar func() (func(), bool, error)) (envolvida func() (func(), bool, error), depois func() bool)` (a envolvida devolve `ok` com a trava ocupada e guarda a nova tentativa em `depois`); `func (a *App) iniciarAtualizacao(o atualizacao.Opcoes)`; `func (a *App) domPronto(ctx context.Context)` (`OnDomReady`, uma vez só); `func (a *App) arranqueApos()`. Campos novos do `App`: `atualizador`, `apos int`, `travarDepois func() bool`, `esperarSair func(pid int, prazo time.Duration) bool`, `abrirURL func(url string)`, `gravarVersao func(string) error`.
+- Consumes: Tasks 7, 9, 10, 13; `versaoApp()`, `prepararInstancia`, `pastaDadosApp()`, `registro.AbrirRotativo` (base).
+- Produces (internos, sem binding novo nesta tarefa): `func travaAposAtualizar(travar func() (func(), bool, error)) (envolvida func() (func(), bool, error), depois func() bool)` (a envolvida devolve `ok` com a trava ocupada e guarda a nova tentativa; `depois` tenta a cada 500 ms **até obter** e devolve `true`; com a trava obtida de primeira, devolve `true` na hora); `func (a *App) iniciarFila(ctx context.Context)` (a parte do `startup` que cria pipeline e fila, aplica config e falhas e liga o watcher); `func (a *App) iniciarAtualizacao(o atualizacao.Opcoes)`; `func (a *App) darSinal()` (uma vez só, por `sync.Once`); `func (a *App) sinalNoStartup()` (último passo do `startup`: chama `darSinal()` quando `apos > 0` e `oculta.Load()`); `func (a *App) domPronto(ctx context.Context)` (`OnDomReady`); `func (a *App) arranqueApos()`. Campos novos do `App`: `atualizador *atualizacao.Atualizador`, `apos int`, `modo atualizacao.Modo`, `pastaDados string` (preenchido no `main` com `pastaDadosApp()`; os testes passam um `t.TempDir()`), `travarDepois func() bool`, `esperarSair func(pid int, prazo time.Duration) bool`, `gravarVersao func(string) error`.
 
-Decisões: o `startup` monta `Opcoes` com `versaoApp()`, `Detectar(caminhoExecutavel(), RegistroWindows(), PodeEscrever)`, `pastaDadosApp()`, `PastaAtualizacao(os.Getenv("LOCALAPPDATA"))`, `os.Getpid()`, `NovoCliente(RegrasGitHub(), nil, atual)`, `ShellExecuteEx` e `Trocador: func(extras []string) atualizacao.Trocador { return &atualizacao.Troca{Pasta: inst.Pasta, PastaDados: pastaDados, PIDAtual: os.Getpid(), Extras: extras, PrazoSinal: atualizacao.PrazoSinal} }`; chama `Limpar` quando o modo é `trocar` ou `instalador`, antes de tudo; liga `queue.SetAoFicarOciosa(atualizador.AoFicarOciosa)`. O `Ambiente` usa `watcher.Stop`, um `religar` que repete a regra do `startup` (`WatchdogEnabled` e `MonitoredPath`), `queue.Reter/Soltar/Ociosa/IsPaused`, `oculta.Load`, `Gravador` nil, `Sair` = `ocultarJanela` + `Quit`, `Emitir` = `EventsEmit(ctx, "atualizacao:estado", e)`. A parte do `startup` que cria pipeline e fila, aplica config e falhas e liga o watcher sai para `func (a *App) iniciarFila(ctx context.Context)`, que os testes chamam com `ctx` nil (com `wailsCtx` nil a fila não emite eventos). Com `apos > 0`: `queue.Reter()` antes de `SetContext` e o watcher não liga em `iniciarFila`. `domPronto` com `apos > 0`: `GravarSinal(pastaDados, apos, versao)`, e numa goroutine `arranqueApos`: `esperarSair(apos, PrazoAntigoSair)` (falso = `slog.Warn`), `travarDepois()` (falso = `slog.Warn`, segue sem trava), `queue.Soltar()`, liga o watcher, e no modo `trocar` `gravarVersao(versao)`. `shutdown` chama `atualizador.Encerrar()` antes de parar watcher e fila. Em `main.go`, `AposAtualizar(os.Args)` dá `app.apos`; com ele, `travar` passa por `travaAposAtualizar` (o processo novo não sai por achar a trava ocupada pelo antigo, que a segura até sair; o registro do log começa já, e os dois processos escrevem no mesmo `eprocia.log` por alguns segundos, em `O_APPEND`); sem ele, nada muda.
+Decisões: o `startup` chama `iniciarFila(ctx)` e `iniciarAtualizacao(opcoes)`, com `Opcoes` montadas de `versaoApp()`, `Detectar(caminhoExecutavel(), RegistroWindows(), PodeEscrever)`, `a.pastaDados`, `PastaAtualizacao(os.Getenv("LOCALAPPDATA"))`, `os.Getpid()`, `NovoCliente(RegrasGitHub(), nil, atual)`, `ShellExecuteEx` e `Trocador: func(extras []string) atualizacao.Trocador { return &atualizacao.Troca{Pasta: inst.Pasta, PastaDados: a.pastaDados, PIDAtual: os.Getpid(), Extras: extras, PrazoSinal: atualizacao.PrazoSinal} }`. `iniciarAtualizacao` chama `Limpar` quando o modo é `trocar` ou `instalador`, antes de tudo, e liga `queue.SetAoFicarOciosa(atualizador.AoFicarOciosa)`. O `Ambiente` usa `watcher.Stop`, um `religar` que repete a regra do `startup` (`WatchdogEnabled` e `MonitoredPath`), `queue.Reter/Soltar/Ociosa/IsPaused`, `oculta.Load`, `Gravador` nil, `Sair` = `ocultarJanela` + `Quit`, `Emitir` = `a.emitir("atualizacao:estado", e)` (com `runtime.EventsEmit` quando `emitir` é nil). Com `apos > 0`: `iniciarFila` chama `queue.Reter()` antes de `SetContext` e não liga o watcher. O sinal: com `apos > 0` e a janela nascendo oculta (`--tray`), `startup` chama `darSinal()` no fim, sem depender do `OnDomReady` (com a janela oculta, o carregamento do frontend não é garantido nem necessário); sem `--tray`, `domPronto` chama `darSinal()`. `darSinal` grava `GravarSinal(a.pastaDados, apos, versao)` e inicia `arranqueApos` numa goroutine: `esperarSair(apos, PrazoAntigoSair)` (falso = `slog.Warn`), `queue.Soltar()`, depois `travarDepois()` (bloqueia até obter a trava; enquanto não obtém, o watcher fica desligado, para nunca haver dois processos monitorando a mesma pasta; arquivos soltos ou selecionados à mão já entram na fila solta) e só então liga o watcher; `gravarVersao(versao)` só no modo `trocar` e só depois de `esperarSair` devolver. `shutdown` chama `atualizador.Encerrar()` antes de parar watcher e fila. Em `main.go`, `AposAtualizar(os.Args)` dá `app.apos`; com ele, `travar` passa por `travaAposAtualizar` (o processo novo não sai por achar a trava ocupada pelo antigo, que a segura até sair); sem ele, nada muda. O registro do log começa já no processo novo, e os dois processos escrevem no mesmo `eprocia.log` por alguns segundos: por isso a pré-condição do passo 1.
 
-- [ ] **Passo 1: testes** (`app_atualizacao_test.go`, `NewApp()` com config de teste cuja pasta monitorada é um `t.TempDir()`, `iniciarFila(nil)`, `Rede` falsa que falha o teste se chamada, `esperarSair` controlado por canal, `emitir` e `abrirURL` falsos, pastas de dados e de atualização em `t.TempDir()`):
-  - `TestAtualizacao_SemRedeSemClique`: `iniciarFila`, `iniciarAtualizacao`, `domPronto` e `arranqueApos`, com e sem `apos`, não chamam a `Rede`.
-  - `TestAtualizacao_ProcessoNovoRetido`: com `apos = 4242`, um `AddFilesToQueue` de um caminho inexistente antes de `esperarSair` devolver deixa o item `pending` por 300 ms; o watcher não está ligado (`GetCurrentPath() == ""`); depois de liberar o canal, o item sai de `pending` (o pipeline real falha no arquivo inexistente: basta sair de `pending`) e o watcher liga na pasta da config; o sinal `atualizacao-sinal-4242` existe na pasta de dados de teste com a versão de `wails.json`.
-  - `TestAtualizacao_DomProntoUmaVez`: duas chamadas de `domPronto` gravam um sinal só e iniciam um `arranqueApos` só.
-  - `TestTravaAposAtualizar`: trava ocupada: a envolvida devolve `ok` e `depois()` tenta de novo (falso enquanto ocupada, verdadeiro quando livre); trava livre: devolve a trava real e `depois()` é verdadeiro sem tentar de novo.
-  - `TestInstalarAtualizacao_SemVerificar`: devolve erro e a `Rede` não é chamada.
-  - `TestAbrirNovidades_SoPrefixo`: `NotasURL` `https://github.com/jonyduque/eprocia/releases/tag/v0.5.0` chama `abrirURL`; `https://github.com/outro/x/releases/` e `https://evil.example/` devolvem erro sem chamar.
+- [ ] **Passo 1: pré-condição do log** (guarda de regressão, em `internal/registro/rotativo_append_test.go`): `TestArquivoRotativo_DoisEscritoresNoMesmoArquivo`: dois `AbrirRotativo` na mesma pasta e base (limite de rotação alto), 1000 linhas de 100 bytes cada um, escritas de duas goroutines alternadas; o arquivo final tem 2000 linhas, todas inteiras. Isso exige `O_APPEND` na abertura do `ArquivoRotativo`; se a base não o tiver, acrescente-o em `internal/registro/rotativo.go` e justifique no relatório. Quebre numa cópia local (abra sem `O_APPEND`) para ver o teste falhar.
+- [ ] **Passo 2: testes** (`app_atualizacao_test.go`; `NewApp()` com `pastaDados` em `t.TempDir()` e config de teste cuja pasta monitorada é outro `t.TempDir()`; `iniciarFila(nil)` (com `wailsCtx` nil a fila não emite eventos); `Rede` falsa que falha o teste se chamada; `esperarSair`, `travarDepois` e `gravarVersao` falsos controlados por canal e registrando chamadas; `emitir` falso):
+  - `TestAtualizacao_SemRedeSemClique`: `iniciarFila`, `iniciarAtualizacao`, `domPronto`, `darSinal` e `arranqueApos`, com e sem `apos`, não chamam a `Rede`.
+  - `TestAtualizacao_ProcessoNovoRetido`: com `apos = 4242`, um `AddFilesToQueue` de um caminho inexistente antes de `esperarSair` devolver deixa o item `pending` por 300 ms; o watcher não está ligado (`GetCurrentPath() == ""`); liberado o `esperarSair`, o item sai de `pending` (o pipeline real falha no arquivo inexistente: basta sair de `pending`), mas o watcher continua desligado enquanto `travarDepois` não devolve; liberado o `travarDepois`, o watcher liga na pasta da config. O sinal `atualizacao-sinal-4242` existe em `pastaDados` com a versão de `wails.json`.
+  - `TestAtualizacao_SinalNoStartupComTray`: `apos > 0` e janela oculta: o sinal existe logo depois do `startup` (o teste chama `iniciarFila`, `iniciarAtualizacao` e `sinalNoStartup` com `oculta` verdadeiro), sem `domPronto`; uma chamada posterior de `domPronto` não grava outro nem inicia outro `arranqueApos`.
+  - `TestAtualizacao_DomProntoUmaVez`: sem `--tray`, duas chamadas de `domPronto` gravam um sinal só e iniciam um `arranqueApos` só.
+  - `TestAtualizacao_GravarVersaoSoTrocarEDepoisDoAntigo`: modo `trocar`: `gravarVersao` não é chamado antes de `esperarSair` devolver e é chamado uma vez depois; modos `instalador` e `so_avisar`: nunca é chamado.
+  - `TestTravaAposAtualizar`: trava ocupada: a envolvida devolve `ok`; `depois()` bloqueia enquanto a trava falsa continua ocupada (não devolve em 1,5 s) e devolve `true` assim que ela fica livre; trava livre: a envolvida devolve a trava real e `depois()` devolve `true` na hora, sem tentar de novo.
   - `TestAtualizacao_ShutdownEncerra`: `shutdown` com um download falso em curso cancela o `ctx` dele.
-- [ ] **Passo 2: rodar** `go test -race . -run "Atualizacao|TravaAposAtualizar|InstalarAtualizacao|AbrirNovidades" -v`: falham.
-- [ ] **Passo 3: implementar** e rodar `wails generate module` (regras, "Bindings do Wails").
-- [ ] **Passo 4: rodar** de novo e `go test -race ./...`: passam.
-- [ ] **Passo 5: commit** `feat(app): atualização pelo botão, arranque em dois tempos e trava adiada`.
+- [ ] **Passo 3: rodar** `go test -race . -run "Atualizacao|TravaAposAtualizar" -v`: falham. `go test ./internal/registro -run DoisEscritores -v`: passa (guarda).
+- [ ] **Passo 4: implementar.**
+- [ ] **Passo 5: rodar** de novo e `go test -race ./...`: passam.
+- [ ] **Passo 6: commit** `feat(app): arranque em dois tempos, fila retida e trava adiada na atualização`.
 
 ---
 
-### Task 15: lógica do frontend (atualizacao.js e textos)
+### Task 15: bindings da atualização
+
+**Files:**
+- Modify: `app_atualizacao.go`
+- Modify (gerados): `frontend/src/wailsjs/go/main/App.js`, `App.d.ts`, `frontend/src/wailsjs/go/models.ts`
+- Test: `app_atualizacao_test.go` (estende)
+
+**Interfaces:**
+- Consumes: `Atualizador` (Task 13); ligação da Task 14.
+- Produces (bindings): `func (a *App) GetVersao() string`; `func (a *App) EstadoAtualizacao() atualizacao.Estado` (instantâneo, sem rede); `func (a *App) VerificarAtualizacao() (*atualizacao.Info, error)`; `func (a *App) InstalarAtualizacao() error`; `func (a *App) CancelarAtualizacao()`; `func (a *App) VoltarVersaoAnterior() error`; `func (a *App) AbrirNovidades() error` (abre `NotasURL()` com `runtime.BrowserOpenURL` só se começar com `https://github.com/jonyduque/eprocia/releases/`; senão erro, sem abrir); `func (a *App) AbrirPaginaVersoes() error` (abre `https://github.com/jonyduque/eprocia/releases`). Evento `atualizacao:estado` com o `Estado`. Campo novo: `abrirURL func(url string)` (falso nos testes).
+
+- [ ] **Passo 1: testes:**
+  - `TestInstalarAtualizacao_SemVerificar`: devolve erro e a `Rede` não é chamada.
+  - `TestVerificarAtualizacao_DevolveInfo`: `Rede` falsa com release maior e instalação `trocar` devolve `Info{Modo: "trocar"}`; o `emitir` falso recebeu `atualizacao:estado` com fase `disponivel`.
+  - `TestAbrirNovidades_SoPrefixo`: `NotasURL` `https://github.com/jonyduque/eprocia/releases/tag/v0.5.0` chama `abrirURL`; `https://github.com/outro/x/releases/` e `https://evil.example/` devolvem erro sem chamar.
+  - `TestGetVersao`: igual a `versaoApp()`.
+- [ ] **Passo 2: rodar** `go test -race . -run "InstalarAtualizacao|VerificarAtualizacao|AbrirNovidades|GetVersao" -v`: falham.
+- [ ] **Passo 3: implementar** e rodar `wails generate module` (regras, "Bindings do Wails"); inclua só os gerados que mudaram de fato.
+- [ ] **Passo 4: rodar** de novo e `go test -race ./...`: passam.
+- [ ] **Passo 5: commit** `feat(app): bindings da atualização pelo botão`.
+
+---
+
+### Task 16: lógica do frontend (atualizacao.js e textos)
 
 **Files:**
 - Create: `frontend/src/lib/atualizacao.js`
@@ -389,7 +422,7 @@ Decisões: o `startup` monta `Opcoes` com `versaoApp()`, `Detectar(caminhoExecut
 - Test: `frontend/atualizacao.test.mjs`
 
 **Interfaces:**
-- Consumes: o `Estado` da Task 14 (JSON `ativo, fase, versao, progresso, mensagem, modo, motivo, atual, anterior`).
+- Consumes: o `Estado` da Task 13, servido pelos bindings da Task 15 (JSON `ativo, fase, versao, progresso, mensagem, modo, motivo, atual, anterior`).
 - Produces: em `textos.js`, o objeto `ATUALIZACAO` com os textos exatos: `titulo: 'Atualizações'`, `versao: (v) => \`Versão ${v}\``, `procurar: 'Procurar atualização'`, `procurando: 'Procurando...'`, `emDia: (v) => \`O eprocIA está em dia (${v})\``, `disponivel: (v) => \`Versão ${v} disponível\``, `novidades: 'Ver novidades'`, `atualizar: 'Atualizar'`, `baixarInstalador: 'Baixar e abrir o instalador'`, `quandoFilaTerminar: 'Atualizar quando a fila terminar'`, `cancelar: 'Cancelar'`, `baixando: (p) => \`Baixando... ${p}%\``, `conferindo: 'Conferindo o download...'`, `aguardandoFila: 'A atualização começa quando a fila terminar'`, `abrindoInstalador: 'Abrindo o instalador...'`, `paginaVersoes: 'Abrir a página de versões no navegador'`, `voltar: (v) => \`Voltar para a versão anterior (${v})\``, `fraseInstalador: "O Windows vai pedir permissão de administrador; o eprocIA fecha para a instalação. Na última tela, deixe marcado 'Abrir o eprocIA' para ele voltar sozinho"`, `incompleta: (v) => \`A versão ${v} foi publicada, mas está incompleta; tente de novo mais tarde\``, `soltarDepois: 'O eprocIA está sendo atualizado; solte os arquivos de novo depois que ele reabrir'`. Em `atualizacao.js` (funções puras): `textoFase(estado) string`; `acoes(estado, filaOcupada) { procurar: boolean, atualizar: string|null, cancelar: boolean, novidades: boolean, paginaVersoes: boolean, voltar: string|null }`; `mostraProgresso(estado) boolean`; `fraseModo(estado) string|null`; `aceitaEntrada(fase) boolean`.
 
 Tabela que os testes fixam: fase `''` mostra só "Procurar atualização" (e "Voltar" se `anterior`); `verificando` desativa a procura e mostra "Procurando..."; `em_dia` usa `emDia(versao)`; `disponivel` com modo `trocar` dá `atualizar` = "Atualizar" (ou "Atualizar quando a fila terminar" com `filaOcupada`), com `instalador` dá "Baixar e abrir o instalador" (ou o mesmo "quando a fila terminar") e `fraseModo` = `fraseInstalador`, com `so_avisar` dá `atualizar` nulo, `novidades` e `fraseModo` = `motivo`; `incompleta` dá o texto `incompleta(versao)`, `novidades` e `atualizar` nulo; `baixando` mostra progresso e `cancelar`; `conferindo` sem `cancelar`; `aguardando_fila` mostra `mensagem` se houver (senão `aguardandoFila`) e `cancelar`; `aplicando` e `abrindo_instalador` mostram `mensagem`/`abrindoInstalador`, sem botão nenhum; `erro` com `modo` vazio mostra `mensagem` e `paginaVersoes`; `erro` com `modo` `trocar` ou `instalador` mostra `mensagem`, `novidades` e `atualizar`; `ativo` falso: `acoes` tudo falso/nulo e `textoFase` vazio. "Voltar" (`voltar(anterior)`) só com `anterior` não vazio, modo diferente de `instalador` e fase em `''`, `em_dia`, `disponivel` ou `erro`.
@@ -402,7 +435,7 @@ Tabela que os testes fixam: fase `''` mostra só "Procurar atualização" (e "Vo
 
 ---
 
-### Task 16: interface (bloco Atualizações, recusa de entrada durante a troca)
+### Task 17: interface (bloco Atualizações, recusa de entrada durante a troca)
 
 **Files:**
 - Create: `frontend/src/components/Atualizacoes.svelte`
@@ -410,7 +443,7 @@ Tabela que os testes fixam: fase `''` mostra só "Procurar atualização" (e "Vo
 - Test: `frontend/atualizacao.test.mjs` (estende: convenções por regex)
 
 **Interfaces:**
-- Consumes: bindings e evento da Task 14; `atualizacao.js` e `ATUALIZACAO` (Task 15); o componente de aviso que já existe (`Aviso.svelte`/`criarAviso`), sem criar outro.
+- Consumes: bindings e evento da Task 15; `atualizacao.js` e `ATUALIZACAO` (Task 16); o componente de aviso que já existe (`Aviso.svelte`/`criarAviso`), sem criar outro.
 - Produces: `Atualizacoes.svelte` com props `estado` e `filaOcupada`, raiz `<section data-bloco="atualizacoes">` com `<h3 class="rotulo-grupo">`; `Settings.svelte` ganha as props `estadoAtualizacao` e `filaOcupada` e só mostra o bloco com `estadoAtualizacao.ativo`; `ProcessList.svelte` e `ReprocessarItem.svelte` ganham `entradaBloqueada` (boolean).
 
 Decisões: `App.svelte` chama `EstadoAtualizacao()` no `onMount` (instantâneo local, sem rede) e assina `atualizacao:estado`; `filaOcupada` = algum item `pending` ou `processing`. "Procurar atualização" chama `VerificarAtualizacao()` só no `on:click`; "Atualizar" chama `InstalarAtualizacao()`; "Cancelar", `CancelarAtualizacao()`; "Ver novidades", `AbrirNovidades()`; "Abrir a página de versões no navegador", `AbrirPaginaVersoes()`; "Voltar...", `VoltarVersaoAnterior()`. Erro devolvido por um binding vai para o aviso do painel (`avisar`). Progresso com a barra e os tokens de cor que o Settings já usa (sem cor literal). Com `aceitaEntrada(fase)` falso, soltar e "Selecionar arquivos" não chamam `AddFilesToQueue` e mostram `ATUALIZACAO.soltarDepois` pelo aviso; "Reprocessar" fica `disabled` com `title={ATUALIZACAO.soltarDepois}`. Nada no rodapé.
@@ -423,7 +456,7 @@ Decisões: `App.svelte` chama `EstadoAtualizacao()` no `onMount` (instantâneo l
 
 ---
 
-### Task 17: instalador NSIS oferece "Abrir o eprocIA" (e7)
+### Task 18: instalador NSIS oferece "Abrir o eprocIA" (e7)
 
 **Antes de começar:** o dono tem mudanças locais sem commit em `build/windows/installer/project.nsi` no checkout principal (atalho na área de trabalho, `-Desktop`/`-NoDesktop`). O orquestrador avisa o dono e só despacha esta tarefa depois que ele confirmar que commitou ou guardou o que tem lá; o brief traz essa confirmação. Sem ela, responda `NEEDS_CONTEXT`. A tarefa parte da versão do arquivo na base da worktree e não depende das mudanças locais do dono.
 
@@ -438,12 +471,12 @@ Decisões: `App.svelte` chama `EstadoAtualizacao()` no `onMount` (instantâneo l
 - [ ] **Passo 1: testes** (`instalador-nsis.test.mjs`, leitura de texto): `!define MUI_FINISHPAGE_RUN`, `!define MUI_FINISHPAGE_RUN_TEXT "Abrir o eprocIA"` e `!define MUI_FINISHPAGE_RUN_FUNCTION <nome>` aparecem antes de `!insertmacro MUI_PAGE_FINISH`; não há `MUI_FINISHPAGE_RUN_NOTCHECKED`; a `Function <nome>` contém `explorer.exe` e `$INSTDIR\${PRODUCT_EXECUTABLE}`, e nenhuma linha `Exec`/`ExecShell` dela começa pelo exe; o arquivo continua com `CreateShortCut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk"`, o `CreateShortCut` da área de trabalho que já houver na base, `!insertmacro wails.writeUninstaller` e a `Section "uninstall"`; conferência cruzada: `INFO_COMPANYNAME` + `INFO_PRODUCTNAME` de `wails_tools.nsh` formam o nome da chave em `chaveNSIS` (`internal/atualizacao/registro_windows.go`).
 - [ ] **Passo 2: rodar** `node --test frontend/instalador-nsis.test.mjs`: falha.
 - [ ] **Passo 3: implementar** a função com `Exec '"$WINDIR\explorer.exe" "$INSTDIR\${PRODUCT_EXECUTABLE}"'`. Nada mais muda (seções, atalhos, desinstalador, `wails_tools.nsh`).
-- [ ] **Passo 4: rodar** `node --test frontend/*.test.mjs`. Se `makensis` estiver instalado (`scoop which makensis`), rode `wails build -clean -nsis` e confira que o instalador é gerado; reverta o ruído do build (regras). Sem `makensis`, registre que a compilação fica para o ensaio manual (Task 21).
+- [ ] **Passo 4: rodar** `node --test frontend/*.test.mjs`. Se `makensis` estiver instalado (`scoop which makensis`), rode `wails build -clean -nsis` e confira que o instalador é gerado; reverta o ruído do build (regras). Sem `makensis`, registre que a compilação fica para o ensaio manual (Task 22).
 - [ ] **Passo 5: commit** `feat(instalador): página final oferece abrir o eprocIA sem herdar o administrador`.
 
 ---
 
-### Task 18: install.ps1 apaga as sobras da atualização
+### Task 19: install.ps1 apaga as sobras da atualização
 
 **Files:**
 - Modify: `install.ps1` (`Install-App`)
@@ -461,14 +494,14 @@ Decisões: `App.svelte` chama `EstadoAtualizacao()` no `onMount` (instantâneo l
 
 ---
 
-### Task 19: estados visuais e capturas "depois"
+### Task 20: estados visuais e capturas "depois"
 
 **Files:**
 - Modify: `scripts/visual/estados.mjs`, `scripts/visual/capturar.mjs`, `scripts/visual/estados.test.mjs`, `.claude/skills/eprocia-visual/SKILL.md` (estados novos e contagem)
 - Create: `docs/revisao/capturas/2026-11-24-autoupdate/depois/` (PNGs)
 
 **Interfaces:**
-- Consumes: bindings da Task 14 (stubs `GetVersao`, `EstadoAtualizacao`), `Atualizacoes.svelte` (Task 16).
+- Consumes: bindings da Task 15 (stubs `GetVersao`, `EstadoAtualizacao`), `Atualizacoes.svelte` (Task 17).
 
 - [ ] **Passo 1: estados** em `ESTADOS`, cada um com `atualizacao: <Estado>` servido pelo stub de `EstadoAtualizacao` (os demais estados recebem `{ ativo: true, fase: '', atual: '0.4.4', anterior: '' }`) e `GetVersao: '0.4.4'`: `atualizacao-em-dia` (com `anterior: '0.4.3'`, para o botão "Voltar"), `atualizacao-disponivel` (modo `trocar`, versão `0.5.0`), `atualizacao-instalador`, `atualizacao-so-avisar` (motivo "executável fora da pasta de instalação"), `atualizacao-incompleta`, `atualizacao-baixando` (progresso 42), `atualizacao-aguardando-fila` (fila com um item `processing`), `atualizacao-erro` (consulta falhou, modo vazio, `MsgSemRede`), `atualizacao-aplicando` (fila com um item concluído: o "Reprocessar" desativado aparece). Em `capturar.mjs`, para os estados `atualizacao-*`, rolar `[data-bloco="atualizacoes"]` até a vista antes do `salvar('')`. `estados.test.mjs` confere que todo estado novo tem `atualizacao.ativo` e só dados fictícios.
 - [ ] **Passo 2: rodar** o gate de harness (regras): passa.
@@ -478,24 +511,24 @@ Decisões: `App.svelte` chama `EstadoAtualizacao()` no `onMount` (instantâneo l
 
 ---
 
-### Task 20: documentação e contratos
+### Task 21: documentação e contratos
 
 **Files:**
 - Modify: `PRD.md`, `CLAUDE.md`, `.claude/skills/eprocia-release/SKILL.md`, `README.md`, `DESIGN.md`, `.claude/review.json`
 
 - [ ] **Passo 1: `PRD.md`:** RNF01 ganha "exceto a consulta de atualização iniciada pelo botão, regida pelo RNF05"; RNF05 "Atualização" com o texto da spec, seção 6 (única conexão, só por clique, nada sobre processos, sem telemetria).
 - [ ] **Passo 2: `CLAUDE.md`:** na arquitetura, `internal/atualizacao` (único pacote com `net/http`, guardado por `TestRede_SoAtualizacaoImportaNetHTTP`; modos; `Atualizador`; fila retida); em "Conventions", o contrato dos assets e o contrato do protocolo de troca (lista das Global Constraints, incluindo a trava adiada); a frase "Fully offline/local — no external API calls" ganha a exceção do botão.
-- [ ] **Passo 3: skill `eprocia-release`:** os dois contratos (assets e `SHA256SUMS.txt`; protocolo de troca), "retirar uma release não desfaz instalações", e o roteiro do ensaio manual da spec, seção 8 (contas de teste, `install.ps1` e NSIS, UAC aceito e recusado, "Abrir o eprocIA" marcado e desmarcado e sem administrador, arrastar ZIP, reversão, "Voltar", primeiro arranque medido abaixo de 45 s com o antivírus ligado, "Tentar de novo" do NSIS, compilação do instalador, conferência da chave HKLM `eprociaeprocia` e do `FileVersion` do instalador igual à tag) e a recomendação de uma 0.x.1 logo depois da primeira release com o recurso.
+- [ ] **Passo 3: skill `eprocia-release`:** os dois contratos (assets e `SHA256SUMS.txt`; protocolo de troca), "retirar uma release não desfaz instalações", a regra de que `PrimeiraVersaoComProtocolo` (`internal/atualizacao`) tem de ser igual à `productVersion` da primeira release que sai com o recurso (conferir antes de subir a tag), e o roteiro do ensaio manual da spec, seção 8 (contas de teste, `install.ps1` e NSIS, UAC aceito e recusado, "Abrir o eprocIA" marcado e desmarcado e sem administrador, arrastar ZIP, reversão, "Voltar", troca com a janela na bandeja (o processo novo nasce com `--tray`, dá o sinal pelo `startup` sem `OnDomReady` e não aparece na tela), primeiro arranque medido abaixo de 45 s com o antivírus ligado, "Tentar de novo" do NSIS, compilação do instalador, conferência da chave HKLM `eprociaeprocia` e do `FileVersion` do instalador igual à tag) e a recomendação de uma 0.x.1 logo depois da primeira release com o recurso.
 - [ ] **Passo 4: `README.md`:** a procura de atualização só acontece pelo botão; o que o GitHub vê (IP, hora, `User-Agent`). **`DESIGN.md`:** o bloco "Atualizações" em Configurações (estados, botões, frase do instalador, recusa de arquivos durante a troca). **`.claude/review.json`:** `internal/atualizacao/*.go` e `app_atualizacao.go` nas lentes de backend (os `.svelte` já entram pelo glob).
 - [ ] **Passo 5:** `node --test .claude/hooks/hooks.test.mjs .claude/statusline.test.mjs .claude/workflows/workflows.test.mjs scripts/visual/estados.test.mjs` passa (o `review.json` é lido por eles). **Commit** `docs: atualização pelo aplicativo, RNF05 e contratos de release`.
 
 ---
 
-### Task 21: gate completo e ensaio local
+### Task 22: gate completo e ensaio local
 
 **Files:**
 - Nenhum de produção. Relatório com a saída do gate.
 
 - [ ] **Passo 1:** `pwsh scripts/build/gate.ps1` (vet, `test -race`, `wails build`, smoke de 5 s). Passa.
 - [ ] **Passo 2:** gate de frontend e de harness (regras). Passam.
-- [ ] **Passo 3:** não rode o exe com `--apos-atualizar` nem faça troca real: o exe usa `%APPDATA%\eprocIA` e o registro, que são do dono. No relatório, liste o que só o ensaio manual prova (Task 20, passo 3) e o que ficou sem verificar.
+- [ ] **Passo 3:** não rode o exe com `--apos-atualizar` nem faça troca real: o exe usa `%APPDATA%\eprocIA` e o registro, que são do dono. No relatório, liste o que só o ensaio manual prova (Task 21, passo 3) e o que ficou sem verificar.

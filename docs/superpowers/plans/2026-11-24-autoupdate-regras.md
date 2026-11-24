@@ -33,7 +33,8 @@ Guarda de regressão (o plano marca): o teste passa antes da mudança. Quebre a 
 - Nunca rode o `install.ps1` (nem com `-DryRun`). Conferir a sintaxe com o parser do PowerShell (`[System.Management.Automation.Language.Parser]::ParseFile`) não é rodar e é permitido.
 - Nunca encerre o `eprocia.exe` do dono nem processo que você não iniciou; não mexa em `%TEMP%\eprocIA_bin`, em `%APPDATA%\eprocIA`, em `%LOCALAPPDATA%\eprocIA`, em `%LOCALAPPDATA%\Programs\eprocIA` nem no registro de verdade (`HKCU\...\Uninstall\eprocIA`, `HKLM`). Toda pasta é parâmetro e o teste passa `t.TempDir()`; todo acesso ao registro passa por uma interface trocada por fake.
 - Processo que você subir (vite, navegador, o auxiliar dos testes, o exe do gate), encerre pelo PID antes de responder.
-- Binário de teste como executável auxiliar: todo teste que copia `os.Args[0]` define `EPROCIA_TESTE_FILHO=1` e o modo (`EPROCIA_TESTE_AUX=...`) no ambiente do filho, e o `TestMain` do pacote trata o modo antes de rodar a suíte. Sem isso o filho roda a suíte inteira e se copia de novo, em cascata.
+- Executável auxiliar dos testes de `internal/atualizacao`: é o programa pequeno `internal/atualizacao/testdata/aux`, compilado uma vez pelo `TestMain` num diretório temporário e copiado/carimbado por teste em `t.TempDir()`; o modo vem de `EPROCIA_TESTE_AUX`. Não use o binário de teste (`os.Args[0]`) como auxiliar nesse pacote. Em `internal/ocr`, que já usa o binário de teste, continua valendo: todo teste que copia `os.Args[0]` define `EPROCIA_TESTE_FILHO=1` junto do modo, tratado no `TestMain`.
+- Chamadas Win32 que o `golang.org/x/sys/windows` v0.49.0 não tem (`ShellExecuteExW`, `BeginUpdateResourceW`/`UpdateResourceW`/`EndUpdateResourceW`) vão por `windows.NewLazySystemDLL(...).NewProc(...)`, com struct própria; não suba a versão do x/sys para ganhá-las.
 - `ShellExecuteEx` real nunca roda em teste (fake injetado).
 
 ## Gate
@@ -66,7 +67,7 @@ Claude-Session: https://claude.ai/code/session_01YKHKdzvxGBDhYx5JAnxJoZ
 - `git push`, merge, rebase da `main`, tag, release, `gh release`.
 - Acrescentar dependência ao `go.mod` ou ao `frontend/package.json` (`golang.org/x/sys/windows` já é direta).
 - Usar PDF, ZIP, log ou texto real, ou definir `EPROCIA_BENCH_DIR`/`EPROCIA_LOG` fora de `t.Setenv`. Dado de teste é sintético (`FULANO DE TAL`, `5000000-00.2026.8.26.0001`, perfil `C:\Users\fulano`).
-- Mexer em `build/windows/installer/project.nsi` sem a confirmação do dono registrada no brief da Task 17.
+- Mexer em `build/windows/installer/project.nsi` sem a confirmação do dono registrada no brief da Task 18.
 - Despachar subagentes.
 
 ## Relatório
