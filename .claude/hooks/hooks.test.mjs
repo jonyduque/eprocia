@@ -120,6 +120,26 @@ describe('proteger-dados', () => {
     it('cd - volta ao cwd do evento', () => assert.equal(dirDe('cd sub; cd -; git add .', { cwd: 'D:\\wt' }), path.resolve('D:/wt')));
     it('pushd é como cd', () => assert.equal(dirDe('pushd sub && git add .', { cwd: 'D:\\wt' }), path.resolve('D:/wt/sub')));
     it('popd desfaz pushd', () => assert.equal(dirDe('pushd sub && popd && git add .', { cwd: 'D:\\wt' }), path.resolve('D:/wt')));
+    // Rodada 2 da revisão.
+    it('cd depois de { segue', () => assert.equal(dirDe('{ cd /x; git add .; }', { cwd: 'D:\\wt' }), path.resolve('X:/')));
+    it('cd depois de if segue', () => assert.equal(dirDe('if cd /x; then git add .; fi', { cwd: 'D:\\wt' }), path.resolve('X:/')));
+    it('cd depois de ! e while segue', () => assert.equal(dirDe('! cd sub; while cd fundo; do git add .; done', { cwd: 'D:\\wt' }), path.resolve('D:/wt/sub/fundo')));
+    it('popd com pilha vazia mantém o dir', () => assert.equal(dirDe('cd sub; popd; git add .', { cwd: 'D:\\wt' }), path.resolve('D:/wt/sub')));
+    it('listagem: prazo único de 3 s e stdio sem herdar', () => {
+      const chamadas = [];
+      let t = 0;
+      const exec = (cmd, args, o) => { chamadas.push(o); t += 2000; return args[0] === 'rev-parse' ? 'D:/wt\n' : 'a.txt\0'; };
+      const r = dados.listarCandidatos([], 'D:\\wt', { exec, agora: () => t });
+      assert.deepEqual([...r], ['a.txt']);
+      assert.equal(r.raiz, 'D:/wt');
+      assert.deepEqual(chamadas.map((o) => o.timeout), [3000, 1000]);
+      for (const o of chamadas) assert.deepEqual(o.stdio, ['ignore', 'pipe', 'ignore']);
+    });
+    it('listagem: sem prazo restante falha fechada', () => {
+      let t = 0;
+      const exec = () => { t += 3000; return 'D:/wt\n'; };
+      assert.equal(dados.listarCandidatos([], 'D:\\wt', { exec, agora: () => t }), null);
+    });
     it('bench dentro da checkout listada', () => {
       const listar = () => Object.assign(['corpus/proc.json'], { raiz: 'D:\\wt' });
       const r = dados.avaliar({ ...bash('git add -A'), cwd: 'D:\\wt' }, { benchDir: 'D:\\wt\\corpus', listar });

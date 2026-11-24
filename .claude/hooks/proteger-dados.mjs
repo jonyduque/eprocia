@@ -85,6 +85,9 @@ function subcomandoGit(palavras) {
 const caminhoWindows = (p) => String(p).replace(/^\/([a-z])(\/|$)/i, (_, d) => `${d.toUpperCase()}:/`);
 const resolverDir = (base, alvo) => (alvo ? path.resolve(caminhoWindows(base), caminhoWindows(alvo)) : base);
 
+// Shell words that may precede a command (`{ cd x; ...}`, `if cd x; then ...`).
+const PALAVRAS_CHAVE = new Set(['{', 'if', 'then', 'do', 'else', 'elif', 'while', 'until', '!']);
+
 // destinoCd is where `cd`/`pushd` with these arguments lands, skipping -L, -P,
 // -e, -@ and `--`. With no target or `-` (home, previous dir: unknown here) it
 // returns the event's cwd, whose checkout listing is the closest safe guess.
@@ -128,15 +131,20 @@ export function avaliar(evento, ctx = {}) {
   const subshells = []; // dir to restore when each open subshell closes
   const pushd = [];
 
-  for (const palavras of comandosESubshells(cmd)) {
-    if (palavras === '(') { subshells.push(dir); continue; }
-    if (palavras === ')') { if (subshells.length) dir = subshells.pop(); continue; }
+  // Limitation: the `)` of a case pattern inside a subshell is read as closing
+  // the subshell, so a later cd may be undone too early.
+  for (const item of comandosESubshells(cmd)) {
+    if (item === '(') { subshells.push(dir); continue; }
+    if (item === ')') { if (subshells.length) dir = subshells.pop(); continue; }
+    let p = 0;
+    while (p < item.length && PALAVRAS_CHAVE.has(item[p])) p++;
+    const palavras = item.slice(p);
     if (palavras[0] === 'cd' || palavras[0] === 'pushd') {
       if (palavras[0] === 'pushd') pushd.push(dir);
       dir = destinoCd(palavras.slice(1), dir, inicio);
       continue;
     }
-    if (palavras[0] === 'popd') { dir = pushd.length ? pushd.pop() : inicio; continue; }
+    if (palavras[0] === 'popd') { if (pushd.length) dir = pushd.pop(); continue; }
     const g = subcomandoGit(palavras);
     if (!g || (g.sub !== 'add' && g.sub !== 'commit')) continue;
 
@@ -170,12 +178,21 @@ export function avaliar(evento, ctx = {}) {
 // the pathspecs (all when empty) in dir, as paths from that checkout's root
 // (--full-name), or null when git cannot answer in time. The array carries that
 // root in .raiz, so arquivoSensivel can place a bench dir inside a worktree.
-function listarCandidatos(pathspecs, dir = RAIZ) {
+// Both git calls share one 3 s deadline: the hook itself has 5 s, and a hook
+// killed by its timeout lets the command through.
+const PRAZO_LISTAGEM_MS = 3000;
+
+export function listarCandidatos(pathspecs, dir = RAIZ, { exec = execFileSync, agora = Date.now } = {}) {
   try {
-    const opcoes = { cwd: dir, encoding: 'utf8', timeout: 3000 };
-    const raiz = execFileSync('git', ['rev-parse', '--show-toplevel'], opcoes).trim();
+    const fim = agora() + PRAZO_LISTAGEM_MS;
+    const git = (args) => {
+      const resta = fim - agora();
+      if (resta <= 0) throw new Error('prazo esgotado');
+      return exec('git', args, { cwd: dir, encoding: 'utf8', timeout: resta, stdio: ['ignore', 'pipe', 'ignore'] });
+    };
+    const raiz = git(['rev-parse', '--show-toplevel']).trim();
     const todos = pathspecs.length ? [] : [':/'];
-    const saida = execFileSync('git', ['ls-files', '-z', '-o', '-m', '--exclude-standard', '--full-name', '--', ...pathspecs, ...todos], opcoes);
+    const saida = git(['ls-files', '-z', '-o', '-m', '--exclude-standard', '--full-name', '--', ...pathspecs, ...todos]);
     return Object.assign(saida.split('\0').filter(Boolean), { raiz });
   } catch {
     return null;
