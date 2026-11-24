@@ -6,7 +6,7 @@
 // Starts only the Vite dev server (no Go backend, so no real data can show up),
 // stubs the Wails bindings, and saves one PNG per size × theme × state, plus the
 // inner divider dragged to its minimum and maximum and the collapsed sidebar,
-// the processing report panel, the log block and the 492 px queue breakpoint.
+// the processing report panel, the log block and the queue button breakpoint.
 // The states in visual.alto_contraste of .claude/review.json are also captured once with forced colors on
 // (Windows high contrast), at 1024x768, with the activity panel open.
 import { execFileSync, execSync, spawn } from 'node:child_process';
@@ -19,6 +19,9 @@ import { ESTADOS, instalarStubs, listaAltoContraste } from './estados.mjs';
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PLAYWRIGHT = '1.63.0';
 const PORTA = 5199;
+// @container (max-width) que tira o rótulo dos botões da fila (ProcessList.svelte);
+// estados.test.mjs confere que é o mesmo número.
+const LIMITE_BOTOES = 660;
 const ALTO_CONTRASTE = listaAltoContraste(JSON.parse(readFileSync(path.join(RAIZ, '.claude', 'review.json'), 'utf8')));
 
 function opcoes(argv) {
@@ -207,9 +210,9 @@ async function main() {
               await page.evaluate(() => document.activeElement?.blur());
             }
             // Fila nos dois lados do limite em que os botões perdem o rótulo
-            // (@container max-width: 492px em ProcessList.svelte): o card com
-            // 492 px (só ícones) e 493 px (com rótulo), quando o divisor alcança
-            // (na prática só a 800 px); a largura medida vai para o log. O
+            // (@container max-width: LIMITE_BOTOES em ProcessList.svelte): o card
+            // no limite (só ícones) e 1 px acima (com rótulo), quando o divisor
+            // alcança (com 660, só a 1024 px); a largura medida vai para o log. O
             // arrasto com o mouse não acerta o pixel: a largura do painel vai
             // direto para a chave que o app lê ao abrir (lib/painel.js) e a
             // página recarrega.
@@ -224,7 +227,7 @@ async function main() {
               return { card: Math.round(conteudo), painel: Math.round(p.width) };
             });
             const base = await medir();
-            for (const alvo of base ? [492, 493] : []) {
+            for (const alvo of base ? [LIMITE_BOTOES, LIMITE_BOTOES + 1] : []) {
               const largura = base.painel + base.card - alvo;
               await page.evaluate((l) => localStorage.setItem('eprocia.sidebar', JSON.stringify({ largura: l, recolhido: false })), largura);
               await page.reload();

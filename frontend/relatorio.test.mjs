@@ -233,6 +233,18 @@ describe('convenções dos componentes', () => {
     const f = lista.slice(lista.indexOf('async function confirmarReprocessar'));
     assert.match(f.slice(0, 900), /relatorioAberto = \{ \.\.\.relatorioAberto, \[item\.id\]: false \}/);
   });
+  it('painel de detalhes: uma só coluna de valores para todas as seções (subgrid)', () => {
+    const css = painel.slice(painel.indexOf('<style>'));
+    assert.match(css, /\.painel-relatorio\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*max-content minmax\(0, 1fr\)/);
+    assert.match(css, /section\s*\{[^}]*grid-column:\s*1 \/ -1[^}]*grid-template-columns:\s*subgrid/);
+    assert.match(css, /\.grade\s*\{[^}]*grid-column:\s*1 \/ -1[^}]*grid-template-columns:\s*subgrid/);
+  });
+  it('painel de detalhes: subtítulos com um só estilo (h3, peso 600)', () => {
+    const css = painel.slice(painel.indexOf('<style>'));
+    assert.equal((css.match(/(^|[\s,}])h3[^{]*\{/g) ?? []).length, 1, 'mais de uma regra para h3');
+    assert.match(css, /h3\s*\{[^}]*font-weight:\s*600/);
+    assert.doesNotMatch(painel, /<h3 class=/);
+  });
   it('RelatorioItem não tem cor literal fora de var()', () => {
     const semVar = painel.replace(/var\([^)]*\)/g, '');
     assert.doesNotMatch(semVar, /#[0-9a-fA-F]{3,6}\b/);

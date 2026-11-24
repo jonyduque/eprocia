@@ -46,6 +46,17 @@ describe('estados visuais', () => {
     assert.ok(fila[2].relatorio.atencao?.length > 0, 'atencao vazia');
   });
 
+  it('fila e nao-lidos: todo concluído tem relatorio, como no app real; nao-lidos mostra "Ler com OCR"', () => {
+    for (const nome of ['fila', 'nao-lidos']) {
+      for (const i of ESTADOS[nome].fila.filter((x) => x.status === 'success')) {
+        assert.ok(i.relatorio, `${nome}/${i.name}: sem relatorio`);
+        assert.equal(i.relatorio.documentos.total, i.docs_count, `${nome}/${i.name}: docs_count`);
+        assert.equal(i.relatorio.documentos.nao_lidos, i.unread_docs, `${nome}/${i.name}: unread_docs`);
+      }
+    }
+    assert.ok(ESTADOS['nao-lidos'].fila[0].relatorio.documentos.por_leitura.sem_ocr > 0);
+  });
+
   it('configuracoes: LogAtivo e forcar_ocr explícitos em cada variação', () => {
     const c = ESTADOS.configuracoes;
     assert.equal(c.LogAtivo, false);
@@ -151,9 +162,17 @@ describe('lista de alto contraste', () => {
 
   it('capturar.mjs tem as variações do relatório e do log', () => {
     const src = readFileSync(new URL('./capturar.mjs', import.meta.url), 'utf8');
-    for (const s of ["'-relatorio'", "'-relatorio-fim'", "'-ler-ocr'", '.btn-ler-ocr', '.resumo-relatorio', '.btn-log', '[492, 493]', '`-fila-${alvo}`']) {
+    for (const s of ["'-relatorio'", "'-relatorio-fim'", "'-ler-ocr'", '.btn-ler-ocr', '.resumo-relatorio', '.btn-log', '[LIMITE_BOTOES, LIMITE_BOTOES + 1]', '`-fila-${alvo}`']) {
       assert.ok(src.includes(s), `capturar.mjs sem ${s}`);
     }
+  });
+
+  it('capturar.mjs usa o mesmo limite dos botões da fila que o ProcessList.svelte', () => {
+    const src = readFileSync(new URL('./capturar.mjs', import.meta.url), 'utf8');
+    const lista = readFileSync(new URL('../../frontend/src/components/ProcessList.svelte', import.meta.url), 'utf8');
+    const css = lista.match(/@container \(max-width: (\d+)px\) \{\s*\.rotulo-acao/)?.[1];
+    assert.ok(css, 'regra do .rotulo-acao não encontrada');
+    assert.match(src, new RegExp(`const LIMITE_BOTOES = ${css};`));
   });
 
   it('capturar.mjs não tem a lista literal e lê alto_contraste', () => {

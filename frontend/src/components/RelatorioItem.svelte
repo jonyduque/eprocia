@@ -117,9 +117,12 @@
     border-left: 2px solid var(--accent);
     border-radius: 4px;
     background-color: var(--bg-main);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+    /* Uma grade para o painel inteiro: as seções e as listas herdam as colunas
+       (subgrid), e os valores de Páginas e de tempo/limpeza ficam alinhados. */
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: 12px;
+    row-gap: 8px;
     font-size: var(--fs-meta);
     color: var(--text-primary);
     min-width: 0;
@@ -128,13 +131,15 @@
   }
 
   section {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: subgrid;
+    row-gap: 4px;
     min-width: 0;
   }
 
   h3 {
+    grid-column: 1 / -1;
     margin: 0;
     font-size: var(--fs-meta);
     font-weight: 600;
@@ -142,9 +147,10 @@
   }
 
   .grade {
+    grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: max-content minmax(0, 1fr);
-    gap: 2px 12px;
+    grid-template-columns: subgrid;
+    row-gap: 2px;
     margin: 0;
   }
 
@@ -169,6 +175,7 @@
   }
 
   .atencao {
+    grid-column: 1 / -1;
     list-style: none;
     margin: 0;
     padding: 0;
@@ -206,7 +213,7 @@
       margin-left: 0;
     }
 
-    .grade {
+    .painel-relatorio {
       grid-template-columns: minmax(0, 1fr);
     }
 

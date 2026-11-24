@@ -165,6 +165,22 @@ const FILA_RELATORIO = [
   })),
 ];
 
+// Relatórios dos concluídos de `fila` e `nao-lidos`, com os números de sucesso():
+// no app real todo item concluído traz o seu.
+const REL_NATIVO = relatorioZip({
+  docs: 57, pdf: 55, html: 2, porLeitura: { lido: 57 },
+  paginas: { lida_nativa: 142 }, totalMs: 8400, bytesTxt: 393800, tokens: 98450,
+});
+// Os mesmos documentos de atividadeNaoLidos: um sem OCR e um com senha (as
+// páginas deles ficam em de_nao_lidos); o sem OCR acende o "Ler com OCR".
+const REL_NAO_LIDOS = relatorioZip({
+  docs: 57, pdf: 55, html: 2, porLeitura: { lido: 52, segundo_leitor: 1, ocr: 2, sem_ocr: 1, senha: 1 },
+  paginas: { lida_nativa: 131, lida_ocr: 8, de_nao_lidos: 3 },
+  ocr: { processos: 2, blocos: 2, paginas_em_bloco: 8, refacoes: 0, prazos: 0,
+    bloco_medio_ms: 8800, bloco_mediana_ms: 8800, bloco_p95_ms: 9900, pagina_estimada_ms: 2200 },
+  totalMs: 21300, bytesTxt: 393800, tokens: 98450,
+});
+
 // listaAltoContraste: states captured with forced colors, from review.json
 // (visual.alto_contraste). A missing list or key is an empty list.
 export function listaAltoContraste(config) {
@@ -176,7 +192,8 @@ export const ESTADOS = {
   vazio: { config: { ...CONFIG, monitored_path: '', watchdog_enabled: false }, fila: [], pausado: false },
   fila: {
     config: CONFIG,
-    fila: [sucesso(1), sucesso(2), item(3, 'pending'), item(4, 'pending'), item(5, 'cancelled', { message: 'Cancelado pelo usuário' })],
+    fila: [{ ...sucesso(1), relatorio: REL_NATIVO }, { ...sucesso(2), relatorio: REL_NATIVO }, item(3, 'pending'), item(4, 'pending'),
+      item(5, 'cancelled', { message: 'Cancelado pelo usuário' })],
     pausado: false,
   },
   processando: {
@@ -196,7 +213,7 @@ export const ESTADOS = {
   },
   'nao-lidos': {
     config: CONFIG,
-    fila: [{ ...sucesso(1), unread_docs: 2 }, sucesso(2)],
+    fila: [{ ...sucesso(1), unread_docs: 2, relatorio: REL_NAO_LIDOS }, { ...sucesso(2), relatorio: REL_NATIVO }],
     pausado: false,
     atividades: { [item(1, 'success').id]: atividadeNaoLidos(1) },
   },

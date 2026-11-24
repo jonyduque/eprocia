@@ -1163,9 +1163,10 @@
   }
 
   /* Fila estreita: os botões ficam só com o ícone; o nome segue no aria-label.
-     O cabeçalho com rótulos (e o ícone do título) só cabe com 484px de card
-     (medido em 2026-11-22); 492 = 484 + 8 de margem. */
-  @container (max-width: 492px) {
+     Com Pausar, Limpar concluídos e Limpar tudo rotulados, o título inteiro só
+     cabe com 660px de card (caixa de conteúdo; medido em 2026-11-24, claro e
+     escuro). Abaixo disso os rótulos espremiam o título até sumir. */
+  @container (max-width: 660px) {
     .rotulo-acao {
       display: none;
     }
