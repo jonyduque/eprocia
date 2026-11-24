@@ -290,11 +290,15 @@ func (q *Queue) Reprocessar(id, ocrMode, cleaningLevel string, forcarOCR *bool) 
 		return fmt.Errorf("o item ainda está na fila ou em processamento")
 	}
 	pararEnvioPendente(item)
+	// item.ForcarOCR mostra já o efetivo da próxima execução; com nil vale o da
+	// global (sem q.cfg, a config só é lida no processItem, que o corrige).
 	var forcar *bool
 	if forcarOCR != nil {
 		v := *forcarOCR
 		forcar = &v
 		item.ForcarOCR = v && ocrMode != "none"
+	} else {
+		item.ForcarOCR = q.cfg != nil && q.cfg.ForcarOCR && ocrMode != "none"
 	}
 	item.ajuste = &ajusteConfig{ocrMode: ocrMode, cleaningLevel: cleaningLevel, forcarOCR: forcar}
 	item.OcrMode, item.CleaningLevel = ocrMode, cleaningLevel

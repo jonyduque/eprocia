@@ -225,3 +225,25 @@ func TestReprocessar_NoneComGlobalTrue(t *testing.T) {
 		}
 	}
 }
+
+// Enquanto aguarda, o item já mostra o Forçar OCR efetivo da próxima execução,
+// também quando o Reprocessar não informa o valor (nil usa a global).
+func TestReprocessar_ForcarEfetivoNoItemPendente(t *testing.T) {
+	q, _ := filaCapturandoCfg(t)
+	q.cfg = &models.Config{CleaningLevel: "none", OcrMode: "normal", ForcarOCR: true}
+	q.Pause()
+	q.items = append(q.items, &QueueItem{ID: "1", Name: "a.zip", Status: "success", ForcarOCR: true})
+	if err := q.Reprocessar("1", "none", "standard", nil); err != nil {
+		t.Fatalf("Reprocessar: %v", err)
+	}
+	if it := q.GetItems()[0]; it.Status != "pending" || it.ForcarOCR {
+		t.Errorf("item pendente com none e nil: status %q, ForcarOCR %t; quero pending e false", it.Status, it.ForcarOCR)
+	}
+	q.items[0].Status = "success"
+	if err := q.Reprocessar("1", "normal", "standard", nil); err != nil {
+		t.Fatalf("Reprocessar: %v", err)
+	}
+	if it := q.GetItems()[0]; !it.ForcarOCR {
+		t.Error("item pendente com normal e nil (global true): ForcarOCR false; quero true")
+	}
+}

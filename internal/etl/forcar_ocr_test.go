@@ -413,7 +413,7 @@ func TestForcarOCR_LogZipIniciadoValorEfetivo(t *testing.T) {
 	o.instalar(t)
 	for _, c := range []struct {
 		modo           string
-		efetivo, salvo bool
+		efetivo, pedido bool
 	}{
 		{"none", false, true},
 		{"normal", true, true},
@@ -430,8 +430,8 @@ func TestForcarOCR_LogZipIniciadoValorEfetivo(t *testing.T) {
 				t.Fatalf("zip iniciado = %d linhas:\n%s", len(ini), buf.String())
 			}
 			g, _ := ini[0]["config"].(map[string]any)
-			if g["forcar_ocr"] != c.efetivo || g["forcar_ocr_salvo"] != c.salvo {
-				t.Errorf("config = %v; quero forcar_ocr=%t forcar_ocr_salvo=%t", g, c.efetivo, c.salvo)
+			if g["forcar_ocr"] != c.efetivo || g["forcar_ocr_pedido"] != c.pedido {
+				t.Errorf("config = %v; quero forcar_ocr=%t forcar_ocr_pedido=%t", g, c.efetivo, c.pedido)
 			}
 		})
 	}

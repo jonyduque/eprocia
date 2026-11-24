@@ -366,7 +366,7 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 	}
 	lg.Info("zip iniciado", "zip", filepath.Base(zipPath), "bytes", bytesZip, "pdf", nPDF, "html", nHTML,
 		slog.Group("config", "ocr_mode", cfg.OcrMode, "cleaning_level", cfg.CleaningLevel,
-			"forcar_ocr", forcarOCREfetivo(cfg), "forcar_ocr_salvo", cfg.ForcarOCR))
+			"forcar_ocr", forcarOCREfetivo(cfg), "forcar_ocr_pedido", cfg.ForcarOCR))
 
 	// 2. Sort documents chronologically and naturally
 	SortProcessFiles(files)
