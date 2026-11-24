@@ -16,6 +16,7 @@ import (
 	"eprocia/internal/etl"
 	"eprocia/internal/janela"
 	"eprocia/internal/models"
+	"eprocia/internal/registro"
 	"eprocia/internal/watchdog"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -230,6 +231,8 @@ func (a *App) Quit() {
 	if an := a.animador.Load(); an != nil {
 		an.Cancelar()
 	}
+	// O que já foi registrado chega ao arquivo antes de a saída começar.
+	registro.Descarregar()
 	if a.ctx != nil {
 		runtime.Quit(a.ctx)
 	}
