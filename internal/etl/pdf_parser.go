@@ -171,14 +171,26 @@ func (p *PDFParser) ParsePages(
 			} else {
 				lg.Debug("página nula", "pag", pageNum)
 			}
-			d.paginaPronta(pageNum, map[string]any{
+			pagina := map[string]any{
 				"index":   pageNum,
 				"ocr":     false,
 				"content": content,
-			})
+			}
+			if errPag != nil {
+				pagina["erro_leitura"] = true
+			}
+			d.paginaPronta(pageNum, pagina)
 			continue
 		}
 		cleanText, needsOcr := an.texto, an.precisaOcr
+		if lg.Enabled(ctx, slog.LevelDebug) {
+			attrs := []any{"pag", pageNum, "bytes_nativo", an.bytesNativo, "imagem", an.imagem, "vetorial", an.vetorial}
+			if needsOcr || an.semOcr {
+				attrs = append(attrs, "motivo", an.motivo.String())
+			}
+			lg.Debug("página analisada", append(attrs, "fracao_imagem", an.metricas.fImg,
+				"fracao_texto", an.metricas.fTxt, "fracao_descoberta", an.metricas.fDesc)...)
+		}
 
 		if needsOcr && ocrRunner != nil {
 			d.agendar(ocrTask{pageNum: pageNum, fallback: cleanText, motivo: an.motivo, linhasAcima: an.linhasAcima})
@@ -353,6 +365,11 @@ type analisePagina struct {
 	motivo motivoOCR
 	// linhasAcima vem de metricasPagina; só importa com motivoImagemDescoberta.
 	linhasAcima int
+	// Só para a linha Debug "página analisada": bytes do texto nativo, as
+	// métricas e os exames de imagem e de desenho (feitos só com texto curto).
+	bytesNativo      int
+	imagem, vetorial bool
+	metricas         metricasPagina
 }
 
 // marcadorPaginaSemOCR é o conteúdo da página digitalizada sem texto nativo
@@ -387,6 +404,7 @@ func analisarPagina(page pdf.Page, pageNum int, ocrEnabled bool, lg *slog.Logger
 
 	an.texto = strings.TrimSpace(text)
 	an.linhasAcima = m.linhasAcima
+	an.bytesNativo, an.metricas = len(an.texto), m
 	lg.Debug("texto nativo extraído", "pag", pageNum, "bytes", len(text), "bytes_limpos", len(an.texto))
 
 	if textoIlegivel(an.texto) {
@@ -405,6 +423,7 @@ func analisarPagina(page pdf.Page, pageNum int, ocrEnabled bool, lg *slog.Logger
 		hasImages := temImagens(page, lg)
 		hasDrawn := !hasImages && HasDrawnContent(page)
 		lg.Debug("imagens e conteúdo vetorial", "pag", pageNum, "imagens", hasImages, "vetorial", hasDrawn)
+		an.imagem, an.vetorial = hasImages, hasDrawn
 		candidata := hasImages || hasDrawn
 		an.precisaOcr = ocrEnabled && candidata
 		an.semOcr = !ocrEnabled && candidata

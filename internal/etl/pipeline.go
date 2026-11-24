@@ -282,6 +282,10 @@ var (
 	executarOCRPaginas = ocr.RunOCRPaginas
 )
 
+// gerarSaida monta o .txt a partir do mapa de eventos; os testes a trocam para
+// ver o mapa que o pipeline montou.
+var gerarSaida = GenerateConsolidatedOutput
+
 // Pipeline orchestrates the entire extraction process. It emits no Wails
 // events: progress reaches the frontend through the Queue.
 type Pipeline struct{}
@@ -793,6 +797,7 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 				return
 			}
 			leituraDoc = l
+			classificarCategorias(ctxDoc, lgDoc.With("doc", f.DocName), paginasMap)
 			atv.docLeitura(i, l, "")
 			encerrar("", fmt.Sprintf("Concluído %d/%d: %s", int(processedDocsVal.Load())+1, totalFiles, f.DocName))
 		})
@@ -811,7 +816,7 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 	}
 
 	// 4. Format consolidated output into XML
-	outputText, tokens := GenerateConsolidatedOutput(eventos, cfg.CleaningLevel)
+	outputText, tokens := gerarSaida(eventos, cfg.CleaningLevel)
 
 	// 5. Save consolidated output to the same directory
 	outputPath := strings.TrimSuffix(zipPath, filepath.Ext(zipPath)) + ".txt"

@@ -142,6 +142,10 @@ func (d *despachoOCR) registrarOCR(task ocrTask, ocrText string, err error) {
 			"ocr":     comOCR,
 			"content": content,
 		}
+		// O OCR rodou sem erro, mas a página ficou com a reserva.
+		if !comOCR {
+			pageData["ocr_sem_ganho"] = true
+		}
 	} else {
 		// O erro do OCR pode trazer o caminho de %TEMP% (com o nome de usuário)
 		// e o stderr: a página e ocr_erro recebem só a frase fixa da classe, e
@@ -176,6 +180,7 @@ func (d *despachoOCR) registrarOCR(task ocrTask, ocrText string, err error) {
 			}
 		}
 	}
+	pageData["motivo_ocr"] = task.motivo.String()
 
 	d.mapMu.Lock()
 	d.paginasMap[fmt.Sprintf("%d", task.pageNum)] = pageData

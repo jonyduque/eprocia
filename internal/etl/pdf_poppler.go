@@ -56,15 +56,22 @@ func (p *PDFParser) parsePoppler(
 			return nil, err
 		}
 		texto := strings.TrimSpace(textos[pageNum-1])
+		bytesNativo := len(texto)
 		ilegivel := textoIlegivel(texto)
 		curto := len(texto) < 100
+		motivo := motivoPadrao
 		if ilegivel {
 			texto = marcadorIlegivel(texto)
+			motivo = motivoIlegivel
 		}
-		if (ilegivel || curto) && comOCR {
-			d.agendar(ocrTask{pageNum: pageNum, fallback: texto})
+		vaiAoOCR := (ilegivel || curto) && comOCR
+		if vaiAoOCR {
+			lg.Debug("página analisada", "pag", pageNum, "bytes_nativo", bytesNativo, "motivo", motivo.String())
+			// O motivo não muda a decisão aqui: só o nome em motivo_ocr.
+			d.agendar(ocrTask{pageNum: pageNum, fallback: texto, motivo: motivo})
 			continue
 		}
+		lg.Debug("página analisada", "pag", pageNum, "bytes_nativo", bytesNativo)
 		pageData := map[string]any{
 			"index":   pageNum,
 			"ocr":     false,
