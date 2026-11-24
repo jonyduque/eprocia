@@ -1,7 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { AJUDA_FORCAR_OCR_SEM_OCR } from './src/lib/textos.js';
+import {
+  AJUDA_FORCAR_OCR_CONFIG,
+  AJUDA_FORCAR_OCR_REPROCESSAR,
+  AJUDA_FORCAR_OCR_SEM_OCR,
+  ROTULO_FORCAR_OCR_CONFIG,
+  ROTULO_FORCAR_OCR_REPROCESSAR
+} from './src/lib/textos.js';
 
 const ler = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const settings = ler('./src/components/Settings.svelte');
@@ -50,6 +56,21 @@ describe('Forçar OCR nas Configurações', () => {
 describe('AJUDA_FORCAR_OCR_SEM_OCR', () => {
   it('texto exato', () => {
     assert.equal(AJUDA_FORCAR_OCR_SEM_OCR, 'Sem efeito com o OCR desligado; escolha um modo de OCR para usar.');
+  });
+});
+
+// Ajustes do dono, rodada 2 (2026-11-24): rótulo curto e ajuda mais curta.
+describe('textos curtos do Forçar OCR', () => {
+  it('rótulo "Forçar OCR" nas Configurações e no Reprocessar', () => {
+    assert.equal(ROTULO_FORCAR_OCR_CONFIG, 'Forçar OCR');
+    assert.equal(ROTULO_FORCAR_OCR_REPROCESSAR, 'Forçar OCR');
+  });
+  it('ajuda das Configurações com a frase do dono', () => {
+    assert.equal(AJUDA_FORCAR_OCR_CONFIG,
+      'Tudo passa pelo OCR, até páginas com texto nativo. É mais lento e pode tornar textos nativos imprecisos.');
+  });
+  it('ajuda do Reprocessar sem mudança', () => {
+    assert.equal(AJUDA_FORCAR_OCR_REPROCESSAR, 'Mais lento; páginas repetidas também passam pelo OCR.');
   });
 });
 

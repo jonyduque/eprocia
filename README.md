@@ -227,7 +227,7 @@ Com opções:
 | Opção | Valores | O que muda |
 |---|---|---|
 | 🔍 **Processamento de imagens (OCR)** | Desativado · Rápido · **Normal** · Preciso | Modelo do Tesseract usado nas páginas escaneadas. "Desativado" deixa essas páginas sem texto. |
-| 🔎 **Forçar OCR em todas as páginas de PDF** | liga/desliga (**desligado**) | Toda página de PDF passa pelo OCR, inclusive as que já têm texto. Veja abaixo. |
+| 🔎 **Forçar OCR** | liga/desliga (**desligado**) | Toda página de PDF passa pelo OCR, inclusive as que já têm texto. Veja abaixo. |
 | 🧹 **Higienização de texto** | Nenhuma · Básica · **Padrão** · Máxima | Nenhuma preserva o texto como extraído; Básica remove espaços e linhas vazias; Padrão também remove cabeçalhos, rodapés e duplicatas e resume assinaturas; Máxima acrescenta a limpeza de ruído de OCR e junta parágrafos. |
 | 🚫 **Omitir documentos dos tipos** | códigos separados por vírgula (ex.: `EXTR, COMP`) | O documento desses tipos vira um aviso no texto e não é lido. |
 | 👀 **Monitoramento ativo** | liga/desliga | Vigia ou não a pasta escolhida. Arrastar ZIPs para a janela funciona sempre. |

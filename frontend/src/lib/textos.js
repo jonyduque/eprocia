@@ -91,11 +91,11 @@ export function textoListaPaginas(lista, total) {
 
 // --- Task 16: Forçar OCR e log --------------------------------------------------
 
-export const ROTULO_FORCAR_OCR_CONFIG = 'Forçar OCR em todas as páginas de PDF';
+export const ROTULO_FORCAR_OCR_CONFIG = 'Forçar OCR';
 export const AJUDA_FORCAR_OCR_CONFIG =
-  'Cada página passa pelo OCR, inclusive as que já têm texto: o processamento fica bem mais lento e, numa página com texto bom, o resultado pode sair um pouco pior. Páginas repetidas também passam pelo OCR.';
+  'Tudo passa pelo OCR, até páginas com texto nativo. É mais lento e pode tornar textos nativos imprecisos.';
 export const AJUDA_FORCAR_OCR_SEM_OCR = 'Sem efeito com o OCR desligado; escolha um modo de OCR para usar.';
-export const ROTULO_FORCAR_OCR_REPROCESSAR = 'Forçar OCR em todas as páginas';
+export const ROTULO_FORCAR_OCR_REPROCESSAR = 'Forçar OCR';
 export const AJUDA_FORCAR_OCR_REPROCESSAR = 'Mais lento; páginas repetidas também passam pelo OCR.';
 export const ROTULO_ABRIR_LOGS = 'Abrir pasta de logs';
 export const TEXTO_LOG_ATIVO = 'Log e telemetria ativos. Estes arquivos ficam só neste computador.';
