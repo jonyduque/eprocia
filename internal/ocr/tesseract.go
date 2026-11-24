@@ -296,8 +296,8 @@ func (f ferramentas) renderizar(ctx context.Context, pdfPath, dir string, primei
 		return cmd
 	})
 	if err != nil {
-		log.Printf("[OCR] pdftoppm falhou: %v", err)
-		return fmt.Errorf("falha no pdftoppm embutido: %w", err)
+		log.Printf("[OCR] pdftoppm falhou: %v%s", err, detalheStderr(err))
+		return fmt.Errorf("falha no pdftoppm embutido: %w%s", err, detalheStderr(err))
 	}
 	return nil
 }
@@ -414,15 +414,15 @@ func (f ferramentas) reconhecer(ctx context.Context, dir, entrada string, pagina
 	texto, err := rodar("--dpi", dpiRender, "-l", "por")
 	if err != nil && (errors.Is(err, ErrPrazo) || ctx.Err() != nil) {
 		// O fallback esgotaria o prazo de novo, ou já não tem para quem voltar.
-		log.Printf("[OCR] Tesseract em português interrompido: %v", err)
-		return "", fmt.Errorf("falha no tesseract embutido: %w", err)
+		log.Printf("[OCR] Tesseract em português interrompido: %v%s", err, detalheStderr(err))
+		return "", fmt.Errorf("falha no tesseract embutido: %w%s", err, detalheStderr(err))
 	}
 	if err != nil {
-		log.Printf("[OCR] Tesseract em português falhou: %v. Tentando inglês como fallback...", err)
+		log.Printf("[OCR] Tesseract em português falhou: %v%s. Tentando inglês como fallback...", err, detalheStderr(err))
 		texto, err = rodar("--dpi", dpiRender)
 		if err != nil {
-			log.Printf("[OCR] Tesseract fallback (inglês) falhou: %v", err)
-			return "", fmt.Errorf("falha no tesseract embutido: %w", err)
+			log.Printf("[OCR] Tesseract fallback (inglês) falhou: %v%s", err, detalheStderr(err))
+			return "", fmt.Errorf("falha no tesseract embutido: %w%s", err, detalheStderr(err))
 		}
 	}
 	return texto, nil

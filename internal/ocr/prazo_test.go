@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -73,6 +76,74 @@ func TestRenderizar_CancelamentoNaoEPrazo(t *testing.T) {
 	}
 	if !errors.Is(err, context.Canceled) {
 		t.Errorf("erro = %v, quero o erro do contexto pai (context.Canceled)", err)
+	}
+}
+
+// comandoDeTeste monta o próprio binário de teste como processo externo.
+func comandoDeTeste(ctx context.Context) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, os.Args[0])
+	prepareCmd(cmd)
+	return cmd
+}
+
+func TestRodarComPrazo_StderrNoErro(t *testing.T) {
+	t.Setenv("EPROCIA_TESTE_FILHO", "1")
+	t.Setenv("EPROCIA_TESTE_STDERR", "1")
+
+	err := rodarComPrazo(context.Background(), time.Minute, comandoDeTeste)
+	var ep *ErroProcesso
+	if !errors.As(err, &ep) {
+		t.Fatalf("erro = %v (%T), quero *ErroProcesso na cadeia", err, err)
+	}
+	if ep.Codigo != 3 {
+		t.Errorf("Codigo = %d, quero 3", ep.Codigo)
+	}
+	if !strings.Contains(ep.Stderr, "erro de teste") {
+		t.Errorf("Stderr = %q, quero o stderr do processo", ep.Stderr)
+	}
+	if want := filepath.Base(os.Args[0]); ep.Programa != want {
+		t.Errorf("Programa = %q, quero %q", ep.Programa, want)
+	}
+	if strings.Contains(err.Error(), "erro de teste") {
+		t.Errorf("a mensagem leva o stderr: %v", err)
+	}
+	if !strings.Contains(err.Error(), "código 3") {
+		t.Errorf("a mensagem não traz o código de saída: %v", err)
+	}
+}
+
+func TestRodarComPrazo_PrazoContinuaErrPrazo(t *testing.T) {
+	t.Setenv("EPROCIA_TESTE_FILHO", "1")
+	t.Setenv("EPROCIA_TESTE_DORMIR", "1")
+
+	inicio := time.Now()
+	err := rodarComPrazo(context.Background(), 200*time.Millisecond, comandoDeTeste)
+	if d := time.Since(inicio); d > 5*time.Second {
+		t.Errorf("voltou em %v, quero menos de 5 s", d)
+	}
+	if !errors.Is(err, ErrPrazo) {
+		t.Errorf("erro = %v, quero ErrPrazo", err)
+	}
+	if _, ok := errors.AsType[*ErroProcesso](err); !ok {
+		t.Errorf("erro = %v, quero *ErroProcesso na cadeia", err)
+	}
+}
+
+// O erro que reconhecer devolve (e que o pipeline registra no log) leva o
+// código de saída e o stderr do tesseract.
+func TestReconhecer_ErroLevaCodigoEStderr(t *testing.T) {
+	t.Setenv("EPROCIA_TESTE_FILHO", "1")
+	t.Setenv("EPROCIA_TESTE_STDERR", "1")
+	dir := t.TempDir()
+	f := ferramentas{tess: os.Args[0], pdftoppm: os.Args[0], tessDir: dir, popplerDir: dir, tessdata: dir}
+
+	_, err := f.reconhecer(context.Background(), dir, "p-1.pgm", 1, nil)
+	var ep *ErroProcesso
+	if !errors.As(err, &ep) || ep.Codigo != 3 {
+		t.Fatalf("erro = %v, quero *ErroProcesso com código 3", err)
+	}
+	if !strings.Contains(err.Error(), "erro de teste") || !strings.Contains(err.Error(), "código 3") {
+		t.Errorf("erro = %v, quero o código e o stderr na mensagem para o log", err)
 	}
 }
 

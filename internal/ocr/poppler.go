@@ -69,23 +69,20 @@ func rodarPoppler(ctx context.Context, popplerDir, exe string, prazo time.Durati
 		return "", fmt.Errorf("%s embutido não encontrado em %s: %w", exe, caminho, err)
 	}
 	saida := limitado{max: maxSaidaPoppler}
-	erroPadrao := limitado{max: maxStderr}
+	// O stderr fica com rodarComPrazo, que o devolve no *ErroProcesso.
 	err := rodarComPrazo(ctx, prazo, func(ctx context.Context) *exec.Cmd {
 		cmd := exec.CommandContext(ctx, caminho, args...)
 		cmd.Stdout = &saida
-		cmd.Stderr = &erroPadrao
 		prepareCmd(cmd)
 		cmd.Env = append(os.Environ(), "PATH="+popplerDir+";"+os.Getenv("PATH"))
 		return cmd
 	})
 	if err != nil {
-		if strings.Contains(erroPadrao.String(), "Incorrect password") {
-			return "", fmt.Errorf("falha no %s: %w", exe, ErrSenha)
+		if ep, ok := errors.AsType[*ErroProcesso](err); ok && strings.Contains(ep.Stderr, "Incorrect password") {
+			// Sem o stderr na mensagem; o *ErroProcesso segue na cadeia.
+			return "", fmt.Errorf("falha no %s: %w: %w", exe, ErrSenha, err)
 		}
-		if det := erroPadrao.String(); det != "" {
-			return "", fmt.Errorf("falha no %s: %w: %s", exe, err, det)
-		}
-		return "", fmt.Errorf("falha no %s: %w", exe, err)
+		return "", fmt.Errorf("falha no %s: %w%s", exe, err, detalheStderr(err))
 	}
 	if saida.cortou {
 		return "", fmt.Errorf("falha no %s: %w (%d bytes)", exe, errSaidaGrande, maxSaidaPoppler)

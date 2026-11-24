@@ -21,6 +21,10 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, "Command Line Error: Incorrect password")
 		os.Exit(1)
 	}
+	if os.Getenv("EPROCIA_TESTE_STDERR") != "" {
+		fmt.Fprintln(os.Stderr, `erro de teste em C:\Users\fulano\x.png`)
+		os.Exit(3)
+	}
 	if n := os.Getenv("EPROCIA_TESTE_JORRAR"); n != "" {
 		q, err := strconv.Atoi(n)
 		if err != nil {
