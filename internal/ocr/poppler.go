@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -48,17 +49,30 @@ func (l *limitado) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// blocoLimitado é o menor pedaço que ReadFrom reserva de uma vez no buffer, e o
-// tamanho do descarte depois do limite.
+// blocoLimitado é o menor pedaço que ReadFrom reserva de uma vez no buffer.
 const blocoLimitado = 512
 
+// tamDescarte é o bloco de leitura do descarte depois do limite: com 512 bytes,
+// 80 MiB acima do teto custavam ~160 mil leituras.
+const tamDescarte = 32 << 10
+
+// descartes guarda os blocos de descarte entre processos: o conteúdo é jogado
+// fora, e o pool evita alocar 32 KiB a cada stderr que passa do limite.
+var descartes = sync.Pool{New: func() any { return new([tamDescarte]byte) }}
+
 // ReadFrom lê de r até o EOF direto no espaço livre do buffer, sem passar do
-// limite, e descarta o resto num bloco pequeno, continuando a ler para o filho
-// não travar com o pipe cheio. Sem ele, o io.Copy do exec (cmd.Stdout e
-// cmd.Stderr que não são *os.File) aloca 32 KiB por processo.
+// limite, e descarta o resto em blocos de tamDescarte (só pegos do pool quando
+// o descarte começa), continuando a ler para o filho não travar com o pipe
+// cheio. Sem ele, o io.Copy do exec (cmd.Stdout e cmd.Stderr que não são
+// *os.File) aloca 32 KiB por processo.
 func (l *limitado) ReadFrom(r io.Reader) (int64, error) {
 	var total int64
 	var lixo []byte
+	defer func() {
+		if lixo != nil {
+			descartes.Put((*[tamDescarte]byte)(lixo))
+		}
+	}()
 	for {
 		var b []byte
 		if falta := l.max - l.buf.Len(); falta > 0 {
@@ -67,7 +81,7 @@ func (l *limitado) ReadFrom(r io.Reader) (int64, error) {
 			b = b[:min(cap(b), falta)]
 		} else {
 			if lixo == nil {
-				lixo = make([]byte, blocoLimitado)
+				lixo = descartes.Get().(*[tamDescarte]byte)[:]
 			}
 			b = lixo
 		}

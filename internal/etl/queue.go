@@ -2,6 +2,7 @@ package etl
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -196,7 +197,7 @@ func (q *Queue) SetAoTerminarZip(fn func(models.ExecucaoZip)) {
 
 // execucaoLocked exige q.mu travado; devolve a chamada a aoTerminarZip a
 // fazer depois de destravar. Um pânico no callback não chega à fila.
-func (q *Queue) execucaoLocked(item *QueueItem, reprocesso bool, cfg *models.Config, bytesZip int64, classeErro string) func() {
+func (q *Queue) execucaoLocked(item *QueueItem, reprocesso bool, cfg *models.Config, bytesZip int64, classeErro, etapaErro string) func() {
 	fn := q.aoTerminarZip
 	if fn == nil {
 		return func() {}
@@ -208,6 +209,7 @@ func (q *Queue) execucaoLocked(item *QueueItem, reprocesso bool, cfg *models.Con
 		BytesZip:   bytesZip,
 		Status:     item.Status,
 		ClasseErro: classeErro,
+		EtapaErro:  etapaErro,
 		Relatorio:  item.Relatorio,
 	}
 	if cfg != nil {
@@ -550,7 +552,7 @@ func (q *Queue) processItem(item *QueueItem) {
 			item.Error = fmt.Sprintf("Panic: %v", r)
 			q.isWorking = false
 			avisar := q.avisarFimLocked(item)
-			telemetria := q.execucaoLocked(item, reprocesso, cfgExec, bytesZip, "panico")
+			telemetria := q.execucaoLocked(item, reprocesso, cfgExec, bytesZip, "panico", "")
 			q.mu.Unlock()
 			q.broadcast()
 			avisar()
@@ -620,7 +622,7 @@ func (q *Queue) processItem(item *QueueItem) {
 			item.Error = err.Error()
 			q.isWorking = false
 			avisar := q.avisarFimLocked(item)
-			telemetria := q.execucaoLocked(item, reprocesso, nil, bytesZip, "config")
+			telemetria := q.execucaoLocked(item, reprocesso, nil, bytesZip, "config", "")
 			q.mu.Unlock()
 			q.broadcast()
 			avisar()
@@ -659,7 +661,7 @@ func (q *Queue) processItem(item *QueueItem) {
 	q.isWorking = false
 	pararEnvioPendente(item)
 
-	classeErro := ""
+	classeErro, etapaErro := "", ""
 	if err != nil {
 		if ctx.Err() == context.Canceled {
 			item.Status = "cancelled"
@@ -670,6 +672,9 @@ func (q *Queue) processItem(item *QueueItem) {
 			item.Message = err.Error()
 			item.Error = err.Error()
 			classeErro = string(classificarErro(err))
+			if ee, ok := errors.AsType[ErroEtapa](err); ok {
+				etapaErro = ee.Etapa
+			}
 		}
 	} else {
 		item.Status = "success"
@@ -687,7 +692,7 @@ func (q *Queue) processItem(item *QueueItem) {
 		item.Relatorio = atv.Relatorio()
 	}
 	avisar := q.avisarFimLocked(item)
-	telemetria := q.execucaoLocked(item, reprocesso, cfg, bytesZip, classeErro)
+	telemetria := q.execucaoLocked(item, reprocesso, cfg, bytesZip, classeErro, etapaErro)
 	q.mu.Unlock()
 
 	q.broadcast()

@@ -12,7 +12,7 @@ const (
 	EtapaLerPDF   = "ler_pdf"
 	EtapaOCR      = "ocr"
 	EtapaHTML     = "html"
-	EtapaFormatar = "formatar"
+	EtapaFormatar = "formatar" // reservada; GerarSaida não devolve erro
 	EtapaGravar   = "gravar"
 )
 

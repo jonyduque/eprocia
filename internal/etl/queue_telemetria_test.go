@@ -33,6 +33,33 @@ func semMaisExecucoes(t *testing.T, ch <-chan models.ExecucaoZip) {
 	}
 }
 
+// A falha do ZIP inteiro leva a etapa em que aconteceu; o sucesso, nenhuma.
+func TestQueue_AoTerminarZipEtapaErro(t *testing.T) {
+	dir := t.TempDir()
+	ruim := filepath.Join(dir, "ruim.zip")
+	if err := os.WriteFile(ruim, []byte("isto não é um zip"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	q, _ := novaFilaGravada(t, nil) // pipeline de verdade
+	ch := make(chan models.ExecucaoZip, 4)
+	q.SetAoTerminarZip(func(e models.ExecucaoZip) { ch <- e })
+
+	q.AddFiles([]string{ruim})
+	e := esperarExecucao(t, ch)
+	if e.Status != "error" || e.EtapaErro != EtapaAbrirZip {
+		t.Errorf("falha ao abrir: status %q, etapa_erro %q; quer error e %q", e.Status, e.EtapaErro, EtapaAbrirZip)
+	}
+
+	q.processar = func(context.Context, string, *models.Config, func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+		return "saida.txt", 1, 1, 1, nil
+	}
+	q.AddFiles([]string{filepath.Join(dir, "ok.zip")})
+	e = esperarExecucao(t, ch)
+	if e.Status != "success" || e.EtapaErro != "" {
+		t.Errorf("sucesso: status %q, etapa_erro %q; quer success e vazio", e.Status, e.EtapaErro)
+	}
+}
+
 func TestQueue_AoTerminarZip(t *testing.T) {
 	dir := t.TempDir()
 	zipOK := filepath.Join(dir, "ok.zip")

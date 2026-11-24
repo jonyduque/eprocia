@@ -176,6 +176,24 @@ func TestTelemetria_ErroSemRelatorio(t *testing.T) {
 	}
 }
 
+func TestTelemetria_EtapaErro(t *testing.T) {
+	e := models.ExecucaoZip{ItemID: "u", Status: "error", ClasseErro: "ilegivel", EtapaErro: "abrir_zip"}
+	if s := jsonDe(t, Montar(e, Maquina{}, "x", time.Now())); !strings.Contains(s, `"etapa_erro":"abrir_zip"`) {
+		t.Errorf("sem etapa_erro: %s", s)
+	}
+	// Fora da lista fechada (texto livre, um caminho) não entra.
+	for _, v := range []string{`C:\Users\fulano\x.zip`, "etapa_inventada"} {
+		e.EtapaErro = v
+		if s := jsonDe(t, Montar(e, Maquina{}, "x", time.Now())); strings.Contains(s, "etapa_erro") {
+			t.Errorf("etapa %q entrou: %s", v, s)
+		}
+	}
+	ok := models.ExecucaoZip{ItemID: "u", Status: "success"}
+	if s := jsonDe(t, Montar(ok, Maquina{}, "x", time.Now())); strings.Contains(s, "etapa_erro") {
+		t.Errorf("sucesso com etapa_erro: %s", s)
+	}
+}
+
 // linhasJSON lê um .jsonl e confere que cada linha é JSON.
 func linhasJSON(t *testing.T, caminho string) int {
 	t.Helper()

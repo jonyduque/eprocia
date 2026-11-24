@@ -1,6 +1,8 @@
 // Package registro concentra o log em arquivo do eprocIA: a leitura única da
-// variável EPROCIA_LOG, o saneamento do perfil do usuário e, nas próximas
-// etapas, o manipulador slog, a rotação e a retenção.
+// variável EPROCIA_LOG (LerModo), o saneamento do perfil e da pasta temporária
+// (Saneador), o manipulador slog assíncrono (Iniciar, Manipulador, Descarregar,
+// Encerrar), o arquivo com rotação por tamanho (ArquivoRotativo) e a retenção
+// por idade (ApagarAntigos).
 package registro
 
 import "strings"

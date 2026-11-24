@@ -110,6 +110,7 @@ type Falhas struct {
 type Resultado struct {
 	Status     string `json:"status"`
 	ClasseErro string `json:"classe_erro,omitempty"`
+	EtapaErro  string `json:"etapa_erro,omitempty"`
 }
 
 var (
@@ -117,6 +118,8 @@ var (
 	niveis    = []string{"none", "basic", "standard", "aggressive"}
 	origens   = []string{"monitorada", "arrastada", "manual"}
 	statusZip = []string{"success", "error", "cancelled"}
+	// etapas espelha as constantes etl.Etapa* (o pacote não importa etl).
+	etapas = []string{"abrir_zip", "ler_pdf", "ocr", "html", "formatar", "gravar"}
 	// reClasse aceita só identificadores curtos (classes, motivos e leituras
 	// são enumerações em snake_case); qualquer outro texto é descartado, para
 	// que nada livre (um nome, um caminho) chegue ao arquivo por engano.
@@ -173,8 +176,12 @@ func Montar(e models.ExecucaoZip, m Maquina, versao string, agora time.Time) Reg
 			TiposOmitidos: len(cfg.OmitirTipos),
 			Origem:        enumOu(e.Origem, origens),
 		},
-		Tamanhos:  Tamanhos{BytesZip: e.BytesZip},
-		Resultado: Resultado{Status: enumOu(e.Status, statusZip), ClasseErro: classe(e.ClasseErro)},
+		Tamanhos: Tamanhos{BytesZip: e.BytesZip},
+		Resultado: Resultado{
+			Status:     enumOu(e.Status, statusZip),
+			ClasseErro: classe(e.ClasseErro),
+			EtapaErro:  enumOu(e.EtapaErro, etapas),
+		},
 	}
 	rel := e.Relatorio
 	if rel == nil {

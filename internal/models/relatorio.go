@@ -112,7 +112,9 @@ type DocAtencao struct {
 // ExecucaoZip descreve uma execução de um item da fila que terminou (sucesso,
 // erro ou cancelamento), para a telemetria. Config é a config efetiva do item
 // (com o ajuste do Reprocessar e o Forçar OCR efetivo); Relatorio é nil fora
-// do sucesso. Origem é "monitorada", "arrastada" ou "manual".
+// do sucesso. Origem é "monitorada", "arrastada" ou "manual". EtapaErro é a
+// etapa (etl.Etapa*) em que o ZIP inteiro falhou, só quando houve erro e ele
+// trazia a etapa.
 type ExecucaoZip struct {
 	ItemID     string
 	Reprocesso bool
@@ -121,5 +123,6 @@ type ExecucaoZip struct {
 	BytesZip   int64
 	Status     string
 	ClasseErro string
+	EtapaErro  string
 	Relatorio  *RelatorioZip
 }

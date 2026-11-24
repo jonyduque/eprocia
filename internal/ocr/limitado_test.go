@@ -49,10 +49,41 @@ func TestLimitado_ReadFromRespeitaLimiteELeAteEOF(t *testing.T) {
 	if !l.cortou {
 		t.Fatal("cortou deveria ser true")
 	}
-	// Sem ReadFrom, io.Copy pediria leituras de 32 KiB (o buffer que aloca).
-	if src.maiorPedi > 1024 {
-		t.Fatalf("maior leitura pedida %d bytes; quer no máximo 1024 (sem o buffer de 32 KiB do io.Copy)", src.maiorPedi)
+	// O descarte lê em blocos de tamDescarte; nunca acima disso.
+	if src.maiorPedi > tamDescarte {
+		t.Fatalf("maior leitura pedida %d bytes; quer no máximo %d", src.maiorPedi, tamDescarte)
 	}
+}
+
+// Depois do teto, o descarte lê em blocos grandes: com 512 bytes, 80 MiB de
+// saída custavam ~160 mil leituras.
+func TestLimitado_DescartePoucasLeituras(t *testing.T) {
+	dados := dadosDe(4 << 20)
+	src := &leitorContado{r: bytes.NewReader(dados)}
+	l := &limitado{max: maxStderr}
+
+	n, err := l.ReadFrom(src)
+	if err != nil || n != int64(len(dados)) {
+		t.Fatalf("ReadFrom = %d, %v; quer %d, nil", n, err, len(dados))
+	}
+	if !bytes.Equal(l.buf.Bytes(), dados[:maxStderr]) || !l.cortou {
+		t.Fatalf("guardou %d bytes, cortou=%v; quer %d e true", l.buf.Len(), l.cortou, maxStderr)
+	}
+	// ~128 leituras de 32 KiB no descarte, mais as do buffer e a do EOF.
+	if limite := len(dados)/(32<<10) + 16; src.chamadas > limite {
+		t.Fatalf("%d leituras para %d bytes; quer no máximo %d", src.chamadas, len(dados), limite)
+	}
+}
+
+// leitorContado conta as chamadas a Read.
+type leitorContado struct {
+	r        io.Reader
+	chamadas int
+}
+
+func (l *leitorContado) Read(p []byte) (int, error) {
+	l.chamadas++
+	return l.r.Read(p)
 }
 
 func TestLimitado_ReadFromAbaixoDoLimiteNaoCorta(t *testing.T) {
@@ -101,8 +132,23 @@ func TestLimitado_ReadFromTetoAlto(t *testing.T) {
 	}
 }
 
+// Abaixo do teto não há descarte: sem ReadFrom, o io.Copy alocaria 32 KiB.
+// Roda também com -race (o gate e a CI só rodam com -race).
+func TestLimitado_ReadFromAlocaPoucoSemDescarte(t *testing.T) {
+	alocaPouco(t, dadosDe(maxStderr/2))
+}
+
+// Com descarte, o bloco de 32 KiB vem do pool e volta a ele. Com -race o
+// sync.Pool descarta itens ao acaso, e a medida perde o sentido.
 func TestLimitado_ReadFromAlocaPouco(t *testing.T) {
-	dados := dadosDe(64 << 10)
+	if corridaAtiva {
+		t.Skip("com -race o sync.Pool descarta itens ao acaso")
+	}
+	alocaPouco(t, dadosDe(64<<10))
+}
+
+func alocaPouco(t *testing.T, dados []byte) {
+	t.Helper()
 	src := &leitorSimples{}
 	l := &limitado{}
 	const vezes = 20
