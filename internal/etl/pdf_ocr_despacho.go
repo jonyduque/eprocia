@@ -227,6 +227,7 @@ func (d *despachoOCR) runOCRBloco(tasks []ocrTask) {
 	if err != nil {
 		// Uma página ruim derruba o tesseract do bloco inteiro; sozinhas,
 		// as outras ainda saem.
+		d.p.medidas.refacao()
 		d.lg.Warn("OCR em bloco falhou; refazendo página a página", append([]any{"paginas", paginas}, atributosErro(comEtapa(EtapaOCR, err))...)...)
 		// Cada página que estoura o prazo custa o prazo inteiro: depois de
 		// maxPrazosSeguidos seguidas, as outras do bloco nem rodam.

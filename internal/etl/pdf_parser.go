@@ -46,6 +46,8 @@ type PDFParser struct {
 
 	lote      ocrLote
 	blocosOCR int
+	// medidas conta os blocos refeitos página a página (ver comMedidas).
+	medidas *medidasOCR
 
 	// poppler: o PDF foi aberto pelo segundo leitor (ver comPoppler).
 	poppler bool

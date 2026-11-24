@@ -283,9 +283,9 @@ func TestCategorias_UmaPorPagina(t *testing.T) {
 	var eventos map[string]any
 	antigo := gerarSaida
 	t.Cleanup(func() { gerarSaida = antigo })
-	gerarSaida = func(ev map[string]any, nivel string) (string, int) {
+	gerarSaida = func(ev map[string]any, nivel string, semOCR int) SaidaConsolidada {
 		eventos = ev
-		return antigo(ev, nivel)
+		return antigo(ev, nivel, semOCR)
 	}
 	saida, _, _, _, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfg, nil)
 	if err != nil {

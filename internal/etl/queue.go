@@ -36,9 +36,12 @@ type QueueItem struct {
 	TotalPages      int     `json:"total_pages"`
 	// UnreadDocs conta os documentos que ficaram sem texto aproveitável; o item
 	// continua "success".
-	UnreadDocs int    `json:"unread_docs"`
-	Error      string `json:"error,omitempty"`
-	Timestamp  int64  `json:"timestamp"`
+	UnreadDocs int `json:"unread_docs"`
+	// Relatorio é o relatório da última execução com sucesso; nil enquanto o
+	// item aguarda ou processa, e depois de erro ou cancelamento.
+	Relatorio *models.RelatorioZip `json:"relatorio,omitempty"`
+	Error     string               `json:"error,omitempty"`
+	Timestamp int64                `json:"timestamp"`
 	// OcrMode e CleaningLevel são os da última execução do item (ou os que a
 	// próxima vai usar, num item reprocessado que ainda aguarda).
 	OcrMode       string             `json:"ocr_mode,omitempty"`
@@ -248,10 +251,12 @@ func copiarItem(item *QueueItem) *QueueItem {
 		ProcessedPages:  item.ProcessedPages,
 		TotalPages:      item.TotalPages,
 		UnreadDocs:      item.UnreadDocs,
-		Error:           item.Error,
-		Timestamp:       item.Timestamp,
-		OcrMode:         item.OcrMode,
-		CleaningLevel:   item.CleaningLevel,
+		// O relatório não muda depois de pronto: basta o ponteiro.
+		Relatorio:     item.Relatorio,
+		Error:         item.Error,
+		Timestamp:     item.Timestamp,
+		OcrMode:       item.OcrMode,
+		CleaningLevel: item.CleaningLevel,
 	}
 }
 
@@ -286,6 +291,7 @@ func (q *Queue) Reprocessar(id, ocrMode, cleaningLevel string) error {
 	item.DocsCount, item.PagesCount, item.EstimatedTokens = 0, 0, 0
 	item.ProcessedDocs, item.TotalDocs, item.ProcessedPages, item.TotalPages = 0, 0, 0, 0
 	item.UnreadDocs = 0
+	item.Relatorio = nil
 	item.Timestamp = time.Now().UnixMilli()
 	// Vai para o topo, como um arquivo novo: a fila processa de baixo para cima.
 	q.items = slices.Delete(q.items, idx, idx+1)
@@ -479,6 +485,8 @@ func (q *Queue) processItem(item *QueueItem) {
 	item.Message = "Iniciando..."
 	item.Progress = 0
 	item.ProcessedDocs, item.TotalDocs, item.ProcessedPages, item.TotalPages = 0, 0, 0, 0
+	// Erro e cancelamento deixam o relatório nil; só o sucesso o preenche.
+	item.Relatorio = nil
 	atv := NovaAtividade(item.ID)
 	item.atividade = atv
 	cfg := q.cfg
@@ -577,6 +585,7 @@ func (q *Queue) processItem(item *QueueItem) {
 		item.ProcessedPages = pagesCount
 		item.TotalPages = pagesCount
 		item.UnreadDocs = atv.NaoLidos()
+		item.Relatorio = atv.Relatorio()
 	}
 	avisar := q.avisarFimLocked(item)
 	q.mu.Unlock()
