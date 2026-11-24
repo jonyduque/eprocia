@@ -82,3 +82,4 @@ export const ROTULO_FORCAR_OCR_REPROCESSAR = 'Forçar OCR em todas as páginas';
 export const AJUDA_FORCAR_OCR_REPROCESSAR = 'Mais lento; páginas repetidas também passam pelo OCR.';
 export const ROTULO_ABRIR_LOGS = 'Abrir pasta de logs';
 export const TEXTO_LOG_ATIVO = 'Log e telemetria ativos. Estes arquivos ficam só neste computador.';
+export const ERRO_ABRIR_LOGS = 'Erro ao abrir a pasta de logs: ';

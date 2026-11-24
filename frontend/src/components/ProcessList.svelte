@@ -232,9 +232,9 @@
     }
   }
 
-  async function confirmarReprocessar(item, ocr, limpeza) {
+  async function confirmarReprocessar(item, ocr, limpeza, forcar) {
     try {
-      await ReprocessQueueItem(item.id, ocr, limpeza);
+      await ReprocessQueueItem(item.id, ocr, limpeza, !!forcar);
       // O item volta para a fila e a linha troca Reprocessar por Cancelar quando
       // o queue:update chegar: o foco espera no Reprocessar e depois vai ao Cancelar.
       const botao = botaoReprocessarDa(item.id);
@@ -891,7 +891,7 @@
                       class="btn-ler-ocr"
                       data-parada="lerocr"
                       tabindex={tabParada(item.id, 'lerocr', paradaAtiva)}
-                      disabled={!!lendoOCR[item.id]}
+                      aria-disabled={!!lendoOCR[item.id]}
                       title={DICA_LER_COM_OCR}
                       on:click={() => lerComOCR(item)}
                     >
@@ -921,7 +921,8 @@
                   id="reprocessar-{item.id}"
                   ocrInicial={ocrSugerido[item.id] || item.ocr_mode || config?.ocr_mode || 'normal'}
                   limpezaInicial={item.cleaning_level || config?.cleaning_level || 'standard'}
-                  aoConfirmar={(ocr, limpeza) => confirmarReprocessar(item, ocr, limpeza)}
+                  forcarInicial={!!config?.forcar_ocr}
+                  aoConfirmar={(ocr, limpeza, forcar) => confirmarReprocessar(item, ocr, limpeza, forcar)}
                   aoCancelar={() => fecharReprocessar(item.id)}
                 />
               {/key}
@@ -1745,12 +1746,14 @@
     cursor: pointer;
   }
 
-  .btn-ler-ocr:disabled {
+  /* aria-disabled, e não disabled: num erro do envio o foco fica no botão em
+     vez de cair no body; a guarda de lerComOCR barra o segundo clique. */
+  .btn-ler-ocr[aria-disabled='true'] {
     opacity: 0.6;
     cursor: default;
   }
 
-  .btn-ler-ocr:hover:not(:disabled) {
+  .btn-ler-ocr:hover:not([aria-disabled='true']) {
     border-color: var(--warning);
   }
 

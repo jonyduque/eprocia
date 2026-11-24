@@ -36,6 +36,7 @@
     SelectZipFiles,
     IsQueuePaused,
     JanelaVisivel,
+    LogAtivo,
     Hide,
     SetTheme,
     SaveConfig,
@@ -80,6 +81,8 @@
   let sistemaEscuro = consultaTema.matches;
   let config = null;
   let erroConfig = '';
+  // Fixo durante a execução (EPROCIA_LOG é lida ao iniciar): consultado uma vez.
+  let logAtivo = false;
   let isPaused = false;
   let isWorking = false;
 
@@ -143,6 +146,9 @@
       if (!visibilidadeAvisada) mudarVisibilidade(visivel);
     }).catch((err) => console.warn('Erro ao consultar a visibilidade da janela:', err));
     atualizarMaximizada();
+    LogAtivo().then((ativo) => {
+      logAtivo = ativo === true;
+    }).catch((err) => console.warn('Erro ao consultar o log:', err));
 
     // Load initial config
     await refreshConfig();
@@ -578,7 +584,7 @@
       <!-- Escondido, não desmontado: o Settings mantém o aviso e a config. -->
       <div class="sidebar-content" class:mais-abaixo={painelMaisAbaixo} use:rolagem={marcarPainel} inert={sidebarCollapsed}>
         <!-- Settings Component -->
-        <Settings bind:config {erroConfig} aoFalharSalvar={refreshConfig} avisar={avisarPainel} />
+        <Settings bind:config {erroConfig} {logAtivo} aoFalharSalvar={refreshConfig} avisar={avisarPainel} />
 
         <!-- Manual Process Card -->
         <div class="manual-card">

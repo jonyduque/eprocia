@@ -31,6 +31,13 @@ describe('reprocessar com OCR', () => {
     assert.match(f, /aplicarReprocessarComOCR\(/);
     assert.match(f, /\{#key /);
   });
+  it('Reprocessar envia o Forçar OCR como quarto argumento do ReprocessQueueItem', () => {
+    const f = readFileSync(new URL('./src/components/ProcessList.svelte', import.meta.url), 'utf8');
+    const corpo = f.slice(f.indexOf('async function confirmarReprocessar'));
+    assert.match(corpo.slice(0, 300), /ReprocessQueueItem\(item\.id, ocr, limpeza, !!forcar\)/);
+    const r = readFileSync(new URL('./src/components/ReprocessarItem.svelte', import.meta.url), 'utf8');
+    assert.match(r, /aoConfirmar\(ocr, limpeza, forcar\)/);
+  });
 });
 
 describe('argumentosLerComOCR', () => {

@@ -17,7 +17,13 @@
   import { criarConfirmacao } from '../lib/aviso.js';
   import { OPCOES_OCR, OPCOES_LIMPEZA, descricaoOpcao } from '../lib/atividade.js';
   import { ROTULO_MONITORAMENTO, estadoMonitoramento, reticenciasMeio } from '../lib/monitoramento.js';
-  import { SaveConfig, SelectDirectory } from '../wailsjs/go/main/App.js';
+  import { itensLog } from '../lib/log.js';
+  import {
+    AJUDA_FORCAR_OCR_CONFIG,
+    ERRO_ABRIR_LOGS,
+    ROTULO_FORCAR_OCR_CONFIG
+  } from '../lib/textos.js';
+  import { AbrirPastaLogs, SaveConfig, SelectDirectory } from '../wailsjs/go/main/App.js';
 
   // O App lê a config uma vez e a compartilha por bind; null enquanto carrega.
   export let config = null;
@@ -28,11 +34,14 @@
   // Erros vão para o aviso do pé do painel (App), fora da área rolável, para
   // não cobrir os controles; o sucesso é o Check ao lado do controle.
   export let avisar = () => {};
+  // App.LogAtivo(), lido uma vez pelo App: sem log, nada sobre ele aparece aqui.
+  export let logAtivo = false;
 
   const PADRAO = {
     monitored_path: '',
     ocr_mode: 'normal',
     cleaning_level: 'standard',
+    forcar_ocr: false,
     auto_start: false,
     watchdog_enabled: true,
     omitir_tipos: []
@@ -119,8 +128,17 @@
     ocr: 'OCR',
     limpeza: 'Higienização',
     omitir: 'Tipos omitidos',
-    autostart: 'Iniciar com o Windows'
+    autostart: 'Iniciar com o Windows',
+    forcar: ROTULO_FORCAR_OCR_CONFIG
   };
+
+  async function abrirPastaLogs() {
+    try {
+      await AbrirPastaLogs();
+    } catch (err) {
+      avisar(ERRO_ABRIR_LOGS + (err?.message ?? err), 'error');
+    }
+  }
 
   let confirmado = null;
   const confirmacao = criarConfirmacao((c) => { confirmado = c; });
@@ -218,6 +236,24 @@
         <p class="help-text" id="ajuda-ocr">{descricaoOpcao(OPCOES_OCR, previaOcr ?? config.ocr_mode)}</p>
       </div>
 
+      <!-- Com o OCR desligado a caixa fica desabilitada e o valor salvo não muda:
+           voltando a um modo com OCR, ela reaparece como estava. -->
+      <div class="form-group">
+        <label class="caixa" for="forcar-ocr">
+          <input
+            id="forcar-ocr"
+            type="checkbox"
+            bind:checked={config.forcar_ocr}
+            disabled={config.ocr_mode === 'none'}
+            aria-describedby="ajuda-forcar-ocr"
+            on:change={() => handleSave('forcar')}
+          />
+          <span>{ROTULO_FORCAR_OCR_CONFIG}</span>
+          <Salvo campo="forcar" {confirmado} />
+        </label>
+        <p class="help-text" id="ajuda-forcar-ocr">{AJUDA_FORCAR_OCR_CONFIG}</p>
+      </div>
+
       <div class="form-group">
         <Segmentado
           id="cleaning-level"
@@ -274,6 +310,21 @@
           <span class="slider" aria-hidden="true"></span>
         </label>
       </div>
+
+      {#if logAtivo}
+        <div class="form-group">
+          {#each itensLog(logAtivo) as item}
+            {#if item.tipo === 'botao'}
+              <button type="button" class="btn-primary btn-icone-texto btn-log" on:click={abrirPastaLogs}>
+                <Icone icone={FolderOpen} tamanho={12} />
+                {item.texto}
+              </button>
+            {:else}
+              <p class="help-text">{item.texto}</p>
+            {/if}
+          {/each}
+        </div>
+      {/if}
     </div>
   {/if}
 
@@ -395,6 +446,29 @@
     display: flex;
     align-items: center;
     gap: 4px;
+  }
+
+  .btn-log {
+    align-self: flex-start;
+  }
+
+  /* Caixa de marcar com o rótulo à direita; o texto quebra em vez de cortar. */
+  .caixa {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    cursor: pointer;
+  }
+
+  .caixa input {
+    margin: 2px 0 0;
+    flex-shrink: 0;
+    accent-color: var(--accent);
+  }
+
+  .caixa:has(input:disabled) {
+    cursor: default;
+    color: var(--text-secondary);
   }
 
   input[type="text"] {
