@@ -20,7 +20,8 @@ import {
   textoListaPaginas,
   textoDocsSemOCR,
   EXPLICACAO_OCR,
-  ROTULO_LER_COM_OCR
+  ROTULO_LER_COM_OCR,
+  textoPaginasForaDoResumo
 } from './src/lib/textos.js';
 
 const ler = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
@@ -44,8 +45,8 @@ const ZERADO = rel();
 
 describe('textos', () => {
   it('plural e singular das frases de aviso', () => {
-    assert.equal(textoPaginasSemOCR(6), '6 páginas têm imagem e o OCR estava desligado');
-    assert.equal(textoPaginasSemOCR(1), '1 página tem imagem e o OCR estava desligado');
+    assert.equal(textoPaginasSemOCR(6), '6 páginas têm imagem e o OCR estava desativado');
+    assert.equal(textoPaginasSemOCR(1), '1 página tem imagem e o OCR estava desativado');
     assert.equal(textoPaginasComErro(3), '3 páginas não puderam ser lidas');
     assert.equal(textoPaginasComErro(1), '1 página não pôde ser lida');
     assert.equal(textoOCRFalhouComReserva(2), '2 páginas ficaram com o texto do PDF porque o OCR falhou');
@@ -87,6 +88,19 @@ describe('resumoPaginas', () => {
   it('só páginas de aviso: total sem partes', () => {
     assert.equal(resumoPaginas(rel({ total: 6, sem_ocr: 6 })), '6 páginas');
   });
+  // O contador da linha (pages_count) inclui as páginas dos não lidos e dos
+  // omitidos; o resumo diz de onde vem a diferença.
+  it('páginas de não lidos e omitidos entram como trecho à parte', () => {
+    const r = rel({ total: 139, lida_nativa: 131, lida_ocr: 8, de_nao_lidos: 3 });
+    assert.equal(resumoPaginas(r), '139 páginas: 131 do texto do PDF, 8 por OCR; + 3 de documentos não lidos ou omitidos');
+    const s = rel({ total: 10, lida_nativa: 10, de_nao_lidos: 2, de_omitidos: 4 });
+    assert.equal(resumoPaginas(s), '10 páginas: 10 do texto do PDF; + 6 de documentos não lidos ou omitidos');
+    assert.equal(resumoPaginas(rel({ total: 6, sem_ocr: 6, de_omitidos: 1 })), '6 páginas; + 1 de documento não lido ou omitido');
+  });
+  it('texto do trecho: singular e plural', () => {
+    assert.equal(textoPaginasForaDoResumo(1), '+ 1 de documento não lido ou omitido');
+    assert.equal(textoPaginasForaDoResumo(3), '+ 3 de documentos não lidos ou omitidos');
+  });
 });
 
 describe('avisosPaginas', () => {
@@ -101,7 +115,7 @@ describe('avisosPaginas', () => {
   it('só as três categorias, na ordem', () => {
     const r = rel({ total: 20, lida_nativa: 9, vazia: 2, sem_ocr: 6, com_erro: 3, ocr_falhou_com_reserva: 1 });
     assert.deepEqual(avisosPaginas(r), [
-      { tipo: 'sem_ocr', texto: '6 páginas têm imagem e o OCR estava desligado' },
+      { tipo: 'sem_ocr', texto: '6 páginas têm imagem e o OCR estava desativado' },
       { tipo: 'com_erro', texto: '3 páginas não puderam ser lidas' },
       { tipo: 'ocr_falhou_com_reserva', texto: '1 página ficou com o texto do PDF porque o OCR falhou' }
     ]);
@@ -245,6 +259,13 @@ describe('convenções dos componentes', () => {
     assert.match(lista, /class="resumo-relatorio"[^>]*data-parada="relatorio"[^>]*tabindex=\{tabParada\(item\.id, 'relatorio', paradaAtiva\)\}/);
     assert.match(lista, /class="btn-ler-ocr"[^>]*data-parada="lerocr"[^>]*tabindex=\{tabParada\(item\.id, 'lerocr', paradaAtiva\)\}/);
   });
+  it('Ler com OCR fecha o formulário do Reprocessar e esquece a origem, como o Reprocessar', () => {
+    const f = lista.slice(lista.indexOf('async function lerComOCR'));
+    const corpo = f.slice(0, f.search(/\r?\n  \}\r?\n/));
+    const ok = corpo.slice(corpo.indexOf('try {'), corpo.indexOf('} catch'));
+    assert.match(ok, /reprocessarAberto = \{ \.\.\.reprocessarAberto, \[item\.id\]: false \}/);
+    assert.match(ok, /origemReprocessar = \{ \.\.\.origemReprocessar, \[item\.id\]: null \}/);
+  });
   it('Reprocessar comum também fecha o painel do relatório', () => {
     const f = lista.slice(lista.indexOf('async function confirmarReprocessar'));
     assert.match(f.slice(0, 900), /relatorioAberto = \{ \.\.\.relatorioAberto, \[item\.id\]: false \}/);
@@ -273,7 +294,7 @@ describe('convenções dos componentes', () => {
   });
   it('textos novos vêm de textos.js, não de literais nos .svelte', () => {
     for (const f of [lista, painel]) {
-      assert.doesNotMatch(f, /OCR estava desligado/);
+      assert.doesNotMatch(f, /OCR estava desativado/);
       assert.doesNotMatch(f, /não puderam ser lidas/);
       assert.doesNotMatch(f, /Ler com OCR/);
     }

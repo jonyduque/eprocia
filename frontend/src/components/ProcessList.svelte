@@ -47,7 +47,7 @@
   import { criarAnunciador } from '../lib/regiaoViva.js';
   import { estadoItem, avisoFila } from '../lib/estado.js';
   import { criarAviso, duracaoMovimento, DUR_FAST, DUR_BASE } from '../lib/aviso.js';
-  import { aplicarReprocessarComOCR, alvoAoFecharReprocessar, argumentosLerComOCR } from '../lib/reprocessar.js';
+  import { aplicarReprocessarComOCR, alvoAoFecharReprocessar, argumentosLerComOCR, limpezaInicialReprocessar } from '../lib/reprocessar.js';
   import { resumoPaginas, avisosPaginas, mostrarLerComOCR } from '../lib/relatorio.js';
   import { EXPLICACAO_OCR, ROTULO_LER_COM_OCR, DICA_LER_COM_OCR, DICA_ABRIR_RELATORIO, DICA_FECHAR_RELATORIO } from '../lib/textos.js';
   import { dica } from '../lib/dica.js';
@@ -221,7 +221,9 @@
       const botao = botaoReprocessarDa(item.id);
       botao?.focus();
       guardarFoco(item.id, { currentTarget: botao }, 'cancelar');
+      reprocessarAberto = { ...reprocessarAberto, [item.id]: false };
       relatorioAberto = { ...relatorioAberto, [item.id]: false };
+      origemReprocessar = { ...origemReprocessar, [item.id]: null };
       const { [item.id]: _, ...resto } = atividadesBuscadas;
       atividadesBuscadas = resto;
     } catch (err) {
@@ -920,7 +922,7 @@
                 <ReprocessarItem
                   id="reprocessar-{item.id}"
                   ocrInicial={ocrSugerido[item.id] || item.ocr_mode || config?.ocr_mode || 'normal'}
-                  limpezaInicial={item.cleaning_level || config?.cleaning_level || 'standard'}
+                  limpezaInicial={limpezaInicialReprocessar(item, config)}
                   forcarInicial={!!config?.forcar_ocr}
                   aoConfirmar={(ocr, limpeza, forcar) => confirmarReprocessar(item, ocr, limpeza, forcar)}
                   aoCancelar={() => fecharReprocessar(item.id)}

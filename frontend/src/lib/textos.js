@@ -9,7 +9,7 @@ function plural(n, um, varios) {
 // --- Linha-resumo e avisos do item concluído ---------------------------------
 
 export function textoPaginasSemOCR(n) {
-  return plural(n, '1 página tem imagem e o OCR estava desligado', `${n} páginas têm imagem e o OCR estava desligado`);
+  return plural(n, '1 página tem imagem e o OCR estava desativado', `${n} páginas têm imagem e o OCR estava desativado`);
 }
 
 export function textoPaginasComErro(n) {
@@ -36,6 +36,12 @@ export function textoDocsSemOCR(n) {
 
 export function textoTotalPaginas(n) {
   return plural(n, '1 página', `${n} páginas`);
+}
+
+// Páginas de documentos não lidos ou omitidos: entram no contador da linha
+// (pages_count), mas não nas partes do resumo.
+export function textoPaginasForaDoResumo(n) {
+  return plural(n, '+ 1 de documento não lido ou omitido', `+ ${n} de documentos não lidos ou omitidos`);
 }
 
 export const PARTE_TEXTO_PDF = 'do texto do PDF';

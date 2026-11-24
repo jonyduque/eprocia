@@ -7,6 +7,7 @@ import {
   textoOCRFalhouComReserva,
   textoDocsSemOCR,
   textoTotalPaginas,
+  textoPaginasForaDoResumo,
   textoListaPaginas,
   PARTE_TEXTO_PDF,
   PARTE_OCR,
@@ -27,7 +28,10 @@ export function resumoPaginas(rel) {
     .filter(([n]) => n > 0)
     .map(([n, t]) => `${n} ${t}`);
   const cabeca = textoTotalPaginas(total);
-  return partes.length > 0 ? `${cabeca}: ${partes.join(', ')}` : cabeca;
+  const base = partes.length > 0 ? `${cabeca}: ${partes.join(', ')}` : cabeca;
+  // O contador da linha (pages_count) soma estas; o total do resumo, não.
+  const fora = num(p.de_nao_lidos) + num(p.de_omitidos);
+  return fora > 0 ? `${base}; ${textoPaginasForaDoResumo(fora)}` : base;
 }
 
 // Só o que pede atenção: página em branco é normal e nunca vira aviso.
