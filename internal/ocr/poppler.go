@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -45,6 +46,47 @@ func (l *limitado) Write(p []byte) (int, error) {
 	}
 	l.buf.Write(p[:min(len(p), falta)])
 	return len(p), nil
+}
+
+// blocoLimitado é o menor pedaço que ReadFrom reserva de uma vez no buffer, e o
+// tamanho do descarte depois do limite.
+const blocoLimitado = 512
+
+// ReadFrom lê de r até o EOF direto no espaço livre do buffer, sem passar do
+// limite, e descarta o resto num bloco pequeno, continuando a ler para o filho
+// não travar com o pipe cheio. Sem ele, o io.Copy do exec (cmd.Stdout e
+// cmd.Stderr que não são *os.File) aloca 32 KiB por processo.
+func (l *limitado) ReadFrom(r io.Reader) (int64, error) {
+	var total int64
+	var lixo []byte
+	for {
+		var b []byte
+		if falta := l.max - l.buf.Len(); falta > 0 {
+			l.buf.Grow(min(falta, blocoLimitado))
+			b = l.buf.AvailableBuffer()
+			b = b[:min(cap(b), falta)]
+		} else {
+			if lixo == nil {
+				lixo = make([]byte, blocoLimitado)
+			}
+			b = lixo
+		}
+		n, err := r.Read(b)
+		total += int64(n)
+		if n > 0 {
+			if lixo == nil {
+				l.buf.Write(b[:n])
+			} else {
+				l.cortou = true
+			}
+		}
+		if err == io.EOF {
+			return total, nil
+		}
+		if err != nil {
+			return total, err
+		}
+	}
 }
 
 // String serve só ao stderr.
