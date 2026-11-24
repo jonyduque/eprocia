@@ -370,6 +370,43 @@ describe('execução como script', () => {
     assert.equal(r.status, 2);
     assert.match(r.stderr, /Bloqueado/);
   });
+  // Rodada 1 da revisão do d5: bypasses achados pelo revisor, pelo stdin como o Claude Code manda.
+  describe('rodada 1: bypasses fechados', () => {
+    const cwd = RAIZ;
+    const rodar = (tool, c) => rodarHook('proteger-dados.mjs', JSON.stringify({ tool_name: tool, cwd, tool_input: { command: c } }));
+    const ambos = [
+      'git.exe add x.pdf', 'Git add x.pdf', 'GIT add x.pdf', 'C:/Git/cmd/GIT.EXE add x.pdf',
+      'git stage x.pdf', 'git add --pathspec-from-file=l.lst', 'git add --pathspec-from-file l.lst',
+      'git --work-tree w add x.pdf', 'git --git-dir g --namespace n add x.pdf', 'git --work-tree w add -A',
+      'cmd /c "git add x.pdf"', 'bash -c "git add x.pdf"', 'sh -c \'git commit -am m\'', 'pwsh -c "git add x.pdf"',
+      'powershell -Command "git stage x.pdf"', 'eval "git add x.pdf"', 'echo x.pdf | xargs git add',
+    ];
+    for (const tool of ['PowerShell', 'Bash']) {
+      for (const c of ambos) {
+        it(`${tool} bloqueia: ${JSON.stringify(c)}`, () => assert.equal(rodar(tool, c).status, 2));
+      }
+    }
+    for (const c of ["git add ('x.pdf')", 'git add ("x.pdf")', 'git add {x.pdf}', "iex 'git add x.pdf'",
+      'Invoke-Expression "git add -A"', "Start-Process git -ArgumentList 'add x.pdf'"]) {
+      it(`PowerShell bloqueia: ${JSON.stringify(c)}`, () => assert.equal(rodar('PowerShell', c).status, 2));
+    }
+    for (const c of ['git add arquivo.go', 'bash -c "git status"', 'pwsh -c "git log -1"', 'if (Test-Path a.go) { git add a.go }',
+      'Get-ChildItem | ForEach-Object { $_.Name }', 'git stage a.go']) {
+      it(`PowerShell deixa: ${JSON.stringify(c)}`, () => assert.equal(rodar('PowerShell', c).status, 0));
+    }
+    it('GIT add -A amplo expande e bloqueia com dado real', () => {
+      for (const tool of ['PowerShell', 'Bash']) {
+        const r = dados.avaliar({ tool_name: tool, tool_input: { command: 'GIT add -A' } }, { listar: () => ['real.zip'] });
+        assert.equal(r.codigo, 2, tool);
+      }
+    });
+    it('--no-ignore-removal e -fA contam como -A', () => {
+      for (const c of ['git add --no-ignore-removal', 'git add -fA', 'git stage -A']) {
+        const r = dados.avaliar(bash(c), { listar: () => ['real.zip'] });
+        assert.equal(r.codigo, 2, c);
+      }
+    });
+  });
   it('aviso sai 0 com JSON de contexto', () => {
     const r = rodarHook('guarda-bench.mjs', JSON.stringify(bash('go test -bench .')));
     assert.equal(r.status, 0);

@@ -239,8 +239,8 @@ As configurações ficam em `%APPDATA%\eprocIA\config.json`.
 
 - O item concluído mostra uma linha-resumo ("142 páginas: 120 do texto do PDF, 18 por OCR, 4 em branco") e, em âmbar, só o que pede atenção: páginas que precisavam de OCR e ficaram sem, páginas que não puderam ser lidas, páginas em que o OCR falhou e ficou o texto do PDF, documentos digitalizados não lidos com o OCR desligado. Página em branco ou só com texto não vai ao OCR, e isso é normal.
 - Clicar na linha-resumo abre os detalhes: páginas por categoria, tempo total e de OCR, a redução da higienização, os tipos omitidos e os documentos para conferir no PDF original, com os números das páginas.
-- Quando faltou OCR, o botão **Ler com OCR** refaz o ZIP com o OCR ligado (o modo das Configurações, ou Normal se ele estiver desativado), só nas páginas que precisam e com a mesma higienização. As Configurações não mudam.
-- **Forçar OCR** manda ao OCR toda página de PDF, mesmo com texto (HTML não passa). Existe nas Configurações (vale para todo ZIP) e no Reprocessar (vale só para aquele arquivo). Não tem efeito com o OCR desativado. É bem mais lento, e numa página com texto bom o resultado pode sair um pouco pior; mas, quando o OCR falha, sai em branco ou ilegível numa página que só foi a ele por Forçar OCR, fica o texto do PDF, como sem forçar.
+- Quando faltou OCR, o botão **Ler com OCR** refaz o ZIP com o OCR ligado (o modo das Configurações, ou Normal se ele estiver desligado), só nas páginas que precisam e com a mesma higienização. As Configurações não mudam.
+- **Forçar OCR** manda ao OCR toda página de PDF, mesmo com texto (HTML não passa). Existe nas Configurações (vale para todo ZIP) e no Reprocessar (vale só para aquele arquivo). Não tem efeito com o OCR desligado. É bem mais lento, e numa página com texto bom o resultado pode sair um pouco pior; mas, quando o OCR falha, sai em branco ou ilegível numa página que só foi a ele por Forçar OCR, fica o texto do PDF, como sem forçar.
 
 ## 📝 Log e telemetria (opcional)
 

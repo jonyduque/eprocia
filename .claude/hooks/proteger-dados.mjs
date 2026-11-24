@@ -82,6 +82,8 @@ export function comandosPowerShell(linha) {
   let dinamicas = new Set();
   let palavra = null;
   let dinamica = false;
+  // ( or { after the command started: its arguments hold an expression.
+  let expressao = false;
   const fecharPalavra = () => {
     if (palavra !== null) {
       atual.push(palavra);
@@ -92,9 +94,10 @@ export function comandosPowerShell(linha) {
   };
   const fecharComando = () => {
     fecharPalavra();
-    if (atual.length) lista.push(Object.assign(atual, { dinamicas }));
+    if (atual.length) lista.push(Object.assign(atual, { dinamicas, expressao }));
     atual = [];
     dinamicas = new Set();
+    expressao = false;
   };
   for (let i = 0; i < linha.length; i++) {
     const c = linha[i];
@@ -138,8 +141,9 @@ export function comandosPowerShell(linha) {
     } else if (c === '#' && palavra === null) {
       while (i + 1 < linha.length && linha[i + 1] !== '\n') i++;
     } else if (/[\n;&|(){}]/.test(c)) {
+      if ((c === '(' || c === '{') && (palavra !== null || atual.length)) expressao = true;
       fecharComando();
-    } else if (c === ',' || /\s/.test(c)) {
+    } else if (c === ','|| /\s/.test(c)) {
       fecharPalavra();
     } else {
       if (c === '$' || (c === '@' && palavra === null)) dinamica = true;
@@ -178,19 +182,43 @@ function destinoCdPowerShell(palavras, dir) {
   return dir === null ? null : path.resolve(caminhoWindows(dir), destino);
 }
 
-// subcomandoGit returns { sub, args, dirC } for a git invocation, skipping global
-// options such as -C <dir>, -c <k=v> and --no-pager (dirC lists the -C dirs).
+// The git executable in any case, with or without a folder and .exe (Windows
+// finds GIT, Git.exe and C:/Git/cmd/git.exe alike).
+const EH_GIT = /^(.*[\\/])?git(\.exe)?$/i;
+// Global options whose value is the next word.
+const GLOBAIS_COM_VALOR = new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--config-env', '--super-prefix', '--attr-source']);
+
+// subcomandoGit returns { sub, args, dirC, outraArvore } for a git invocation,
+// skipping global options (dirC lists the -C dirs; outraArvore is set by
+// --git-dir/--work-tree, whose checkout the hook does not list). `stage` is `add`.
 function subcomandoGit(palavras) {
-  const i = palavras.findIndex((p) => p === 'git' || /[\\/]git(\.exe)?$/i.test(p));
+  const i = palavras.findIndex((p) => EH_GIT.test(p));
   if (i < 0) return null;
   let j = i + 1;
   const dirC = [];
+  let outraArvore = false;
   while (j < palavras.length && palavras[j].startsWith('-')) {
-    if (palavras[j] === '-C') dirC.push(palavras[j + 1]);
-    if (palavras[j] === '-C' || palavras[j] === '-c') j++;
+    const a = palavras[j];
+    if (a === '-C') dirC.push(palavras[j + 1]);
+    if (/^--(git-dir|work-tree)(=|$)/.test(a)) outraArvore = true;
+    if (GLOBAIS_COM_VALOR.has(a)) j++;
     j++;
   }
-  return { sub: palavras[j], args: palavras.slice(j + 1), dirC };
+  const sub = palavras[j] === 'stage' ? 'add' : palavras[j];
+  return { sub, args: palavras.slice(j + 1), dirC, outraArvore };
+}
+
+// Commands that run a command line held in a string or read from stdin. The
+// hook does not parse the inner line: if it mentions git with add, stage or
+// commit, it blocks (fails closed); `bash -c "git status"` passes.
+const EMBRULHOS = new Set(['iex', 'invoke-expression', 'cmd', 'bash', 'sh', 'zsh', 'pwsh', 'powershell', 'eval',
+  'xargs', 'start-process', 'saps', 'start', 'wsl', 'invoke-command', 'icm']);
+
+function embrulhaGitQueGrava(palavras) {
+  const nome = String(palavras[0] ?? '').replace(/^.*[\\/]/, '').replace(/\.exe$/i, '').toLowerCase();
+  if (!EMBRULHOS.has(nome)) return false;
+  const resto = palavras.slice(1).join(' ');
+  return /\bgit(\.exe)?\b/i.test(resto) && /\b(add|stage|commit)\b/.test(resto);
 }
 
 // Git Bash style /c/Users/... becomes c:/Users/... before path.resolve.
@@ -246,7 +274,7 @@ const amplo = (a) => a === '.' || a === './' || a === ':/' || a.endsWith('/') ||
 
 export function avaliar(evento, ctx = {}) {
   const cmd = evento?.tool_input?.command;
-  if (typeof cmd !== 'string' || !/\bgit\b/.test(cmd)) return { codigo: 0 };
+  if (typeof cmd !== 'string' || !/\bgit\b/i.test(cmd)) return { codigo: 0 };
   const benchDir = ctx.benchDir ?? process.env.EPROCIA_BENCH_DIR;
   const listar = ctx.listar ?? listarCandidatos;
   // Broad pathspecs expand in the command's checkout (a worktree, say), not in
@@ -284,11 +312,22 @@ export function avaliar(evento, ctx = {}) {
       }
       if (palavras[0] === 'popd') { if (pushd.length) dir = pushd.pop(); continue; }
     }
+    if (embrulhaGitQueGrava(palavras)) {
+      return { codigo: 2, stderr: `Bloqueado: \`git add\`/\`commit\` dentro de outro comando (${palavras[0]}); o hook não lê a linha de dentro. Rode o git direto, com os arquivos pelo nome.` };
+    }
     const g = subcomandoGit(palavras);
     if (!g || (g.sub !== 'add' && g.sub !== 'commit')) continue;
 
+    if (g.args.some((a) => a.startsWith('--pathspec-from-file'))) {
+      return { codigo: 2, stderr: `Bloqueado: \`git ${g.sub} --pathspec-from-file\` lê os caminhos de um arquivo que o hook não confere. Adicione os arquivos pelo nome.` };
+    }
     let caminhos = caminhosDeArgs(g.args);
     if (powershell) {
+      // ( or { in the middle of the git command: an expression whose value the
+      // hook cannot know (git add ('x.pdf'), git add {x.pdf}).
+      if (item.expressao) {
+        return { codigo: 2, stderr: `Bloqueado: \`git ${g.sub}\` com argumento calculado (expressão entre parênteses ou chaves); o hook não sabe que arquivos são. Adicione os arquivos pelo nome.` };
+      }
       const calculados = caminhos.filter((a) => palavras.dinamicas.has(a) || a.startsWith('@'));
       if (calculados.length) {
         return { codigo: 2, stderr: `Bloqueado: \`git ${g.sub}\` com argumento calculado (${calculados.join(', ')}); o hook não sabe que arquivos são. Adicione os arquivos pelo nome.` };
@@ -301,16 +340,18 @@ export function avaliar(evento, ctx = {}) {
       return { codigo: 2, stderr: `Bloqueado: dados reais não entram no git (${diretos.join(', ')}). Adicione ao .gitignore se for saída local.` };
     }
 
-    const todos = g.args.some((a) => a === '-A' || a === '--all' || a === '-u' || a === '--update')
+    const todos = g.args.some((a) => a === '-A' || a === '--all' || a === '-u' || a === '--update' || a === '--no-ignore-removal')
+      || (g.sub === 'add' && g.args.some((a) => /^-[a-zA-Z]*[Au][a-zA-Z]*$/.test(a)))
       || (g.sub === 'commit' && g.args.some((a) => /^-[a-zA-Z]*a[a-zA-Z]*$/.test(a) || a === '--all'));
     const pathspecs = todos ? [] : caminhos.filter(amplo);
     // Plain directory names (e.g. "git add internal") are also expanded by git.
     const outros = todos ? [] : caminhos.filter((a) => !amplo(a) && !/\.[a-z0-9]+$/i.test(a));
     if (!todos && !pathspecs.length && !outros.length) continue;
 
-    const dirGit = powershell ? dirGitPowerShell(g.dirC, dir, palavras.dinamicas) : g.dirC.reduce(resolverDir, dir);
+    const dirGit = g.outraArvore ? null
+      : powershell ? dirGitPowerShell(g.dirC, dir, palavras.dinamicas) : g.dirC.reduce(resolverDir, dir);
     if (dirGit === null) {
-      return { codigo: 2, stderr: `Bloqueado: não sei em que pasta \`git ${g.sub}\` roda (cd ou -C para um caminho calculado, histórico ou desconhecido), então não consigo listar o que ele incluiria. Use um caminho literal ou adicione os arquivos pelo nome.` };
+      return { codigo: 2, stderr: `Bloqueado: não sei em que pasta \`git ${g.sub}\` roda (cd ou -C para um caminho calculado, histórico ou desconhecido, ou --work-tree/--git-dir), então não consigo listar o que ele incluiria. Use um caminho literal ou adicione os arquivos pelo nome.` };
     }
     const candidatos = listar(todos ? [] : [...pathspecs, ...outros], dirGit);
     if (candidatos === null) {
