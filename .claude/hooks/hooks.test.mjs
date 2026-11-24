@@ -1,6 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { RAIZ, normalizar } from './lib.mjs';
 import * as gerados from './proteger-gerados.mjs';
@@ -89,6 +91,53 @@ describe('proteger-dados', () => {
     it(`deixa: ${JSON.stringify(c)}`, () => assert.equal(dados.avaliar(bash(c), { ...ctx, listar: () => { throw new Error('não devia listar'); } }).codigo, 0));
   }
   it('sai 0 sem comando', () => assert.equal(dados.avaliar({ tool_input: {} }, ctx).codigo, 0));
+  for (const c of ['eprocia.log', 'logs/eprocia.1.log', 'telemetria.jsonl',
+    'C:/Users/x/AppData/Roaming/eprocIA/telemetria/telemetria.1.jsonl']) {
+    it(`log e telemetria são sensíveis: ${c}`, () => assert.equal(dados.arquivoSensivel(c), true));
+  }
+  for (const c of ['docs/exemplo.log', 'scripts/anonimizar-log/testdata/entrada.jsonl']) {
+    it(`log e telemetria de exemplo não são sensíveis: ${c}`, () => assert.equal(dados.arquivoSensivel(c), false));
+  }
+  // Task 10 (f5b7a48): `git add internal/etl/testdata/saida_antes` numa worktree passou
+  // porque a expansão listava a checkout do hook ($CLAUDE_PROJECT_DIR), não a do comando.
+  describe('expande no diretório do comando', () => {
+    const dirDe = (c, ev = {}) => {
+      let visto;
+      dados.avaliar({ ...bash(c), ...ev }, { ...ctx, listar: (p, d) => { visto = d; return []; } });
+      return visto && path.resolve(visto);
+    };
+    it('usa o cwd do evento', () => assert.equal(dirDe('git add pasta', { cwd: 'D:\\wt' }), path.resolve('D:/wt')));
+    it('segue cd anterior no mesmo comando', () => assert.equal(dirDe('cd /d/outra && git add -A', { cwd: 'D:\\wt' }), path.resolve('D:/outra')));
+    it('cd relativo ao cwd', () => assert.equal(dirDe('cd sub; git add -u', { cwd: 'D:\\wt' }), path.resolve('D:/wt/sub')));
+    it('segue git -C', () => assert.equal(dirDe('git -C sub commit -a -m x', { cwd: 'D:\\wt' }), path.resolve('D:/wt/sub')));
+    it('sem cwd usa a raiz do harness', () => assert.equal(dirDe('git add -A'), path.resolve(RAIZ)));
+    it('lista de verdade um repositório separado', () => {
+      const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'eprocia-hook-'));
+      try {
+        execFileSync('git', ['init', '-q', repo]);
+        fs.mkdirSync(path.join(repo, 'saida_antes'));
+        fs.writeFileSync(path.join(repo, 'saida_antes', 'sintetico.txt'), 'FULANO DE TAL\n');
+        fs.writeFileSync(path.join(repo, 'a.go'), 'package a\n');
+        const r = dados.avaliar({ ...bash('git add saida_antes'), cwd: repo }, { benchDir: '' });
+        assert.equal(r.codigo, 2);
+        assert.match(r.stderr, /saida_antes\/sintetico\.txt/);
+        // Em subpasta, o caminho listado é o da raiz: internal/docs/x.txt não vira docs/x.txt.
+        fs.mkdirSync(path.join(repo, 'internal', 'docs'), { recursive: true });
+        fs.writeFileSync(path.join(repo, 'internal', 'docs', 'x.txt'), 'FULANO DE TAL\n');
+        const sub = dados.avaliar({ ...bash('git add docs'), cwd: path.join(repo, 'internal') }, { benchDir: '' });
+        assert.equal(sub.codigo, 2);
+        assert.match(sub.stderr, /internal\/docs\/x\.txt/);
+      } finally {
+        fs.rmSync(repo, { recursive: true, force: true });
+      }
+    });
+  });
+  it('bloqueia git add eprocia.log', () => assert.equal(dados.avaliar(bash('git add eprocia.log'), ctx).codigo, 2));
+  it('bloqueia git add -A com .jsonl não ignorado', () => {
+    const r = dados.avaliar(bash('git add -A'), { ...ctx, listar: () => ['a.go', 'telemetria.jsonl'] });
+    assert.equal(r.codigo, 2);
+    assert.match(r.stderr, /telemetria\.jsonl/);
+  });
 });
 
 describe('guarda-bench', () => {
