@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
-	"log"
 	"log/slog"
 	"os/exec"
 	stdRuntime "runtime"
@@ -31,7 +30,7 @@ func iniciarRegistro(valor, pastaDados string, cfg *models.Config) bool {
 		Saneador:   registro.SaneadorDoSistema(),
 	})
 	if err != nil {
-		log.Printf("[Registro] não foi possível abrir o log: %v", err)
+		slog.Warn("não foi possível abrir o log", "erro", err)
 		return false
 	}
 	if !ativo {

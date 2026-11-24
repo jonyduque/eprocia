@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"maps"
 	"os"
@@ -426,15 +425,17 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 				fonte.liberar()
 			}
 		}
-		if err != nil {
-			log.Printf("[Pipeline] Erro ao pré-calcular páginas para %s: %v", f.DocName, err)
+		// O erro de abertura volta na linha "documento concluído"; aqui só sai
+		// em Warn o que ela não traz (contagem do omitido, extração do ZIP).
+		if err != nil && ctx.Err() == nil && errosAbertura[i] == nil {
+			lg.Warn("falha na pré-contagem de páginas", append([]any{"doc_id", i, "doc", f.DocName}, atributosErro(err)...)...)
 		}
 	}
 	if aoFimDaPreContagem != nil {
 		aoFimDaPreContagem(mem)
 	}
 	if err := ctx.Err(); err != nil {
-		log.Printf("[Pipeline] Processamento cancelado durante o pré-cálculo de páginas")
+		lg.Debug("cancelado durante a pré-contagem de páginas")
 		return "", 0, 0, 0, err
 	}
 
@@ -442,7 +443,7 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 	for i := range files {
 		totalPagesAll += contagens[i]
 	}
-	log.Printf("[Pipeline] Pré-cálculo concluído: %d documentos, %d páginas no total", totalFiles, totalPagesAll)
+	lg.Debug("pré-contagem concluída", "documentos", totalFiles, "paginas", totalPagesAll)
 
 	eventos := make(map[string]any)
 
@@ -683,7 +684,6 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 			// Tipo omitido: o arquivo não é aberto nem passa por OCR; encerrar
 			// completa as páginas pré-contadas.
 			if omitidos[i] {
-				log.Printf("[Pipeline] Documento %s omitido por tipo", f.DocName)
 				atv.mudar(i, func(d *AtividadeDoc) { d.Feitas = d.Paginas })
 				encerrar("", fmt.Sprintf("Omitido %d/%d: %s", int(processedDocsVal.Load())+1, totalFiles, f.DocName))
 				return
@@ -694,9 +694,8 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 				if e := errosAbertura[i]; e != nil {
 					// abrirPDF já monta o erro com o resumo da biblioteca e a
 					// frase fixa do segundo leitor; vetarCaminho é a rede de
-					// segurança. O log leva o erro inteiro, para o "detalhe no
-					// log" valer quando ela dispara.
-					log.Printf("[Pipeline] Falha ao abrir %s: %v", f.DocName, e)
+					// segurança. A linha "documento concluído" leva o erro
+					// inteiro, para o "detalhe no log" valer quando ela dispara.
 					errDoc = comEtapa(EtapaLerPDF, e)
 					texto := vetarCaminho(e.Error())
 					naoLido(classificarErro(e), fmt.Sprintf("[ERRO ao analisar PDF: %s]", texto),
@@ -708,7 +707,6 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 					var err error
 					fonte, err = extrairPDF(f, mem)
 					if err != nil {
-						log.Printf("[Pipeline] Falha ao extrair %s do ZIP: %v", f.DocName, err)
 						errDoc = comEtapa(EtapaLerPDF, err)
 						texto := textoErroSaida(err)
 						naoLido(classificarErro(err), fmt.Sprintf("[ERRO ao extrair PDF do ZIP: %s]", texto),
@@ -738,7 +736,7 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 
 				if errParse != nil {
 					if ctx.Err() != nil {
-						log.Printf("[Pipeline] Processamento cancelado durante a análise do PDF: %s", f.DocName)
+						lgDoc.Debug("cancelado durante a leitura do PDF")
 						errMu.Lock()
 						if errParseFirst == nil {
 							errParseFirst = ctx.Err()
@@ -746,7 +744,6 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 						errMu.Unlock()
 						return
 					}
-					log.Printf("[Pipeline] Falha ao analisar %s: %v", f.DocName, errParse)
 					errDoc = comEtapa(EtapaLerPDF, errParse)
 					texto := textoErroSaida(errParse)
 					naoLido(classificarErro(errParse), fmt.Sprintf("[ERRO ao analisar PDF: %s]", texto),
@@ -759,7 +756,6 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 			} else if f.Extension == ".html" || f.Extension == ".htm" {
 				zipReader, err := f.ZipFileRef.Open()
 				if err != nil {
-					log.Printf("[Pipeline] Falha ao abrir %s no ZIP: %v", f.DocName, err)
 					errDoc = comEtapa(EtapaHTML, err)
 					texto := textoErroSaida(err)
 					naoLido(classificarErro(err), fmt.Sprintf("[ERRO ao abrir arquivo no ZIP: %s]", texto),
@@ -770,7 +766,6 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 				htmlText, errParse := ExtractTextFromHTML(zipReader)
 				zipReader.Close()
 				if errParse != nil {
-					log.Printf("[Pipeline] Falha ao analisar o HTML %s: %v", f.DocName, errParse)
 					errDoc = comEtapa(EtapaHTML, errParse)
 					texto := textoErroSaida(errParse)
 					naoLido(classificarErro(errParse), fmt.Sprintf("[ERRO ao analisar HTML: %s]", texto),
@@ -785,7 +780,6 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 				contarPagina()
 			}
 
-			log.Printf("[Pipeline] Documento %s finalizado com %d páginas", f.DocName, len(paginasMap))
 			l := classificarPaginas(paginasMap, viaPoppler[i])
 			if l.NaoLido() {
 				naoLido(l, "", "", fmt.Sprintf("Concluído %d/%d: %s", int(processedDocsVal.Load())+1, totalFiles, f.DocName))
@@ -805,7 +799,7 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 
 	// Double check for context cancellation before generating/writing the file
 	if err := ctx.Err(); err != nil {
-		log.Printf("[Pipeline] Processamento cancelado antes de salvar o arquivo de saída")
+		lg.Debug("cancelado antes de gravar o arquivo de saída")
 		return "", 0, 0, 0, err
 	}
 

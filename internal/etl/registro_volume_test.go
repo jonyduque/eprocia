@@ -8,8 +8,11 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io/fs"
 	"log"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -46,6 +49,71 @@ func chamadaLogPrint(c *ast.CallExpr) bool {
 	}
 	id, ok := sel.X.(*ast.Ident)
 	return ok && id.Name == "log" && strings.HasPrefix(sel.Sel.Name, "Print")
+}
+
+// arquivosDeProducao lista os .go de produção da raiz (sem descer) e de
+// internal/... (fora de _test.go e do gerador internal/ocr/versao/gerar).
+func arquivosDeProducao(t *testing.T, raiz string) []string {
+	t.Helper()
+	var out []string
+	entradas, err := os.ReadDir(raiz)
+	if err != nil {
+		t.Fatalf("ler %s: %v", raiz, err)
+	}
+	for _, e := range entradas {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".go") && !strings.HasSuffix(e.Name(), "_test.go") {
+			out = append(out, filepath.Join(raiz, e.Name()))
+		}
+	}
+	gerar := filepath.Join(raiz, "internal", "ocr", "versao", "gerar")
+	err = filepath.WalkDir(filepath.Join(raiz, "internal"), func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if p == gerar {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.HasSuffix(p, ".go") && !strings.HasSuffix(p, "_test.go") {
+			out = append(out, p)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("percorrer internal: %v", err)
+	}
+	return out
+}
+
+// Nenhuma chamada log.Print* ou log.Fatal* em produção: tudo passa pelo slog.
+func TestRegistro_SemLogPrintfEmProducao(t *testing.T) {
+	arquivos := arquivosDeProducao(t, filepath.Join("..", ".."))
+	if len(arquivos) < 10 {
+		t.Fatalf("poucos arquivos de produção encontrados (%d): raiz errada?", len(arquivos))
+	}
+	for _, arquivo := range arquivos {
+		f := analisarFonte(t, arquivo)
+		ast.Inspect(f, func(n ast.Node) bool {
+			c, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			sel, ok := c.Fun.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+			id, ok := sel.X.(*ast.Ident)
+			if !ok || id.Name != "log" {
+				return true
+			}
+			if strings.HasPrefix(sel.Sel.Name, "Print") || strings.HasPrefix(sel.Sel.Name, "Fatal") {
+				t.Errorf("%s: chamada log.%s", arquivo, sel.Sel.Name)
+			}
+			return true
+		})
+	}
 }
 
 func TestRegistro_SemLogPorPaginaForaDeDebug(t *testing.T) {

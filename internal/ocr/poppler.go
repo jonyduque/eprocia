@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -54,12 +53,7 @@ func (l *limitado) String() string { return strings.TrimSpace(l.buf.String()) }
 // popplerFerramentas devolve a pasta do Poppler extraída, sem tocar no
 // tesseract nem no tessdata: InfoPDF e TextoPDF valem com o OCR desligado.
 func popplerFerramentas() (string, error) {
-	dir, err := initPoppler()
-	if err != nil {
-		log.Printf("[OCR] Falha ao inicializar o Poppler: %v", err)
-		return "", err
-	}
-	return dir, nil
+	return initPoppler()
 }
 
 // rodarPoppler roda um executável do Poppler e devolve o stdout.

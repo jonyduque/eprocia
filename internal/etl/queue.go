@@ -3,7 +3,6 @@ package etl
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
 	"path/filepath"
 	"runtime/debug"
@@ -134,7 +133,7 @@ func (q *Queue) shutdownComPrazo(prazo time.Duration) bool {
 	case <-terminou:
 		return true
 	case <-time.After(prazo):
-		log.Printf("[Queue] Encerramento: o item em processamento não terminou em %v; saindo mesmo assim", prazo)
+		slog.Warn("encerramento: o item em processamento não terminou no prazo; saindo mesmo assim", "prazo_ms", prazo.Milliseconds())
 		return false
 	}
 }
@@ -173,7 +172,6 @@ func (q *Queue) avisarFimLocked(item *QueueItem) func() {
 // AddFiles adds multiple zip files to the queue and returns how many actually
 // entered (duplicates of pending/processing items are dropped).
 func (q *Queue) AddFiles(paths []string) int {
-	log.Printf("[Queue] AddFiles chamada com caminhos: %v", paths)
 	q.mu.Lock()
 	hasPending := false
 	adicionados := 0
@@ -187,7 +185,7 @@ func (q *Queue) AddFiles(paths []string) int {
 			}
 		}
 		if duplicated {
-			log.Printf("[Queue] Arquivo duplicado ignorado: %s", path)
+			slog.Info("ZIP duplicado ignorado", "zip", filepath.Base(path))
 			continue
 		}
 
@@ -205,17 +203,14 @@ func (q *Queue) AddFiles(paths []string) int {
 		q.items = append([]*QueueItem{item}, q.items...)
 		hasPending = true
 		adicionados++
-		log.Printf("[Queue] Arquivo adicionado à fila: %s (Status: %s)", item.Name, item.Status)
+		slog.Info("ZIP adicionado à fila", "item_id", item.ID, "zip", item.Name)
 	}
 	q.mu.Unlock()
 
 	q.broadcast()
 
 	if hasPending {
-		log.Printf("[Queue] Fila possui novos itens pendentes. Iniciando processamento...")
 		q.startProcessing()
-	} else {
-		log.Printf("[Queue] Nenhum item novo pendente na fila.")
 	}
 	return adicionados
 }
@@ -297,7 +292,7 @@ func (q *Queue) Reprocessar(id, ocrMode, cleaningLevel string) error {
 	q.items = append([]*QueueItem{item}, q.items...)
 	q.mu.Unlock()
 
-	log.Printf("[Queue] Reprocessando %s (OCR: %s, higienização: %s)", item.Name, ocrMode, cleaningLevel)
+	slog.Info("reprocessar", "item_id", item.ID, "zip", item.Name, "ocr_mode", ocrMode, "cleaning_level", cleaningLevel)
 	q.broadcast()
 	q.startProcessing()
 	return nil
@@ -323,6 +318,7 @@ func (q *Queue) Pause() {
 	q.mu.Lock()
 	q.isPaused = true
 	q.mu.Unlock()
+	slog.Info("fila pausada")
 	q.broadcast()
 }
 
@@ -331,6 +327,7 @@ func (q *Queue) Resume() {
 	q.mu.Lock()
 	q.isPaused = false
 	q.mu.Unlock()
+	slog.Info("fila retomada")
 	q.broadcast()
 	q.startProcessing()
 }
@@ -354,6 +351,7 @@ func (q *Queue) CancelItem(id string) {
 	}
 
 	if target != nil {
+		slog.Info("cancelamento pedido", "item_id", target.ID, "zip", target.Name, "status", target.Status)
 		if target.Status == "processing" && target.cancel != nil {
 			target.cancel()
 		} else if target.Status == "pending" {
@@ -419,13 +417,12 @@ func (q *Queue) LimparConcluidos() {
 
 func (q *Queue) startProcessing() {
 	q.mu.Lock()
-	log.Printf("[Queue] startProcessing chamado. isPaused: %t, isWorking: %t, total_items: %d", q.isPaused, q.isWorking, len(q.items))
+	slog.Debug("startProcessing", "pausada", q.isPaused, "em_execucao", q.isWorking, "itens", len(q.items))
 	if q.encerrada {
 		q.mu.Unlock()
 		return
 	}
 	if q.isPaused || q.isWorking {
-		log.Printf("[Queue] Processador pausado ou já em execução. Retornando.")
 		q.mu.Unlock()
 		return
 	}
@@ -440,12 +437,10 @@ func (q *Queue) startProcessing() {
 	}
 
 	if nextItem == nil {
-		log.Printf("[Queue] Nenhum item pendente encontrado na fila.")
 		q.mu.Unlock()
 		return
 	}
 
-	log.Printf("[Queue] Próximo item para processamento: %s (%s)", nextItem.Name, nextItem.Path)
 	q.isWorking = true
 	// Go sob q.mu com encerrada == false: Shutdown marca encerrada antes de
 	// esperar, então nenhum Add acontece com o contador em zero durante o Wait.
@@ -473,8 +468,6 @@ func (q *Queue) processItem(item *QueueItem) {
 			q.startProcessing()
 		}
 	}()
-
-	log.Printf("[Queue] Iniciando processamento do arquivo: %s", item.Path)
 
 	q.mu.Lock()
 	ctx, cancel := context.WithCancel(q.baseCtx)
@@ -522,7 +515,7 @@ func (q *Queue) processItem(item *QueueItem) {
 		var err error
 		cfg, err = carregar()
 		if err != nil {
-			log.Printf("[Queue] Erro ao carregar configurações para %s: %v", item.Name, err)
+			lg.Error("falha ao carregar a configuração do item", "zip", item.Name, "erro", err)
 			q.mu.Lock()
 			item.Status = "error"
 			item.Message = "Erro ao carregar configurações"
@@ -562,7 +555,6 @@ func (q *Queue) processItem(item *QueueItem) {
 	pararEnvioPendente(item)
 
 	if err != nil {
-		log.Printf("[Queue] Erro no processamento de %s: %v", item.Name, err)
 		if ctx.Err() == context.Canceled {
 			item.Status = "cancelled"
 			item.Message = "Cancelado"
@@ -573,7 +565,6 @@ func (q *Queue) processItem(item *QueueItem) {
 			item.Error = err.Error()
 		}
 	} else {
-		log.Printf("[Queue] Sucesso no processamento de %s. Docs: %d, Páginas: %d, Tokens estimados: %d", item.Name, docsCount, pagesCount, tokens)
 		item.Status = "success"
 		item.Progress = 1.0
 		item.Message = "Concluído"

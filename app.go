@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -89,7 +89,7 @@ func (a *App) startup(ctx context.Context) {
 	a.sincronizarAutostart(cfg)
 	if cfg.WatchdogEnabled && cfg.MonitoredPath != "" {
 		if err := a.watcher.Start(cfg.MonitoredPath); err != nil {
-			log.Printf("Erro ao iniciar o monitoramento da pasta %q: %v", cfg.MonitoredPath, err)
+			slog.Warn("falha ao iniciar o monitoramento da pasta", "pasta", cfg.MonitoredPath, "erro", err)
 			runtime.EventsEmit(ctx, "watchdog:error", err.Error())
 		}
 	}
@@ -99,13 +99,13 @@ func (a *App) startup(ctx context.Context) {
 // sido apagada por fora ou apontar para um executável que mudou de lugar.
 func (a *App) sincronizarAutostart(cfg *models.Config) {
 	if err := a.autostart(cfg.AutoStart); err != nil {
-		log.Printf("Erro ao sincronizar a inicialização com o Windows: %v", err)
+		slog.Warn("falha ao sincronizar a inicialização com o Windows", "erro", err)
 	}
 }
 
 func (a *App) iniciarNotificacoes(ctx context.Context) {
 	if err := runtime.InitializeNotifications(ctx); err != nil {
-		log.Printf("Aviso: notificações indisponíveis: %v", err)
+		slog.Warn("notificações indisponíveis", "erro", err)
 		return
 	}
 	if !runtime.IsNotificationAvailable(ctx) {
@@ -132,7 +132,7 @@ func (a *App) aoTerminar(item *etl.QueueItem) {
 	}
 	titulo, corpo := mensagemFim(item)
 	if err := a.notificar(titulo, corpo); err != nil {
-		log.Printf("Erro ao enviar notificação de %s: %v", item.Name, err)
+		slog.Warn("falha ao enviar a notificação", "item_id", item.ID, "zip", item.Name, "erro", err)
 	}
 }
 
@@ -162,7 +162,7 @@ func carregarConfig(load func() (*models.Config, error)) *models.Config {
 	if err == nil && cfg != nil {
 		return cfg
 	}
-	log.Printf("Aviso: falha ao carregar a configuração (%v); usando a configuração padrão", err)
+	slog.Warn("falha ao carregar a configuração; usando a configuração padrão", "erro", err)
 	padrao, _ := config.DefaultConfig()
 	return padrao
 }
@@ -270,7 +270,7 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 	var errAuto error
 	if cfg.AutoStart != autoAnterior {
 		if err := a.autostart(cfg.AutoStart); err != nil {
-			log.Printf("Erro ao alterar a inicialização com o Windows: %v", err)
+			slog.Warn("falha ao alterar a inicialização com o Windows", "erro", err)
 			cfg.AutoStart = autoAnterior
 			errAuto = fmt.Errorf("configurações salvas, mas não foi possível alterar a inicialização com o Windows: %w", err)
 		}
@@ -279,7 +279,7 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 	if err := config.Save(cfg); err != nil {
 		if errAuto == nil && cfg.AutoStart != autoAnterior {
 			if errVolta := a.autostart(autoAnterior); errVolta != nil {
-				log.Printf("Erro ao desfazer a inicialização com o Windows: %v", errVolta)
+				slog.Warn("falha ao desfazer a inicialização com o Windows", "erro", errVolta)
 			}
 		}
 		return err
@@ -294,7 +294,7 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 	// tentar de novo depois de uma falha mesmo sem mudar o caminho.
 	if cfg.WatchdogEnabled && cfg.MonitoredPath != "" {
 		if err := a.watcher.Start(cfg.MonitoredPath); err != nil {
-			log.Printf("Erro ao iniciar o monitoramento da pasta %q: %v", cfg.MonitoredPath, err)
+			slog.Warn("falha ao iniciar o monitoramento da pasta", "pasta", cfg.MonitoredPath, "erro", err)
 			return fmt.Errorf("configurações salvas, mas não foi possível monitorar a pasta %q: %w", cfg.MonitoredPath, err)
 		}
 	} else {

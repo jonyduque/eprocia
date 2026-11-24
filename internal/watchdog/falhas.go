@@ -2,7 +2,7 @@ package watchdog
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,12 +27,12 @@ func CarregarFalhas(arquivo string) *Falhas {
 	dados, err := os.ReadFile(arquivo)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			log.Printf("Watchdog: falha ao ler o registro de ZIPs com erro: %v", err)
+			slog.Warn("falha ao ler o registro de ZIPs com erro", "erro", err)
 		}
 		return f
 	}
 	if err := json.Unmarshal(dados, &f.itens); err != nil {
-		log.Printf("Watchdog: registro de ZIPs com erro corrompido, ignorando: %v", err)
+		slog.Warn("registro de ZIPs com erro corrompido; ignorado", "erro", err)
 		f.itens = map[string]int64{}
 	}
 	return f
@@ -100,6 +100,6 @@ func (f *Falhas) gravarLocked() {
 		err = os.WriteFile(f.arquivo, dados, 0o644)
 	}
 	if err != nil {
-		log.Printf("Watchdog: falha ao gravar o registro de ZIPs com erro: %v", err)
+		slog.Warn("falha ao gravar o registro de ZIPs com erro", "erro", err)
 	}
 }

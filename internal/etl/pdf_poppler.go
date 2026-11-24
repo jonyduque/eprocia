@@ -42,7 +42,7 @@ func (p *PDFParser) parsePoppler(
 			return nil, errCtx
 		}
 		if !comOCR {
-			return nil, resumirSegundoLeitor(filepath.Base(p.filePath), "", err)
+			return nil, resumirSegundoLeitor(ctx, filepath.Base(p.filePath), "", err)
 		}
 		lg.Warn("segundo leitor não extraiu o texto; todas as páginas vão ao OCR", atributosErro(comEtapa(EtapaLerPDF, err))...)
 		textos = make([]string, numPages)

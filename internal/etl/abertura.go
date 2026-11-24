@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"log"
 	"os"
 	"os/exec"
 	"regexp"
@@ -14,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"eprocia/internal/ocr"
+	"eprocia/internal/registro"
 
 	"github.com/dslipak/pdf"
 )
@@ -55,7 +55,7 @@ func (e *erroSegundoLeitor) Unwrap() error { return e.causa }
 
 // resumirSegundoLeitor registra o erro inteiro no log e devolve a forma curta.
 // resumo vazio escolhe a frase pela classe do erro.
-func resumirSegundoLeitor(nome, resumo string, err error) error {
+func resumirSegundoLeitor(ctx context.Context, nome, resumo string, err error) error {
 	if resumo == "" {
 		switch {
 		case errors.Is(err, ocr.ErrPrazo):
@@ -66,11 +66,11 @@ func resumirSegundoLeitor(nome, resumo string, err error) error {
 			resumo = resumoSegundoLeitorFalha
 		}
 	}
+	attrs := []any{}
 	if nome != "" {
-		log.Printf("[PDFParser] Segundo leitor falhou em %s: %v", nome, err)
-	} else {
-		log.Printf("[PDFParser] Segundo leitor falhou: %v", err)
+		attrs = append(attrs, "doc", nome)
 	}
+	registro.Logger(ctx).Warn("segundo leitor falhou", append(attrs, atributosErro(err)...)...)
 	return &erroSegundoLeitor{resumo: resumo, causa: err}
 }
 
@@ -89,19 +89,19 @@ func abrirPDF(ctx context.Context, f *fontePDF) (aberturaPDF, error) {
 	}
 	lib := resumirErroBiblioteca(errLib)
 	if lib != errLib.Error() {
-		log.Printf("[PDFParser] Biblioteca recusou o PDF: %v", errLib)
+		registro.Logger(ctx).Info("biblioteca recusou o PDF; segue para o segundo leitor", "erro", errLib)
 	}
 	caminho, err := f.materializar()
 	if err != nil {
 		return aberturaPDF{}, fmt.Errorf("falha ao abrir o PDF: %s; %w", lib,
-			resumirSegundoLeitor("", resumoSegundoLeitorTemporario, err))
+			resumirSegundoLeitor(ctx, "", resumoSegundoLeitorTemporario, err))
 	}
 	n, err = infoPDF(ctx, caminho)
 	if err == nil && n <= 0 {
 		err = fmt.Errorf("o pdfinfo informou %d páginas", n)
 	}
 	if err != nil {
-		return aberturaPDF{}, fmt.Errorf("falha ao abrir o PDF: %s; %w", lib, resumirSegundoLeitor("", "", err))
+		return aberturaPDF{}, fmt.Errorf("falha ao abrir o PDF: %s; %w", lib, resumirSegundoLeitor(ctx, "", "", err))
 	}
 	return aberturaPDF{paginas: n, poppler: true}, nil
 }

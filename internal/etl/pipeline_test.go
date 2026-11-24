@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"eprocia/internal/models"
+	"eprocia/internal/registro"
 
 	"github.com/dslipak/pdf"
 )
@@ -43,16 +44,10 @@ func TestProcessZip_CanceladoNaoPreCalculaPaginas(t *testing.T) {
 		t.Fatalf("falha ao gravar zip: %v", err)
 	}
 
+	// O logger do ctx em Debug pega também a linha de pré-contagem concluída.
 	var logBuf bytes.Buffer
-	prevOut, prevFlags := log.Writer(), log.Flags()
-	log.SetOutput(&logBuf)
-	log.SetFlags(0)
-	t.Cleanup(func() {
-		log.SetOutput(prevOut)
-		log.SetFlags(prevFlags)
-	})
-
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(registro.ComLogger(context.Background(),
+		slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelDebug}))))
 	cancel()
 
 	p := NewPipeline()
@@ -63,7 +58,7 @@ func TestProcessZip_CanceladoNaoPreCalculaPaginas(t *testing.T) {
 	}
 
 	saida := logBuf.String()
-	if strings.Contains(saida, "pré-calcular") || strings.Contains(saida, "Pré-cálculo concluído") {
+	if strings.Contains(saida, "falha na pré-contagem") || strings.Contains(saida, "pré-contagem concluída") {
 		t.Errorf("pré-cálculo rodou mesmo com o contexto cancelado:\n%s", saida)
 	}
 
