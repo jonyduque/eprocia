@@ -185,6 +185,7 @@ type estatDoc struct {
 	estado     int
 	leitura    Leitura
 	duracao    time.Duration // da vaga ao fim
+	paginas    int           // de um não lido: as do mapa, como no pages_count da fila
 	categorias map[string]int
 	porMotivo  map[string]int
 	semGanho   int
@@ -276,7 +277,7 @@ func montarRelatorio(files []models.ProcessFile, contagens []int, tiposOmitidos 
 			}
 		case estatNaoLido:
 			d.NaoLidos++
-			p.DeNaoLidos += contagens[i]
+			p.DeNaoLidos += e.paginas
 			if d.PorLeitura == nil {
 				d.PorLeitura = map[string]int{}
 			}

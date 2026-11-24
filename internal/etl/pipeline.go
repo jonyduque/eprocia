@@ -614,6 +614,7 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 					est.estado = estatOmitido
 				case leituraDoc.NaoLido():
 					est.estado, est.leitura = estatNaoLido, leituraDoc
+					est.paginas = len(paginasMap)
 				default:
 					est = estatDeLido(paginasMap)
 					est.leitura = leituraDoc

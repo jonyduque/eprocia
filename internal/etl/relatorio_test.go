@@ -437,6 +437,54 @@ func TestRelatorio_PorLeitura(t *testing.T) {
 	}
 }
 
+// O contador da linha (pages_count) e o resumo contam as páginas de um não
+// lido do mesmo jeito: total + de_nao_lidos + de_omitidos == pages_count. Um
+// documento que falha depois da pré-contagem fica com o marcador numa página
+// só, e não com as 12 pré-contadas.
+func TestRelatorio_PaginasDeNaoLidosComoNoContador(t *testing.T) {
+	isolarTemp(t)
+	original := contarPaginasPDF
+	t.Cleanup(func() { contarPaginasPDF = original })
+	contarPaginasPDF = func(r io.ReaderAt, size int64) (*pdf.Reader, int, error) {
+		dados := make([]byte, size)
+		if _, err := r.ReadAt(dados, 0); err != nil && err != io.EOF {
+			return nil, 0, err
+		}
+		if bytes.Contains(dados, []byte("DOZE")) {
+			// Conta 12 páginas, mas a leitura falha depois.
+			return nil, 12, nil
+		}
+		return original(r, size)
+	}
+	zipPath := gravarZip(t, []entradaZip{
+		{"Evento 1 - DOC1.pdf", []byte("não é PDF, mas DOZE páginas contadas")},
+		{"Evento 2 - DOC2.pdf", []byte("não é PDF")},
+		{"Evento 3 - DOC3.pdf", pdfComTexto(textoLongo("Terceiro", 200), textoLongo("Quarto", 200))},
+		{"Evento 4 - EXTR4.pdf", pdfComTexto(textoLongo("Extrato", 200), textoLongo("Extrato dois", 200))},
+	})
+	cfg := cfgSemOCR()
+	cfg.OmitirTipos = []string{"EXTR"}
+	atv := NovaAtividade("item-teste")
+	_, _, paginas, _, err := NewPipeline().ProcessZipComAtividade(context.Background(), zipPath, cfg, nil, atv)
+	if err != nil {
+		t.Fatalf("ProcessZip: %v", err)
+	}
+	r := atv.Relatorio()
+	if r == nil {
+		t.Fatal("atividade sem relatório")
+	}
+	p := r.Paginas
+	if r.Documentos.NaoLidos != 2 {
+		t.Fatalf("NaoLidos = %d, quero 2 (%+v)", r.Documentos.NaoLidos, r.Documentos)
+	}
+	if soma := p.Total + p.DeNaoLidos + p.DeOmitidos; soma != paginas {
+		t.Errorf("total %d + de_nao_lidos %d + de_omitidos %d = %d; pages_count = %d", p.Total, p.DeNaoLidos, p.DeOmitidos, soma, paginas)
+	}
+	if p.DeNaoLidos != 2 || p.DeOmitidos != 2 || p.Total != 2 {
+		t.Errorf("páginas %+v; quero 2 lidas, 2 de não lidos (uma por marcador) e 2 de omitidos", p)
+	}
+}
+
 func TestRelatorio_ZipSemPaginasLidas(t *testing.T) {
 	isolarTemp(t)
 	zipPath := gravarZip(t, []entradaZip{
