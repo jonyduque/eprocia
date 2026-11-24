@@ -260,7 +260,7 @@ Um valor diferente vale como `1`, com um aviso no log. A variável é lida só n
 setx EPROCIA_LOG 1          # ou: setx EPROCIA_LOG detalhado
 ```
 
-A variável só chega a processos novos. Feche o app por **Sair** na bandeja (fechar a janela só oculta) e abra de novo. O atalho, o início com o Windows e o app aberto pelo `install.ps1` herdam o ambiente do Explorer, que só relê a variável depois de reiniciar o Explorer ou de sair e entrar no Windows; o mesmo vale para um terminal que já estava aberto.
+A variável só chega a processos novos. Saia pela bandeja (**Sair**; fechar a janela só oculta) e abra de novo pelo atalho ou pelo menu Iniciar. Um terminal ou programa que já estava aberto, inclusive aquele em que se roda o `install.ps1`, não recebe a variável: abra um novo.
 
 **Para desligar**, apague a variável nas Variáveis de Ambiente ou rode `[Environment]::SetEnvironmentVariable('EPROCIA_LOG', $null, 'User')` no PowerShell, e reabra o app do mesmo jeito.
 
@@ -268,7 +268,7 @@ Com o log ligado, as Configurações mostram **Abrir pasta de logs**. Os arquivo
 
 | Arquivo | Conteúdo | Rotação |
 |---|---|---|
-| `%APPDATA%\eprocIA\logs\eprocia.log` | JSON Lines. Leva os **nomes dos ZIPs e dos documentos** (o nome do ZIP costuma ser o número do processo). O nome do usuário do Windows nos caminhos vira `<usuario>`. | 5 MB, guarda `eprocia.1.log` a `eprocia.5.log`; `eprocia*.log` com mais de 30 dias é apagado quando o app abre com o log ligado. |
+| `%APPDATA%\eprocIA\logs\eprocia.log` | JSON Lines. Leva os **nomes dos ZIPs e dos documentos** (o nome do ZIP costuma ser o número do processo). Nos caminhos, o perfil e a pasta temporária viram `%USERPROFILE%` e `%TEMP%`, e outro nome depois de `\Users\` vira `<usuario>`. | 5 MB, guarda `eprocia.1.log` a `eprocia.5.log`; `eprocia*.log` com mais de 30 dias é apagado quando o app abre com o log ligado. |
 | `%APPDATA%\eprocIA\telemetria\telemetria.jsonl` | Uma linha por ZIP terminado: contagens de páginas e documentos, tamanhos, tempos, a configuração usada (sem a pasta) e o resultado. Da máquina, só número de núcleos, memória total, versão e build do Windows e arquitetura. **Nenhum nome** de ZIP, documento, pasta, computador ou usuário, e nenhum texto de página. | 10 MB, guarda 5 arquivos; não apaga por idade. |
 
 Nada disso é enviado: log e telemetria não usam a rede. Para partilhar, prefira **só a telemetria**. O log e a telemetria têm o mesmo `item_id`, então quem recebe os dois consegue ligar a telemetria aos nomes.
