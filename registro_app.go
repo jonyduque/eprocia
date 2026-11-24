@@ -155,3 +155,13 @@ func ligarTelemetria(q *etl.Queue, pastaDados string) (fechar func()) {
 		g.Fechar()
 	}
 }
+
+// ligarTelemetriaSeAtivo liga a telemetria da fila do App só com o registro
+// ativo (EPROCIA_LOG lida na partida); desligado, nada dela executa e
+// fecharTelemetria fica nil. Chamada pelo startup, depois de criar a fila.
+func (a *App) ligarTelemetriaSeAtivo(pastaDados string) {
+	if !registro.Ativo() || a.queue == nil {
+		return
+	}
+	a.fecharTelemetria = ligarTelemetria(a.queue, pastaDados)
+}

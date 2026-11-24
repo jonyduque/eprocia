@@ -323,17 +323,20 @@ func TestIniciarRegistro_SemVariavelSemTelemetria(t *testing.T) {
 			iniciarRegistro(valor, dir, cfg)
 
 			// O mesmo caminho do App.startup: fila criada depois do registro e
-			// telemetria ligada só com o registro ativo.
+			// a mesma ligação condicional da telemetria (ligarTelemetriaSeAtivo).
 			q := etl.NewQueue(etl.NewPipeline())
 			q.SetConfig(cfg)
-			fechar := func() {}
-			if registro.Ativo() {
-				fechar = ligarTelemetria(q, dir)
+			app := &App{queue: q}
+			app.ligarTelemetriaSeAtivo(dir)
+			if (app.fecharTelemetria != nil) != (valor != "") {
+				t.Errorf("fecharTelemetria definido = %v com EPROCIA_LOG=%q", app.fecharTelemetria != nil, valor)
 			}
 			q.AddFilesComOrigem([]string{zipPath}, "manual")
 			esperarSucesso(t, q)
 			q.Shutdown() // espera o fim do item, aviso de fim de ZIP incluído
-			fechar()
+			if app.fecharTelemetria != nil {
+				app.fecharTelemetria()
+			}
 			registro.Encerrar()
 
 			if valor == "" {

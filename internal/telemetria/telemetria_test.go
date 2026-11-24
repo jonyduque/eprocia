@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"log/slog"
 	"os"
@@ -291,5 +292,48 @@ func TestGravador_FalhaDescartaEAvisaUmaVez(t *testing.T) {
 	}
 	if avisos != 1 {
 		t.Errorf("WARNs = %d, quer 1:\n%s", avisos, buf.String())
+	}
+}
+
+// destinoCorta grava só a metade da primeira escrita e devolve erro; as
+// seguintes gravam inteiras.
+type destinoCorta struct {
+	buf     bytes.Buffer
+	cortado bool
+}
+
+func (d *destinoCorta) Write(p []byte) (int, error) {
+	if !d.cortado {
+		d.cortado = true
+		n, _ := d.buf.Write(p[:len(p)/2])
+		return n, errors.New("disco cheio (sintético)")
+	}
+	return d.buf.Write(p)
+}
+func (d *destinoCorta) Close() error { return nil }
+
+func TestGravador_LinhaInteiraAposGravacaoParcial(t *testing.T) {
+	antes, w, flags := slog.Default(), log.Writer(), log.Flags()
+	t.Cleanup(func() {
+		slog.SetDefault(antes)
+		log.SetOutput(w)
+		log.SetFlags(flags)
+	})
+	slog.SetDefault(slog.New(slog.NewJSONHandler(io.Discard, nil)))
+
+	d := &destinoCorta{}
+	g := iniciarGravador(d)
+	r := Montar(execucaoDeTeste("standard", 1000), Maquina{}, "x", time.Now())
+	g.Gravar(r)
+	g.Gravar(r)
+	g.Fechar()
+
+	linhas := strings.Split(strings.TrimSuffix(d.buf.String(), "\n"), "\n")
+	if len(linhas) != 2 {
+		t.Fatalf("linhas = %d, quer 2 (meia + inteira):\n%s", len(linhas), d.buf.String())
+	}
+	var v map[string]any
+	if err := json.Unmarshal([]byte(linhas[1]), &v); err != nil {
+		t.Errorf("linha depois da parcial não é JSON: %q: %v", linhas[1], err)
 	}
 }

@@ -285,8 +285,23 @@ func (g *Gravador) Gravar(r Registro) {
 func (g *Gravador) rodar() {
 	defer close(g.feito)
 	avisou := false
+	// parcial marca uma escrita que deixou meia linha no arquivo: a próxima
+	// começa com "\n", para que o registro seguinte saia numa linha inteira.
+	parcial := false
 	for b := range g.ch {
-		if _, err := g.destino.Write(b); err != nil {
+		if parcial {
+			b = append([]byte{'\n'}, b...)
+		}
+		n, err := g.destino.Write(b)
+		switch {
+		case err == nil:
+			parcial = false
+		case n > 0 && n < len(b):
+			parcial = true
+		case n >= len(b):
+			parcial = false
+		}
+		if err != nil {
 			g.perdidos.Add(1)
 			if !avisou {
 				slog.Warn("falha ao gravar a telemetria; registro descartado", "erro", err)

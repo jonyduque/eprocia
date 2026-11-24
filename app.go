@@ -79,9 +79,7 @@ func (a *App) startup(ctx context.Context) {
 	a.queue.SetOnFinished(a.aoTerminar)
 	// A fila nasce depois de iniciarRegistro (main): a telemetria se liga
 	// aqui, e só com o log ativo; desligado, nada dela executa.
-	if registro.Ativo() {
-		a.fecharTelemetria = ligarTelemetria(a.queue, pastaDadosApp())
-	}
+	a.ligarTelemetriaSeAtivo(pastaDadosApp())
 
 	// main já leu a config para escolher o fundo da janela.
 	cfg := a.cfg
