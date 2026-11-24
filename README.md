@@ -85,7 +85,7 @@ O eprocIA faz tudo isso sozinho. Ele fica na bandeja do Windows, vigia a pasta d
     <td align="center"><sub>🔁 Reprocessar um item com outras opções, só para aquele arquivo</sub></td>
   </tr>
   <tr>
-    <td colspan="2"><img src="docs/imagens/painel-recolhido.png" alt="Painel lateral recolhido numa barra estreita com o círculo de monitoramento e os atalhos de envio, OCR e higienização; a fila ocupa o resto da janela"></td>
+    <td colspan="2"><img src="docs/imagens/painel-recolhido.png" alt="Painel lateral recolhido numa barra estreita com o círculo de monitoramento e os atalhos de OCR e higienização; a fila ocupa o resto da janela"></td>
   </tr>
   <tr>
     <td colspan="2" align="center"><sub>↔️ Painel recolhido: o círculo liga e desliga o monitoramento, e os atalhos trocam o OCR e a higienização; o divisor também se ajusta pelo teclado e a largura fica lembrada</sub></td>

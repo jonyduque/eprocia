@@ -16,7 +16,6 @@
   import Sparkles from 'lucide-svelte/icons/sparkles';
   import Square from 'lucide-svelte/icons/square';
   import Sun from 'lucide-svelte/icons/sun';
-  import Upload from 'lucide-svelte/icons/upload';
   import X from 'lucide-svelte/icons/x';
   import { onMount, onDestroy, tick } from 'svelte';
   import {
@@ -378,7 +377,7 @@
     }
   }
 
-  // Manual Trigger
+  // Seleção de ZIPs pelo botão da fila vazia (ProcessList.aoSelecionarZip).
   async function triggerManualSelect() {
     try {
       const filePaths = await SelectZipFiles();
@@ -555,7 +554,7 @@
     <aside
       id="sidebar"
       class="sidebar"
-      aria-label="Configurações e importação"
+      aria-label="Configurações"
       style="width: {sidebarCollapsed ? '48px' : larguraPainel + 'px'}"
       style:--largura-painel="{larguraPainel}px"
       class:collapsed={sidebarCollapsed}
@@ -583,8 +582,8 @@
       <!-- Escondido, não desmontado: o Settings mantém o aviso e a config. -->
       <div class="sidebar-content" class:mais-abaixo={painelMaisAbaixo} use:rolagem={marcarPainel} inert={sidebarCollapsed}>
         <!-- Settings Component -->
-        <!-- Sem seção de importação: os ZIPs se escolhem na fila (vazia) ou
-             pelo atalho da barra recolhida, ou se arrastam para a janela. -->
+        <!-- Sem importação no painel: os ZIPs entram só pela fila (botão da
+             fila vazia) ou arrastados para a janela. -->
         <Settings bind:config {erroConfig} {logAtivo} aoFalharSalvar={refreshConfig} avisar={avisarPainel} />
       </div>
 
@@ -613,10 +612,6 @@
             {/key}
           </button>
           <span id="estado-monitor-recolhido" class="sr-only">{textoMonitor}</span>
-
-          <button class="collapsed-tool-btn" on:click={triggerManualSelect} title="Processar ZIP Manualmente" aria-label="Processar ZIP manualmente">
-            <Icone icone={Upload} />
-          </button>
 
           <MenuNivel
             id="ocr"
@@ -1128,29 +1123,10 @@
   }
 
   .collapsed-indicator:disabled,
-  .collapsed-tool-btn:disabled,
   .monitor-btn:disabled,
   .status-link:disabled {
     cursor: default;
     opacity: 0.6;
-  }
-
-  .collapsed-tool-btn {
-    background-color: var(--surface-hover);
-    border: 1px solid var(--border);
-    color: var(--text-secondary);
-    width: 32px;
-    height: 32px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-  }
-
-  .collapsed-tool-btn:hover {
-    color: var(--accent);
-    border-color: var(--accent);
   }
 
   .content-area {

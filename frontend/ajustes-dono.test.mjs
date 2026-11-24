@@ -46,11 +46,27 @@ test('A2: sem o rótulo "Pasta monitorada"; caminho e Alterar com nome acessíve
 test('A3: painel sem a seção de importação manual; a fila e a barra recolhida seguem', () => {
   assert.doesNotMatch(app, /manual-card|Importação Manual|manual-select-btn/);
   assert.doesNotMatch(app, /FilePlusCorner/);
-  // Atalho da barra recolhida e botão da fila vazia continuam.
-  assert.match(app, /class="collapsed-tool-btn" on:click=\{triggerManualSelect\}/);
+  // O botão da fila vazia continua.
   assert.match(app, /<ProcessList\b[^>]*aoSelecionarZip=\{triggerManualSelect\}/);
   assert.match(lista, /class="manual-select-btn"[^>]*on:click=\{aoSelecionarZip\}/);
   assert.doesNotMatch(design, /Importação Manual/);
+});
+
+test('Rodada 2: importar ZIPs só pela fila; a barra recolhida não oferece importação', () => {
+  const ini = app.indexOf('<div class="collapsed-tools"');
+  assert.ok(ini >= 0, 'barra recolhida ausente');
+  const barra = app.slice(ini, app.indexOf('{/if}', app.lastIndexOf('<MenuNivel', app.indexOf('</aside>'))));
+  assert.doesNotMatch(barra, /triggerManualSelect|Upload|Processar ZIP/i);
+  assert.doesNotMatch(app, /collapsed-tool-btn|import Upload from/);
+  // Só a fila chama a seleção de ZIPs; o arrastar para a janela continua.
+  assert.equal((app.match(/\{triggerManualSelect\}/g) ?? []).length, 1);
+  assert.match(app, /<ProcessList\b[^>]*aoSelecionarZip=\{triggerManualSelect\}/);
+  assert.match(lista, /class="manual-select-btn"[^>]*on:click=\{aoSelecionarZip\}/);
+  assert.match(app, /on:drop=\{handleWindowDrop\}/);
+  // O painel lateral é só de configurações.
+  assert.match(app, /id="sidebar"[\s\S]*?aria-label="Configurações"/);
+  assert.doesNotMatch(app, /Configurações e importação/);
+  assert.doesNotMatch(design, /atalho `Upload`|Configurações e importação/);
 });
 
 test('C/d7: o título da fila é "Fila"', () => {

@@ -162,7 +162,7 @@ test('janela sem marco region; arrastar ZIP escutado na window', () => {
 });
 
 test('painel é um aside nomeado fora do main; main só na fila', () => {
-  assert.match(tag(app, 'id="sidebar"'), /aria-label="Configurações e importação"/);
+  assert.match(tag(app, 'id="sidebar"'), /aria-label="Configurações"/);
   const ini = app.indexOf('<main');
   assert.ok(ini > app.indexOf('</aside>'), 'aside fora do main');
   assert.match(tag(app, '<main'), /class="content-area"/);
