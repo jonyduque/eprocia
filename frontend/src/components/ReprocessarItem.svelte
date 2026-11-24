@@ -88,7 +88,7 @@
     margin-left: 30px;
     padding: 8px;
     border-left: 2px solid var(--accent);
-    border-radius: 4px;
+    border-radius: 0 4px 4px 0;
     background-color: var(--bg-main);
     display: flex;
     flex-wrap: wrap;

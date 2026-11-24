@@ -1660,7 +1660,7 @@
     margin-left: 30px;
     padding: 6px 8px;
     border-left: 2px solid var(--error);
-    border-radius: 4px;
+    border-radius: 0 4px 4px 0;
     background-color: var(--error-soft);
     font-size: var(--fs-meta);
     color: var(--text-primary);
