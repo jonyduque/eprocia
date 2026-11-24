@@ -204,6 +204,8 @@
 
   // Painel de detalhes do relatório (linha-resumo do item concluído).
   let relatorioAberto = {};
+  // Envio do botão ROTULO_LER_COM_OCR em curso: trava o duplo clique até a fila responder.
+  let lendoOCR = {};
   function alternarRelatorio(id) {
     relatorioAberto = { ...relatorioAberto, [id]: !relatorioAberto[id] };
   }
@@ -211,6 +213,8 @@
   // Botão ROTULO_LER_COM_OCR: refaz o ZIP com o OCR ligado só nas páginas candidatas,
   // sem Forçar OCR e com a limpeza do item (a config global não muda).
   async function lerComOCR(item) {
+    if (lendoOCR[item.id]) return;
+    lendoOCR = { ...lendoOCR, [item.id]: true };
     const a = argumentosLerComOCR(item, config);
     try {
       await ReprocessQueueItem(item.id, a.ocr, a.limpeza, a.forcar);
@@ -223,6 +227,8 @@
     } catch (err) {
       console.error('Erro ao reprocessar com OCR:', err);
       avisoAcao.mostrar('Erro ao reprocessar: ' + (err?.message ?? err), 'error');
+    } finally {
+      lendoOCR = { ...lendoOCR, [item.id]: false };
     }
   }
 
@@ -235,6 +241,7 @@
       botao?.focus();
       guardarFoco(item.id, { currentTarget: botao }, 'cancelar');
       reprocessarAberto = { ...reprocessarAberto, [item.id]: false };
+      relatorioAberto = { ...relatorioAberto, [item.id]: false };
       origemReprocessar = { ...origemReprocessar, [item.id]: null };
       const { [item.id]: _, ...resto } = atividadesBuscadas;
       atividadesBuscadas = resto;
@@ -847,12 +854,15 @@
             {#if estado === 'sucesso' && item.relatorio}
               {@const resumo = resumoPaginas(item.relatorio)}
               {@const avisos = avisosPaginas(item.relatorio)}
-              {#if resumo || avisos.length > 0 || mostrarLerComOCR(item.relatorio)}
+              {@const ler = mostrarLerComOCR(item.relatorio)}
+              {#if resumo || avisos.length > 0 || ler}
                 <div class="relatorio-linha">
                   {#if resumo}
                     <button
                       type="button"
                       class="resumo-relatorio"
+                      data-parada="relatorio"
+                      tabindex={tabParada(item.id, 'relatorio', paradaAtiva)}
                       aria-expanded={!!relatorioAberto[item.id]}
                       aria-controls="relatorio-{item.id}"
                       title={relatorioAberto[item.id] ? DICA_FECHAR_RELATORIO : DICA_ABRIR_RELATORIO}
@@ -875,10 +885,13 @@
                     </ul>
                     <p class="explicacao-ocr">{EXPLICACAO_OCR}</p>
                   {/if}
-                  {#if mostrarLerComOCR(item.relatorio)}
+                  {#if ler}
                     <button
                       type="button"
                       class="btn-ler-ocr"
+                      data-parada="lerocr"
+                      tabindex={tabParada(item.id, 'lerocr', paradaAtiva)}
+                      disabled={!!lendoOCR[item.id]}
                       title={DICA_LER_COM_OCR}
                       on:click={() => lerComOCR(item)}
                     >
@@ -1732,7 +1745,12 @@
     cursor: pointer;
   }
 
-  .btn-ler-ocr:hover {
+  .btn-ler-ocr:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .btn-ler-ocr:hover:not(:disabled) {
     border-color: var(--warning);
   }
 

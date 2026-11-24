@@ -198,7 +198,9 @@ describe('convenções dos componentes', () => {
 
   it('ProcessList importa o painel e mostra o botão dentro de mostrarLerComOCR', () => {
     assert.match(lista, /import RelatorioItem from '\.\/RelatorioItem\.svelte'/);
-    assert.match(lista, /\{#if mostrarLerComOCR\([^}]*\)\}[\s\S]*?\{ROTULO_LER_COM_OCR\}[\s\S]*?\{\/if\}/);
+    // O resultado de mostrarLerComOCR fica num {@const ler} reaproveitado pelo bloco e pelo botão.
+    assert.match(lista, /\{@const ler = mostrarLerComOCR\(item\.relatorio\)\}/);
+    assert.match(lista, /\{#if ler\}[\s\S]*?\{ROTULO_LER_COM_OCR\}[\s\S]*?\{\/if\}/);
   });
   it('a linha-resumo abre o painel com aria-expanded', () => {
     assert.match(lista, /resumoPaginas\(item\.relatorio\)/);
@@ -208,6 +210,21 @@ describe('convenções dos componentes', () => {
   it('Ler com OCR chama ReprocessQueueItem com forcar=false via argumentosLerComOCR', () => {
     assert.match(lista, /argumentosLerComOCR\(item, config\)/);
     assert.match(lista, /ReprocessQueueItem\(item\.id, a\.ocr, a\.limpeza, a\.forcar\)/);
+  });
+  it('Ler com OCR tem trava contra duplo envio', () => {
+    const f = lista.slice(lista.indexOf('async function lerComOCR'));
+    const corpo = f.slice(0, f.search(/\r?\n  \}\r?\n/));
+    assert.match(corpo, /if \(lendoOCR\[item\.id\]\) return;/);
+    assert.match(corpo, /finally \{[\s\S]*lendoOCR = \{ \.\.\.lendoOCR, \[item\.id\]: false \}/);
+    assert.match(lista, /class="btn-ler-ocr"[^>]*disabled=\{!!lendoOCR\[item\.id\]\}/);
+  });
+  it('linha-resumo e Ler com OCR entram no foco itinerante', () => {
+    assert.match(lista, /class="resumo-relatorio"[^>]*data-parada="relatorio"[^>]*tabindex=\{tabParada\(item\.id, 'relatorio', paradaAtiva\)\}/);
+    assert.match(lista, /class="btn-ler-ocr"[^>]*data-parada="lerocr"[^>]*tabindex=\{tabParada\(item\.id, 'lerocr', paradaAtiva\)\}/);
+  });
+  it('Reprocessar comum também fecha o painel do relatório', () => {
+    const f = lista.slice(lista.indexOf('async function confirmarReprocessar'));
+    assert.match(f.slice(0, 900), /relatorioAberto = \{ \.\.\.relatorioAberto, \[item\.id\]: false \}/);
   });
   it('RelatorioItem não tem cor literal fora de var()', () => {
     const semVar = painel.replace(/var\([^)]*\)/g, '');

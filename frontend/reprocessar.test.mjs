@@ -53,6 +53,12 @@ describe('argumentosLerComOCR', () => {
   it('não usa o modo de OCR do item (o item ficou sem OCR)', () => {
     assert.equal(argumentosLerComOCR({ ocr_mode: 'none' }, { ocr_mode: 'fast' }).ocr, 'fast');
   });
+  it('item comum (sem ajuste) usa o nível em que rodou, mesmo com a global mudada depois', () => {
+    const item = { relatorio: { limpeza: { nivel: 'basic' } } };
+    assert.equal(argumentosLerComOCR(item, { ocr_mode: 'normal', cleaning_level: 'aggressive' }).limpeza, 'basic');
+    // O ajuste do Reprocessar vale mais que o relatório.
+    assert.equal(argumentosLerComOCR({ ...item, cleaning_level: 'none' }, { cleaning_level: 'aggressive' }).limpeza, 'none');
+  });
   it('config ausente não lança', () => {
     assert.deepEqual(argumentosLerComOCR({}, null), { ocr: 'normal', limpeza: 'standard', forcar: false });
   });

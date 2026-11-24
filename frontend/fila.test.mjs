@@ -329,6 +329,25 @@ test('paradasItem segue a ordem dos botões de cada linha', () => {
   assert.deepEqual(paradasItem({ status: 'cancelled' }, true), ['info', 'reprocessar', 'remover']);
 });
 
+// Linha-resumo e "Ler com OCR" do relatório ficam abaixo dos botões, na ordem da tela.
+test('paradasItem inclui a linha-resumo e o Ler com OCR do item concluído', () => {
+  const pag = (p) => ({ paginas: { total: 3, lida_nativa: 3, sem_ocr: 0, ...p } });
+  const base = ['info', 'reprocessar', 'copiar', 'abrir', 'remover'];
+  const ok = { status: 'success', output_path: 'a.txt' };
+  assert.deepEqual(paradasItem({ ...ok, relatorio: pag({}) }, true), [...base, 'relatorio']);
+  assert.deepEqual(paradasItem({ ...ok, relatorio: pag({ total: 4, sem_ocr: 1 }) }, true), [...base, 'relatorio', 'lerocr']);
+  // Documento inteiro não lido por falta de OCR, sem páginas: só o botão.
+  const soDoc = { paginas: { total: 0 }, documentos: { por_leitura: { sem_ocr: 1 } } };
+  assert.deepEqual(paradasItem({ ...ok, relatorio: soDoc }, true), [...base, 'lerocr']);
+  assert.deepEqual(paradasItem({ ...ok, relatorio: { paginas: { total: 0 } } }, true), base);
+  // Fora do sucesso o relatório não aparece (nem parada).
+  assert.deepEqual(paradasItem({ status: 'error', relatorio: pag({ sem_ocr: 1 }) }, true), ['info', 'detalhes', 'reprocessar', 'remover']);
+  // Setas alcançam as paradas novas.
+  const g = [{ id: 'a', paradas: [...base, 'relatorio', 'lerocr'] }];
+  assert.deepEqual(proximaParada(g, { id: 'a', chave: 'remover' }, 'ArrowRight'), { id: 'a', chave: 'relatorio' });
+  assert.deepEqual(proximaParada(g, { id: 'a', chave: 'relatorio' }, 'ArrowRight'), { id: 'a', chave: 'lerocr' });
+});
+
 const grade = [
   { id: 'a', paradas: ['info', 'reprocessar', 'copiar', 'abrir', 'remover'] },
   { id: 'b', paradas: ['cancelar'] },
@@ -395,7 +414,7 @@ test('a lista usa foco itinerante: uma parada de Tab e teclas no contêiner', ()
   assert.match(lst, /on:keydown=\{teclaLista\}/);
   assert.match(lst, /on:focusin=\{focoNaLista\}/);
   const tabs = lista.match(/\n\s+data-parada=["{]/g) ?? [];
-  assert.equal(tabs.length, 10, 'info e as 9 ações levam data-parada');
+  assert.equal(tabs.length, 12, 'info, as 9 ações, a linha-resumo e o Ler com OCR levam data-parada');
   const comTab = lista.match(/tabParada\(item\.id, '/g) ?? [];
   assert.equal(comTab.length, tabs.length, 'toda parada tem tabindex itinerante');
   assert.match(lista, /<svelte:window on:keydown=\{teclaJanela\}/);

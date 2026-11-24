@@ -1,4 +1,5 @@
 // Funções puras da lista da fila (ProcessList.svelte).
+import { resumoPaginas, mostrarLerComOCR } from './relatorio.js';
 
 // Criado uma vez: toLocaleTimeString monta um formatador novo a cada chamada,
 // e a lista inteira é redesenhada a cada queue:update.
@@ -147,9 +148,18 @@ export function textoConfirmarLimpeza(items) {
 export function paradasItem(item, expansivel) {
   const p = expansivel ? ['info'] : [];
   if (item.status === 'processing' || item.status === 'pending') return [...p, 'cancelar'];
-  if (item.status === 'success' && item.output_path) return [...p, 'reprocessar', 'copiar', 'abrir', 'remover'];
+  if (item.status === 'success' && item.output_path) return [...p, 'reprocessar', 'copiar', 'abrir', 'remover', ...paradasRelatorio(item)];
   if (item.status === 'error') p.push('detalhes');
-  return [...p, 'reprocessar', 'remover'];
+  return [...p, 'reprocessar', 'remover', ...paradasRelatorio(item)];
+}
+
+// Linha-resumo e "Ler com OCR" (abaixo dos botões), só no item concluído.
+function paradasRelatorio(item) {
+  if (item.status !== 'success' || !item.relatorio) return [];
+  const p = [];
+  if (resumoPaginas(item.relatorio)) p.push('relatorio');
+  if (mostrarLerComOCR(item.relatorio)) p.push('lerocr');
+  return p;
 }
 
 function naLinha(linha, chave, coluna) {

@@ -20,13 +20,15 @@ export function alvoAoFecharReprocessar(origem, botaoLinha) {
 
 // Botão "Ler com OCR" do item concluído: refaz o ZIP pelo Reprocessar com o OCR
 // ligado só nas páginas candidatas. O modo é o global (ou 'normal' se o global
-// for 'none'), a limpeza é a do item, e o Forçar OCR vai false explícito: nunca
-// herda a config global nem o ajuste anterior do item.
+// for 'none'), a limpeza é a do item (o ajuste do Reprocessar ou, no item
+// comum, o nível em que ele rodou, guardado no relatório; a global pode ter
+// mudado depois), e o Forçar OCR vai false explícito: nunca herda a config
+// global nem o ajuste anterior do item.
 export function argumentosLerComOCR(item, config) {
   const global = config?.ocr_mode;
   return {
     ocr: global && global !== 'none' ? global : 'normal',
-    limpeza: item?.cleaning_level || config?.cleaning_level || 'standard',
+    limpeza: item?.cleaning_level || item?.relatorio?.limpeza?.nivel || config?.cleaning_level || 'standard',
     forcar: false
   };
 }
