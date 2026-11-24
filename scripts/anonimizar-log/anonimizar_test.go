@@ -1,0 +1,143 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+)
+
+// rodar anonimiza entrada e devolve as linhas de saída e as sobras.
+func rodar(t *testing.T, entrada string) ([]string, []int) {
+	t.Helper()
+	var saida bytes.Buffer
+	sobras, err := anonimizar(strings.NewReader(entrada), &saida)
+	if err != nil {
+		t.Fatalf("anonimizar: %v", err)
+	}
+	return strings.Split(strings.TrimSuffix(saida.String(), "\n"), "\n"), sobras
+}
+
+// campo lê o valor de texto de chave numa linha JSON.
+func campo(t *testing.T, linha, chave string) string {
+	t.Helper()
+	var m map[string]any
+	if err := json.Unmarshal([]byte(linha), &m); err != nil {
+		t.Fatalf("linha de saída não é JSON: %v\n%s", err, linha)
+	}
+	v, _ := m[chave].(string)
+	return v
+}
+
+func TestAnonimizar_RotulosEstaveis(t *testing.T) {
+	dados, err := os.ReadFile("testdata/entrada.jsonl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	linhas, sobras := rodar(t, string(dados))
+	if len(linhas) != 7 {
+		t.Fatalf("esperava 7 linhas, veio %d", len(linhas))
+	}
+	if len(sobras) != 0 {
+		t.Errorf("sobras = %v, esperava nenhuma", sobras)
+	}
+	saida := strings.Join(linhas, "\n")
+	for _, nome := range []string{"5000000-00.2026.4.00.0001", "5000000-00.2026.4.00.0002", "FULANO DE TAL", "PROCURAÇÃO"} {
+		if strings.Contains(saida, nome) {
+			t.Errorf("a saída ainda contém %q", nome)
+		}
+	}
+	for _, i := range []int{0, 1, 4} {
+		if got := campo(t, linhas[i], "zip"); got != "zip-1" {
+			t.Errorf("linha %d: zip = %q, esperava zip-1", i+1, got)
+		}
+	}
+	if got := campo(t, linhas[5], "zip"); got != "zip-2" {
+		t.Errorf("linha 6: zip = %q, esperava zip-2", got)
+	}
+	if got := campo(t, linhas[2], "doc"); got != "doc-1" {
+		t.Errorf("linha 3: doc = %q, esperava doc-1", got)
+	}
+	if got := campo(t, linhas[3], "doc"); got != "doc-2" {
+		t.Errorf("linha 4: doc = %q, esperava doc-2", got)
+	}
+	if got := campo(t, linhas[6], "doc"); got != "doc-1" {
+		t.Errorf("linha 7: doc = %q, esperava doc-1", got)
+	}
+	if !strings.Contains(linhas[4], `"atencao":[{"nome":"doc-2","evento":2,"sem_ocr":[1]}]`) {
+		t.Errorf("nome em relatorio.atencao não virou doc-2: %s", linhas[4])
+	}
+	// O resto da linha fica como estava, na mesma ordem.
+	esperada := `{"ts":"2026-11-24T10:00:00-03:00","nivel":"INFO","msg":"ZIP adicionado à fila","item_id":1,"zip":"zip-1","origem":"pasta"}`
+	if linhas[0] != esperada {
+		t.Errorf("linha 1:\n got %s\nwant %s", linhas[0], esperada)
+	}
+}
+
+func TestAnonimizar_NomeDentroDoErro(t *testing.T) {
+	entrada := `{"msg":"zip iniciado","zip":"5000000-00.2026.4.00.0003.zip"}` + "\n" +
+		`{"msg":"falha ao abrir 5000000-00.2026.4.00.0003.zip","doc":"Evento 3 - SENTENÇA.pdf","erro":"abrir C:\\Usuarios\\exemplo\\5000000-00.2026.4.00.0003.zip: Evento 3 - SENTENÇA.pdf corrompido"}` + "\n"
+	linhas, _ := rodar(t, entrada)
+	if got := campo(t, linhas[1], "erro"); got != `abrir C:\Usuarios\exemplo\zip-1: doc-1 corrompido` {
+		t.Errorf("erro = %q", got)
+	}
+	if got := campo(t, linhas[1], "msg"); got != "falha ao abrir zip-1" {
+		t.Errorf("msg = %q", got)
+	}
+}
+
+func TestAnonimizar_SobraDeCaminho(t *testing.T) {
+	entrada := `{"msg":"a","erro":"abrir C:\\Users\\fulano\\x"}` + "\n" +
+		`{"msg":"b","erro":"abrir C:\\Users\\<usuario>\\x"}` + "\n" +
+		`{"msg":"c","caminho":"/Users/fulano/x"}` + "\n" +
+		`{"msg":"d","caminho":"%USERPROFILE%\\x"}` + "\n"
+	_, sobras := rodar(t, entrada)
+	if !slices.Equal(sobras, []int{1, 3}) {
+		t.Errorf("sobras = %v, esperava [1 3]", sobras)
+	}
+}
+
+func TestAnonimizar_LinhaInvalidaSegue(t *testing.T) {
+	entrada := `{"msg":"ok","zip":"5000000-00.2026.4.00.0004.zip"}` + "\n" +
+		`panic: C:\Users\fulano\x em 5000000-00.2026.4.00.0004.zip` + "\n" +
+		`texto solto sem caminho` + "\n"
+	linhas, sobras := rodar(t, entrada)
+	if len(linhas) != 3 {
+		t.Fatalf("esperava 3 linhas, veio %d", len(linhas))
+	}
+	if linhas[1] != `panic: C:\Users\fulano\x em zip-1` {
+		t.Errorf("linha 2 = %q", linhas[1])
+	}
+	if linhas[2] != "texto solto sem caminho" {
+		t.Errorf("linha 3 = %q", linhas[2])
+	}
+	if !slices.Equal(sobras, []int{2}) {
+		t.Errorf("sobras = %v, esperava [2]", sobras)
+	}
+}
+
+func TestExecutar_GravaAoLadoESobras(t *testing.T) {
+	dir := t.TempDir()
+	entrada := filepath.Join(dir, "eprocia.1.log")
+	conteudo := `{"msg":"a","zip":"5000000-00.2026.4.00.0005.zip","erro":"C:/Users/fulano/x"}` + "\n"
+	if err := os.WriteFile(entrada, []byte(conteudo), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sobras, saida, err := executar(entrada)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(dir, "eprocia.1.anon.log"); saida != want {
+		t.Errorf("saida = %q, esperava %q", saida, want)
+	}
+	got, _ := os.ReadFile(saida)
+	if want := `{"msg":"a","zip":"zip-1","erro":"C:/Users/fulano/x"}` + "\n"; string(got) != want {
+		t.Errorf("conteúdo = %q", got)
+	}
+	if !slices.Equal(sobras, []int{1}) {
+		t.Errorf("sobras = %v", sobras)
+	}
+}

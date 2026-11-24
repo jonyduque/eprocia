@@ -1,0 +1,7 @@
+{"ts":"2026-11-24T10:00:00-03:00","nivel":"INFO","msg":"ZIP adicionado à fila","item_id":1,"zip":"5000000-00.2026.4.00.0001.zip","origem":"pasta"}
+{"ts":"2026-11-24T10:00:01-03:00","nivel":"INFO","msg":"zip iniciado","item_id":1,"zip":"5000000-00.2026.4.00.0001.zip","bytes":1024,"pdf":2,"html":0}
+{"ts":"2026-11-24T10:00:02-03:00","nivel":"INFO","msg":"documento lido","item_id":1,"doc_id":0,"doc":"Evento 1 - PETIÇÃO FULANO DE TAL.pdf","evento":1}
+{"ts":"2026-11-24T10:00:03-03:00","nivel":"WARN","msg":"falha na pré-contagem de páginas","item_id":1,"doc_id":1,"doc":"Evento 2 - PROCURAÇÃO.pdf","erro":"abrir C:\\Usuarios\\exemplo\\Downloads\\5000000-00.2026.4.00.0001.zip: arquivo corrompido"}
+{"ts":"2026-11-24T10:00:04-03:00","nivel":"INFO","msg":"zip concluído","item_id":1,"zip":"5000000-00.2026.4.00.0001.zip","duracao_ms":3000,"relatorio":{"atencao":[{"nome":"Evento 2 - PROCURAÇÃO.pdf","evento":2,"sem_ocr":[1]}]}}
+{"ts":"2026-11-24T10:00:05-03:00","nivel":"INFO","msg":"ZIP adicionado à fila","item_id":2,"zip":"5000000-00.2026.4.00.0002.zip","origem":"pasta"}
+{"ts":"2026-11-24T10:00:06-03:00","nivel":"INFO","msg":"documento lido","item_id":2,"doc_id":0,"doc":"Evento 1 - PETIÇÃO FULANO DE TAL.pdf","evento":1}
