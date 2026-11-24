@@ -131,6 +131,41 @@ func TestAnonimizar_RadicalDoZip(t *testing.T) {
 	}
 }
 
+// todasValidas falha se alguma linha não for JSON válido.
+func todasValidas(t *testing.T, linhas []string) {
+	t.Helper()
+	for i, l := range linhas {
+		if !json.Valid([]byte(l)) {
+			t.Errorf("linha %d não é JSON válido: %s", i+1, l)
+		}
+	}
+}
+
+func TestAnonimizar_RadicalCurtoNaoTrocaNumeros(t *testing.T) {
+	entrada := `{"msg":"item na vez","item_id":1,"zip":"1.zip","bytes":1500,"paginas":[1,21]}` + "\n" +
+		`{"msg":"falha","item_id":1,"erro":"open C:\\Usuarios\\exemplo\\1.txt: acesso negado"}` + "\n"
+	linhas, _ := rodar(t, entrada)
+	todasValidas(t, linhas)
+	want0 := `{"msg":"item na vez","item_id":1,"zip":"zip-1","bytes":1500,"paginas":[1,21]}`
+	if linhas[0] != want0 {
+		t.Errorf("linha 1:\n got %s\nwant %s", linhas[0], want0)
+	}
+	if got := campo(t, linhas[1], "erro"); got != `open C:\Usuarios\exemplo\zip-1.txt: acesso negado` {
+		t.Errorf("erro = %q", got)
+	}
+}
+
+func TestAnonimizar_RadicalNaoTrocaChave(t *testing.T) {
+	entrada := `{"msg":"x","zip":"pasta.zip"}` + "\n" +
+		`{"msg":"y","pasta":"C:\\Usuarios\\exemplo\\pasta","etapa":"pasta ok","outra":"pastas"}` + "\n"
+	linhas, _ := rodar(t, entrada)
+	todasValidas(t, linhas)
+	want := `{"msg":"y","pasta":"C:\\Usuarios\\exemplo\\zip-1","etapa":"zip-1 ok","outra":"pastas"}`
+	if linhas[1] != want {
+		t.Errorf("linha 2:\n got %s\nwant %s", linhas[1], want)
+	}
+}
+
 func TestAnonimizar_JSONQueNaoEObjeto(t *testing.T) {
 	entrada := `"texto"` + "\n" + "3\n" + "[]\n" + `["a",{"zip":"x.zip"}]` + "\n" +
 		`{"msg":"ok","zip":"5000000-00.2026.4.00.0007.zip"}` + "\n"
