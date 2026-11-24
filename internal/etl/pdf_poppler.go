@@ -66,6 +66,10 @@ func (p *PDFParser) parsePoppler(
 			motivo = motivoIlegivel
 		}
 		vaiAoOCR := (ilegivel || curto) && comOCR
+		// Forçar OCR: a página com texto que ficaria com o nativo vai também.
+		if p.forcar && comOCR && !vaiAoOCR {
+			vaiAoOCR, motivo = true, motivoForcado
+		}
 		if lg.Enabled(ctx, slog.LevelDebug) {
 			attrs := []any{"pag", pageNum, "bytes_nativo", bytesNativo}
 			if vaiAoOCR {

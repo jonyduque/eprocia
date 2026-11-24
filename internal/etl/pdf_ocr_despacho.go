@@ -168,11 +168,11 @@ func (d *despachoOCR) registrarOCR(task ocrTask, ocrText string, err error) {
 		if task.fallback != "" {
 			pageData["ocr_aviso"] = true
 		}
-		// Nas regras novas (imagem descoberta, isca) a reserva é o texto
-		// nativo que a v0.4.1 gravaria: a página fica sem ocr_erro nem
-		// ocr_prazo, para a falha não tirar o documento de lido.
+		// Nas regras novas (imagem descoberta, isca) e no Forçar OCR a reserva
+		// é o texto nativo que a página teria sem o OCR: a página fica sem
+		// ocr_erro nem ocr_prazo, para a falha não tirar o documento de lido.
 		regraNovaComReserva := task.fallback != "" &&
-			(task.motivo == motivoImagemDescoberta || task.motivo == motivoIsca)
+			(task.motivo == motivoImagemDescoberta || task.motivo == motivoIsca || task.motivo == motivoForcado)
 		if !regraNovaComReserva {
 			pageData["ocr_erro"] = frase
 			if errors.Is(err, ocr.ErrPrazo) {

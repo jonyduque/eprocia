@@ -15,6 +15,10 @@ type Config struct {
 	// OmitirTipos lista códigos de tipo de documento (EXTR, COMP...) que não são
 	// lidos: viram um aviso no texto. Nunca nil depois de Load.
 	OmitirTipos []string `json:"omitir_tipos"`
+	// ForcarOCR leva ao OCR toda página de PDF de documento lido, inclusive as
+	// de texto nativo legível. Sem efeito com OcrMode "none" (o valor salvo é
+	// preservado).
+	ForcarOCR bool `json:"forcar_ocr"`
 }
 
 // ProcessFile represents a single judicial process file within a ZIP archive.

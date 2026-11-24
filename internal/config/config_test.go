@@ -409,3 +409,59 @@ func TestLoad_OmitirTiposNormalizados(t *testing.T) {
 		t.Errorf("OmitirTipos = %#v, esperava %#v", cfg.OmitirTipos, want)
 	}
 }
+
+func TestLoad_ForcarOCRAusenteEhFalse(t *testing.T) {
+	def, err := DefaultConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if def.ForcarOCR {
+		t.Errorf("DefaultConfig().ForcarOCR = true, quero false")
+	}
+	caminho := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(caminho, []byte(`{"ocr_mode":"fast","cleaning_level":"basic"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := LoadFromFile(caminho)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.ForcarOCR {
+		t.Errorf("config antiga carregou ForcarOCR = true")
+	}
+	if err := SaveToFile(caminho, cfg); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(caminho)
+	if !strings.Contains(string(b), `"forcar_ocr": false`) {
+		t.Errorf("JSON salvo sem forcar_ocr:\n%s", b)
+	}
+}
+
+func TestLoad_ForcarOCRComNonePreservado(t *testing.T) {
+	caminho := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(caminho, []byte(`{"ocr_mode":"none","forcar_ocr":true}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := LoadFromFile(caminho)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.OcrMode != "none" || !cfg.ForcarOCR {
+		t.Fatalf("carregou ocr_mode=%q forcar_ocr=%t; quero none e true", cfg.OcrMode, cfg.ForcarOCR)
+	}
+	if err := SaveToFile(caminho, cfg); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(caminho)
+	if !strings.Contains(string(b), `"forcar_ocr": true`) {
+		t.Errorf("JSON salvo sem forcar_ocr true:\n%s", b)
+	}
+	cfg, err = LoadFromFile(caminho)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.ForcarOCR {
+		t.Errorf("recarregado com ForcarOCR = false")
+	}
+}

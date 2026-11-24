@@ -51,6 +51,17 @@ type PDFParser struct {
 
 	// poppler: o PDF foi aberto pelo segundo leitor (ver comPoppler).
 	poppler bool
+
+	// forcar: Forçar OCR (ver comForcarOCR).
+	forcar bool
+}
+
+// comForcarOCR faz ParsePages mandar ao OCR, com motivoForcado e o texto
+// nativo como reserva, toda página com conteúdo que não iria ao OCR. Só vale
+// com o OCR ligado; o pipeline já passa false com ocr_mode "none".
+func (p *PDFParser) comForcarOCR(forcar bool) *PDFParser {
+	p.forcar = forcar
+	return p
 }
 
 // maxPaginasBlocoOCR é o teto de páginas de um bloco entregue ao ocrLote: o
@@ -185,6 +196,12 @@ func (p *PDFParser) ParsePages(
 			continue
 		}
 		cleanText, needsOcr := an.texto, an.precisaOcr
+		// Forçar OCR: a página que analisarPagina não mandou ao OCR vai com
+		// motivoForcado e o nativo de reserva; a que já ia mantém o motivo.
+		if p.forcar && ocrEnabled && ocrRunner != nil && !needsOcr {
+			needsOcr = true
+			an.motivo = motivoForcado
+		}
 		if lg.Enabled(ctx, slog.LevelDebug) {
 			attrs := []any{"pag", pageNum, "bytes_nativo", an.bytesNativo}
 			// Imagem e desenho só são examinados com texto curto; as frações só

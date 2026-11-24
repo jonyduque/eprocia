@@ -359,7 +359,7 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 		}
 	}
 	lg.Info("zip iniciado", "zip", filepath.Base(zipPath), "bytes", bytesZip, "pdf", nPDF, "html", nHTML,
-		slog.Group("config", "ocr_mode", cfg.OcrMode, "cleaning_level", cfg.CleaningLevel))
+		slog.Group("config", "ocr_mode", cfg.OcrMode, "cleaning_level", cfg.CleaningLevel, "forcar_ocr", cfg.ForcarOCR))
 
 	// 2. Sort documents chronologically and naturally
 	SortProcessFiles(files)
@@ -731,7 +731,8 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 
 				ocrRunner, ocrEmLote := ocrZip.doDoc(i)
 				parser := NewPDFParserDeLeitor(fonte.readerAt(), fonte.tamanho, f.DocName, fonte.materializar).
-					comOCREmLote(ocrEmLote, numWorkers).comMedidas(medidas)
+					comOCREmLote(ocrEmLote, numWorkers).comMedidas(medidas).
+					comForcarOCR(cfg.ForcarOCR && cfg.OcrMode != "none")
 				if viaPoppler[i] {
 					parser.comPoppler(contagens[i])
 				} else if fonte.leitor != nil {

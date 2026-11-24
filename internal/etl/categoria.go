@@ -91,6 +91,8 @@ func (m motivoOCR) String() string {
 		return "imagem_descoberta"
 	case motivoIsca:
 		return "isca"
+	case motivoForcado:
+		return "forcado"
 	}
 	return "desconhecido"
 }
