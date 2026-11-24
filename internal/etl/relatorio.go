@@ -63,12 +63,15 @@ func (m *medidasOCR) registrar(paginas int, dur time.Duration, err error) {
 	}
 }
 
-// refacao conta um bloco que falhou e foi refeito página a página.
-func (m *medidasOCR) refacao() {
+// refacao conta um bloco de paginas páginas que falhou e vai ser refeito
+// página a página. As páginas saem da contagem do bloco falho, porque cada uma
+// volta a contar na refação; o tempo do bloco falho fica no trabalho.
+func (m *medidasOCR) refacao(paginas int) {
 	if m == nil {
 		return
 	}
 	m.refacoes.Add(1)
+	m.paginas.Add(-int64(paginas))
 }
 
 // resumo devolve a parte de OCR do relatório e os tempos de trabalho e de
@@ -230,6 +233,17 @@ func estatDeLido(paginas map[string]any) estatDoc {
 	return e
 }
 
+// maxPaginasAtencao limita cada lista de páginas de DocAtencao.
+const maxPaginasAtencao = 50
+
+// primeirasPaginas devolve no máximo maxPaginasAtencao números (os primeiros).
+func primeirasPaginas(paginas []int) []int {
+	if len(paginas) > maxPaginasAtencao {
+		return slices.Clip(paginas[:maxPaginasAtencao])
+	}
+	return paginas
+}
+
 // fasesZip são os tempos medidos pelo pipeline fora do OCR.
 type fasesZip struct {
 	abrir, preContagem, leituraParede, formatacao, gravacao time.Duration
@@ -284,7 +298,11 @@ func montarRelatorio(files []models.ProcessFile, contagens []int, tiposOmitidos 
 			}
 			if len(e.semOCR)+len(e.comErro)+len(e.falhouReserva) > 0 {
 				r.Atencao = append(r.Atencao, models.DocAtencao{Nome: f.DocName, Evento: f.EventNum,
-					SemOCR: e.semOCR, ComErro: e.comErro, OCRFalhouComReserva: e.falhouReserva})
+					SemOCR: primeirasPaginas(e.semOCR), ComErro: primeirasPaginas(e.comErro),
+					OCRFalhouComReserva:      primeirasPaginas(e.falhouReserva),
+					TotalSemOCR:              len(e.semOCR),
+					TotalComErro:             len(e.comErro),
+					TotalOCRFalhouComReserva: len(e.falhouReserva)})
 			}
 		}
 	}

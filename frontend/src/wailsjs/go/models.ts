@@ -169,6 +169,9 @@ export namespace models {
 	    sem_ocr?: number[];
 	    com_erro?: number[];
 	    ocr_falhou_com_reserva?: number[];
+	    total_sem_ocr?: number;
+	    total_com_erro?: number;
+	    total_ocr_falhou_com_reserva?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new DocAtencao(source);
@@ -181,6 +184,9 @@ export namespace models {
 	        this.sem_ocr = source["sem_ocr"];
 	        this.com_erro = source["com_erro"];
 	        this.ocr_falhou_com_reserva = source["ocr_falhou_com_reserva"];
+	        this.total_sem_ocr = source["total_sem_ocr"];
+	        this.total_com_erro = source["total_com_erro"];
+	        this.total_ocr_falhou_com_reserva = source["total_ocr_falhou_com_reserva"];
 	    }
 	}
 	export class DocsRelatorio {

@@ -477,7 +477,7 @@ func TestMedidasOCR_MedianaEP95(t *testing.T) {
 		t.Errorf("trabalho %d, por página %d", trabalho, o.PaginaEstimadaMs)
 	}
 	var nilM *medidasOCR
-	nilM.refacao()
+	nilM.refacao(2)
 }
 
 func TestRegistro_RelatorioCategoriasEBlocosNoLog(t *testing.T) {
@@ -520,5 +520,43 @@ func TestRegistro_RelatorioCategoriasEBlocosNoLog(t *testing.T) {
 		if b["level"] != "DEBUG" || b["paginas"] == nil || b["duracao_ms"] == nil || b["doc_id"] == nil {
 			t.Errorf("linha de bloco = %v", b)
 		}
+	}
+}
+
+func TestMedidasOCR_RefacaoNaoContaPaginasEmDobro(t *testing.T) {
+	m := &medidasOCR{}
+	m.registrar(3, 30*time.Millisecond, errors.New("falha no tesseract do bloco"))
+	m.refacao(3)
+	for range 3 {
+		m.registrar(1, 20*time.Millisecond, nil)
+	}
+	if n := m.paginas.Load(); n != 3 {
+		t.Errorf("páginas que foram ao OCR = %d, quero 3", n)
+	}
+	o, trabalho, _ := m.resumo()
+	// O tempo do bloco falho fica no trabalho: 30 + 3 x 20 = 90 ms em 3 páginas.
+	if o.Refacoes != 1 || trabalho != 90 || o.PaginaEstimadaMs != 30 {
+		t.Errorf("refações %d, trabalho %d, por página %d", o.Refacoes, trabalho, o.PaginaEstimadaMs)
+	}
+}
+
+func TestRelatorio_AtencaoLimitada(t *testing.T) {
+	isolarTemp(t)
+	zipPath := gravarZip(t, []entradaZip{
+		{"Evento 1 - DOC1.pdf", pdfPorTipo("T"+strings.Repeat("I", 120), "Um")},
+	})
+	r, _ := processarComRelatorio(t, zipPath, cfgSemOCR())
+	if len(r.Atencao) != 1 {
+		t.Fatalf("Atencao = %d documentos", len(r.Atencao))
+	}
+	a := r.Atencao[0]
+	if len(a.SemOCR) != maxPaginasAtencao || a.SemOCR[0] != 2 || a.SemOCR[maxPaginasAtencao-1] != maxPaginasAtencao+1 {
+		t.Errorf("SemOCR com %d números: %v", len(a.SemOCR), a.SemOCR)
+	}
+	if a.TotalSemOCR != 120 || a.TotalComErro != 0 || a.TotalOCRFalhouComReserva != 0 {
+		t.Errorf("totais = %d, %d, %d", a.TotalSemOCR, a.TotalComErro, a.TotalOCRFalhouComReserva)
+	}
+	if r.Paginas.SemOCR != 120 {
+		t.Errorf("Paginas.SemOCR = %d", r.Paginas.SemOCR)
 	}
 }

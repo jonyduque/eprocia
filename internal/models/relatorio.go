@@ -15,7 +15,9 @@ type LimpezaRelatorio struct {
 
 // RelatorioZip resume o processamento de um ZIP: documentos, páginas por
 // categoria, tempos por fase, OCR, limpeza e o .txt. É o contrato JSON do
-// painel (queue:item) e da telemetria.
+// painel (queue:item) e da telemetria. É imutável depois de
+// Atividade.definirRelatorio: copiarItem divide o mesmo ponteiro entre as
+// cópias do item, então ninguém o altera depois de definido.
 type RelatorioZip struct {
 	Documentos DocsRelatorio    `json:"documentos"`
 	Paginas    PaginasRelatorio `json:"paginas"`
@@ -75,7 +77,9 @@ type TempoRelatorio struct {
 
 // OCRRelatorio resume os processos de OCR. Um bloco é um processo com mais de
 // uma página; PaginaEstimadaMs é o tempo de trabalho dividido pelas páginas
-// que foram ao OCR (estimativa: o tempo real é medido só por processo).
+// que foram ao OCR (estimativa: o tempo real é medido só por processo). As
+// páginas de um bloco que falhou e foi refeito página a página contam uma vez
+// só (na refação), mas o tempo do bloco falho fica no trabalho.
 type OCRRelatorio struct {
 	Processos        int   `json:"processos"`
 	Blocos           int   `json:"blocos"`
@@ -89,11 +93,16 @@ type OCRRelatorio struct {
 }
 
 // DocAtencao é um documento lido com páginas que pedem atenção, com os
-// números de página de cada caso.
+// números de página de cada caso: cada lista traz no máximo os 50 primeiros, e
+// o total do caso fica no campo Total correspondente.
 type DocAtencao struct {
 	Nome                string `json:"nome"`
 	Evento              int    `json:"evento"`
 	SemOCR              []int  `json:"sem_ocr,omitempty"`
 	ComErro             []int  `json:"com_erro,omitempty"`
 	OCRFalhouComReserva []int  `json:"ocr_falhou_com_reserva,omitempty"`
+	// Totais de cada caso: as listas acima trazem só os primeiros números.
+	TotalSemOCR              int `json:"total_sem_ocr,omitempty"`
+	TotalComErro             int `json:"total_com_erro,omitempty"`
+	TotalOCRFalhouComReserva int `json:"total_ocr_falhou_com_reserva,omitempty"`
 }
