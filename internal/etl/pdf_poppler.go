@@ -3,6 +3,7 @@ package etl
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"strings"
 )
@@ -65,13 +66,18 @@ func (p *PDFParser) parsePoppler(
 			motivo = motivoIlegivel
 		}
 		vaiAoOCR := (ilegivel || curto) && comOCR
+		if lg.Enabled(ctx, slog.LevelDebug) {
+			attrs := []any{"pag", pageNum, "bytes_nativo", bytesNativo}
+			if vaiAoOCR {
+				attrs = append(attrs, "motivo", motivo.String())
+			}
+			lg.Debug("página analisada", attrs...)
+		}
 		if vaiAoOCR {
-			lg.Debug("página analisada", "pag", pageNum, "bytes_nativo", bytesNativo, "motivo", motivo.String())
 			// O motivo não muda a decisão aqui: só o nome em motivo_ocr.
 			d.agendar(ocrTask{pageNum: pageNum, fallback: texto, motivo: motivo})
 			continue
 		}
-		lg.Debug("página analisada", "pag", pageNum, "bytes_nativo", bytesNativo)
 		pageData := map[string]any{
 			"index":   pageNum,
 			"ocr":     false,

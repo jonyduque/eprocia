@@ -184,12 +184,20 @@ func (p *PDFParser) ParsePages(
 		}
 		cleanText, needsOcr := an.texto, an.precisaOcr
 		if lg.Enabled(ctx, slog.LevelDebug) {
-			attrs := []any{"pag", pageNum, "bytes_nativo", an.bytesNativo, "imagem", an.imagem, "vetorial", an.vetorial}
+			attrs := []any{"pag", pageNum, "bytes_nativo", an.bytesNativo}
+			// Imagem e desenho só são examinados com texto curto; as frações só
+			// valem com métricas válidas. O que não foi medido não sai.
+			if an.examinada {
+				attrs = append(attrs, "imagem", an.imagem, "vetorial", an.vetorial)
+			}
 			if needsOcr || an.semOcr {
 				attrs = append(attrs, "motivo", an.motivo.String())
 			}
-			lg.Debug("página analisada", append(attrs, "fracao_imagem", an.metricas.fImg,
-				"fracao_texto", an.metricas.fTxt, "fracao_descoberta", an.metricas.fDesc)...)
+			if an.metricas.valida {
+				attrs = append(attrs, "fracao_imagem", an.metricas.fImg,
+					"fracao_texto", an.metricas.fTxt, "fracao_descoberta", an.metricas.fDesc)
+			}
+			lg.Debug("página analisada", attrs...)
 		}
 
 		if needsOcr && ocrRunner != nil {
@@ -368,6 +376,7 @@ type analisePagina struct {
 	// Só para a linha Debug "página analisada": bytes do texto nativo, as
 	// métricas e os exames de imagem e de desenho (feitos só com texto curto).
 	bytesNativo      int
+	examinada        bool // imagem e vetorial foram examinados
 	imagem, vetorial bool
 	metricas         metricasPagina
 }
@@ -423,7 +432,7 @@ func analisarPagina(page pdf.Page, pageNum int, ocrEnabled bool, lg *slog.Logger
 		hasImages := temImagens(page, lg)
 		hasDrawn := !hasImages && HasDrawnContent(page)
 		lg.Debug("imagens e conteúdo vetorial", "pag", pageNum, "imagens", hasImages, "vetorial", hasDrawn)
-		an.imagem, an.vetorial = hasImages, hasDrawn
+		an.examinada, an.imagem, an.vetorial = true, hasImages, hasDrawn
 		candidata := hasImages || hasDrawn
 		an.precisaOcr = ocrEnabled && candidata
 		an.semOcr = !ocrEnabled && candidata

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"testing"
 
@@ -215,7 +216,7 @@ func TestCategorias_PoucoTextoSemImagem(t *testing.T) {
 			r = nil
 		}
 		p := paginaN(t, parsearCategorias(t, pdfComTexto(texto), ligado, r), 1)
-		if c := categoriaPagina(p); c == CatSemOCR || c == CatComErro || c != CatLidaNativa {
+		if c := categoriaPagina(p); c != CatLidaNativa {
 			t.Errorf("OCR ligado=%t: categoria %q, quero %q", ligado, c, CatLidaNativa)
 		}
 	}
@@ -245,8 +246,8 @@ func TestCategorias_RegrasNovasSemOCR(t *testing.T) {
 	}
 }
 
-// zipCategorias: nativo (2 páginas), escaneado (2), HTML, omitido por tipo e
-// não lido (sem texto), com o OCR trocado por um falso que devolve texto.
+// zipCategorias: nativo (2 páginas), escaneado (2), HTML, omitido por tipo,
+// não lido (sem texto) e uma cópia do nativo (duplicata H7), com o OCR trocado por um falso que devolve texto.
 func zipCategorias(t *testing.T) (string, *models.Config) {
 	t.Helper()
 	isolarTemp(t)
@@ -269,8 +270,11 @@ func zipCategorias(t *testing.T) (string, *models.Config) {
 		{"Evento 3 - EXTR3.pdf", pdfComTexto(textoLongo("Extrato", 200))},
 		{"Evento 4 - DOC4.pdf", pdfComTexto("")},
 		{"Evento 5 - PET5.html", []byte("<html><body><p>Peticao ficticia do evento cinco</p></body></html>")},
+		// Cópia de DOC1: vira duplicata H7 no .txt e mantém a categoria.
+		{"Evento 6 - DOC6.pdf", pdfComTexto(textoLongo("Primeira", 200), textoLongo("Segunda", 200))},
 	})
-	cfg := &models.Config{CleaningLevel: "none", OcrMode: "normal", OmitirTipos: []string{"EXTR"}}
+	// standard: a pré-passada H7 só roda nos níveis padrão e máximo.
+	cfg := &models.Config{CleaningLevel: "standard", OcrMode: "normal", OmitirTipos: []string{"EXTR"}}
 	return zipPath, cfg
 }
 
@@ -283,13 +287,21 @@ func TestCategorias_UmaPorPagina(t *testing.T) {
 		eventos = ev
 		return antigo(ev, nivel)
 	}
-	if _, _, _, _, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfg, nil); err != nil {
+	saida, _, _, _, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfg, nil)
+	if err != nil {
 		t.Fatalf("ProcessZip: %v", err)
+	}
+	txt, err := os.ReadFile(saida)
+	if err != nil {
+		t.Fatalf("ler saída: %v", err)
+	}
+	if !strings.Contains(string(txt), "[documento idêntico a: evento 1, ") {
+		t.Fatalf("DOC6 não saiu como duplicata de DOC1:\n%s", txt)
 	}
 	validas := map[string]bool{CatComErro: true, CatSemOCR: true, CatVazia: true, CatLidaOCR: true, CatLidaNativa: true}
 	quer := map[string]string{
 		"Evento 1 - DOC1.pdf": CatLidaNativa, "Evento 2 - DOC2.pdf": CatLidaOCR, "Evento 5 - PET5.html": CatLidaNativa,
-		"Evento 3 - EXTR3.pdf": "", "Evento 4 - DOC4.pdf": "",
+		"Evento 3 - EXTR3.pdf": "", "Evento 4 - DOC4.pdf": "", "Evento 6 - DOC6.pdf": CatLidaNativa,
 	}
 	vistos := 0
 	for _, ev := range eventos {
@@ -338,9 +350,9 @@ func TestRegistro_PaginaClassificadaSoEmDebug(t *testing.T) {
 	}
 	linhas := linhasJSON(t, buf.String())
 	classificadas := linhasComMsg(linhas, "página classificada")
-	// DOC1 (2) + DOC2 (2) + HTML (1); omitido e não lido ficam fora.
-	if len(classificadas) != 5 {
-		t.Fatalf("página classificada = %d linhas, quero 5:\n%s", len(classificadas), buf.String())
+	// DOC1 (2) + DOC2 (2) + HTML (1) + DOC6 (2); omitido e não lido ficam fora.
+	if len(classificadas) != 7 {
+		t.Fatalf("página classificada = %d linhas, quero 7:\n%s", len(classificadas), buf.String())
 	}
 	comMotivo := 0
 	for _, l := range classificadas {
@@ -369,17 +381,65 @@ func TestRegistro_PaginaClassificadaSoEmDebug(t *testing.T) {
 		t.Errorf("%d linhas com motivo, quero 2", comMotivo)
 	}
 	analisadas := linhasComMsg(linhas, "página analisada")
-	// Só as páginas do PDF lidas pela biblioteca: DOC1 (2), DOC2 (2), DOC4 (1).
-	if len(analisadas) != 5 {
-		t.Errorf("página analisada = %d linhas, quero 5", len(analisadas))
+	// Só as páginas do PDF lidas pela biblioteca: DOC1 (2), DOC2 (2), DOC4 (1), DOC6 (2).
+	if len(analisadas) != 7 {
+		t.Errorf("página analisada = %d linhas, quero 7", len(analisadas))
 	}
+	comFracoes := 0
 	for _, l := range analisadas {
-		for _, campo := range []string{"pag", "bytes_nativo", "imagem", "vetorial", "fracao_imagem", "fracao_texto", "fracao_descoberta"} {
-			if _, ok := l[campo]; !ok {
-				t.Errorf("página analisada sem %s: %v", campo, l)
+		if _, ok := l["pag"]; !ok {
+			t.Errorf("página analisada sem pag: %v", l)
+		}
+		bytesNativo, ok := l["bytes_nativo"].(float64)
+		if !ok {
+			t.Errorf("página analisada sem bytes_nativo: %v", l)
+			continue
+		}
+		// Imagem e desenho só são examinados com texto curto.
+		curto := bytesNativo < 100
+		for _, campo := range []string{"imagem", "vetorial"} {
+			if _, ok := l[campo]; ok != curto {
+				t.Errorf("página analisada com %d bytes: %s presente = %t", int(bytesNativo), campo, ok)
 			}
 		}
+		// As frações saem juntas ou nenhuma (só com métricas válidas).
+		_, fi := l["fracao_imagem"]
+		_, ft := l["fracao_texto"]
+		_, fd := l["fracao_descoberta"]
+		if fi != ft || ft != fd {
+			t.Errorf("frações incompletas: %v", l)
+		}
+		if fi {
+			comFracoes++
+		}
 	}
+	// DOC1, DOC2 e DOC6 têm métricas válidas; DOC4 (texto vazio, vai ao
+	// GetTextByRow) não.
+	if comFracoes != 6 {
+		t.Errorf("%d linhas com frações, quero 6", comFracoes)
+	}
+
+	t.Run("juncao na imagem descoberta", func(t *testing.T) {
+		ps := paginaSinteticaDe(t, "legenda-imagem-direta")
+		zip := gravarZip(t, []entradaZip{{"Evento 1 - DOC1.pdf", buildPDF(ps.objetos)}})
+		ctx, buf := ctxComLogJSON(slog.LevelDebug)
+		if _, _, _, _, err := NewPipeline().ProcessZipComAtividade(ctx, zip, cfg, nil, nil); err != nil {
+			t.Fatalf("ProcessZip: %v", err)
+		}
+		cl := linhasComMsg(linhasJSON(t, buf.String()), "página classificada")
+		if len(cl) != 1 {
+			t.Fatalf("página classificada = %d linhas, quero 1:\n%s", len(cl), buf.String())
+		}
+		if cl[0]["motivo"] != "imagem_descoberta" || cl[0]["categoria"] != CatLidaOCR || cl[0]["juncao"] != true {
+			t.Errorf("linha = %v, quero motivo imagem_descoberta, lida_ocr e juncao", cl[0])
+		}
+		// Nas páginas da regra padrão não há junção.
+		for _, l := range classificadas {
+			if _, ok := l["juncao"]; ok {
+				t.Errorf("juncao fora da imagem descoberta: %v", l)
+			}
+		}
+	})
 
 	zipPath2, cfg2 := zipCategorias(t)
 	ctx, buf = ctxComLogJSON(slog.LevelInfo)
