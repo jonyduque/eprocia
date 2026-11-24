@@ -6,7 +6,6 @@
   import CirclePause from 'lucide-svelte/icons/circle-pause';
   import Copy from 'lucide-svelte/icons/copy';
   import FileArchive from 'lucide-svelte/icons/file-archive';
-  import FilePlusCorner from 'lucide-svelte/icons/file-plus-corner';
   import FolderSearch from 'lucide-svelte/icons/folder-search';
   import FolderX from 'lucide-svelte/icons/folder-x';
   import Minus from 'lucide-svelte/icons/minus';
@@ -274,8 +273,8 @@
   let avisoRapido = null;
   const aviso = criarAviso((a) => { avisoRapido = a; });
 
-  // Pé do painel, fora da área rolável: erros do Settings e da importação
-  // manual. Com o painel recolhido o pé some, e o aviso vai para o flutuante.
+  // Pé do painel, fora da área rolável: erros do Settings e da seleção
+  // de ZIPs. Com o painel recolhido o pé some, e o aviso vai para o flutuante.
   let avisoPe = null;
   const avisoPainel = criarAviso((a) => { avisoPe = a; });
   function avisarPainel(texto, tipo) {
@@ -584,24 +583,9 @@
       <!-- Escondido, não desmontado: o Settings mantém o aviso e a config. -->
       <div class="sidebar-content" class:mais-abaixo={painelMaisAbaixo} use:rolagem={marcarPainel} inert={sidebarCollapsed}>
         <!-- Settings Component -->
+        <!-- Sem seção de importação: os ZIPs se escolhem na fila (vazia) ou
+             pelo atalho da barra recolhida, ou se arrastam para a janela. -->
         <Settings bind:config {erroConfig} {logAtivo} aoFalharSalvar={refreshConfig} avisar={avisarPainel} />
-
-        <!-- Manual Process Card -->
-        <div class="manual-card">
-          <div class="card-header">
-            <Icone icone={FilePlusCorner} tamanho={14} />
-            <h2>Importação Manual</h2>
-          </div>
-
-          <button
-            type="button"
-            class="manual-select-btn"
-            on:click={triggerManualSelect}
-          >
-            <Icone icone={Upload} tamanho={14} />
-            <span>Selecionar arquivos ZIP...</span>
-          </button>
-        </div>
       </div>
 
       <div class="painel-aviso">
@@ -1177,55 +1161,6 @@
     overflow: hidden;
     padding: 8px;
     background-color: transparent;
-  }
-
-  /* Manual process card */
-  /* Seção do painel: divisor de 1px no lugar da moldura de cartão. */
-  /* flex: none: a 600px de altura a área rola em vez de espremer a seção. */
-  .manual-card {
-    flex: none;
-    border-top: 1px solid var(--border);
-    padding-top: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .manual-card .card-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--text-secondary);
-  }
-
-  .manual-card h2 {
-    font-size: var(--fs-section);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-secondary);
-    margin: 0;
-  }
-
-  .manual-select-btn {
-    background-color: var(--bg-main);
-    border: 1px solid var(--border);
-    color: var(--text-primary);
-    font-size: var(--fs-base);
-    font-weight: 600;
-    width: 100%;
-    padding: 10px 8px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    cursor: pointer;
-  }
-
-  .manual-select-btn:hover {
-    border-color: var(--accent);
-    background-color: var(--surface-hover);
   }
 
   .truncate {

@@ -516,7 +516,7 @@
   <div class="list-header" class:rolado={listaRolada}>
     <div class="header-left">
       <Icone icone={List} />
-      <h2 title="Fila de Processamento" tabindex="-1" bind:this={tituloEl}>Fila de Processamento</h2>
+      <h2 title="Fila" tabindex="-1" bind:this={tituloEl}>Fila</h2>
       {#if aviso}
         <span class="queue-chip" title={aviso} transition:fade={{ duration: duracaoMovimento(DUR_FAST) }}>
           <Icone icone={CirclePause} tamanho={12} />
@@ -1234,7 +1234,7 @@
     max-width: 250px;
   }
 
-  /* Mesmo botão da Importação Manual do painel (App.svelte). */
+  /* Botão "Selecionar arquivos ZIP..." da fila vazia. */
   .manual-select-btn {
     background-color: var(--bg-main);
     border: 1px solid var(--border);

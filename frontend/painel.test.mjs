@@ -171,8 +171,7 @@ test('painel é um aside nomeado fora do main; main só na fila', () => {
 
 test('títulos do painel no mesmo nível e divisor com nome curto', () => {
   assert.match(app, /<h2[^>]*>Configurações<\/h2>/);
-  assert.match(app, /<h2[^>]*>Importação Manual<\/h2>/);
-  assert.doesNotMatch(app, /<h3>Importação Manual/);
+  assert.doesNotMatch(app, /Importação Manual/);
   assert.doesNotMatch(settings, /<h2/);
   assert.match(tag(app, 'class="resize-handle"'), /aria-label="Largura do painel"/);
   assert.doesNotMatch(app, /Redimensionador/);

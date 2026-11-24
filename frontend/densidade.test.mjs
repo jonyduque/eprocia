@@ -122,13 +122,13 @@ function rotuloSecao(r, nome) {
   assert.match(r, /color:\s*var\(--text-secondary\)/, nome);
 }
 
-test('Configurações e Importação Manual viram seções com rótulo pequeno', () => {
+test('Configurações vira seção com rótulo pequeno, sem Importação Manual', () => {
   // F-VI-07: "Configurações" vai para a faixa do botão de recolher.
   const ini = app.indexOf('<div class="sidebar-header-toggle">');
   const cab = app.slice(ini, app.indexOf('</div>', app.indexOf('</h2>', ini)));
   assert.match(cab, /<h2[^>]*>Configurações<\/h2>/);
   rotuloSecao(regra(estilo(app), '.painel-titulo h2'), 'Configurações');
-  rotuloSecao(regra(estilo(app), '.manual-card h2'), 'Importação Manual');
+  assert.doesNotMatch(app, /manual-card|Importação Manual/);
 });
 
 test('Configurações em três blocos rotulados: Monitoramento, Processamento, Sistema', () => {
@@ -146,7 +146,6 @@ test('painel com a guia de 12px das barras, 16px entre seções e 12px entre gru
   const conteudo = regra(s, '.sidebar-content');
   assert.equal(px(conteudo, 'padding'), '12px');
   assert.equal(px(conteudo, 'gap'), '16px');
-  assert.equal(px(regra(s, '.manual-card'), 'padding-top'), '16px');
   assert.match(px(regra(s, '.sidebar-header-toggle'), 'padding'), /^\d+px 12px$/);
   const st = estilo(settings);
   assert.equal(px(regra(st, '.settings-card'), 'gap'), '16px');
@@ -161,13 +160,10 @@ test('DESIGN.md: título do painel na faixa de recolher e guia de 12px', () => {
   assert.match(s6, /painel[^.]*12px/i);
 });
 
-test('seções do painel sem moldura de cartão, separadas por divisor de 1px', () => {
+test('seção do painel sem moldura de cartão', () => {
   const cfg = regra(estilo(settings), '.settings-card');
   assert.doesNotMatch(cfg, /box-shadow/);
   assert.doesNotMatch(cfg, /(?:^|[\s;])border:\s*1px/);
-  const manual = regra(estilo(app), '.manual-card');
-  assert.doesNotMatch(manual, /(?:^|[\s;])border:\s*1px/);
-  assert.match(manual, /border-top:\s*1px solid var\(--border\)/);
 });
 
 test('painel sem o cabeçalho "Painel de Controle"', () => {

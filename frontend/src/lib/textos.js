@@ -9,7 +9,7 @@ function plural(n, um, varios) {
 // --- Linha-resumo e avisos do item concluído ---------------------------------
 
 export function textoPaginasSemOCR(n) {
-  return plural(n, '1 página tem imagem e o OCR estava desativado', `${n} páginas têm imagem e o OCR estava desativado`);
+  return plural(n, '1 página tem imagem e o OCR estava desligado', `${n} páginas têm imagem e o OCR estava desligado`);
 }
 
 export function textoPaginasComErro(n) {
@@ -29,8 +29,8 @@ export function textoOCRFalhouComReserva(n) {
 export function textoDocsSemOCR(n) {
   return plural(
     n,
-    '1 documento digitalizado não lido: o OCR estava desativado',
-    `${n} documentos digitalizados não lidos: o OCR estava desativado`
+    '1 documento digitalizado não lido: o OCR estava desligado',
+    `${n} documentos digitalizados não lidos: o OCR estava desligado`
   );
 }
 

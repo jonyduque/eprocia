@@ -122,9 +122,8 @@ test('rótulos do painel com o ícone da configuração em 14px', () => {
     const label = s.slice(i, s.indexOf('</label>', i));
     assert.match(label, new RegExp(`<Icone icone=\\{${ic}\\} tamanho=\\{14\\}`), `${ic} fora do rótulo ${id}`);
   }
-  importa(s, 'Folder', 'folder');
-  const i = s.indexOf('id="rotulo-pasta"');
-  assert.match(s.slice(i, s.indexOf('</span>', s.indexOf('<Salvo', i))), /<Icone icone=\{Folder\} tamanho=\{14\}/);
+  // A pasta monitorada não tem rótulo visível (ajuste do dono, 2026-11-24).
+  assert.doesNotMatch(s, /id="rotulo-pasta"|import Folder from/);
   importa(s, 'ScanText', 'scan-text');
   importa(s, 'Sparkles', 'sparkles');
   assert.match(s.match(/<Segmentado\s+id="ocr-mode"[^>]*>/)[0], /icone=\{ScanText\}/);
@@ -174,7 +173,7 @@ test('botões de texto da linha levam ícone', () => {
 
 test('ícones dos cabeçalhos de seção do App em 14px', () => {
   const m = marcacao(arquivos.App);
-  for (const [classe, titulo] of [['painel-titulo', 'Configurações'], ['card-header', 'Importação Manual']]) {
+  for (const [classe, titulo] of [['painel-titulo', 'Configurações']]) {
     const i = m.indexOf(`class="${classe}"`);
     assert.ok(i >= 0, `${classe} ausente`);
     const bloco = m.slice(i, m.indexOf('</h2>', i));
@@ -189,7 +188,7 @@ test('ícones dos cabeçalhos de seção do App em 14px', () => {
 test('DESIGN.md registra o mapa de configurações', () => {
   const i = design.indexOf('## 4. Ícones');
   const sec = design.slice(i, design.indexOf('\n## ', i + 5));
-  for (const ic of ['FolderSearch', 'Folder`', 'ScanText', 'Sparkles', 'EyeOff', 'Power', 'Search', 'RotateCcw', 'Eye`']) {
+  for (const ic of ['FolderSearch', 'ScanText', 'Sparkles', 'EyeOff', 'Power', 'Search', 'RotateCcw', 'Eye`']) {
     assert.ok(sec.includes(ic), `${ic} fora do DESIGN §4`);
   }
 });

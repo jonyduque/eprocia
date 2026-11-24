@@ -45,8 +45,8 @@ const ZERADO = rel();
 
 describe('textos', () => {
   it('plural e singular das frases de aviso', () => {
-    assert.equal(textoPaginasSemOCR(6), '6 páginas têm imagem e o OCR estava desativado');
-    assert.equal(textoPaginasSemOCR(1), '1 página tem imagem e o OCR estava desativado');
+    assert.equal(textoPaginasSemOCR(6), '6 páginas têm imagem e o OCR estava desligado');
+    assert.equal(textoPaginasSemOCR(1), '1 página tem imagem e o OCR estava desligado');
     assert.equal(textoPaginasComErro(3), '3 páginas não puderam ser lidas');
     assert.equal(textoPaginasComErro(1), '1 página não pôde ser lida');
     assert.equal(textoOCRFalhouComReserva(2), '2 páginas ficaram com o texto do PDF porque o OCR falhou');
@@ -115,7 +115,7 @@ describe('avisosPaginas', () => {
   it('só as três categorias, na ordem', () => {
     const r = rel({ total: 20, lida_nativa: 9, vazia: 2, sem_ocr: 6, com_erro: 3, ocr_falhou_com_reserva: 1 });
     assert.deepEqual(avisosPaginas(r), [
-      { tipo: 'sem_ocr', texto: '6 páginas têm imagem e o OCR estava desativado' },
+      { tipo: 'sem_ocr', texto: '6 páginas têm imagem e o OCR estava desligado' },
       { tipo: 'com_erro', texto: '3 páginas não puderam ser lidas' },
       { tipo: 'ocr_falhou_com_reserva', texto: '1 página ficou com o texto do PDF porque o OCR falhou' }
     ]);
@@ -123,17 +123,17 @@ describe('avisosPaginas', () => {
   it('documento digitalizado não lido por falta de OCR vira o primeiro aviso, com plural certo', () => {
     const um = rel({ total: 4, lida_nativa: 4, de_nao_lidos: 3 }, { documentos: { nao_lidos: 1, por_leitura: { lido: 1, sem_ocr: 1 } } });
     assert.deepEqual(avisosPaginas(um), [
-      { tipo: 'docs_sem_ocr', texto: '1 documento digitalizado não lido: o OCR estava desativado' }
+      { tipo: 'docs_sem_ocr', texto: '1 documento digitalizado não lido: o OCR estava desligado' }
     ]);
     const dois = rel({ total: 6, sem_ocr: 2, lida_nativa: 4 }, { documentos: { nao_lidos: 2, por_leitura: { sem_ocr: 2, senha: 1 } } });
     assert.deepEqual(avisosPaginas(dois).map((a) => a.tipo), ['docs_sem_ocr', 'sem_ocr']);
-    assert.equal(avisosPaginas(dois)[0].texto, '2 documentos digitalizados não lidos: o OCR estava desativado');
+    assert.equal(avisosPaginas(dois)[0].texto, '2 documentos digitalizados não lidos: o OCR estava desligado');
     // Não lido por outro motivo (senha) não gera este aviso.
     assert.deepEqual(avisosPaginas(rel({ total: 1, lida_nativa: 1 }, { documentos: { por_leitura: { senha: 1 } } })), []);
   });
   it('textoDocsSemOCR: singular e plural', () => {
-    assert.equal(textoDocsSemOCR(1), '1 documento digitalizado não lido: o OCR estava desativado');
-    assert.equal(textoDocsSemOCR(3), '3 documentos digitalizados não lidos: o OCR estava desativado');
+    assert.equal(textoDocsSemOCR(1), '1 documento digitalizado não lido: o OCR estava desligado');
+    assert.equal(textoDocsSemOCR(3), '3 documentos digitalizados não lidos: o OCR estava desligado');
   });
 });
 
@@ -294,7 +294,7 @@ describe('convenções dos componentes', () => {
   });
   it('textos novos vêm de textos.js, não de literais nos .svelte', () => {
     for (const f of [lista, painel]) {
-      assert.doesNotMatch(f, /OCR estava desativado/);
+      assert.doesNotMatch(f, /OCR estava desligado/);
       assert.doesNotMatch(f, /não puderam ser lidas/);
       assert.doesNotMatch(f, /Ler com OCR/);
     }

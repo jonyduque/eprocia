@@ -207,10 +207,8 @@ test('barra de progresso sólida em --processing', () => {
   assert.doesNotMatch(r, /gradient|box-shadow/);
 });
 
-test('seção manual sem fundo próprio e barras do app opacas', () => {
+test('barras do app opacas', () => {
   const s = estilo(app);
-  // F-VI-10: a seção fica sobre a superfície do painel, separada por divisor.
-  assert.doesNotMatch(regra(s, '.manual-card'), /background|box-shadow|gradient/);
   for (const sel of ['.custom-titlebar', '.sidebar', 'footer']) {
     assert.match(regra(s, sel), /background-color:\s*var\(--surface\)/, sel);
   }

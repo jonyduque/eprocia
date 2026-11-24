@@ -150,8 +150,5 @@ test('seções do painel não encolhem: a rolagem fica na área do painel', () =
   const cfg = regra(estilo(settings), '.settings-card');
   assert.match(cfg, /flex:\s*none/, 'Configurações encolhe e corta os controles a 600px de altura');
   assert.doesNotMatch(cfg, /overflow:\s*hidden/);
-  const manual = regra(estilo(app), '.manual-card');
-  assert.match(manual, /flex:\s*none/, 'Importação Manual encolhe');
-  assert.doesNotMatch(manual, /overflow:\s*hidden/);
   assert.match(regra(estilo(app), '.sidebar-content'), /overflow-y:\s*auto/);
 });

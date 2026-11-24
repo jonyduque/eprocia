@@ -1,11 +1,8 @@
 <script>
   import Icone from './Icone.svelte';
-  import CirclePause from 'lucide-svelte/icons/circle-pause';
   import EyeOff from 'lucide-svelte/icons/eye-off';
-  import Folder from 'lucide-svelte/icons/folder';
   import FolderOpen from 'lucide-svelte/icons/folder-open';
   import FolderSearch from 'lucide-svelte/icons/folder-search';
-  import FolderX from 'lucide-svelte/icons/folder-x';
   import LoaderCircle from 'lucide-svelte/icons/loader-circle';
   import Power from 'lucide-svelte/icons/power';
   import ScanEye from 'lucide-svelte/icons/scan-eye';
@@ -17,7 +14,7 @@
   import { criarAnunciador } from '../lib/regiaoViva.js';
   import { criarConfirmacao } from '../lib/aviso.js';
   import { OPCOES_OCR, OPCOES_LIMPEZA, descricaoOpcao } from '../lib/atividade.js';
-  import { ROTULO_MONITORAMENTO, estadoMonitoramento, reticenciasMeio } from '../lib/monitoramento.js';
+  import { estadoMonitoramento, reticenciasMeio } from '../lib/monitoramento.js';
   import { itensLog } from '../lib/log.js';
   import {
     AJUDA_FORCAR_OCR_CONFIG,
@@ -83,7 +80,7 @@
   }
   $: loading = !config;
 
-  const ICONE_MONITORAMENTO = { monitorando: FolderSearch, pausado: CirclePause, sem_pasta: FolderX };
+  // O estado (Monitorando/Pausado) aparece só no rodapé (App), não aqui.
   $: estado = estadoMonitoramento(config);
   $: semPasta = estado === 'sem_pasta';
 
@@ -182,40 +179,32 @@
             <span class="slider" aria-hidden="true"></span>
           </label>
         </div>
-        <p class="help-text estado-monitor" class:pausado={estado === 'pausado'}>
-          <Icone icone={ICONE_MONITORAMENTO[estado]} tamanho={12} />
-          <span>{ROTULO_MONITORAMENTO[estado]}</span>
-        </p>
         {#if semPasta}
           <p class="help-text" id="ajuda-monitoramento">Escolha uma pasta para monitorar</p>
         {/if}
       </div>
 
-      <div class="form-group">
-        <span class="rotulo-campo" id="rotulo-pasta">
-          <span class="icone-rotulo"><Icone icone={Folder} tamanho={14} /></span>
-          Pasta monitorada
-          <Salvo campo="pasta" {confirmado} />
-        </span>
-        <div class="path-input-group">
-          {#if semPasta}
-            <span id="monitored-path" class="caminho vazio">Nenhuma pasta escolhida</span>
-            <button type="button" class="btn-primary btn-icone-texto" on:click={handleSelectDirectory}>
-              <Icone icone={FolderOpen} tamanho={12} />
-              Escolher pasta...
-            </button>
-          {:else}
-            <span id="monitored-path" class="caminho" title={config.monitored_path} use:reticenciasMeio={config.monitored_path}></span>
-            <button
-              type="button"
-              class="btn-primary"
-              aria-describedby="rotulo-pasta monitored-path"
-              on:click={handleSelectDirectory}
-            >
-              Alterar
-            </button>
-          {/if}
-        </div>
+      <!-- Sem rótulo visível: o nome do grupo e do botão vem do aria-label. -->
+      <div class="path-input-group" role="group" aria-label="Pasta monitorada">
+        {#if semPasta}
+          <span id="monitored-path" class="caminho vazio">Nenhuma pasta escolhida</span>
+          <button type="button" class="btn-primary btn-icone-texto" on:click={handleSelectDirectory}>
+            <Icone icone={FolderOpen} tamanho={12} />
+            Escolher pasta...
+          </button>
+        {:else}
+          <span id="monitored-path" class="caminho" title={config.monitored_path} use:reticenciasMeio={config.monitored_path}></span>
+          <button
+            type="button"
+            class="btn-primary"
+            aria-label="Alterar pasta monitorada"
+            aria-describedby="monitored-path"
+            on:click={handleSelectDirectory}
+          >
+            Alterar
+          </button>
+        {/if}
+        <Salvo campo="pasta" {confirmado} />
       </div>
     </div>
 
@@ -396,16 +385,6 @@
     display: inline-flex;
     flex-shrink: 0;
     color: var(--text-secondary);
-  }
-
-  .estado-monitor {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .estado-monitor.pausado {
-    color: var(--warning-strong);
   }
 
   .toggle-group label:not(.switch) {
