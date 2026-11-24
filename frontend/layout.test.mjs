@@ -104,7 +104,10 @@ test('chip da fila pausada encolhe antes do título', () => {
   const chip = regra(css, '.queue-chip');
   assert.match(chip, /flex:\s*1 1 0(px)?\s*;/);
   assert.match(chip, /max-width:\s*max-content/);
-  assert.match(chip, /min-width:\s*0/);
+  // O mínimo é o ícone inteiro (movimento.test.mjs); o texto some antes.
+  assert.match(regra(css, '.queue-chip-text'), /min-width:\s*0/);
+  // Texto inteiro sempre acessível: no title e no DOM, mesmo cortado na tela.
+  assert.match(lista, /<span class="queue-chip" title=\{aviso\}[^>]*>[\s\S]*?<span class="queue-chip-text">\{aviso\}<\/span>/);
   const h2 = regra(css, '.header-left h2');
   assert.match(h2, /flex:\s*0 1 auto/);
 });

@@ -1019,7 +1019,9 @@
        título (flex: 0 1 auto) só encolhe com o chip já no mínimo. */
     flex: 1 1 0;
     max-width: max-content;
-    min-width: 0;
+    /* No mínimo, o ícone inteiro (12px + padding + borda): nunca um toco com o
+       ícone cortado; o texto some antes (título e DOM guardam o texto inteiro). */
+    min-width: calc(12px + 16px + 2px);
     flex-shrink: 10;
     overflow: hidden;
   }
@@ -1029,6 +1031,7 @@
   }
 
   .queue-chip-text {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
   }

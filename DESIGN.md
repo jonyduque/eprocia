@@ -103,7 +103,7 @@ Divisor entre painel e fila: de `280px` até `480px`, limitado também à largur
 
 Largura e estado recolhido do painel são salvos em `localStorage['eprocia.sidebar']` (`{largura, recolhido}`, `frontend/src/lib/painel.js`) ao recolher/expandir e ao terminar de arrastar, e lidos antes da montagem com o limite da janela aplicado. Armazenamento bloqueado só faz o painel voltar ao padrão (`320px`, expandido).
 
-Fila pausada: pausar só impede o próximo item de começar. O item em curso mantém o spinner, a barra e o "1 ativo" da barra de título; os pendentes trocam o relógio por pausa (`--warning`); um chip na linha do cabeçalho da lista, ao lado do título, diz "Fila pausada: termina o item atual" (ou só "Fila pausada"); ele encolhe antes do título e não empurra a lista. O estado visual de cada linha vem de `estadoItem(status, isPaused)` em `frontend/src/lib/estado.js`.
+Fila pausada: pausar só impede o próximo item de começar. O item em curso mantém o spinner, a barra e o "1 ativo" da barra de título; os pendentes trocam o relógio por pausa (`--warning`); um chip na linha do cabeçalho da lista, ao lado do título, diz "Fila pausada: termina o item atual" (ou só "Fila pausada"); ele encolhe antes do título, até ficar só com o ícone inteiro (nunca menos; o texto completo segue no `title`), e não empurra a lista. O estado visual de cada linha vem de `estadoItem(status, isPaused)` em `frontend/src/lib/estado.js`.
 
 ### 5.2 Drag & Drop Zone
 - Uma área sutil no topo ou o fundo da própria lista.
