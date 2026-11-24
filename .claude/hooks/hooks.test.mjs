@@ -111,6 +111,22 @@ describe('proteger-dados', () => {
     it('cd relativo ao cwd', () => assert.equal(dirDe('cd sub; git add -u', { cwd: 'D:\\wt' }), path.resolve('D:/wt/sub')));
     it('segue git -C', () => assert.equal(dirDe('git -C sub commit -a -m x', { cwd: 'D:\\wt' }), path.resolve('D:/wt/sub')));
     it('sem cwd usa a raiz do harness', () => assert.equal(dirDe('git add -A'), path.resolve(RAIZ)));
+    // Rodada 1 da revisão.
+    it('cd dentro de subshell não vale fora dela', () => assert.equal(dirDe('(cd sub) && git add .', { cwd: 'D:\\wt' }), path.resolve('D:/wt')));
+    it('cd dentro de subshell vale dentro dela', () => assert.equal(dirDe('(cd sub && git add .)', { cwd: 'D:\\wt' }), path.resolve('D:/wt/sub')));
+    it('subshells irmãs não herdam o cd', () => assert.equal(dirDe('(cd sub) && (git add .)', { cwd: 'D:\\wt' }), path.resolve('D:/wt')));
+    it('cd pula -- e -L/-P', () => assert.equal(dirDe('cd -P -- sub && git add .', { cwd: 'D:\\wt' }), path.resolve('D:/wt/sub')));
+    it('cd sem argumento volta ao cwd do evento', () => assert.equal(dirDe('cd sub; cd; git add .', { cwd: 'D:\\wt' }), path.resolve('D:/wt')));
+    it('cd - volta ao cwd do evento', () => assert.equal(dirDe('cd sub; cd -; git add .', { cwd: 'D:\\wt' }), path.resolve('D:/wt')));
+    it('pushd é como cd', () => assert.equal(dirDe('pushd sub && git add .', { cwd: 'D:\\wt' }), path.resolve('D:/wt/sub')));
+    it('popd desfaz pushd', () => assert.equal(dirDe('pushd sub && popd && git add .', { cwd: 'D:\\wt' }), path.resolve('D:/wt')));
+    it('bench dentro da checkout listada', () => {
+      const listar = () => Object.assign(['corpus/proc.json'], { raiz: 'D:\\wt' });
+      const r = dados.avaliar({ ...bash('git add -A'), cwd: 'D:\\wt' }, { benchDir: 'D:\\wt\\corpus', listar });
+      assert.equal(r.codigo, 2);
+      assert.equal(dados.arquivoSensivel('corpus/proc.json', 'D:/wt/corpus', 'D:/wt'), true);
+      assert.equal(dados.arquivoSensivel('outro/proc.json', 'D:/wt/corpus', 'D:/wt'), false);
+    });
     it('lista de verdade um repositório separado', () => {
       const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'eprocia-hook-'));
       try {
@@ -127,6 +143,14 @@ describe('proteger-dados', () => {
         const sub = dados.avaliar({ ...bash('git add docs'), cwd: path.join(repo, 'internal') }, { benchDir: '' });
         assert.equal(sub.codigo, 2);
         assert.match(sub.stderr, /internal\/docs\/x\.txt/);
+        // EPROCIA_BENCH_DIR dentro da checkout listada também casa (rodada 1, item 4).
+        fs.rmSync(path.join(repo, 'saida_antes'), { recursive: true });
+        fs.rmSync(path.join(repo, 'internal'), { recursive: true });
+        fs.mkdirSync(path.join(repo, 'corpus'));
+        fs.writeFileSync(path.join(repo, 'corpus', 'proc.json'), '{}\n');
+        const b = dados.avaliar({ ...bash('git add -A'), cwd: repo }, { benchDir: path.join(repo, 'corpus') });
+        assert.equal(b.codigo, 2);
+        assert.match(b.stderr, /corpus\/proc\.json/);
       } finally {
         fs.rmSync(repo, { recursive: true, force: true });
       }
