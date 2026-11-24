@@ -181,7 +181,7 @@ test('ajudas ligadas aos campos e interruptores com role=switch', () => {
   for (const [campo, ajuda] of [['ocr-mode', 'ajuda-ocr'], ['cleaning-level', 'ajuda-limpeza'], ['omitir-tipos', 'ajuda-omitir']]) {
     // No Segmentado, idAjuda vira o aria-describedby do fieldset.
     assert.match(tag(settings, `id="${campo}"`), new RegExp(`(aria-describedby|idAjuda)="${ajuda}"`), campo);
-    assert.match(settings, new RegExp(`<p class="help-text" id="${ajuda}">`), ajuda);
+    assert.match(settings, new RegExp(`<p class="help-text[^"]*" id="${ajuda}">`), ajuda);
   }
   for (const id of ['watchdog-toggle', 'autostart-toggle']) {
     assert.match(tag(settings, `id="${id}"`), /role="switch"/, id);

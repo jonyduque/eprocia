@@ -224,7 +224,7 @@
         >
           <svelte:fragment slot="legenda"><Salvo campo="ocr" {confirmado} /></svelte:fragment>
         </Segmentado>
-        <p class="help-text" id="ajuda-ocr">{descricaoOpcao(OPCOES_OCR, previaOcr ?? config.ocr_mode)}</p>
+        <p class="help-text ajuda-pilha" id="ajuda-ocr"><span>{descricaoOpcao(OPCOES_OCR, previaOcr ?? config.ocr_mode)}</span>{#each OPCOES_OCR as o (o.valor)}<span class="reserva" aria-hidden="true">{o.descricao}</span>{/each}</p>
       </div>
 
       <!-- Com o OCR desligado o interruptor fica desabilitado e o valor salvo não
@@ -265,7 +265,7 @@
         >
           <svelte:fragment slot="legenda"><Salvo campo="limpeza" {confirmado} /></svelte:fragment>
         </Segmentado>
-        <p class="help-text" id="ajuda-limpeza">{descricaoOpcao(OPCOES_LIMPEZA, previaLimpeza ?? config.cleaning_level)}</p>
+        <p class="help-text ajuda-pilha" id="ajuda-limpeza"><span>{descricaoOpcao(OPCOES_LIMPEZA, previaLimpeza ?? config.cleaning_level)}</span>{#each OPCOES_LIMPEZA as o (o.valor)}<span class="reserva" aria-hidden="true">{o.descricao}</span>{/each}</p>
       </div>
 
       <div class="form-group">
@@ -405,6 +405,23 @@
     font-size: var(--fs-meta);
     color: var(--text-secondary);
     margin: 0;
+  }
+
+  /* Ajuda de um segmentado: a descrição ativa e, por baixo, todas as outras
+     na mesma célula, invisíveis. A célula fica com a altura da mais longa, e o
+     hover (que troca a descrição) não muda a altura do painel: com a rolagem
+     no fim, a mudança movia o controle para fora do ponteiro e o hover
+     alternava sem parar. */
+  .ajuda-pilha {
+    display: grid;
+  }
+
+  .ajuda-pilha > span {
+    grid-area: 1 / 1;
+  }
+
+  .reserva {
+    visibility: hidden;
   }
 
   .path-input-group {
