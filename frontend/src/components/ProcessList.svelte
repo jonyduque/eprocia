@@ -1015,6 +1015,10 @@
     background-color: var(--warning-soft);
     border: 1px solid var(--warning-line);
     white-space: nowrap;
+    /* Base 0 e crescimento até o próprio texto: o chip só ocupa a sobra, e o
+       título (flex: 0 1 auto) só encolhe com o chip já no mínimo. */
+    flex: 1 1 0;
+    max-width: max-content;
     min-width: 0;
     flex-shrink: 10;
     overflow: hidden;
@@ -1030,6 +1034,7 @@
   }
 
   .header-left h2 {
+    flex: 0 1 auto;
     font-size: var(--fs-title);
     font-weight: 600;
     margin: 0;

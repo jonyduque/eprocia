@@ -96,6 +96,19 @@ test('título da fila trunca em uma linha', () => {
   assert.match(regra(css, '.header-actions'), /flex-shrink:\s*0/);
 });
 
+// DESIGN.md §5.1: o chip "Fila pausada" encolhe antes do título. Com base 0 e
+// crescimento até o próprio texto, o chip só ocupa o que sobra; o título fica
+// com a largura do texto e só encolhe quando o chip já está no mínimo.
+test('chip da fila pausada encolhe antes do título', () => {
+  const css = estilo(lista);
+  const chip = regra(css, '.queue-chip');
+  assert.match(chip, /flex:\s*1 1 0(px)?\s*;/);
+  assert.match(chip, /max-width:\s*max-content/);
+  assert.match(chip, /min-width:\s*0/);
+  const h2 = regra(css, '.header-left h2');
+  assert.match(h2, /flex:\s*0 1 auto/);
+});
+
 test('campo Filtrar não cresce no foco', () => {
   const css = estilo(lista);
   const campo = regra(css, '.search-input');

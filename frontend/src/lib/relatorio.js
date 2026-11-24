@@ -5,6 +5,7 @@ import {
   textoPaginasSemOCR,
   textoPaginasComErro,
   textoOCRFalhouComReserva,
+  textoDocsSemOCR,
   textoTotalPaginas,
   textoListaPaginas,
   PARTE_TEXTO_PDF,
@@ -36,10 +37,14 @@ const AVISOS = [
   ['ocr_falhou_com_reserva', textoOCRFalhouComReserva]
 ];
 
+// O documento digitalizado não lido por falta de OCR vem primeiro: as páginas
+// dele contam em de_nao_lidos e não gerariam aviso nenhum.
 export function avisosPaginas(rel) {
   const p = rel?.paginas;
   if (!p) return [];
-  return AVISOS.filter(([k]) => num(p[k]) > 0).map(([tipo, f]) => ({ tipo, texto: f(num(p[tipo])) }));
+  const docs = num(rel?.documentos?.por_leitura?.sem_ocr);
+  const deDocs = docs > 0 ? [{ tipo: 'docs_sem_ocr', texto: textoDocsSemOCR(docs) }] : [];
+  return deDocs.concat(AVISOS.filter(([k]) => num(p[k]) > 0).map(([tipo, f]) => ({ tipo, texto: f(num(p[tipo])) })));
 }
 
 // Página candidata que ficou sem OCR, ou documento inteiro não lido por isso

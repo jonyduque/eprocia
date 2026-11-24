@@ -24,6 +24,16 @@ export function textoOCRFalhouComReserva(n) {
   );
 }
 
+// Documento inteiro não lido porque era digitalizado e o OCR estava desligado
+// (Leitura sem_ocr): as páginas dele não entram nos avisos de página.
+export function textoDocsSemOCR(n) {
+  return plural(
+    n,
+    '1 documento digitalizado não lido: o OCR estava desativado',
+    `${n} documentos digitalizados não lidos: o OCR estava desativado`
+  );
+}
+
 export function textoTotalPaginas(n) {
   return plural(n, '1 página', `${n} páginas`);
 }

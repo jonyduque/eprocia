@@ -18,6 +18,7 @@ import {
   textoPaginasComErro,
   textoOCRFalhouComReserva,
   textoListaPaginas,
+  textoDocsSemOCR,
   EXPLICACAO_OCR,
   ROTULO_LER_COM_OCR
 } from './src/lib/textos.js';
@@ -104,6 +105,21 @@ describe('avisosPaginas', () => {
       { tipo: 'com_erro', texto: '3 páginas não puderam ser lidas' },
       { tipo: 'ocr_falhou_com_reserva', texto: '1 página ficou com o texto do PDF porque o OCR falhou' }
     ]);
+  });
+  it('documento digitalizado não lido por falta de OCR vira o primeiro aviso, com plural certo', () => {
+    const um = rel({ total: 4, lida_nativa: 4, de_nao_lidos: 3 }, { documentos: { nao_lidos: 1, por_leitura: { lido: 1, sem_ocr: 1 } } });
+    assert.deepEqual(avisosPaginas(um), [
+      { tipo: 'docs_sem_ocr', texto: '1 documento digitalizado não lido: o OCR estava desativado' }
+    ]);
+    const dois = rel({ total: 6, sem_ocr: 2, lida_nativa: 4 }, { documentos: { nao_lidos: 2, por_leitura: { sem_ocr: 2, senha: 1 } } });
+    assert.deepEqual(avisosPaginas(dois).map((a) => a.tipo), ['docs_sem_ocr', 'sem_ocr']);
+    assert.equal(avisosPaginas(dois)[0].texto, '2 documentos digitalizados não lidos: o OCR estava desativado');
+    // Não lido por outro motivo (senha) não gera este aviso.
+    assert.deepEqual(avisosPaginas(rel({ total: 1, lida_nativa: 1 }, { documentos: { por_leitura: { senha: 1 } } })), []);
+  });
+  it('textoDocsSemOCR: singular e plural', () => {
+    assert.equal(textoDocsSemOCR(1), '1 documento digitalizado não lido: o OCR estava desativado');
+    assert.equal(textoDocsSemOCR(3), '3 documentos digitalizados não lidos: o OCR estava desativado');
   });
 });
 
@@ -238,6 +254,11 @@ describe('convenções dos componentes', () => {
     assert.match(css, /\.painel-relatorio\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*max-content minmax\(0, 1fr\)/);
     assert.match(css, /section\s*\{[^}]*grid-column:\s*1 \/ -1[^}]*grid-template-columns:\s*subgrid/);
     assert.match(css, /\.grade\s*\{[^}]*grid-column:\s*1 \/ -1[^}]*grid-template-columns:\s*subgrid/);
+  });
+  it('painel de detalhes: uma só regra .painel-relatorio no @container estreito', () => {
+    const css = painel.slice(painel.indexOf('<style>'));
+    const bloco = css.slice(css.indexOf('@container (max-width: 420px)'));
+    assert.equal((bloco.match(/\.painel-relatorio\s*\{/g) ?? []).length, 1);
   });
   it('painel de detalhes: subtítulos com um só estilo (h3, peso 600)', () => {
     const css = painel.slice(painel.indexOf('<style>'));

@@ -211,9 +211,6 @@
   @container (max-width: 420px) {
     .painel-relatorio {
       margin-left: 0;
-    }
-
-    .painel-relatorio {
       grid-template-columns: minmax(0, 1fr);
     }
 
