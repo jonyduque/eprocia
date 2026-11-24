@@ -13,11 +13,13 @@ Valem para todo implementador e revisor de `docs/superpowers/plans/2026-11-24-re
 
 - Mudou a assinatura de um método exportado de `App` (ou acrescentou um)? Rode `wails generate module` na raiz da worktree e inclua no commit só os arquivos de `frontend/src/wailsjs/go/main/` (`App.js`, `App.d.ts`) e `frontend/src/wailsjs/go/models.ts` que mudaram de fato. Nunca edite esses arquivos à mão (o hook `proteger-gerados` bloqueia).
 - Se o `wails generate module` falhar com `package "bytes" without types was imported`, rode uma vez `pwsh scripts/build/recompilar-wails.ps1` e tente de novo. Se continuar falhando, responda `BLOCKED`.
-- O gerador costuma reescrever arquivos só com diferença de fim de linha (CRLF). Antes do commit, `git diff --ignore-cr-at-eol --stat` mostra o que mudou de verdade; reverta (`git checkout -- <arquivo>`) o que for só ruído.
+- O `wails generate module` e o `wails build` do gate costumam reescrever arquivos só com diferença de fim de linha (CRLF): `frontend/src/wailsjs/**`, `go.mod`, `frontend/package.json.md5`. Antes do commit, `git diff --ignore-cr-at-eol --stat` mostra o que mudou de verdade; reverta (`git checkout -- <arquivo>`) o que for só ruído.
 
 ## TDD
 
 Teste primeiro: escreva o teste, rode e veja falhar pelo motivo certo (não por erro de compilação de outra coisa), implemente o mínimo, rode e veja passar. Quando o teste novo depende de um símbolo que ainda não existe, crie primeiro o esqueleto (assinatura com corpo vazio ou `panic("falta")`) para a falha ser de asserção e não de compilação.
+
+Exceção: teste que o plano marca como **guarda de regressão** fixa um comportamento que já existe e passa antes da mudança. Nesse caso, quebre a produção de propósito numa cópia local (sem commit), veja o teste falhar, desfaça e registre no relatório qual quebra ele pegou.
 
 ## Gate
 
@@ -28,6 +30,7 @@ Rode na raiz da worktree, com a saída em arquivo no scratchpad (leia só o trec
 - Formato: o checkout usa `core.autocrlf=true`, então `gofmt -l` na cópia de trabalho lista tudo. Para conferir o que você escreveu, rode `gofmt -l` numa cópia com LF ou confie no hook `go-check`.
 - Frontend (tarefa que mexe em `frontend/`): `node --test frontend/*.test.mjs` (Git Bash), `npx svelte-check` e `npm run build` em `frontend`.
 - Harness (tarefa que mexe em `.claude/` ou `scripts/visual/`): `node --test .claude/hooks/hooks.test.mjs .claude/statusline.test.mjs .claude/workflows/workflows.test.mjs scripts/visual/estados.test.mjs`.
+- O `gate.ps1` recusa o build se o `build\bin\eprocia.exe` da própria worktree estiver aberto, e você não pode matá-lo se não foi você quem o abriu. Nesse caso rode `pwsh scripts/build/gate.ps1 -SemBuild`, registre no relatório que build e smoke ficaram sem verificar e responda `DONE_WITH_CONCERNS`.
 - Com outros agentes rodando, a suíte pode estourar tempo: rode de novo só os pacotes ou arquivos que falharam, com `-p 1` (Go) ou `--test-concurrency=1` (node). Falha que persiste com a máquina ociosa é falha.
 - Binário de teste como executável falso (`internal/ocr`): todo teste que copia `os.Args[0]` define `EPROCIA_TESTE_FILHO=1` junto do modo, e o modo existe no `TestMain` antes de o teste rodar. Sem isso o filho roda a suíte inteira e se copia de novo, em cascata.
 
@@ -35,7 +38,8 @@ Rode na raiz da worktree, com a saída em arquivo no scratchpad (leia só o trec
 
 - Nunca defina `EPROCIA_LOG` fora de um teste (`setx`, perfil do shell, variável do processo do agente). Nos testes, use `t.Setenv` ou passe o valor por parâmetro.
 - Nenhum teste grava em `%AppData%\eprocIA` de verdade: a pasta de dados é sempre parâmetro, e o teste passa `t.TempDir()`.
-- Teste que troca `slog.Default()` ou `log.SetOutput` restaura o valor anterior com `t.Cleanup`, e não roda com `t.Parallel()`.
+- Teste que troca `slog.Default()` ou o pacote `log` guarda, antes de mexer, `slog.Default()`, `log.Writer()` e `log.Flags()`, e restaura os três no `t.Cleanup` (`slog.SetDefault`, depois `log.SetOutput` e `log.SetFlags`, nessa ordem). Motivo: `slog.SetDefault` redireciona o pacote `log` (`SetOutput` e `SetFlags(0)`), e voltar ao logger antigo com `SetDefault` não desfaz isso; sem restaurar, o teste seguinte escreve num manipulador encerrado. Esses testes não rodam com `t.Parallel()`.
+- Teste que liga o registro chama `registro.ResetarParaTeste()` no `t.Cleanup` (depois de restaurar o `log`).
 
 ## Commit
 
@@ -47,7 +51,7 @@ Claude-Session: https://claude.ai/code/session_01YKHKdzvxGBDhYx5JAnxJoZ
 ```
 
 - `git add` só com os caminhos explícitos da tarefa. Nunca `git add -A`, `git add .` nem `git commit -a`.
-- Nunca inclua `zz_*_test.go`, `.genkit/`, `*.zip`, `*.pdf` (fora de `scripts/bench/fixtures/`), `.txt` de saída, `*.log` nem `*.jsonl`. `README.md` só entra na Task 16.
+- Nunca inclua `zz_*_test.go`, `.genkit/`, `*.zip`, `*.pdf` (fora de `scripts/bench/fixtures/`), `.txt` de saída, `*.log` nem `*.jsonl`. `README.md` só entra na Task 20.
 - Crie o arquivo da mensagem com a ferramenta Write no scratchpad e use `git commit -F <caminho>`: heredoc e `$(...)` são recusados em worktree isolada.
 
 ## Proibido
