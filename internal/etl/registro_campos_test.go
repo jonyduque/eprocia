@@ -6,12 +6,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
+	"eprocia/internal/models"
 	"eprocia/internal/ocr"
 	"eprocia/internal/registro"
 )
@@ -268,4 +272,91 @@ func TestRegistro_FalhaDeOCRLevaStderrNoWarn(t *testing.T) {
 	if linhas[0]["stderr"] != "STDERR-SINTETICO" || linhas[0]["codigo_saida"] != 1.0 {
 		t.Errorf("linha Warn sem stderr/código: %v", linhas[0])
 	}
+}
+
+// Documento omitido por tipo: leitura "omitido", o tipo no atributo omitido e
+// sem leitor (o arquivo nem é aberto).
+func TestRegistro_DocumentoOmitido(t *testing.T) {
+	isolarTemp(t)
+	zipPath := gravarZipComo(t, "5000000-00.2026.8.26.0001.zip", []entradaZip{
+		{"Evento 1 - EXTR1.pdf", pdfComTexto("Extrato ficticio")},
+		{"Evento 2 - DOC1.pdf", pdfComTexto("Texto ficticio de FULANO DE TAL")},
+	})
+	cfg := cfgSemOCR()
+	cfg.OmitirTipos = []string{"EXTR"}
+	ctx, buf := ctxComLogJSON(slog.LevelInfo)
+	if _, _, _, _, err := NewPipeline().ProcessZipComAtividade(ctx, zipPath, cfg, nil, nil); err != nil {
+		t.Fatalf("ProcessZip: %v", err)
+	}
+	achou := false
+	for _, d := range linhasComMsg(linhasJSON(t, buf.String()), "documento concluído") {
+		if d["doc"] != "Evento 1 - EXTR1.pdf" {
+			if d["leitor"] != "biblioteca" {
+				t.Errorf("documento lido sem leitor: %v", d)
+			}
+			continue
+		}
+		achou = true
+		if d["leitura"] != "omitido" || d["omitido"] != "EXTR" {
+			t.Errorf("omitido: leitura/omitido = %v/%v", d["leitura"], d["omitido"])
+		}
+		if _, ok := d["leitor"]; ok {
+			t.Errorf("omitido com leitor: %v", d)
+		}
+	}
+	if !achou {
+		t.Fatalf("sem linha do omitido:\n%s", buf.String())
+	}
+}
+
+// O pânico no processador da fila vai em ERROR com pilha e item_id. Sem
+// t.Parallel: troca slog.Default().
+func TestRegistro_PanicDaFilaComPilha(t *testing.T) {
+	padrao, saida, flags := slog.Default(), log.Writer(), log.Flags()
+	t.Cleanup(func() {
+		slog.SetDefault(padrao)
+		log.SetOutput(saida)
+		log.SetFlags(flags)
+	})
+	var mu sync.Mutex
+	var buf bytes.Buffer
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&escritorTravado{mu: &mu, w: &buf}, nil)))
+
+	q, _ := novaFilaGravada(t, func(context.Context, string, *models.Config, func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+		panic("panic sintetico da fila")
+	})
+	q.AddFiles([]string{"5000000-00.2026.8.26.0001.zip"})
+	esperarFim(t, q, "5000000-00.2026.8.26.0001.zip")
+	id := q.GetItems()[0].ID
+
+	mu.Lock()
+	out := buf.String()
+	mu.Unlock()
+	achou := false
+	for _, l := range linhasJSON(t, out) {
+		if l["level"] != "ERROR" {
+			continue
+		}
+		achou = true
+		if p, _ := l["pilha"].(string); strings.TrimSpace(p) == "" {
+			t.Errorf("linha ERROR sem pilha: %v", l)
+		}
+		if l["item_id"] != id {
+			t.Errorf("item_id = %v, quero %s", l["item_id"], id)
+		}
+	}
+	if !achou {
+		t.Fatalf("sem linha ERROR do pânico da fila:\n%s", out)
+	}
+}
+
+type escritorTravado struct {
+	mu *sync.Mutex
+	w  io.Writer
+}
+
+func (e *escritorTravado) Write(p []byte) (int, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.w.Write(p)
 }

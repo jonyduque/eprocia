@@ -594,7 +594,13 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 				encerrado = true
 				attrs := []any{"doc", f.DocName, "evento", f.EventNum, "extensao", f.Extension,
 					"bytes", int64(f.ZipFileRef.UncompressedSize64), "paginas", contagens[i]}
-				if f.Extension == ".pdf" {
+				leitura := string(leituraDoc)
+				switch {
+				case omitidos[i]:
+					// Omitido por tipo: o arquivo nem é aberto, não há leitor.
+					leitura = "omitido"
+					attrs = append(attrs, "omitido", tiposOmitidos[i])
+				case f.Extension == ".pdf":
 					leitor := "biblioteca"
 					if viaPoppler[i] {
 						leitor = "poppler"
@@ -605,7 +611,7 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 				if msgErro != "" {
 					estado = DocErro
 				}
-				attrs = append(attrs, "estado", estado, "leitura", string(leituraDoc), "detalhe", detalheDoc,
+				attrs = append(attrs, "estado", estado, "leitura", leitura, "detalhe", detalheDoc,
 					"duracao_ms", time.Since(inicioDoc).Milliseconds())
 				lgDoc.Info("documento concluído", append(attrs, atributosErro(errDoc)...)...)
 				if falta := contagens[i] - int(feitas.Load()); falta > 0 {
