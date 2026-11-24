@@ -110,6 +110,28 @@ func TestSanear_PerfilSeguidoDePontuacao(t *testing.T) {
 	}
 }
 
+// O segmento de <usuario> termina no primeiro terminador, não no último da
+// linha; e um perfil seguido de '.' ou espaço que continua o segmento até um
+// separador é outro usuário (fulano.bak, Fulano de Tal), não o perfil.
+func TestSanear_SemGulaNemPerfilParcial(t *testing.T) {
+	s := NovoSaneador(perfilTeste, tempTeste)
+	casos := map[string]string{
+		`D:\Users\beltrano, tamanho 3, total 5 (ok) fim`: `D:\Users\<usuario>, tamanho 3, total 5 (ok) fim`,
+		`D:\Users\Fulano de Tal\x`:                       `D:\Users\<usuario>\x`,
+		`C:\Users\fulano.bak\x`:                          `C:\Users\<usuario>\x`,
+		`C:\Users\Fulano de Tal\x`:                       `C:\Users\<usuario>\x`,
+		`open C:\Users\fulano: Access is denied.`:        `open %USERPROFILE%: Access is denied.`,
+		`C:\Users\fulano.`:                               `%USERPROFILE%.`,
+		`erro em C:\Users\fulano e depois em C:\x`:       `erro em %USERPROFILE% e depois em C:\x`,
+		`C:\Users\fulano. Depois C:\x`:                   `%USERPROFILE%. Depois C:\x`,
+	}
+	for entrada, quero := range casos {
+		if got := s.Sanear(entrada); got != quero {
+			t.Errorf("Sanear(%q) = %q, quero %q", entrada, got, quero)
+		}
+	}
+}
+
 // As grafias do perfil são trocadas pela regex do perfil (saída exata), não
 // só pela regex genérica de <usuario>.
 func TestSanear_GrafiasSaidaExata(t *testing.T) {
