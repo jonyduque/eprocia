@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
@@ -39,23 +40,45 @@ var ErrReversaoIncompleta = errors.New("a reversão da troca ficou incompleta")
 // nunca vai para o log nem para a tela (a tela usa MsgNaoAplicou).
 var ErrNaoAplicou = errors.New("a atualização não foi aplicada")
 
-// Troca troca o executável da instalação por usuário (Pasta) e inicia o novo
-// com --apos-atualizar=<PIDAtual> mais Extras, esperando o sinal de vida em
-// PastaDados até PrazoSinal (zero = o PrazoSinal do pacote).
+// ErrSemAnterior: Reiniciar não achou o eprocia.anterior.exe e não iniciou
+// nada (não haveria como reverter). O eprocia.exe já é a versão nova, que
+// abre na próxima vez que o eprocIA for aberto.
+var ErrSemAnterior = errors.New("não há eprocia.anterior.exe para reverter")
+
+// Novas tentativas de rename e remoção (comTentativas): logo depois de um
+// processo sair, o Windows ainda pode segurar a imagem dele por um instante.
+// São variáveis só para o teste encurtar a pausa.
+var (
+	tentativasArquivo = 10
+	pausaTentativa    = 200 * time.Millisecond
+)
+
+// Troca instala a versão baixada na pasta da instalação por usuário (Pasta)
+// em dois passos. Instalar põe o baixado no lugar do eprocia.exe (o em
+// execução vira o eprocia.anterior.exe) sem iniciar nada. Reiniciar inicia o
+// eprocia.exe novo com --apos-atualizar=<PIDAtual>, --limpar-anterior e
+// Extras, e espera o sinal de vida em PastaDados até PrazoSinal (zero = o
+// PrazoSinal do pacote); sem sinal, reverte os nomes.
 //
-// Erros: nil = o sinal chegou e o chamador encerra o processo antigo;
-// ErrNaoConferiu = a reconferência do baixado falhou (nada mudou, o baixado
-// foi apagado); ErrNaoAbriu = o novo não deu sinal e os nomes voltaram;
+// Erros: ErrNaoConferiu = a reconferência do baixado falhou (nada mudou, o
+// baixado foi apagado); ErrNaoAplicou = o Instalar falhou com os renames
+// desfeitos (nada mudou); ErrSemAnterior = Reiniciar sem eprocia.anterior.exe
+// (nada iniciado); ErrNaoAbriu = o novo não deu sinal e os nomes voltaram;
 // ErrReversaoIncompleta = um rename que desfazia falhou (antes, a troca
-// tenta deixar um eprocia.exe na pasta por cópia); ErrNaoAplicou = falha
-// antes de o processo novo arrancar, com os renames desfeitos (nada mudou).
-// Os erros carregam caminhos: o texto deles nunca vai para o log nem para a
-// tela; o log recebe texto fixo e o usuário, as Msg* por classe.
+// tenta deixar um eprocia.exe na pasta por cópia). Os erros carregam
+// caminhos: o texto deles nunca vai para o log nem para a tela; o log recebe
+// texto fixo e o usuário, as Msg* por classe.
+//
+// Trava (nil = sem trava) é segurada pela reversão do Reiniciar do primeiro
+// ao último rename. Instalar não a trava: quem chama Instalar já segura a
+// mesma trava durante a chamada inteira, o que cobre o desfazer dela, e
+// travar de novo seria impasse (sync.Mutex não é reentrante).
 type Troca struct {
 	Pasta, PastaDados string
 	PIDAtual          int
 	Extras            []string
 	PrazoSinal        time.Duration
+	Trava             sync.Locker
 	// renomear é trocado nos testes; nil = os.Rename.
 	renomear func(de, para string) error
 }
@@ -67,11 +90,40 @@ func (t *Troca) ren(de, para string) error {
 	return os.Rename(de, para)
 }
 
+// renRepetindo renomeia com novas tentativas em erro de compartilhamento.
+func (t *Troca) renRepetindo(de, para string) error {
+	return comTentativas(func() error { return t.ren(de, para) })
+}
+
+// comTentativas repete op enquanto ela falhar por violação de compartilhamento
+// (32) ou acesso negado (5), até tentativasArquivo vezes com pausaTentativa
+// entre elas, e devolve o último erro; outro erro volta na hora.
+func comTentativas(op func() error) error {
+	var err error
+	for i := range tentativasArquivo {
+		if i > 0 {
+			time.Sleep(pausaTentativa)
+		}
+		err = op()
+		if err == nil || !repetivel(err) {
+			return err
+		}
+	}
+	return err
+}
+
+// repetivel: ERROR_SHARING_VIOLATION (32) e ERROR_ACCESS_DENIED (5), pelo
+// número, para o pacote compilar fora do Windows.
+func repetivel(err error) bool {
+	return errors.Is(err, syscall.Errno(32)) || errors.Is(err, syscall.Errno(5))
+}
+
 func (t *Troca) caminho(nome string) string { return filepath.Join(t.Pasta, nome) }
 
-// Aplicar põe o baixado b no lugar do eprocia.exe (que vira o
-// eprocia.anterior.exe), inicia o novo e espera o sinal.
-func (t *Troca) Aplicar(ctx context.Context, b Baixado) error {
+// Instalar põe o baixado b no lugar do eprocia.exe (que vira o
+// eprocia.anterior.exe). Não inicia processo nem espera sinal: nil = a versão
+// nova está em eprocia.exe e a em execução, em eprocia.anterior.exe.
+func (t *Troca) Instalar(ctx context.Context, b Baixado) error {
 	log := registro.Logger(ctx)
 	exe, anterior := t.caminho(NomeExe), t.caminho(NomeAnterior)
 
@@ -98,7 +150,20 @@ func (t *Troca) Aplicar(ctx context.Context, b Baixado) error {
 		}
 		return fmt.Errorf("%w: pôr o baixado no lugar: %w", ErrNaoAplicou, err)
 	}
-	return t.iniciarEEsperar(ctx, b.Versao.String())
+	log.Info("troca do executável", "resultado", "instalada", "versao", b.Versao.String())
+	return nil
+}
+
+// Reiniciar inicia o eprocia.exe já instalado (a versão nova) e espera o
+// sinal. nil = o sinal chegou e o chamador encerra o processo antigo; o
+// eprocia.anterior.exe fica para o processo novo apagar depois de o antigo
+// sair. Sem sinal, reverte.
+func (t *Troca) Reiniciar(ctx context.Context, nova Versao) error {
+	if _, err := os.Lstat(t.caminho(NomeAnterior)); err != nil {
+		registro.Logger(ctx).Error("reinício da troca: sem eprocia.anterior.exe; nada iniciado", atributosErro(err)...)
+		return ErrSemAnterior
+	}
+	return t.iniciarEEsperar(ctx, nova.String())
 }
 
 // copiarParaExe copia origem para eprocia.exe por um temporário da mesma
@@ -144,51 +209,6 @@ func (t *Troca) reporExe(log *slog.Logger, origens ...string) bool {
 	return false
 }
 
-// Voltar troca o eprocia.exe pelo eprocia.anterior.exe (que vira o
-// eprocia.exe atual), inicia a versão anterior e espera o sinal.
-func (t *Troca) Voltar(ctx context.Context) error {
-	log := registro.Logger(ctx)
-	exe, anterior := t.caminho(NomeExe), t.caminho(NomeAnterior)
-	v, err := VersaoPE(anterior)
-	if err != nil {
-		log.Error("voltar versão: o eprocia.anterior.exe não tem versão legível; nada mudou", atributosErro(err)...)
-		return fmt.Errorf("%w: versão do eprocia.anterior.exe: %w", ErrNaoAplicou, err)
-	}
-	versao := v.String()
-	tmp := t.caminho(PrefixoTemp + rand.Text())
-
-	if err := t.ren(anterior, tmp); err != nil {
-		log.Error("voltar versão: não renomeou o eprocia.anterior.exe", atributosErro(err)...)
-		return fmt.Errorf("%w: renomear o eprocia.anterior.exe: %w", ErrNaoAplicou, err)
-	}
-	if err := t.ren(exe, anterior); err != nil {
-		log.Error("voltar versão: não renomeou o eprocia.exe; desfazendo", atributosErro(err)...)
-		if errDesfazer := t.ren(tmp, anterior); errDesfazer != nil {
-			// O eprocia.exe continua no lugar; a versão anterior ficou no temporário.
-			log.Error("voltar versão: não restaurou o eprocia.anterior.exe", atributosErro(errDesfazer)...)
-			return ErrReversaoIncompleta
-		}
-		return fmt.Errorf("%w: renomear o eprocia.exe: %w", ErrNaoAplicou, err)
-	}
-	if err := t.ren(tmp, exe); err != nil {
-		log.Error("voltar versão: não pôs a versão anterior no lugar; desfazendo", atributosErro(err)...)
-		if errDesfazer := t.ren(anterior, exe); errDesfazer != nil {
-			log.Error("voltar versão: não restaurou o eprocia.exe; copiando o anterior", atributosErro(errDesfazer)...)
-			// eprocia.exe passa a ser uma cópia da N. O eprocia.anterior.exe é a
-			// N em execução e não pode ser substituído: a N-1 fica no
-			// temporário e sai na limpeza da abertura seguinte.
-			t.reporExe(log, anterior)
-			return ErrReversaoIncompleta
-		}
-		if errDesfazer := t.ren(tmp, anterior); errDesfazer != nil {
-			log.Error("voltar versão: não restaurou o eprocia.anterior.exe", atributosErro(errDesfazer)...)
-			return ErrReversaoIncompleta
-		}
-		return fmt.Errorf("%w: pôr a versão anterior no lugar: %w", ErrNaoAplicou, err)
-	}
-	return t.iniciarEEsperar(ctx, versao)
-}
-
 // reconferir reabre o baixado só leitura e confere de novo.
 func reconferir(b Baixado) error {
 	f, err := os.Open(b.Caminho)
@@ -199,15 +219,16 @@ func reconferir(b Baixado) error {
 	return conferir(b, f)
 }
 
-// iniciarEEsperar inicia o eprocia.exe já trocado e espera o sinal; sem
-// sinal, encerra o novo e reverte.
+// iniciarEEsperar inicia o eprocia.exe já trocado, com --apos-atualizar,
+// --limpar-anterior e Extras, nessa ordem, e espera o sinal; sem sinal,
+// encerra o novo e reverte.
 func (t *Troca) iniciarEEsperar(ctx context.Context, versao string) error {
 	log := registro.Logger(ctx)
 	sinal := CaminhoSinal(t.PastaDados, t.PIDAtual)
 	// Um sinal esquecido de outra troca passaria por sinal do novo.
 	_ = os.Remove(sinal)
 
-	args := append([]string{FlagAposAtualizar + strconv.Itoa(t.PIDAtual)}, t.Extras...)
+	args := append([]string{FlagAposAtualizar + strconv.Itoa(t.PIDAtual), FlagLimparAnterior}, t.Extras...)
 	cmd := exec.Command(t.caminho(NomeExe), args...)
 	cmd.SysProcAttr = atributosFilho()
 	if err := cmd.Start(); err != nil {
@@ -266,25 +287,30 @@ func (t *Troca) esperarSinal(ctx context.Context, sinal string, fim <-chan struc
 }
 
 // reverter desfaz a troca depois que o novo não deu sinal: eprocia.exe vira
-// eprocia.falhou.exe e eprocia.anterior.exe volta a ser eprocia.exe.
+// eprocia.falhou.exe e eprocia.anterior.exe volta a ser eprocia.exe. Segura
+// a Trava do primeiro ao último rename, e cada rename tem novas tentativas.
 func (t *Troca) reverter(log *slog.Logger, versao string) error {
+	if t.Trava != nil {
+		t.Trava.Lock()
+		defer t.Trava.Unlock()
+	}
 	exe, anterior, falhou := t.caminho(NomeExe), t.caminho(NomeAnterior), t.caminho(NomeFalhou)
-	if err := os.Remove(falhou); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	if err := comTentativas(func() error { return os.Remove(falhou) }); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		log.Warn("reversão da troca: não apagou o eprocia.falhou.exe velho", atributosErro(err)...)
 	}
-	if err := t.ren(exe, falhou); err != nil {
+	if err := t.renRepetindo(exe, falhou); err != nil {
 		// O eprocia.exe (o novo) continua no lugar.
 		log.Error("reversão da troca: não renomeou o eprocia.exe novo", atributosErro(err)...)
 		return ErrReversaoIncompleta
 	}
-	if err := t.ren(anterior, exe); err != nil {
+	if err := t.renRepetindo(anterior, exe); err != nil {
 		// Ordem: cópia do anterior; senão o novo de volta pelo nome; senão
 		// cópia do novo.
 		log.Error("reversão da troca: não restaurou o eprocia.exe anterior; copiando", atributosErro(err)...)
 		if t.reporExe(log, anterior) {
 			return ErrReversaoIncompleta
 		}
-		errRepor := t.ren(falhou, exe)
+		errRepor := t.renRepetindo(falhou, exe)
 		if errRepor == nil {
 			log.Warn("reversão da troca: o eprocia.exe novo voltou ao lugar")
 			return ErrReversaoIncompleta

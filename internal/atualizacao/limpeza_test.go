@@ -4,9 +4,13 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
+	"syscall"
 	"testing"
+	"time"
 )
 
 func gravarVazio(t *testing.T, caminho string) {
@@ -71,4 +75,112 @@ func TestLimpar_PastasInexistentes(t *testing.T) {
 	if got := nomesEm(t, base); len(got) != 0 {
 		t.Errorf("Limpar criou %v", got)
 	}
+}
+
+func TestLimparAnterior(t *testing.T) {
+	t.Run("apaga só o anterior", func(t *testing.T) {
+		inst := t.TempDir()
+		gravarVazio(t, filepath.Join(inst, NomeExe))
+		gravarVazio(t, filepath.Join(inst, NomeAnterior))
+		if err := LimparAnterior(inst); err != nil {
+			t.Fatalf("LimparAnterior = %v", err)
+		}
+		if got, want := nomesEm(t, inst), []string{NomeExe}; !slices.Equal(got, want) {
+			t.Errorf("instalação = %v, quer %v", got, want)
+		}
+	})
+	t.Run("sem anterior", func(t *testing.T) {
+		inst := t.TempDir()
+		gravarVazio(t, filepath.Join(inst, NomeExe))
+		if err := LimparAnterior(inst); err != nil {
+			t.Fatalf("LimparAnterior = %v", err)
+		}
+		if got, want := nomesEm(t, inst), []string{NomeExe}; !slices.Equal(got, want) {
+			t.Errorf("instalação = %v, quer %v", got, want)
+		}
+	})
+	t.Run("pasta vazia", func(t *testing.T) {
+		if err := LimparAnterior(""); err != nil {
+			t.Fatalf("LimparAnterior(\"\") = %v", err)
+		}
+	})
+	t.Run("anterior em execução", func(t *testing.T) {
+		if runtime.GOOS != "windows" {
+			t.Skip("só o Windows recusa apagar um exe em execução")
+		}
+		inst := t.TempDir()
+		anterior := filepath.Join(inst, NomeAnterior)
+		dados, err := os.ReadFile(auxiliar)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(anterior, dados, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		cmd := exec.Command(anterior)
+		cmd.Env = append(os.Environ(), "EPROCIA_TESTE_AUX=dorme", "EPROCIA_TESTE_MS=60000", "EPROCIA_TESTE_DADOS=")
+		if err := cmd.Start(); err != nil {
+			t.Fatalf("iniciar o anterior: %v", err)
+		}
+		t.Cleanup(func() {
+			_ = cmd.Process.Kill()
+			_ = cmd.Wait()
+		})
+		inicio := time.Now()
+		if err := LimparAnterior(inst); err == nil {
+			t.Fatal("LimparAnterior = nil com o anterior em execução")
+		}
+		if d := time.Since(inicio); d >= 5*time.Second {
+			t.Errorf("demorou %v", d)
+		}
+		if _, err := os.Stat(anterior); err != nil {
+			t.Errorf("o anterior sumiu: %v", err)
+		}
+	})
+}
+
+func TestLimparAnterior_RepeteEmViolacaoDeCompartilhamento(t *testing.T) {
+	antiga := pausaTentativa
+	pausaTentativa = time.Millisecond
+	t.Cleanup(func() { pausaTentativa = antiga })
+
+	t.Run("apaga na quarta", func(t *testing.T) {
+		inst := t.TempDir()
+		anterior := filepath.Join(inst, NomeAnterior)
+		gravarVazio(t, anterior)
+		chamadas := 0
+		err := limparAnterior(inst, func(caminho string) error {
+			chamadas++
+			if caminho != anterior {
+				t.Errorf("remover(%q), quer o anterior", caminho)
+			}
+			if chamadas <= 3 {
+				return &os.PathError{Op: "remove", Path: caminho, Err: syscall.Errno(32)}
+			}
+			return os.Remove(caminho)
+		})
+		if err != nil {
+			t.Fatalf("limparAnterior = %v", err)
+		}
+		if chamadas != 4 {
+			t.Errorf("chamadas = %d, quer 4", chamadas)
+		}
+		if _, err := os.Lstat(anterior); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("o anterior continua (err=%v)", err)
+		}
+	})
+	t.Run("erro sempre", func(t *testing.T) {
+		inst := t.TempDir()
+		chamadas := 0
+		err := limparAnterior(inst, func(caminho string) error {
+			chamadas++
+			return &os.PathError{Op: "remove", Path: caminho, Err: syscall.Errno(32)}
+		})
+		if !errors.Is(err, syscall.Errno(32)) {
+			t.Fatalf("limparAnterior = %v, quer o erro 32", err)
+		}
+		if chamadas != tentativasArquivo {
+			t.Errorf("chamadas = %d, quer %d", chamadas, tentativasArquivo)
+		}
+	})
 }

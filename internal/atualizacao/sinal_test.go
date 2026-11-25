@@ -60,3 +60,10 @@ func TestAposAtualizar(t *testing.T) {
 		}
 	}
 }
+
+// FlagLimparAnterior é contrato entre versões: o literal fica no teste.
+func TestFlagLimparAnterior_Contrato(t *testing.T) {
+	if FlagLimparAnterior != "--limpar-anterior" {
+		t.Fatalf("FlagLimparAnterior = %q, quer \"--limpar-anterior\"", FlagLimparAnterior)
+	}
+}

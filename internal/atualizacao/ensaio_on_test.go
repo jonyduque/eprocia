@@ -97,17 +97,18 @@ func TestEnsaio_TagForaDoFormato(t *testing.T) {
 	}
 }
 
-// No build de ensaio com EPROCIA_ENSAIO_SEM_SINAL=1 a troca ignora o sinal
-// (o novo grava e fica no ar) e reverte no prazo.
-func TestAplicar_EnsaioIgnoraSinal(t *testing.T) {
+// No build de ensaio com EPROCIA_ENSAIO_SEM_SINAL=1 o Reiniciar ignora o
+// sinal (o novo grava e fica no ar) e reverte no prazo.
+func TestReiniciar_EnsaioIgnoraSinal(t *testing.T) {
 	t.Setenv("EPROCIA_ENSAIO_SEM_SINAL", "1")
 	c := novoCenarioTroca(t, "sinal")
 	antes := somaDe(t, c.caminho(NomeExe))
-	b := c.baixado(t, v050)
-	err := c.troca(time.Second).Aplicar(context.Background(), b)
+	tr := c.troca(time.Second)
+	c.instalado(t, tr)
+	err := tr.Reiniciar(context.Background(), v050)
 	var naoAbriu ErrNaoAbriu
 	if !errors.As(err, &naoAbriu) || naoAbriu != (ErrNaoAbriu{"0.5.0"}) {
-		t.Fatalf("Aplicar = %v, quer ErrNaoAbriu{0.5.0}", err)
+		t.Fatalf("Reiniciar = %v, quer ErrNaoAbriu{0.5.0}", err)
 	}
 	conferirRevertido(t, c, antes, v050)
 	naoExiste(t, c.caminho(NomeAnterior))

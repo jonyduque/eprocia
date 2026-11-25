@@ -17,6 +17,9 @@ const (
 	PrefixoTemp       = "eprocia.exe.download-"
 	PrefixoSinal      = "atualizacao-sinal-"
 	FlagAposAtualizar = "--apos-atualizar="
+	// FlagLimparAnterior pede ao processo novo que apague o
+	// eprocia.anterior.exe depois de o antigo sair.
+	FlagLimparAnterior = "--limpar-anterior"
 	// PrazoSinal é quanto o processo antigo espera o sinal de vida do novo.
 	PrazoSinal = 90 * time.Second
 	// PrazoAntigoSair é quanto o processo novo espera o antigo sair.

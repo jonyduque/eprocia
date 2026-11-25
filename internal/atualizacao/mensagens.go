@@ -9,6 +9,8 @@ const (
 	MsgNaoConferiu  = "O download não conferiu; nada foi alterado"
 	MsgInterrompido = "O download foi interrompido; nada foi alterado"
 	MsgRetomeFila   = "Retome ou limpe a fila para atualizar"
+	// MsgAbreNaProxima: Reiniciar sem eprocia.anterior.exe (ErrSemAnterior).
+	MsgAbreNaProxima = "A versão nova abre na próxima vez que o eprocIA for aberto"
 )
 
 // MsgAbrindo é mostrada enquanto a versão nova arranca.

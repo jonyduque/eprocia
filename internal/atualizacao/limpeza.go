@@ -16,8 +16,10 @@ func PastaAtualizacao(localAppData string) string {
 
 // Limpar apaga as sobras de uma troca: eprocia.falhou.exe e os temporários de
 // download na instalação, os sinais na pasta de dados e o conteúdo da pasta
-// de atualização. Mantém eprocia.anterior.exe (é o "Voltar"). Erros são
-// ignorados, com um aviso no log por arquivo que ficou.
+// de atualização. Mantém eprocia.anterior.exe: Limpar roda na abertura do
+// processo novo enquanto o antigo ainda executa desse arquivo (quem o apaga é
+// LimparAnterior). Erros são ignorados, com um aviso no log por arquivo que
+// ficou.
 func Limpar(pastaInstalacao, pastaDados, pastaAtualizacao string) {
 	apagarSe(pastaInstalacao, func(nome string) bool {
 		return strings.EqualFold(nome, NomeFalhou) || temPrefixo(nome, PrefixoTemp)
@@ -56,4 +58,24 @@ func apagarSe(pasta string, apagar func(nome string) bool) {
 			slog.Default().Warn("limpeza da atualização: arquivo ficou", "arquivo", e.Name(), "erro", err)
 		}
 	}
+}
+
+// LimparAnterior apaga o eprocia.anterior.exe da pasta de instalação, com
+// novas tentativas enquanto o processo antigo ainda segura o arquivo.
+// Inexistente ou pasta vazia = nil; outro erro volta como veio (carrega o
+// caminho: quem chama registra texto fixo). Só esse nome, nunca outro arquivo.
+func LimparAnterior(pastaInstalacao string) error {
+	return limparAnterior(pastaInstalacao, os.Remove)
+}
+
+func limparAnterior(pasta string, remover func(string) error) error {
+	if pasta == "" {
+		return nil
+	}
+	caminho := filepath.Join(pasta, NomeAnterior)
+	err := comTentativas(func() error { return remover(caminho) })
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	return nil
 }

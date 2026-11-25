@@ -5,7 +5,6 @@ package atualizacao
 import (
 	"os"
 	"os/exec"
-	"path/filepath"
 	"slices"
 	"testing"
 	"time"
@@ -61,45 +60,21 @@ func TestEsperarSair(t *testing.T) {
 	})
 }
 
-func trocarPrimeiraVersao(t *testing.T, v Versao) {
-	t.Helper()
-	antiga := PrimeiraVersaoComProtocolo
-	PrimeiraVersaoComProtocolo = v
-	t.Cleanup(func() { PrimeiraVersaoComProtocolo = antiga })
-}
-
-func TestVersaoAnterior(t *testing.T) {
-	trocarPrimeiraVersao(t, Versao{0, 4, 0})
-	inst := t.TempDir()
-	if _, ok := VersaoAnterior(inst, Versao{0, 4, 4}); ok {
-		t.Fatal("sem eprocia.anterior.exe devolveu verdadeiro")
+func TestLimparAnteriorPedido(t *testing.T) {
+	if !LimparAnteriorPedido([]string{"eprocia.exe", "--apos-atualizar=4242", "--limpar-anterior"}) {
+		t.Error("com --limpar-anterior devolveu falso")
 	}
-	anterior := filepath.Join(inst, NomeAnterior)
-	copiarAuxiliar(t, anterior, Versao{0, 4, 3})
-	if v, ok := VersaoAnterior(inst, Versao{0, 4, 4}); !ok || v != (Versao{0, 4, 3}) {
-		t.Fatalf("VersaoAnterior = %v, %v; quer 0.4.3, true", v, ok)
+	recusados := [][]string{
+		{"eprocia.exe", "--apos-atualizar=4242"},
+		{"eprocia.exe", "--limpar-anterior=1"},
+		{"eprocia.exe", "--LIMPAR-ANTERIOR"},
+		{"eprocia.exe", "limpar-anterior"},
+		{"eprocia.exe", "--limpar-anterior "},
 	}
-	for _, v := range []Versao{{0, 4, 4}, {0, 5, 0}} {
-		copiarAuxiliar(t, anterior, v)
-		if got, ok := VersaoAnterior(inst, Versao{0, 4, 4}); ok {
-			t.Errorf("anterior %v com atual 0.4.4 devolveu %v, true", v, got)
+	for _, args := range recusados {
+		if LimparAnteriorPedido(args) {
+			t.Errorf("LimparAnteriorPedido(%q) = verdadeiro", args)
 		}
-	}
-}
-
-func TestVersaoAnterior_AntesDoProtocolo(t *testing.T) {
-	if PrimeiraVersaoComProtocolo != (Versao{0, 5, 0}) {
-		t.Fatalf("PrimeiraVersaoComProtocolo = %v, quer 0.5.0", PrimeiraVersaoComProtocolo)
-	}
-	inst := t.TempDir()
-	anterior := filepath.Join(inst, NomeAnterior)
-	copiarAuxiliar(t, anterior, Versao{0, 4, 4})
-	if v, ok := VersaoAnterior(inst, Versao{0, 5, 0}); ok {
-		t.Errorf("anterior 0.4.4 (sem protocolo) devolveu %v, true", v)
-	}
-	copiarAuxiliar(t, anterior, Versao{0, 5, 0})
-	if v, ok := VersaoAnterior(inst, Versao{0, 5, 1}); !ok || v != (Versao{0, 5, 0}) {
-		t.Errorf("VersaoAnterior = %v, %v; quer 0.5.0, true", v, ok)
 	}
 }
 
