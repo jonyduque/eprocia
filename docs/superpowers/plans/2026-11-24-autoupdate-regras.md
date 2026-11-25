@@ -43,7 +43,7 @@ Rode na raiz da worktree, com a saída em arquivo no scratchpad (leia só o trec
 
 - Go: `go vet ./...` e `go test -race ./...`. Na tarefa que mexe num pacote, rode também `go test -race -count=1` nele sem `-short`.
 - `TestModernizacao_GoFixSemDiff` faz parte da suíte: código que o `go fix` reescreveria reprova.
-- Formato: com `core.autocrlf=true`, `gofmt -l` na cópia de trabalho lista tudo. Confira o que você escreveu numa cópia com LF ou confie no hook `go-check`.
+- Formato: com `core.autocrlf=true`, `gofmt -l` na cópia de trabalho lista tudo. Depois de cada commit com `.go`, rode para cada arquivo Go do commit `git show HEAD:<arquivo> | gofmt -l` (saída vazia = ok; senão `gofmt -w <arquivo>` e novo commit). O hook `go-check` não basta: um alinhamento de struct num teste passou por ele e derrubou o CI do PR #19 (2026-11-25).
 - Frontend (tarefa que mexe em `frontend/`): `node --test frontend/*.test.mjs` (Git Bash), `npx svelte-check` e `npm run build` em `frontend`.
 - Harness (tarefa que mexe em `.claude/` ou `scripts/visual/`): `node --test .claude/hooks/hooks.test.mjs .claude/statusline.test.mjs .claude/workflows/workflows.test.mjs scripts/visual/estados.test.mjs`.
 - `pwsh scripts/build/gate.ps1` só na última tarefa. Se o `build\bin\eprocia.exe` da worktree estiver aberto por outro processo, rode com `-SemBuild`, registre que build e smoke ficaram sem verificar e responda `DONE_WITH_CONCERNS`.
