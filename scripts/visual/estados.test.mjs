@@ -23,12 +23,12 @@ const CHAVES_RELATORIO = {
 };
 // As cinco categorias disjuntas da spec (2026-11-22-relatorio-processamento-design.md).
 const CATEGORIAS = ['lida_nativa', 'lida_ocr', 'vazia', 'sem_ocr', 'com_erro'];
-const NOVOS = ['relatorio', 'configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida'];
+const NOVOS = ['relatorio', 'configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida', 'fila-troca'];
 
 describe('estados visuais', () => {
   it('cobre os estados da review.json', () => {
     assert.deepEqual(Object.keys(ESTADOS).sort(),
-      ['configuracoes', 'configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida', 'erro', 'fila', 'nao-lidos', 'processando', 'relatorio', 'vazio']);
+      ['configuracoes', 'configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida', 'erro', 'fila', 'fila-troca', 'nao-lidos', 'processando', 'relatorio', 'vazio']);
   });
 
   it('relatorio: três concluídos, um só nativo, um com OCR e em branco, um com os três avisos e atencao', () => {
@@ -55,6 +55,24 @@ describe('estados visuais', () => {
       }
     }
     assert.ok(ESTADOS['nao-lidos'].fila[0].relatorio.documentos.por_leitura.sem_ocr > 0);
+  });
+
+  it('atualização: versão atual do wails.json e a nova um patch acima', () => {
+    const atual = JSON.parse(readFileSync(new URL('../../wails.json', import.meta.url), 'utf8')).info.productVersion;
+    const [ma, mi, pa] = atual.split('.').map(Number);
+    for (const nome of ['configuracoes', 'configuracoes-recolhida', 'fila-troca']) {
+      const a = ESTADOS[nome].atualizacao;
+      assert.equal(a.ativo, true, nome);
+      assert.equal(a.atual, atual, nome);
+      assert.equal(a.versao, [ma, mi, pa + 1].join('.'), nome);
+    }
+  });
+
+  it('fila-troca: fase reiniciando, com itens concluídos e com erro', () => {
+    const e = ESTADOS['fila-troca'];
+    assert.equal(e.atualizacao.fase, 'reiniciando');
+    const st = e.fila.map((i) => i.status);
+    assert.ok(st.includes('success') && st.includes('error'), st.join(','));
   });
 
   it('configuracoes: LogAtivo e forcar_ocr explícitos em cada variação', () => {

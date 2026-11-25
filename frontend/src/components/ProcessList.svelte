@@ -174,6 +174,7 @@
   // fica aqui, e não no formulário, para sobreviver à remontagem pelo {#key}.
   let origemReprocessar = {};
   function alternarReprocessar(id, evento) {
+    if (entradaBloqueada) return;
     const abrir = !reprocessarAberto[id];
     reprocessarAberto = { ...reprocessarAberto, [id]: abrir };
     const { [id]: _, ...resto } = ocrSugerido;
@@ -748,7 +749,7 @@
                     data-acao="reprocessar"
                     data-parada="reprocessar"
                     tabindex={tabParada(item.id, 'reprocessar', paradaAtiva)}
-                    disabled={entradaBloqueada}
+                    aria-disabled={entradaBloqueada}
                     on:click={(e) => alternarReprocessar(item.id, e)}
                     use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : 'Reprocessar com outras configurações'}
                     aria-label={rotuloAcao('Reprocessar', item.name)}
@@ -824,7 +825,7 @@
                     data-acao="reprocessar"
                     data-parada="reprocessar"
                     tabindex={tabParada(item.id, 'reprocessar', paradaAtiva)}
-                    disabled={entradaBloqueada}
+                    aria-disabled={entradaBloqueada}
                     on:click={(e) => alternarReprocessar(item.id, e)}
                     use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : 'Reprocessar com outras configurações'}
                     aria-label={rotuloAcao('Reprocessar', item.name)}
@@ -1625,13 +1626,14 @@
     border-radius: 4px;
   }
 
-  .btn-action:hover:not(:disabled) {
+  .btn-action:hover:not([aria-disabled='true']) {
     color: var(--text-primary);
     background-color: var(--surface-hover);
   }
 
-  /* Reprocessar durante a troca de versão (entradaBloqueada); a dica diz por quê. */
-  .btn-action:disabled {
+  /* Reprocessar durante a troca de versão (entradaBloqueada); a dica diz por quê.
+     aria-disabled, e não disabled: o botão segue no foco itinerante da linha. */
+  .btn-action[aria-disabled='true'] {
     opacity: 0.6;
     cursor: default;
   }

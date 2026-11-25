@@ -2,6 +2,7 @@
   // Conteúdo do bloco "Atualizações" das Configurações (o cabeçalho colapsável
   // fica no Settings). O estado vem do App (EstadoAtualizacao e o evento
   // atualizacao:estado); a consulta à rede só acontece pelo clique em Procurar.
+  import { tick } from 'svelte';
   import Icone from './Icone.svelte';
   import Download from 'lucide-svelte/icons/download';
   import ExternalLink from 'lucide-svelte/icons/external-link';
@@ -48,7 +49,11 @@
     try {
       await acao();
     } catch (err) {
-      avisar(String(err?.message ?? err), 'error');
+      const msg = String(err?.message ?? err);
+      // A fase erro com a mesma frase já aparece no bloco: o aviso a repetiria.
+      await tick();
+      if (estado?.fase === 'erro' && estado.mensagem === msg) return;
+      avisar(msg, 'error');
     }
   }
 

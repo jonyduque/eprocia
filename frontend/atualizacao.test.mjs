@@ -296,10 +296,15 @@ describe('interface da atualização', () => {
     const bs = botoesCom(lista, 'data-acao="reprocessar"');
     assert.equal(bs.length, 2);
     for (const b of bs) {
-      assert.match(b, /disabled=\{entradaBloqueada\}/);
+      // aria-disabled, e não disabled: o botão segue no foco itinerante da linha.
+      assert.match(b, /aria-disabled=\{entradaBloqueada\}/);
+      assert.doesNotMatch(b, /\sdisabled=/);
       assert.match(b, /use:dica=\{entradaBloqueada \? ATUALIZACAO\.soltarDepois : /);
       assert.doesNotMatch(b, /\btitle=/, 'a explicação vai na dica, não no title');
     }
+    const f = corpoFuncao(lista, 'function alternarReprocessar(');
+    assert.match(f, /^function alternarReprocessar\([^)]*\) \{\s*if \(entradaBloqueada\) return;/);
+    assert.match(lista, /\.btn-action\[aria-disabled='true'\] \{[^}]*opacity/);
   });
 
   it('ProcessList: Ler com OCR bloqueado por aria-disabled e com a dica da troca', () => {
@@ -321,8 +326,10 @@ describe('interface da atualização', () => {
   it('ReprocessarItem: Reprocessar desativado com a dica da troca', () => {
     assert.match(reprocessar, /export let entradaBloqueada = false/);
     const [b] = botoesCom(reprocessar, 'type="submit"');
-    assert.match(b, /disabled=\{[^}]*entradaBloqueada[^}]*\}/);
+    assert.match(b, /aria-disabled=\{entradaBloqueada\}/);
+    assert.doesNotMatch(b, /\sdisabled=\{[^}]*entradaBloqueada/);
     assert.match(b, /use:dica=\{entradaBloqueada \? ATUALIZACAO\.soltarDepois : /);
+    assert.match(reprocessar, /\.primario\[aria-disabled='true'\]/);
     assert.match(corpoFuncao(reprocessar, 'async function confirmar'), /entradaBloqueada/);
   });
 
@@ -355,6 +362,15 @@ describe('interface da atualização', () => {
     for (const b of ['InstalarAtualizacao', 'CancelarAtualizacao', 'AbrirNovidades', 'AbrirPaginaVersoes']) {
       assert.match(bloco, new RegExp(`\\b${b}\\(`), b);
     }
+  });
+
+  it('Atualizacoes.svelte: erro que o bloco já mostra não se repete no aviso', () => {
+    const f = corpoFuncao(bloco, 'async function executar');
+    const t = f.indexOf('await tick()');
+    const cond = f.search(/estado\?\.fase === 'erro' && estado\.mensagem === msg/);
+    const av = f.indexOf('avisar(');
+    assert.ok(t >= 0 && cond > t && av > cond, 'tick, depois a comparação, depois avisar');
+    assert.match(bloco, /import \{[^}]*\btick\b[^}]*\} from 'svelte'/);
   });
 
   it('Settings: quarta categoria Atualizações no molde das outras', () => {

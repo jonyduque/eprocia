@@ -1,6 +1,8 @@
 // Fictitious data for each captured UI state. Nothing here may resemble a real
 // process: numbers use the 5000000-00.2026.4.00.xxxx pattern, paths are made up.
 
+import { readFileSync } from 'node:fs';
+
 const BASE_TS = 1767322800000; // 2026-01-02 03:00 UTC, fixed so captures are stable
 
 const CONFIG = {
@@ -10,6 +12,11 @@ const CONFIG = {
   auto_start: true,
   watchdog_enabled: true,
 };
+
+// Versão do app (wails.json, a mesma do rodapé) e a nova, um patch acima.
+const VERSAO_ATUAL = JSON.parse(readFileSync(new URL('../../wails.json', import.meta.url), 'utf8')).info.productVersion;
+const VERSAO_NOVA = VERSAO_ATUAL.split('.').map((p, i) => (i === 2 ? Number(p) + 1 : p)).join('.');
+const atualizacao = (extra) => ({ ativo: true, fase: '', versao: VERSAO_NOVA, progresso: 0, mensagem: '', modo: 'trocar', motivo: '', atual: VERSAO_ATUAL, ...extra });
 
 const CAMINHO_LONGO = 'C:\\Usuarios\\exemplo\\OneDrive - Empresa Exemplo\\Área de Trabalho\\Pasta com um nome bem longo\\Processos baixados';
 
@@ -223,7 +230,18 @@ export const ESTADOS = {
     pausado: false,
     LogAtivo: false,
     // Bloco Atualizações (EstadoAtualizacao): download em curso, com a barra.
-    atualizacao: { ativo: true, fase: 'baixando', versao: '9.9.1', progresso: 42, mensagem: '', modo: 'trocar', motivo: '', atual: '9.9.0' },
+    atualizacao: atualizacao({ fase: 'baixando', progresso: 42 }),
+  },
+  // Troca de versão em curso (reiniciando): os Reprocessar da linha ficam bloqueados.
+  'fila-troca': {
+    config: CONFIG,
+    fila: [
+      { ...sucesso(1), relatorio: REL_NATIVO },
+      item(2, 'error', { progress: 12, message: 'Falha', error: 'Arquivo ZIP corrompido ou incompleto: zip: not a valid zip file' }),
+      sucesso(3),
+    ],
+    pausado: false,
+    atualizacao: atualizacao({ fase: 'reiniciando' }),
   },
   relatorio: {
     config: CONFIG,
@@ -253,7 +271,7 @@ export const ESTADOS = {
     LogAtivo: true,
     categorias: { monitoramento: false, processamento: true, sistema: false },
     // Com Processamento recolhida o bloco Atualizações cabe a 768px: versão nova disponível.
-    atualizacao: { ativo: true, fase: 'disponivel', versao: '9.9.1', progresso: 0, mensagem: '', modo: 'trocar', motivo: '', atual: '9.9.0' },
+    atualizacao: atualizacao({ fase: 'disponivel' }),
   },
 };
 

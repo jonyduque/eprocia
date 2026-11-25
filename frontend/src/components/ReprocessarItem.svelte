@@ -78,7 +78,7 @@
   </div>
   <div class="botoes">
     <button type="button" class="secundario" on:click={aoCancelar}>Cancelar</button>
-    <button type="submit" class="primario" disabled={enviando || entradaBloqueada} use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : ''}>
+    <button type="submit" class="primario" disabled={enviando} aria-disabled={entradaBloqueada} use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : ''}>
       <Icone icone={RotateCcw} tamanho={12} />
       Reprocessar
     </button>
@@ -163,7 +163,7 @@
     color: var(--on-accent);
   }
 
-  .primario:hover {
+  .primario:hover:not([aria-disabled='true']) {
     background-color: var(--accent-strong-hover);
   }
 
@@ -173,6 +173,12 @@
   }
 
   .primario:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  /* Troca de versão em curso: segue focável (a dica explica); confirmar() barra o envio. */
+  .primario[aria-disabled='true'] {
     opacity: 0.6;
     cursor: default;
   }
