@@ -46,9 +46,11 @@ export function acoes(estado, filaOcupada) {
   if (!estado || !estado.ativo) return nenhuma;
   const { fase, modo, mensagem } = estado;
   const a = { ...nenhuma };
+  // Só a abertura do instalador espera a fila; a troca dos arquivos (trocar)
+  // não fecha o programa, e quem espera a fila nela é o Reiniciar.
   const rotuloAtualizar = () => {
-    if (filaOcupada) return T.quandoFilaTerminar;
-    return modo === 'instalador' ? T.baixarInstalador : T.atualizar;
+    if (modo !== 'instalador') return T.atualizar;
+    return filaOcupada ? T.quandoFilaTerminar : T.baixarInstalador;
   };
   switch (fase) {
     case '':

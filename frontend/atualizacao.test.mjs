@@ -68,7 +68,8 @@ describe('atualizacao', () => {
     const s = { fase: 'disponivel', versao: '0.5.0', modo: 'trocar' };
     assert.equal(textoFase(e(s)), 'Versão 0.5.0 disponível');
     assert.equal(A(s).atualizar, 'Atualizar');
-    assert.equal(A(s, true).atualizar, 'Atualizar quando a fila terminar');
+    // A troca dos arquivos não espera a fila: quem espera é o Reiniciar.
+    assert.equal(A(s, true).atualizar, 'Atualizar');
     assert.equal(A(s).reiniciar, null);
     assert.equal(fraseModo(e(s)), null);
   });
@@ -152,6 +153,13 @@ describe('atualizacao', () => {
       assert.notEqual(A(s).atualizar, null);
       assert.equal(A(s).paginaVersoes, false);
     }
+  });
+  it('erro com fila ocupada: só o instalador espera a fila', () => {
+    assert.equal(A({ fase: 'erro', mensagem: 'Falhou', modo: 'trocar' }, true).atualizar, 'Atualizar');
+    assert.equal(
+      A({ fase: 'erro', mensagem: 'Falhou', modo: 'instalador' }, true).atualizar,
+      'Atualizar quando a fila terminar',
+    );
   });
   it('inativo', () => {
     const s = e({ ativo: false, fase: 'disponivel', modo: 'trocar', versao: '1' });
