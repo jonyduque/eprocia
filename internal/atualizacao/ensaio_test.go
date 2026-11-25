@@ -11,7 +11,7 @@ import (
 var palavraEnsaio = regexp.MustCompile(`(?i)\bensaio\b`)
 
 // problemasReleaseYML lista o que levaria a tag ensaio ao build publicado:
-// "wails build" com -tags, GOFLAGS, ou a palavra "ensaio" fora de comentário
+// -tags em qualquer linha, GOFLAGS, ou a palavra "ensaio" fora de comentário
 // (os comentários do release.yml já chamam a rc de "ensaio"). Sem nenhuma
 // linha com "wails build" também é problema.
 func problemasReleaseYML(texto string) []string {
@@ -26,9 +26,11 @@ func problemasReleaseYML(texto string) []string {
 		}
 		if strings.Contains(codigo, "wails build") {
 			achou++
-			if strings.Contains(codigo, "-tags") {
-				problemas = append(problemas, fmt.Sprintf("linha %d: wails build com -tags", n))
-			}
+		}
+		// Em qualquer linha: uma continuação (\) leva o -tags a outra linha
+		// que não a do "wails build". O gatilho "tags: ['v*']" não tem hífen.
+		if strings.Contains(codigo, "-tags") {
+			problemas = append(problemas, fmt.Sprintf("linha %d: -tags", n))
 		}
 		if strings.Contains(codigo, "GOFLAGS") {
 			problemas = append(problemas, fmt.Sprintf("linha %d: GOFLAGS", n))
@@ -56,15 +58,17 @@ func TestEnsaio_ReleaseSemTags(t *testing.T) {
 }
 
 func TestEnsaio_GuardaDoReleaseYML(t *testing.T) {
-	const bom = "# rc serve de ensaio\n      - name: wails build\n        run: wails build -clean -s -nsis -trimpath\n"
+	// O gatilho "tags: ['v*']" não é -tags.
+	const bom = "on:\n  push:\n    tags: ['v*']\n# rc serve de ensaio\n      - name: wails build\n        run: wails build -clean -s -nsis -trimpath\n"
 	if p := problemasReleaseYML(bom); len(p) > 0 {
 		t.Fatalf("texto bom recusado: %v", p)
 	}
 	for nome, texto := range map[string]string{
-		"sem wails build": "run: go build\n",
-		"-tags":           "run: wails build -tags ensaio\n",
-		"GOFLAGS":         "env:\n  GOFLAGS: -tags=x\nrun: wails build\n",
-		"palavra ensaio":  "run: wails build\nenv:\n  MODO: Ensaio\n",
+		"sem wails build":      "run: go build\n",
+		"-tags":                "run: wails build -tags ensaio\n",
+		"-tags na continuação": "run: |\n  wails build -clean \\\n    -tags x\n",
+		"GOFLAGS":              "env:\n  GOFLAGS: -tags=x\nrun: wails build\n",
+		"palavra ensaio":       "run: wails build\nenv:\n  MODO: Ensaio\n",
 	} {
 		if p := problemasReleaseYML(texto); len(p) == 0 {
 			t.Errorf("%s: aceito", nome)
