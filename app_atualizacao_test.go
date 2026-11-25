@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"log"
 	"log/slog"
@@ -838,6 +839,14 @@ func TestAbrirNovidades_SoPrefixo(t *testing.T) {
 	}{
 		{"https://github.com/jonyduque/eprocia/releases/tag/v0.5.0", true},
 		{"https://github.com/outro/x/releases/", false},
+		{"https://github.com/jonyduque/eprocia-x/releases/", false},
+		{"http://github.com/jonyduque/eprocia/releases/tag/v1", false},
+		{"https://github.com/jonyduque/eprocia/releases/../../x", false},
+		{"https://github.com/jonyduque/eprocia/releases/tag/../../../x", false},
+		{"https://github.com.evil.example/jonyduque/eprocia/releases/tag/v1", false},
+		{"https://github.com/jonyduque/eprocia/releases/tag/v1\\..\\x", false},
+		{"https://usuario@github.com/jonyduque/eprocia/releases/tag/v1", false},
+		{"https://usuario:senha@github.com/jonyduque/eprocia/releases/tag/v1", false},
 		{"https://evil.example/", false},
 		{"", false},
 	}
@@ -929,4 +938,54 @@ func TestReiniciarAtualizacao_ForaDeInstalada(t *testing.T) {
 		_, r := tf.contar()
 		return r == 1
 	})
+}
+
+type redeCancelada struct{}
+
+func (redeCancelada) Verificar(context.Context, atualizacao.Versao) (*atualizacao.Release, error) {
+	return nil, context.Canceled
+}
+
+func (redeCancelada) Baixar(context.Context, *atualizacao.Release, atualizacao.Asset, string, string, func(int64, int64)) (atualizacao.Baixado, error) {
+	return atualizacao.Baixado{}, context.Canceled
+}
+
+func TestVerificarAtualizacao_CanceladaNaoEErro(t *testing.T) {
+	m := novoAppAtualizacao(t, cenario{rede: redeCancelada{}})
+	m.iniciar()
+	info, err := m.app.VerificarAtualizacao()
+	if err != nil || info != nil {
+		t.Fatalf("info=%v err=%v; quer nil, nil", info, err)
+	}
+}
+
+func TestParaJS_FrasesDaTela(t *testing.T) {
+	casos := map[error]string{
+		atualizacao.ErrFaltaReiniciar: atualizacao.MsgFaltaReiniciar,
+		atualizacao.ErrEmCurso:        atualizacao.MsgEmCurso,
+		atualizacao.ErrSemConsulta:    atualizacao.MsgSemConsulta,
+		atualizacao.ErrNaoInstalavel:  atualizacao.MsgNaoInstalavel,
+		atualizacao.ErrDesligado:      atualizacao.MsgDesligado,
+	}
+	for origem, frase := range casos {
+		got := paraJS(fmt.Errorf("embrulho C:\\Users\\fulano: %w", origem))
+		if got == nil || got.Error() != frase {
+			t.Errorf("%v: %v; quer %q", origem, got, frase)
+		}
+	}
+	if got := paraJS(errors.New("C:\\Users\\fulano\\x falhou")); got == nil || got.Error() != atualizacao.MsgSemRede {
+		t.Errorf("erro desconhecido: %v", got)
+	}
+	want := map[string]string{
+		atualizacao.MsgFaltaReiniciar: "Reinicie o eprocIA para concluir a atualização",
+		atualizacao.MsgEmCurso:        "Já há uma atualização em andamento",
+		atualizacao.MsgSemConsulta:    "Procure a atualização antes de instalar",
+		atualizacao.MsgNaoInstalavel:  "Esta instalação não pode ser atualizada por aqui",
+		atualizacao.MsgDesligado:      "O eprocIA está fechando",
+	}
+	for got, w := range want {
+		if got != w {
+			t.Errorf("frase %q; quer %q", got, w)
+		}
+	}
 }

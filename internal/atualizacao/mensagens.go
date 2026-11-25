@@ -11,6 +11,14 @@ const (
 	MsgRetomeFila   = "Retome ou limpe a fila para atualizar"
 	// MsgAbreNaProxima: Reiniciar sem eprocia.anterior.exe (ErrSemAnterior).
 	MsgAbreNaProxima = "A versão nova abre na próxima vez que o eprocIA for aberto"
+
+	// Frases dos erros de pedido recusado (Err* de estado.go), como o
+	// frontend as recebe.
+	MsgFaltaReiniciar = "Reinicie o eprocIA para concluir a atualização"
+	MsgEmCurso        = "Já há uma atualização em andamento"
+	MsgSemConsulta    = "Procure a atualização antes de instalar"
+	MsgNaoInstalavel  = "Esta instalação não pode ser atualizada por aqui"
+	MsgDesligado      = "O eprocIA está fechando"
 )
 
 // MsgAbrindo é mostrada enquanto a versão nova arranca.

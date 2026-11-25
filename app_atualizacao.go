@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -298,7 +300,6 @@ func (a *App) apagarVersaoAnterior() {
 
 const (
 	urlVersoes        = "https://github.com/jonyduque/eprocia/releases"
-	prefixoNovidades  = "https://github.com/jonyduque/eprocia/releases/"
 	msgAtualizacaoOff = "A atualização pelo aplicativo não está disponível"
 )
 
@@ -314,12 +315,15 @@ func paraJS(err error) error {
 	if err == nil {
 		return nil
 	}
-	for _, s := range []error{
-		atualizacao.ErrSemConsulta, atualizacao.ErrNaoInstalavel, atualizacao.ErrEmCurso,
-		atualizacao.ErrDesligado, atualizacao.ErrFaltaReiniciar,
+	for sentinela, frase := range map[error]string{
+		atualizacao.ErrSemConsulta:    atualizacao.MsgSemConsulta,
+		atualizacao.ErrNaoInstalavel:  atualizacao.MsgNaoInstalavel,
+		atualizacao.ErrEmCurso:        atualizacao.MsgEmCurso,
+		atualizacao.ErrDesligado:      atualizacao.MsgDesligado,
+		atualizacao.ErrFaltaReiniciar: atualizacao.MsgFaltaReiniciar,
 	} {
-		if errors.Is(err, s) {
-			return s
+		if errors.Is(err, sentinela) {
+			return errors.New(frase)
 		}
 	}
 	switch err.Error() {
@@ -350,6 +354,10 @@ func (a *App) VerificarAtualizacao() (*atualizacao.Info, error) {
 		ctx = context.Background()
 	}
 	info, err := a.atualizador.Verificar(ctx)
+	if errors.Is(err, context.Canceled) {
+		// Operação substituída ou cancelada pelo usuário: não é erro.
+		return nil, nil
+	}
 	if err != nil {
 		return nil, paraJS(err)
 	}
@@ -396,7 +404,7 @@ func (a *App) AbrirNovidades() error {
 		return errAtualizacaoOff
 	}
 	url := a.atualizador.NotasURL()
-	if !strings.HasPrefix(url, prefixoNovidades) {
+	if !urlNovidadesValida(url) {
 		return errSemNotas
 	}
 	a.abrirNoNavegador(url)
@@ -407,4 +415,17 @@ func (a *App) AbrirNovidades() error {
 func (a *App) AbrirPaginaVersoes() error {
 	a.abrirNoNavegador(urlVersoes)
 	return nil
+}
+
+// urlNovidadesValida aceita só https://github.com/jonyduque/eprocia/releases/...
+// (host exato, sem usuário, sem ".." nem barra invertida no original).
+func urlNovidadesValida(bruta string) bool {
+	if strings.Contains(bruta, "\\") || strings.Contains(bruta, "..") {
+		return false
+	}
+	u, err := url.Parse(bruta)
+	if err != nil || u.Scheme != "https" || u.Host != "github.com" || u.User != nil {
+		return false
+	}
+	return strings.HasPrefix(path.Clean(u.Path)+"/", "/jonyduque/eprocia/releases/")
 }
