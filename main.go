@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"eprocia/internal/atualizacao"
 	"eprocia/internal/autostart"
 	"eprocia/internal/config"
 	"eprocia/internal/registro"
@@ -27,13 +28,23 @@ func main() {
 	// mesmo. O handle fica aberto até o processo terminar. O registro só é
 	// iniciado depois da trava: a segunda cópia não mexe no log da primeira.
 	app := NewApp()
+	app.pastaDados = pastaDadosApp()
+	app.apos, _ = atualizacao.AposAtualizar(os.Args)
+	app.limparAnterior = atualizacao.LimparAnteriorPedido(os.Args)
+	travar := func() (func(), bool, error) {
+		return travarInstancia(nomeTravaInstancia(caminhoExecutavel()))
+	}
+	// Aberto pela troca, o processo novo não sai por achar a trava ocupada
+	// pelo antigo, que a segura até sair: a trava é obtida depois
+	// (arranqueApos), antes de ligar o watcher.
+	if app.apos > 0 {
+		travar, app.travarDepois = travaAposAtualizar(travar)
+	}
 	sair, liberar := prepararInstancia(
-		func() (func(), bool, error) {
-			return travarInstancia(nomeTravaInstancia(caminhoExecutavel()))
-		},
+		travar,
 		func() {
 			app.cfg = carregarConfig(config.Load)
-			iniciarRegistro(os.Getenv("EPROCIA_LOG"), pastaDadosApp(), app.cfg)
+			iniciarRegistro(os.Getenv("EPROCIA_LOG"), app.pastaDados, app.cfg)
 		},
 	)
 	if sair {
@@ -65,6 +76,7 @@ func main() {
 		},
 		BackgroundColour: corDeFundo(temaClaro(app.cfg.Theme, windowsUsaTemaClaro)),
 		OnStartup:        app.startup,
+		OnDomReady:       app.domPronto,
 		OnShutdown: func(ctx context.Context) {
 			app.shutdown(ctx)
 			registro.Encerrar()

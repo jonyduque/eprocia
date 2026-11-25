@@ -8,9 +8,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
+	"eprocia/internal/atualizacao"
 	"eprocia/internal/autostart"
 	"eprocia/internal/config"
 	"eprocia/internal/etl"
@@ -49,6 +51,28 @@ type App struct {
 	// fecharTelemetria descarrega a telemetria no shutdown; nil com o log
 	// desligado.
 	fecharTelemetria func()
+
+	// Atualização pelo aplicativo (app_atualizacao.go).
+	atualizador *atualizacao.Atualizador
+	// apos é o PID do processo antigo (--apos-atualizar); 0 = abertura normal.
+	apos int
+	// limparAnterior: --limpar-anterior, apagar eprocia.anterior.exe depois
+	// de o antigo sair.
+	limparAnterior  bool
+	modo            atualizacao.Modo
+	pastaInstalacao string
+	// pastaDados é %AppData%\eprocIA (main); os testes passam t.TempDir().
+	pastaDados string
+	// travarDepois bloqueia até obter a trava de instância adiada; nil = já
+	// obtida.
+	travarDepois func() bool
+	// esperarSair, gravarVersao e apagarAnterior são trocados nos testes;
+	// apagarAnterior nil = atualizacao.LimparAnterior.
+	esperarSair    func(pid int, prazo time.Duration) bool
+	gravarVersao   func(string) error
+	apagarAnterior func(pasta string) error
+	sinalUmaVez    sync.Once
+	limpezaUmaVez  sync.Once
 }
 
 // eventoVisibilidade avisa o frontend que a janela sumiu na bandeja (false)
@@ -58,7 +82,12 @@ const eventoVisibilidade = "janela:visivel"
 
 // NewApp creates a new App application struct
 func NewApp() *App {
-	app := &App{autostart: autostart.Aplicar, clipboard: runtime.ClipboardSetText}
+	app := &App{
+		autostart:    autostart.Aplicar,
+		clipboard:    runtime.ClipboardSetText,
+		esperarSair:  atualizacao.EsperarSair,
+		gravarVersao: autostart.GravarVersaoDesinstalacao,
+	}
 	app.watcher = watchdog.NewWatcher(func(filePath string) {
 		if app.queue != nil {
 			app.queue.AddFilesComOrigem([]string{filePath}, "monitorada")
@@ -72,33 +101,10 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.animador.Store(janela.NovoAnimador(janela.Nativa(a.ocultarJanela)))
-	a.pipeline = etl.NewPipeline()
-	a.queue = etl.NewQueue(a.pipeline)
-	a.queue.SetContext(ctx)
 	a.iniciarNotificacoes(ctx)
-	a.queue.SetOnFinished(a.aoTerminar)
-	// A fila nasce depois de iniciarRegistro (main): a telemetria se liga
-	// aqui, e só com o log ativo; desligado, nada dela executa.
-	a.ligarTelemetriaSeAtivo(pastaDadosApp())
-
-	// main já leu a config para escolher o fundo da janela.
-	cfg := a.cfg
-	if cfg == nil {
-		cfg = carregarConfig(config.Load)
-		a.cfg = cfg
-	}
-	a.queue.SetConfig(cfg)
-	if caminho, err := config.GetConfigPath(); err == nil {
-		a.falhas = watchdog.CarregarFalhas(filepath.Join(filepath.Dir(caminho), "falhas.json"))
-		a.watcher.SetFalhas(a.falhas)
-	}
-	a.sincronizarAutostart(cfg)
-	if cfg.WatchdogEnabled && cfg.MonitoredPath != "" {
-		if err := a.watcher.Start(cfg.MonitoredPath); err != nil {
-			slog.Warn("falha ao iniciar o monitoramento da pasta", "pasta", cfg.MonitoredPath, "erro", err)
-			runtime.EventsEmit(ctx, "watchdog:error", err.Error())
-		}
-	}
+	a.iniciarFila(ctx)
+	a.iniciarAtualizacao(a.opcoesAtualizacao())
+	a.sinalNoStartup()
 }
 
 // sincronizarAutostart alinha o registro à config no boot: a entrada pode ter
@@ -175,6 +181,11 @@ func carregarConfig(load func() (*models.Config, error)) *models.Config {
 
 // shutdown is called when the application closes
 func (a *App) shutdown(ctx context.Context) {
+	// Antes de parar watcher e fila: cancela um download e impede que uma
+	// troca comece durante a saída.
+	if a.atualizador != nil {
+		a.atualizador.Encerrar()
+	}
 	if a.watcher != nil {
 		a.watcher.Stop()
 	}
