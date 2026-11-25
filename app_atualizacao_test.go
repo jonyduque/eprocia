@@ -105,7 +105,7 @@ func novoAppAtualizacao(t *testing.T, c cenario) *montagem {
 		f.emitidos = append(f.emitidos, evento)
 		f.mu.Unlock()
 	}
-	app.cfg = &models.Config{MonitoredPath: m.monitorada, WatchdogEnabled: true, AutoStart: true, OcrMode: "none", CleaningLevel: "basic"}
+	app.guardarConfig(&models.Config{MonitoredPath: m.monitorada, WatchdogEnabled: true, AutoStart: true, OcrMode: "none", CleaningLevel: "basic"})
 	app.falhas = watchdog.CarregarFalhas(filepath.Join(t.TempDir(), "falhas.json"))
 	app.pastaDados = t.TempDir()
 	app.apos = c.apos
@@ -628,5 +628,108 @@ func TestAtualizacao_ShutdownEncerra(t *testing.T) {
 	case <-rede.cancelado:
 	case <-time.After(5 * time.Second):
 		t.Fatal("shutdown não cancelou o download")
+	}
+}
+
+// A goroutine do arranqueApos lê a config enquanto o frontend a grava
+// (SaveConfig, SetTheme): o -race reprova acesso sem sincronização.
+func TestAtualizacao_ConfigSemCorrida(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	m := novoAppAtualizacao(t, cenario{apos: 4242, sairLivre: true, travaLivre: true})
+	m.iniciar()
+	outra := t.TempDir()
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		for range 20 {
+			m.app.arranqueApos()
+		}
+	})
+	wg.Go(func() {
+		for i := range 20 {
+			pasta := m.monitorada
+			if i%2 == 1 {
+				pasta = outra
+			}
+			cfg := &models.Config{MonitoredPath: pasta, WatchdogEnabled: true, AutoStart: true, OcrMode: "none", CleaningLevel: "basic"}
+			if err := m.app.SaveConfig(cfg); err != nil {
+				t.Error(err)
+			}
+			if err := m.app.SetTheme("dark"); err != nil {
+				t.Error(err)
+			}
+		}
+	})
+	wg.Wait()
+}
+
+// Spec §3.1: no processo novo, salvar a config não liga o watcher antes de
+// o antigo sair e da trava; o arranque liga depois, na pasta salva.
+func TestAtualizacao_SaveConfigNaoLigaMonitorAntesDaTrava(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	m := novoAppAtualizacao(t, cenario{apos: 4242})
+	m.iniciar()
+	m.app.domPronto(nil)
+	nova := t.TempDir()
+	cfg := &models.Config{MonitoredPath: nova, WatchdogEnabled: true, AutoStart: true, OcrMode: "none", CleaningLevel: "basic"}
+	if err := m.app.SaveConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+	if got := m.app.watcher.GetCurrentPath(); got != "" {
+		t.Fatalf("SaveConfig ligou o watcher em %q antes de o antigo sair", got)
+	}
+	close(m.f.liberaSair)
+	continua(t, 300*time.Millisecond, "watcher desligado sem a trava", func() bool {
+		return m.app.watcher.GetCurrentPath() == ""
+	})
+	if err := m.app.SaveConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+	if got := m.app.watcher.GetCurrentPath(); got != "" {
+		t.Fatalf("SaveConfig ligou o watcher em %q antes da trava", got)
+	}
+	close(m.f.liberaTrava)
+	esperarAte(t, 5*time.Second, "watcher ligar na pasta salva", func() bool { return m.app.watcher.GetCurrentPath() == nova })
+}
+
+// A trava adiada desiste depois do prazo (contado a partir de depois, que
+// roda depois do esperarSair): sem ela, o watcher não liga.
+func TestTravaAposAtualizar_DesisteNoPrazo(t *testing.T) {
+	antesPrazo, antesIntervalo := prazoTravaAdiada, intervaloTravaAdiada
+	t.Cleanup(func() { prazoTravaAdiada, intervaloTravaAdiada = antesPrazo, antesIntervalo })
+	prazoTravaAdiada, intervaloTravaAdiada = 300*time.Millisecond, 20*time.Millisecond
+
+	travar := func() (func(), bool, error) { return nil, false, nil }
+	envolvida, depois := travaAposAtualizar(travar)
+	if _, ok, err := envolvida(); !ok || err != nil {
+		t.Fatalf("envolvida = (%v, %v); quer ok com a trava ocupada", ok, err)
+	}
+	pronto := make(chan bool, 1)
+	inicio := time.Now()
+	go func() { pronto <- depois() }()
+	select {
+	case v := <-pronto:
+		if v {
+			t.Fatal("depois devolveu true sem obter a trava")
+		}
+		if d := time.Since(inicio); d < 250*time.Millisecond {
+			t.Fatalf("depois desistiu em %v, antes do prazo", d)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("depois não desistiu no prazo")
+	}
+}
+
+func TestAtualizacao_SemTravaNoPrazoNaoLigaMonitor(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	m := novoAppAtualizacao(t, cenario{apos: 4242, sairLivre: true})
+	m.app.travarDepois = func() bool { return false }
+	m.iniciar()
+	m.app.arranqueApos()
+	cfg := &models.Config{MonitoredPath: m.monitorada, WatchdogEnabled: true, AutoStart: true, OcrMode: "none", CleaningLevel: "basic"}
+	if err := m.app.SaveConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+	if got := m.app.watcher.GetCurrentPath(); got != "" {
+		t.Fatalf("watcher ligado em %q sem a trava", got)
 	}
 }

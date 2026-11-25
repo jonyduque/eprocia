@@ -127,7 +127,7 @@ func TestSaveConfig_AutostartFalhoNaoFicaGravado(t *testing.T) {
 	if gravada.OcrMode != "fast" {
 		t.Fatalf("demais campos não foram gravados: ocr_mode=%q", gravada.OcrMode)
 	}
-	if app.cfg.AutoStart {
+	if app.configAtual().AutoStart {
 		t.Fatal("AutoStart=true mantido em memória apesar da falha no registro")
 	}
 

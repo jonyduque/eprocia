@@ -23,12 +23,17 @@ const eventoAtualizacao = "atualizacao:estado"
 // no processo novo da atualização.
 var intervaloTravaAdiada = 500 * time.Millisecond
 
+// prazoTravaAdiada é quanto depois tenta obter a trava; contado de quando é
+// chamado, depois de o antigo sair (ou do prazo de esperá-lo).
+var prazoTravaAdiada = atualizacao.PrazoAntigoSair
+
 // travaAposAtualizar adia a trava de instância do processo aberto pela troca
 // (--apos-atualizar): o antigo a segura até sair, e o novo não pode sair por
 // achá-la ocupada. A envolvida devolve ok com a trava ocupada; depois tenta de
-// novo a cada intervaloTravaAdiada até obtê-la e devolve true (na hora, se a
-// trava veio de primeira ou se ela estiver indisponível). A trava obtida
-// depois fica com o processo até ele terminar.
+// novo a cada intervaloTravaAdiada, por até prazoTravaAdiada, e devolve true
+// ao obtê-la (na hora, se a trava veio de primeira ou se ela estiver
+// indisponível) ou false no fim do prazo. A trava obtida depois fica com o
+// processo até ele terminar.
 func travaAposAtualizar(travar func() (func(), bool, error)) (envolvida func() (func(), bool, error), depois func() bool) {
 	ocupada := false
 	envolvida = func() (func(), bool, error) {
@@ -43,6 +48,7 @@ func travaAposAtualizar(travar func() (func(), bool, error)) (envolvida func() (
 		if !ocupada {
 			return true
 		}
+		fim := time.Now().Add(prazoTravaAdiada)
 		for {
 			_, ok, err := travar()
 			if err != nil {
@@ -51,6 +57,9 @@ func travaAposAtualizar(travar func() (func(), bool, error)) (envolvida func() (
 			}
 			if ok {
 				return true
+			}
+			if !time.Now().Before(fim) {
+				return false
 			}
 			time.Sleep(intervaloTravaAdiada)
 		}
@@ -70,10 +79,16 @@ func (a *App) emitirEm(ctx context.Context, evento string, dados ...any) {
 	}
 }
 
-// ligarMonitor liga o watcher conforme a config (WatchdogEnabled e
-// MonitoredPath), como o startup sempre fez.
+// ligarMonitor liga o watcher conforme a config guardada (WatchdogEnabled e
+// MonitoredPath), como o startup sempre fez; nada faz com o monitor retido
+// (processo novo da atualização à espera do antigo e da trava).
 func (a *App) ligarMonitor(ctx context.Context) {
-	cfg := a.cfg
+	a.monitorMu.Lock()
+	defer a.monitorMu.Unlock()
+	if a.monitorRetido.Load() {
+		return
+	}
+	cfg := a.configAtual()
 	if cfg == nil || !cfg.WatchdogEnabled || cfg.MonitoredPath == "" {
 		return
 	}
@@ -93,6 +108,7 @@ func (a *App) iniciarFila(ctx context.Context) {
 	a.queue = etl.NewQueue(a.pipeline)
 	if a.apos > 0 {
 		a.queue.Reter()
+		a.monitorRetido.Store(true)
 	}
 	a.queue.SetContext(ctx)
 	a.queue.SetOnFinished(a.aoTerminar)
@@ -101,10 +117,10 @@ func (a *App) iniciarFila(ctx context.Context) {
 	a.ligarTelemetriaSeAtivo(a.pastaDados)
 
 	// main já leu a config para escolher o fundo da janela.
-	cfg := a.cfg
+	cfg := a.configAtual()
 	if cfg == nil {
 		cfg = carregarConfig(config.Load)
-		a.cfg = cfg
+		a.guardarConfig(cfg)
 	}
 	a.queue.SetConfig(cfg)
 	if a.falhas == nil {
@@ -203,7 +219,8 @@ func (a *App) darSinal() {
 
 // arranqueApos espera o processo antigo sair, solta a fila, grava a versão
 // no registro de desinstalação (modo trocar), espera a trava de instância e
-// só então liga o watcher: nunca dois processos monitoram a mesma pasta.
+// só então libera e liga o watcher: nunca dois processos monitoram a mesma
+// pasta. Sem a trava no prazo, o watcher fica desligado.
 func (a *App) arranqueApos() {
 	if !a.esperarAntigo() {
 		slog.Warn("atualização: o processo anterior não saiu no prazo; seguindo")
@@ -214,9 +231,11 @@ func (a *App) arranqueApos() {
 	if a.modo == atualizacao.ModoTrocar {
 		a.gravarVersaoAtual()
 	}
-	if a.travarDepois != nil {
-		a.travarDepois()
+	if a.travarDepois != nil && !a.travarDepois() {
+		slog.Warn("atualização: trava de instância não obtida no prazo; monitoramento da pasta desligado")
+		return
 	}
+	a.monitorRetido.Store(false)
 	a.ligarMonitor(a.ctx)
 }
 

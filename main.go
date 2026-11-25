@@ -43,8 +43,8 @@ func main() {
 	sair, liberar := prepararInstancia(
 		travar,
 		func() {
-			app.cfg = carregarConfig(config.Load)
-			iniciarRegistro(os.Getenv("EPROCIA_LOG"), app.pastaDados, app.cfg)
+			app.guardarConfig(carregarConfig(config.Load))
+			iniciarRegistro(os.Getenv("EPROCIA_LOG"), app.pastaDados, app.configAtual())
 		},
 	)
 	if sair {
@@ -74,7 +74,7 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour: corDeFundo(temaClaro(app.cfg.Theme, windowsUsaTemaClaro)),
+		BackgroundColour: corDeFundo(temaClaro(app.configAtual().Theme, windowsUsaTemaClaro)),
 		OnStartup:        app.startup,
 		OnDomReady:       app.domPronto,
 		OnShutdown: func(ctx context.Context) {

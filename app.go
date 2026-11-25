@@ -30,7 +30,17 @@ type App struct {
 	watcher  *watchdog.Watcher
 	pipeline *etl.Pipeline
 	queue    *etl.Queue
-	cfg      *models.Config
+	// cfg é lido por goroutines (arranque da atualização) enquanto o
+	// frontend grava: só por configAtual e guardarConfig. O objeto guardado
+	// nunca é alterado; quem muda grava uma cópia.
+	cfg atomic.Pointer[models.Config]
+	// gravarMu serializa SaveConfig e SetTheme (ler, mudar, guardar).
+	gravarMu sync.Mutex
+	// monitorMu serializa ligar e desligar o watcher pela config;
+	// monitorRetido fica verdadeiro no processo novo da atualização até o
+	// antigo sair e a trava de instância ser obtida (arranqueApos).
+	monitorMu     sync.Mutex
+	monitorRetido atomic.Bool
 	// autostart é trocado nos testes para não mexer no registro real.
 	autostart func(ativo bool) error
 	// clipboard é trocado nos testes; o padrão é runtime.ClipboardSetText.
@@ -269,10 +279,16 @@ func (a *App) antesDeFechar(_ context.Context) (impedir bool) {
 	return true
 }
 
+// configAtual devolve a config em uso (nil antes de carregada). Não altere
+// o objeto devolvido: grave uma cópia com guardarConfig.
+func (a *App) configAtual() *models.Config { return a.cfg.Load() }
+
+func (a *App) guardarConfig(cfg *models.Config) { a.cfg.Store(cfg) }
+
 // GetConfig returns the current configuration settings.
 func (a *App) GetConfig() (*models.Config, error) {
-	if a.cfg != nil {
-		return a.cfg, nil
+	if cfg := a.configAtual(); cfg != nil {
+		return cfg, nil
 	}
 	return config.Load()
 }
@@ -280,9 +296,12 @@ func (a *App) GetConfig() (*models.Config, error) {
 // SaveConfig grava a configuração e reaplica o watchdog e a inicialização com
 // o Windows. O tema não vem do formulário: só SetTheme o altera.
 func (a *App) SaveConfig(cfg *models.Config) error {
-	autoAnterior := a.cfg != nil && a.cfg.AutoStart
-	if a.cfg != nil {
-		cfg.Theme = a.cfg.Theme
+	a.gravarMu.Lock()
+	defer a.gravarMu.Unlock()
+	atual := a.configAtual()
+	autoAnterior := atual != nil && atual.AutoStart
+	if atual != nil {
+		cfg.Theme = atual.Theme
 	}
 
 	// O registro vem antes da gravação: se ele recusar, o config.json guarda o
@@ -305,14 +324,28 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 		return err
 	}
 
-	a.cfg = cfg
+	a.guardarConfig(cfg)
 	if a.queue != nil {
 		a.queue.SetConfig(cfg)
 	}
+	if err := a.aplicarMonitor(cfg); err != nil {
+		return err
+	}
+	return errAuto
+}
 
+// aplicarMonitor reaplica o watcher à config salva. Com o monitor retido
+// (processo novo da atualização à espera do antigo e da trava), só
+// desliga: quem liga é o arranqueApos, que lê a config guardada.
+func (a *App) aplicarMonitor(cfg *models.Config) error {
+	a.monitorMu.Lock()
+	defer a.monitorMu.Unlock()
 	// Start é no-op se a pasta já está sendo monitorada; chamá-lo sempre permite
 	// tentar de novo depois de uma falha mesmo sem mudar o caminho.
 	if cfg.WatchdogEnabled && cfg.MonitoredPath != "" {
+		if a.monitorRetido.Load() {
+			return nil
+		}
 		if err := a.watcher.Start(cfg.MonitoredPath); err != nil {
 			slog.Warn("falha ao iniciar o monitoramento da pasta", "pasta", cfg.MonitoredPath, "erro", err)
 			return fmt.Errorf("configurações salvas, mas não foi possível monitorar a pasta %q: %w", cfg.MonitoredPath, err)
@@ -320,8 +353,7 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 	} else {
 		a.watcher.Stop()
 	}
-
-	return errAuto
+	return nil
 }
 
 // SetTheme grava o tema escolhido ("system", "light" ou "dark"), que main.go lê
@@ -330,19 +362,21 @@ func (a *App) SetTheme(tema string) error {
 	if !config.TemaValido(tema) {
 		return fmt.Errorf("tema inválido: %q", tema)
 	}
-	cfg := a.cfg
+	a.gravarMu.Lock()
+	defer a.gravarMu.Unlock()
+	cfg := a.configAtual()
 	if cfg == nil {
 		cfg = carregarConfig(config.Load)
 	}
+	// Cópia: o objeto guardado é lido por outras goroutines e pela fila.
 	novo := *cfg
 	novo.Theme = tema
 	if err := config.Save(&novo); err != nil {
 		return fmt.Errorf("não foi possível salvar o tema: %w", err)
 	}
-	if a.cfg != nil {
-		a.cfg.Theme = tema
-	} else {
-		a.cfg = &novo
+	a.guardarConfig(&novo)
+	if a.queue != nil {
+		a.queue.SetConfig(&novo)
 	}
 	return nil
 }
