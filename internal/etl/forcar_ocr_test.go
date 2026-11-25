@@ -412,7 +412,7 @@ func TestForcarOCR_LogZipIniciadoValorEfetivo(t *testing.T) {
 	o := &ocrForcadoFalso{}
 	o.instalar(t)
 	for _, c := range []struct {
-		modo           string
+		modo            string
 		efetivo, pedido bool
 	}{
 		{"none", false, true},
