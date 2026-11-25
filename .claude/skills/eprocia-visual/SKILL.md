@@ -17,7 +17,7 @@ node scripts/visual/capturar.mjs --saida <dir> --rapido               # 1024x768
 node scripts/visual/capturar.mjs --saida <dir> --estados fila,erro    # só alguns estados
 ```
 
-- Matriz completa: 800×600, 1024×768, 1440×900, 1920×1080 × escuro/claro × 11 estados (`vazio`, `fila`, `fila-troca`, `processando`, `erro`, `configuracoes`, `nao-lidos`, `relatorio`, `configuracoes-log`, `configuracoes-none`, `configuracoes-recolhida`), mais as variações por tamanho e tema:
+- Matriz completa: 800×600, 1024×768, 1440×900, 1920×1080 × escuro/claro × 20 estados (`vazio`, `fila`, `processando`, `erro`, `configuracoes`, `nao-lidos`, `relatorio`, `configuracoes-log`, `configuracoes-none`, `configuracoes-recolhida`, e os dez `atualizacao-*`: `em-dia`, `disponivel`, `instalador`, `so-avisar`, `incompleta`, `baixando`, `instalada`, `aguardando-fila`, `erro`, `reiniciando`), mais as variações por tamanho e tema:
   - `processando`: `-atividade` (painel do item em processamento), `-divisor-minimo` (arrastado até x=20), `-divisor-maximo` (até a borda direita) e `-recolhido`;
   - `fila`: `-reprocessar` (formulário aberto, com a caixa Forçar OCR);
   - `nao-lidos`: `-atividade` (painel, sem o aviso), `-copiado` (faixa de aviso depois de copiar) e `-divisor-maximo`;
@@ -45,4 +45,4 @@ O Playwright renderiza no Chromium, não no WebView2 da janela frameless. Bordas
 
 ## Validação desta skill
 
-`node --test scripts/visual/estados.test.mjs` passa, e `node scripts/visual/capturar.mjs --saida <scratchpad> --rapido` termina com `[visual] 28 capturas em ...`.
+`node --test scripts/visual/estados.test.mjs` passa, e `node scripts/visual/capturar.mjs --saida <scratchpad> --rapido` termina com `[visual] 37 capturas em ...`.

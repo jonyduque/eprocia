@@ -23,12 +23,15 @@ const CHAVES_RELATORIO = {
 };
 // As cinco categorias disjuntas da spec (2026-11-22-relatorio-processamento-design.md).
 const CATEGORIAS = ['lida_nativa', 'lida_ocr', 'vazia', 'sem_ocr', 'com_erro'];
-const NOVOS = ['relatorio', 'configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida', 'fila-troca'];
+const ATUALIZACAO = ['atualizacao-em-dia', 'atualizacao-disponivel', 'atualizacao-instalador', 'atualizacao-so-avisar',
+  'atualizacao-incompleta', 'atualizacao-baixando', 'atualizacao-instalada', 'atualizacao-aguardando-fila', 'atualizacao-erro',
+  'atualizacao-reiniciando'];
+const NOVOS = ['relatorio', 'configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida', ...ATUALIZACAO];
 
 describe('estados visuais', () => {
   it('cobre os estados da review.json', () => {
     assert.deepEqual(Object.keys(ESTADOS).sort(),
-      ['configuracoes', 'configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida', 'erro', 'fila', 'fila-troca', 'nao-lidos', 'processando', 'relatorio', 'vazio']);
+      ['configuracoes', 'configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida', 'erro', 'fila', 'nao-lidos', 'processando', 'relatorio', 'vazio', ...ATUALIZACAO].sort());
   });
 
   it('relatorio: três concluídos, um só nativo, um com OCR e em branco, um com os três avisos e atencao', () => {
@@ -57,22 +60,42 @@ describe('estados visuais', () => {
     assert.ok(ESTADOS['nao-lidos'].fila[0].relatorio.documentos.por_leitura.sem_ocr > 0);
   });
 
-  it('atualização: versão atual do wails.json e a nova um patch acima', () => {
+  it('atualização: versão atual do wails.json e a nova um minor acima (0.5.0)', () => {
     const atual = JSON.parse(readFileSync(new URL('../../wails.json', import.meta.url), 'utf8')).info.productVersion;
-    const [ma, mi, pa] = atual.split('.').map(Number);
-    for (const nome of ['configuracoes', 'configuracoes-recolhida', 'fila-troca']) {
+    const [ma, mi] = atual.split('.').map(Number);
+    for (const nome of ['configuracoes', 'configuracoes-recolhida', 'atualizacao-disponivel', 'atualizacao-baixando']) {
       const a = ESTADOS[nome].atualizacao;
       assert.equal(a.ativo, true, nome);
       assert.equal(a.atual, atual, nome);
-      assert.equal(a.versao, [ma, mi, pa + 1].join('.'), nome);
+      assert.equal(a.versao, [ma, mi + 1, 0].join('.'), nome);
     }
   });
 
-  it('fila-troca: fase reiniciando, com itens concluídos e com erro', () => {
-    const e = ESTADOS['fila-troca'];
-    assert.equal(e.atualizacao.fase, 'reiniciando');
-    const st = e.fila.map((i) => i.status);
-    assert.ok(st.includes('success') && st.includes('error'), st.join(','));
+  it('atualizacao-*: ativo, sem a chave anterior, e cada um com a fase e o modo do brief', () => {
+    const esperado = {
+      'atualizacao-em-dia': { fase: 'em_dia' },
+      'atualizacao-disponivel': { fase: 'disponivel', modo: 'trocar', versao: '0.5.0' },
+      'atualizacao-instalador': { fase: 'disponivel', modo: 'instalador' },
+      'atualizacao-so-avisar': { fase: 'disponivel', modo: 'so_avisar' },
+      'atualizacao-incompleta': { fase: 'incompleta' },
+      'atualizacao-baixando': { fase: 'baixando', progresso: 42 },
+      'atualizacao-instalada': { fase: 'instalada', modo: 'trocar', mensagem: '' },
+      'atualizacao-aguardando-fila': { fase: 'aguardando_fila', modo: 'trocar' },
+      'atualizacao-erro': { fase: 'erro', modo: '', mensagem: 'Não foi possível consultar o GitHub agora' },
+      'atualizacao-reiniciando': { fase: 'reiniciando' },
+    };
+    assert.deepEqual(Object.keys(esperado).sort(), [...ATUALIZACAO].sort());
+    for (const [nome, campos] of Object.entries(esperado)) {
+      const a = ESTADOS[nome].atualizacao;
+      assert.equal(a.ativo, true, nome);
+      for (const [k, v] of Object.entries(campos)) assert.equal(a[k], v, nome + '.' + k);
+    }
+    assert.match(ESTADOS['atualizacao-so-avisar'].atualizacao.motivo, /fora da pasta de instalação/);
+    assert.ok(ESTADOS['atualizacao-aguardando-fila'].fila.some((i) => i.status === 'processing'));
+    assert.ok(ESTADOS['atualizacao-reiniciando'].fila.some((i) => i.status === 'success'));
+    for (const [nome, e] of Object.entries(ESTADOS)) {
+      assert.ok(!('anterior' in e) && !('anterior' in (e.atualizacao ?? {})), nome + ': chave anterior');
+    }
   });
 
   it('configuracoes: LogAtivo e forcar_ocr explícitos em cada variação', () => {
@@ -140,7 +163,7 @@ describe('estados visuais', () => {
     const original = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
     Object.defineProperty(globalThis, 'localStorage', { value: { setItem: (k, v) => { store[k] = v; } }, configurable: true });
     try {
-      instalarStubs({ estado: ESTADOS.fila, tema: 'claro' });
+      instalarStubs({ estado: ESTADOS.fila, tema: 'claro', versao: '0.4.4' });
       assert.equal(store.theme, 'light');
       assert.equal((await window.go.main.App.GetQueue()).length, ESTADOS.fila.fila.length);
       assert.equal(await window.go.main.App.PauseQueue(), undefined);
@@ -150,8 +173,9 @@ describe('estados visuais', () => {
       // LogAtivo devolve um booleano (false sem a chave no estado); os outros
       // bindings do plano existem e resolvem sem erro.
       assert.equal(await window.go.main.App.LogAtivo(), false);
-      // Sem a chave atualizacao, o atualizador fica desligado (bloco escondido).
-      assert.equal((await window.go.main.App.EstadoAtualizacao()).ativo, false);
+      // Sem a chave atualizacao, o atualizador fica ligado e sem consulta (fase vazia).
+      assert.deepEqual(await window.go.main.App.EstadoAtualizacao(), { ativo: true, fase: '', versao: '', progresso: 0, mensagem: '', modo: '', motivo: '', atual: '0.4.4' });
+      assert.equal(await window.go.main.App.GetVersao(), '0.4.4');
       assert.equal(await window.go.main.App.AbrirPastaLogs(), undefined);
       assert.equal(await window.go.main.App.ReprocessQueueItem('x', 'normal', 'standard', true), undefined);
       instalarStubs({ estado: ESTADOS.configuracoes, tema: 'escuro' });
@@ -199,6 +223,15 @@ describe('lista de alto contraste', () => {
     const css = lista.match(/@container \(max-width: (\d+)px\) \{\s*\.rotulo-acao/)?.[1];
     assert.ok(css, 'regra do .rotulo-acao não encontrada');
     assert.match(src, new RegExp(`const LIMITE_BOTOES = ${css};`));
+  });
+
+  it('capturar.mjs expande grupo-atualizacoes antes de rolar o bloco das atualizações', () => {
+    const src = readFileSync(new URL('./capturar.mjs', import.meta.url), 'utf8');
+    const expande = src.indexOf('grupo-atualizacoes');
+    const rola = src.indexOf('scrollIntoView', src.indexOf('data-bloco="atualizacoes"') - 80);
+    assert.ok(expande > 0 && src.includes('data-bloco="atualizacoes"'), 'sem grupo-atualizacoes ou data-bloco');
+    assert.ok(expande < src.indexOf('data-bloco="atualizacoes"') && rola > expande, 'rola antes de expandir');
+    assert.ok(src.includes("'aria-expanded')) === 'false'"), 'não confere o aria-expanded');
   });
 
   it('capturar.mjs não tem a lista literal e lê alto_contraste', () => {

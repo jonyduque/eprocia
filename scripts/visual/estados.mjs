@@ -13,9 +13,9 @@ const CONFIG = {
   watchdog_enabled: true,
 };
 
-// Versão do app (wails.json, a mesma do rodapé) e a nova, um patch acima.
-const VERSAO_ATUAL = JSON.parse(readFileSync(new URL('../../wails.json', import.meta.url), 'utf8')).info.productVersion;
-const VERSAO_NOVA = VERSAO_ATUAL.split('.').map((p, i) => (i === 2 ? Number(p) + 1 : p)).join('.');
+// Versão do app (wails.json, a mesma do rodapé) e a nova, um minor acima (0.4.4 -> 0.5.0).
+export const VERSAO_ATUAL = JSON.parse(readFileSync(new URL('../../wails.json', import.meta.url), 'utf8')).info.productVersion;
+const VERSAO_NOVA = VERSAO_ATUAL.split('.').map((p, i) => (i === 1 ? Number(p) + 1 : i === 2 ? '0' : p)).join('.');
 const atualizacao = (extra) => ({ ativo: true, fase: '', versao: VERSAO_NOVA, progresso: 0, mensagem: '', modo: 'trocar', motivo: '', atual: VERSAO_ATUAL, ...extra });
 
 const CAMINHO_LONGO = 'C:\\Usuarios\\exemplo\\OneDrive - Empresa Exemplo\\Área de Trabalho\\Pasta com um nome bem longo\\Processos baixados';
@@ -195,6 +195,11 @@ export function listaAltoContraste(config) {
   return Array.isArray(lista) ? lista : [];
 }
 
+// Estado visual do bloco Atualizações: o painel de configurações aberto.
+function estadoAtualizacao(extra, fila = []) {
+  return { config: CONFIG, fila, pausado: false, LogAtivo: false, atualizacao: atualizacao(extra) };
+}
+
 export const ESTADOS = {
   vazio: { config: { ...CONFIG, monitored_path: '', watchdog_enabled: false }, fila: [], pausado: false },
   fila: {
@@ -232,17 +237,19 @@ export const ESTADOS = {
     // Bloco Atualizações (EstadoAtualizacao): download em curso, com a barra.
     atualizacao: atualizacao({ fase: 'baixando', progresso: 42 }),
   },
-  // Troca de versão em curso (reiniciando): os Reprocessar da linha ficam bloqueados.
-  'fila-troca': {
-    config: CONFIG,
-    fila: [
-      { ...sucesso(1), relatorio: REL_NATIVO },
-      item(2, 'error', { progress: 12, message: 'Falha', error: 'Arquivo ZIP corrompido ou incompleto: zip: not a valid zip file' }),
-      sucesso(3),
-    ],
-    pausado: false,
-    atualizacao: atualizacao({ fase: 'reiniciando' }),
-  },
+  // Bloco Atualizações (EstadoAtualizacao), um estado por situação. A fila de
+  // fundo é a mesma do estado fila, salvo onde o estado pede outra.
+  'atualizacao-em-dia': estadoAtualizacao({ fase: 'em_dia', versao: VERSAO_ATUAL }),
+  'atualizacao-disponivel': estadoAtualizacao({ fase: 'disponivel' }),
+  'atualizacao-instalador': estadoAtualizacao({ fase: 'disponivel', modo: 'instalador' }),
+  'atualizacao-so-avisar': estadoAtualizacao({ fase: 'disponivel', modo: 'so_avisar', motivo: 'executável fora da pasta de instalação' }),
+  'atualizacao-incompleta': estadoAtualizacao({ fase: 'incompleta' }),
+  'atualizacao-baixando': estadoAtualizacao({ fase: 'baixando', progresso: 42 }),
+  'atualizacao-instalada': estadoAtualizacao({ fase: 'instalada' }),
+  'atualizacao-aguardando-fila': estadoAtualizacao({ fase: 'aguardando_fila' }, [sucesso(1), processando(2, 42), item(3, 'pending')]),
+  'atualizacao-erro': estadoAtualizacao({ fase: 'erro', modo: '', versao: '', mensagem: 'Não foi possível consultar o GitHub agora' }),
+  // Troca em curso: o Reprocessar do item concluído fica desativado.
+  'atualizacao-reiniciando': estadoAtualizacao({ fase: 'reiniciando' }, [{ ...sucesso(1), relatorio: REL_NATIVO }, sucesso(2)]),
   relatorio: {
     config: CONFIG,
     fila: FILA_RELATORIO,
@@ -278,7 +285,7 @@ export const ESTADOS = {
 // instalarStubs runs in the browser (page.addInitScript) before any app code.
 // It replaces the Wails bindings (window.go.main.App) and runtime (window.runtime)
 // with fakes that serve the given state. Unknown calls resolve to undefined.
-export function instalarStubs({ estado, tema }) {
+export function instalarStubs({ estado, tema, versao }) {
   localStorage.setItem('theme', tema === 'claro' ? 'light' : 'dark');
   if (estado.categorias) localStorage.setItem('eprocia.categorias', JSON.stringify(estado.categorias));
   const dados = {
@@ -291,8 +298,9 @@ export function instalarStubs({ estado, tema }) {
     GetQueueActivity: (id) => estado.atividades?.[id] ?? null,
     // Log desligado salvo quando o estado pede (EPROCIA_LOG só existe no app real).
     LogAtivo: estado.LogAtivo === true,
-    // Sem a chave no estado, atualizador desligado: o bloco Atualizações não aparece.
-    EstadoAtualizacao: estado.atualizacao ?? { ativo: false, fase: '', versao: '', progresso: 0, mensagem: '', modo: '', motivo: '', atual: '' },
+    // Sem a chave no estado, atualizador ligado e sem consulta (fase vazia).
+    EstadoAtualizacao: estado.atualizacao ?? { ativo: true, fase: '', versao: '', progresso: 0, mensagem: '', modo: '', motivo: '', atual: versao ?? '' },
+    GetVersao: versao ?? '',
     AbrirPastaLogs: undefined,
     ReprocessQueueItem: (_id, _ocr, _limpeza, _forcar) => undefined,
     SelectZipFiles: [],
