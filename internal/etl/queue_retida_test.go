@@ -43,7 +43,9 @@ func novoGravadorChamadas(liberado bool) *gravadorChamadas {
 	return g
 }
 
-// canalOciosa registra um aviso de fila ociosa que manda Ociosa() no canal.
+// canalOciosa registra um aviso de fila ociosa que manda Ociosa() no canal:
+// prova que o aviso chega e que a fila já se diz ociosa quando ele roda. Não
+// prova que é chamado fora de q.mu (roda numa goroutine, que só esperaria).
 func canalOciosa(q *Queue) chan bool {
 	ch := make(chan bool, 16)
 	q.SetAoFicarOciosa(func() { ch <- q.Ociosa() })
@@ -223,4 +225,37 @@ func TestQueue_AvisoOciosaAoCancelarPendente(t *testing.T) {
 
 	q.CancelItem(q.GetItems()[0].ID)
 	esperarAviso(t, ch, "CancelItem do único pending")
+}
+
+// Clear ou RemoveItem do item em processamento tiram-no da lista enquanto o
+// processItem ainda roda: a fila só fica ociosa quando ele termina.
+func TestQueue_NaoOciosaComItemEmCurso(t *testing.T) {
+	for _, caso := range []struct {
+		nome  string
+		tirar func(q *Queue)
+	}{
+		{"Clear", func(q *Queue) { q.Clear() }},
+		{"RemoveItem", func(q *Queue) { q.RemoveItem(q.GetItems()[0].ID) }},
+	} {
+		t.Run(caso.nome, func(t *testing.T) {
+			liberar := make(chan struct{})
+			chamou := make(chan struct{})
+			q, _ := novaFilaGravada(t, func(context.Context, string, *models.Config, func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+				close(chamou)
+				<-liberar // ignora o cancelamento: simula o item que demora a voltar
+				return "saida.txt", 1, 1, 0, nil
+			})
+			ch := canalOciosa(q)
+			q.AddFiles([]string{`C:\x\a.zip`})
+			<-chamou
+
+			caso.tirar(q)
+			semAviso(t, ch, caso.nome+" com processar bloqueado")
+			if q.Ociosa() {
+				t.Errorf("Ociosa() verdadeiro depois de %s com o item ainda em curso", caso.nome)
+			}
+			close(liberar)
+			esperarAviso(t, ch, "fim do item tirado da lista")
+		})
+	}
 }
