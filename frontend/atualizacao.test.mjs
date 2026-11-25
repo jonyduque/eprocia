@@ -303,7 +303,9 @@ describe('interface da atualização', () => {
       assert.doesNotMatch(b, /\btitle=/, 'a explicação vai na dica, não no title');
     }
     const f = corpoFuncao(lista, 'function alternarReprocessar(');
-    assert.match(f, /^function alternarReprocessar\([^)]*\) \{\s*if \(entradaBloqueada\) return;/);
+    // Só barra abrir: fechar pelo ícone um formulário já aberto continua funcionando.
+    assert.match(f, /^function alternarReprocessar\([^)]*\) \{\s*const abrir = !reprocessarAberto\[id\];\s*(?:\/\/[^\n]*\n\s*)?if \(entradaBloqueada && abrir\) return;/);
+    assert.doesNotMatch(f, /if \(entradaBloqueada\) return;/);
     assert.match(lista, /\.btn-action\[aria-disabled='true'\] \{[^}]*opacity/);
   });
 

@@ -174,8 +174,9 @@
   // fica aqui, e não no formulário, para sobreviver à remontagem pelo {#key}.
   let origemReprocessar = {};
   function alternarReprocessar(id, evento) {
-    if (entradaBloqueada) return;
     const abrir = !reprocessarAberto[id];
+    // Durante a troca só abrir é barrado; fechar pelo ícone continua.
+    if (entradaBloqueada && abrir) return;
     reprocessarAberto = { ...reprocessarAberto, [id]: abrir };
     const { [id]: _, ...resto } = ocrSugerido;
     ocrSugerido = resto;
