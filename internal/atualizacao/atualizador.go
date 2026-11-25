@@ -121,6 +121,9 @@ type Atualizador struct {
 
 	trocaMu  sync.Mutex
 	encerrar sync.Once
+	// antesDeTravarTroca roda no Encerrar entre o cancelamento e a trava
+	// do trocaMu (só teste; nil em produção).
+	antesDeTravarTroca func()
 }
 
 // NovoAtualizador cria o Atualizador. Com o.Atual inválida (0.0.0, build de
@@ -392,8 +395,19 @@ func (a *Atualizador) instalar(ctx context.Context, gen uint64, rel *Release, mo
 
 	tr := a.o.Trocador(nil, &a.trocaMu)
 	a.trocaMu.Lock() // nunca com mu preso; depois do Encerrar, fica aqui
+	if ctx.Err() != nil {
+		// O Encerrar cancelou entre a conferência e a trava: nenhuma
+		// sequência de renames começa (sem pegar mu com o trocaMu preso).
+		a.trocaMu.Unlock()
+		_ = os.Remove(b.Caminho)
+		return
+	}
 	err = tr.Instalar(ctx, b)
 	a.trocaMu.Unlock()
+	if errors.Is(err, ErrNaoAplicou) {
+		// Nada mudou: o baixado que sobrou na pasta da instalação sai.
+		_ = os.Remove(b.Caminho)
+	}
 
 	a.mu.Lock()
 	if a.encerrado {
@@ -584,8 +598,21 @@ func (a *Atualizador) preparar(ctx context.Context, gen uint64) {
 			chamar(a.amb.Soltar)
 			chamar(a.amb.ReligarMonitor)
 			fecharTrav()
-			p.apagar()
-			a.falhar(gen, MsgNaoAplicou(a.atual))
+			if modo == ModoInstalador {
+				p.apagar()
+				a.falhar(gen, MsgNaoAplicou(a.atual))
+				return
+			}
+			// A versão nova continua instalada: volta a instalada.
+			a.mu.Lock()
+			if !a.validaLocked(gen) {
+				a.mu.Unlock()
+				return
+			}
+			a.fase, a.mensagem = FaseInstalada, MsgNaoAplicou(a.atual)
+			ev := a.marcarLocked()
+			a.mu.Unlock()
+			a.publicar(ev)
 			return
 		}
 	}
@@ -595,6 +622,7 @@ func (a *Atualizador) preparar(ctx context.Context, gen uint64) {
 		// Encerrar durante a preparação: nada começa.
 		a.mu.Unlock()
 		fecharTrav()
+		p.apagar() // instalador: o Reabrir soltou o arquivo; trocar: p vazio
 		return
 	}
 	if modo == ModoTrocar {
@@ -709,6 +737,9 @@ func (a *Atualizador) Encerrar() {
 		a.pendente = pendente{}
 		a.mu.Unlock()
 		p.apagar()
+		if a.antesDeTravarTroca != nil {
+			a.antesDeTravarTroca()
+		}
 		a.trocaMu.Lock() // nunca solto
 	})
 }

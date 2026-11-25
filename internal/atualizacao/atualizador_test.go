@@ -62,6 +62,7 @@ type cenarioAt struct {
 	novas    []Versao
 	shell    func(string) error
 	reabrir  func(Baixado) (*Travado, error)
+	fechar   func() error // Gravador.Fechar; nil = devolve nil
 }
 
 func novoCenarioAt(t *testing.T, modo Modo) *cenarioAt {
@@ -153,7 +154,17 @@ func (c *cenarioAt) definirOciosa(v bool) {
 
 type gravadorAt struct{ c *cenarioAt }
 
-func (g gravadorAt) Fechar() error  { g.c.reg("Gravador.Fechar"); return nil }
+func (g gravadorAt) Fechar() error {
+	g.c.reg("Gravador.Fechar")
+	g.c.mu.Lock()
+	f := g.c.fechar
+	g.c.mu.Unlock()
+	if f == nil {
+		return nil
+	}
+	return f()
+}
+
 func (g gravadorAt) Reabrir() error { g.c.reg("Gravador.Reabrir"); return nil }
 
 type redeAt struct{ c *cenarioAt }
@@ -1433,24 +1444,174 @@ func TestAtualizador_EncerrarFicaComATrava(t *testing.T) {
 }
 
 func TestAtualizador_EncerrarConcorrenteComFimDeInstalar(t *testing.T) {
+	chegou := 0
 	for i := range 50 {
 		c := novoCenarioAt(t, ModoTrocar)
 		// Sem arquivo: a goroutine não escreve na pasta temporária do teste.
 		c.baixar = func(_ context.Context, rel *Release, asset Asset, pasta, nome string, _ func(int64, int64)) (Baixado, error) {
 			return Baixado{Caminho: filepath.Join(pasta, nome), Asset: asset, Versao: rel.Versao}, nil
 		}
+		quase := make(chan struct{})
+		c.instalar = func(context.Context, Baixado) error {
+			close(quase) // pouco antes de devolver nil
+			return nil
+		}
 		c.verificado()
 		ok := devolveEm(prazoTeste, func() {
-			var wg sync.WaitGroup
-			wg.Go(c.a.Encerrar)
-			wg.Go(func() { _ = c.a.Instalar() })
-			wg.Wait()
+			if err := c.a.Instalar(); err != nil {
+				t.Errorf("rodada %d: Instalar = %v", i, err)
+				return
+			}
+			if i%2 == 0 {
+				// Encerrar no fim do Trocador.Instalar.
+				<-quase
+			}
+			// Nas rodadas ímpares, no mesmo instante do início.
+			c.a.Encerrar()
 			_ = c.a.Estado()
+			c.a.Encerrar()
 		})
 		if !ok {
 			t.Fatalf("rodada %d: impasse entre Encerrar e Instalar", i)
 		}
+		if c.chamadas("Trocador.Instalar") > 0 {
+			chegou++
+		}
 	}
+	if chegou == 0 {
+		t.Fatal("nenhuma rodada chegou ao Trocador.Instalar")
+	}
+}
+
+func querPastaVazia(t *testing.T, pasta string) {
+	t.Helper()
+	nomes, err := os.ReadDir(pasta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(nomes) != 0 {
+		t.Fatalf("pasta = %v; quer vazia", nomes)
+	}
+}
+
+// A goroutine passou da conferência de encerrado e pega o trocaMu entre o
+// cancelamento do Encerrar e a trava dele: não começa o Instalar.
+func TestAtualizador_EncerrarAntesDaTravaNaoInstala(t *testing.T) {
+	c := novoCenarioAt(t, ModoTrocar)
+	passou := make(chan struct{})
+	liberarFabrica := make(chan struct{})
+	c.aoCriar = func([]string) {
+		close(passou)
+		<-liberarFabrica
+	}
+	c.verificado()
+	cancelou := make(chan struct{})
+	liberarEncerrar := make(chan struct{})
+	c.a.antesDeTravarTroca = func() {
+		close(cancelou)
+		<-liberarEncerrar
+	}
+	if err := c.a.Instalar(); err != nil {
+		t.Fatal(err)
+	}
+	receberEm(t, passou, "a fábrica do Trocador")
+	voltou := make(chan struct{})
+	go func() {
+		c.a.Encerrar()
+		close(voltou)
+	}()
+	receberEm(t, cancelou, "o Encerrar cancelar")
+	close(liberarFabrica)
+	time.Sleep(100 * time.Millisecond) // a goroutine pega o trocaMu livre
+	close(liberarEncerrar)
+	receberEm(t, voltou, "o Encerrar depois de a goroutine soltar o trocaMu")
+	time.Sleep(50 * time.Millisecond)
+	if c.chamadas("Trocador.Instalar") != 0 {
+		t.Fatal("Trocador.Instalar começou depois do Encerrar")
+	}
+	querPastaVazia(t, c.pasta)
+}
+
+func TestAtualizador_GravadorNaoFechou(t *testing.T) {
+	const naoAplicou = "A atualização não pôde ser aplicada; o eprocIA continua na versão 0.4.4"
+	t.Run("trocar", func(t *testing.T) {
+		c := novoCenarioAt(t, ModoTrocar)
+		c.fechar = func() error { return errors.New("histórico") }
+		c.instalada()
+		if err := c.a.Reiniciar(); err != nil {
+			t.Fatal(err)
+		}
+		c.esperar(func() bool {
+			e := c.a.Estado()
+			return e.Fase == FaseInstalada && e.Mensagem == naoAplicou
+		}, "instalada com a frase")
+		querOrdem(t, c, []string{"Trocador.Instalar", "Ociosa", "PararMonitor", "Reter", "Ociosa", "Gravador.Fechar", "Soltar", "ReligarMonitor"})
+		if e := c.a.Estado(); e.Versao != "0.5.0" || e.Modo != "trocar" {
+			t.Fatalf("estado = %+v", e)
+		}
+		// Não fica preso: o reinício pode ser pedido de novo.
+		c.mu.Lock()
+		c.fechar = nil
+		c.mu.Unlock()
+		if err := c.a.Reiniciar(); err != nil {
+			t.Fatalf("Reiniciar de novo: %v", err)
+		}
+		c.esperarChamada("Sair", 1)
+	})
+	t.Run("instalador", func(t *testing.T) {
+		c := novoCenarioAt(t, ModoInstalador)
+		c.fechar = func() error { return errors.New("histórico") }
+		c.verificado()
+		if err := c.a.Instalar(); err != nil {
+			t.Fatal(err)
+		}
+		c.esperarFase(FaseErro)
+		querOrdem(t, c, []string{"Ociosa", "Reabrir", "PararMonitor", "Reter", "Ociosa", "Gravador.Fechar", "Soltar", "ReligarMonitor"})
+		if e := c.a.Estado(); e.Mensagem != naoAplicou || e.Modo != "instalador" {
+			t.Fatalf("estado = %+v", e)
+		}
+		if _, err := os.Stat(c.baixados[0]); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("instalador baixado ficou: %v", err)
+		}
+		if err := c.a.Instalar(); err != nil {
+			t.Fatalf("Instalar de novo: %v", err)
+		}
+	})
+}
+
+func TestAtualizador_EncerrarNaPreparacaoApagaInstalador(t *testing.T) {
+	c := novoCenarioAt(t, ModoInstalador)
+	c.fechar = func() error {
+		c.a.Encerrar() // o "Sair" da bandeja durante a preparação
+		return nil
+	}
+	c.verificado()
+	if err := c.a.Instalar(); err != nil {
+		t.Fatal(err)
+	}
+	c.esperarChamada("Gravador.Fechar", 1)
+	baixado := c.baixados[0]
+	c.esperar(func() bool {
+		_, err := os.Stat(filepath.Dir(baixado))
+		return errors.Is(err, os.ErrNotExist)
+	}, "o instalador baixado ser apagado")
+	time.Sleep(30 * time.Millisecond)
+	if c.chamadas("Shell") != 0 || c.chamadas("Sair") != 0 {
+		t.Fatalf("seguiu depois do Encerrar: %v", c.ordemAgora())
+	}
+}
+
+func TestAtualizador_InstalarNaoAplicouApagaBaixado(t *testing.T) {
+	c := novoCenarioAt(t, ModoTrocar)
+	c.instalar = func(context.Context, Baixado) error {
+		return fmt.Errorf("%w: renomear o eprocia.exe: %w", ErrNaoAplicou, errors.New("rename"))
+	}
+	c.verificado()
+	if err := c.a.Instalar(); err != nil {
+		t.Fatal(err)
+	}
+	c.esperarFase(FaseErro)
+	querPastaVazia(t, c.pasta)
 }
 
 func TestAtualizador_ReiniciarSemAnterior(t *testing.T) {
