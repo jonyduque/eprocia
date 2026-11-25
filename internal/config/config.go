@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	"eprocia/internal/models"
 )
@@ -159,9 +161,14 @@ func Save(cfg *models.Config) error {
 	return SaveToFile(path, cfg)
 }
 
+// salvarMu serializa ler-sobrepor-gravar: duas gravações concorrentes perderiam chaves.
+var salvarMu sync.Mutex
+
 // SaveToFile saves the configuration to a specific file path.
 // It ensures that the parent directory exists.
 func SaveToFile(path string, cfg *models.Config) error {
+	salvarMu.Lock()
+	defer salvarMu.Unlock()
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
@@ -191,9 +198,7 @@ func SaveToFile(path string, cfg *models.Config) error {
 			mapa = map[string]json.RawMessage{}
 		}
 	}
-	for k, v := range novos {
-		mapa[k] = v
-	}
+	maps.Copy(mapa, novos)
 
 	data, err := json.MarshalIndent(mapa, "", "  ")
 	if err != nil {
