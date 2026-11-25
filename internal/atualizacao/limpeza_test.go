@@ -139,6 +139,28 @@ func TestLimparAnterior(t *testing.T) {
 	})
 }
 
+// Com tentativasArquivo <= 0, comTentativas ainda roda op uma vez: nunca
+// devolve nil sem ter tentado.
+func TestComTentativas_SemTentativasRodaUmaVez(t *testing.T) {
+	antiga := tentativasArquivo
+	t.Cleanup(func() { tentativasArquivo = antiga })
+	for _, n := range []int{0, -1} {
+		tentativasArquivo = n
+		chamadas := 0
+		err := comTentativas(func() error {
+			chamadas++
+			return syscall.Errno(32)
+		})
+		if !errors.Is(err, syscall.Errno(32)) || chamadas != 1 {
+			t.Errorf("tentativas=%d: comTentativas = %v com %d chamadas, quer o erro 32 com 1", n, err, chamadas)
+		}
+		chamadas = 0
+		if err := comTentativas(func() error { chamadas++; return nil }); err != nil || chamadas != 1 {
+			t.Errorf("tentativas=%d: sucesso = %v com %d chamadas", n, err, chamadas)
+		}
+	}
+}
+
 func TestLimparAnterior_RepeteEmViolacaoDeCompartilhamento(t *testing.T) {
 	antiga := pausaTentativa
 	pausaTentativa = time.Millisecond

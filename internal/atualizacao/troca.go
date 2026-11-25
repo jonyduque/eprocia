@@ -96,11 +96,11 @@ func (t *Troca) renRepetindo(de, para string) error {
 }
 
 // comTentativas repete op enquanto ela falhar por violação de compartilhamento
-// (32) ou acesso negado (5), até tentativasArquivo vezes com pausaTentativa
-// entre elas, e devolve o último erro; outro erro volta na hora.
+// (32) ou acesso negado (5), até tentativasArquivo vezes (no mínimo uma), com
+// pausaTentativa entre elas, e devolve o último erro; outro erro volta na hora.
 func comTentativas(op func() error) error {
 	var err error
-	for i := range tentativasArquivo {
+	for i := range max(1, tentativasArquivo) {
 		if i > 0 {
 			time.Sleep(pausaTentativa)
 		}
@@ -144,8 +144,8 @@ func (t *Troca) Instalar(ctx context.Context, b Baixado) error {
 	if err := t.ren(b.Caminho, exe); err != nil {
 		log.Error("troca do executável: não pôs o baixado no lugar; desfazendo", atributosErro(err)...)
 		if errDesfazer := t.ren(anterior, exe); errDesfazer != nil {
-			log.Error("troca do executável: não desfez o rename do eprocia.exe; copiando o anterior", atributosErro(errDesfazer)...)
-			t.reporExe(log, anterior)
+			log.Error("troca do executável: não desfez o rename do eprocia.exe; copiando o anterior ou o baixado", atributosErro(errDesfazer)...)
+			t.reporExe(log, anterior, b.Caminho)
 			return ErrReversaoIncompleta
 		}
 		return fmt.Errorf("%w: pôr o baixado no lugar: %w", ErrNaoAplicou, err)
@@ -167,7 +167,8 @@ func (t *Troca) Reiniciar(ctx context.Context, nova Versao) error {
 }
 
 // copiarParaExe copia origem para eprocia.exe por um temporário da mesma
-// pasta (abrir só leitura funciona mesmo com o exe em execução).
+// pasta (abrir só leitura funciona mesmo com o exe em execução); o rename final
+// repete em erro de compartilhamento (antivírus segurando o exe recém-gravado).
 func (t *Troca) copiarParaExe(origem string) (errCopia error) {
 	o, err := os.Open(origem)
 	if err != nil {
@@ -191,7 +192,7 @@ func (t *Troca) copiarParaExe(origem string) (errCopia error) {
 	if err != nil {
 		return err
 	}
-	return t.ren(tmp, t.caminho(NomeExe))
+	return t.renRepetindo(tmp, t.caminho(NomeExe))
 }
 
 // reporExe tenta, depois de um rename que desfazia falhar, deixar um

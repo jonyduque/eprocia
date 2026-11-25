@@ -370,6 +370,64 @@ func TestInstalar_DesfazerFalhaCopiaAnterior(t *testing.T) {
 	conferirCopiaAnterior(t, c, b, antes)
 }
 
+// O rename do temporário da cópia de socorro para eprocia.exe repete em erro
+// de compartilhamento (antivírus segurando o exe recém-gravado).
+func TestInstalar_CopiaDeSocorroRepeteRename(t *testing.T) {
+	pausaCurta(t)
+	c := novoCenarioTroca(t, "sinal")
+	antes := somaDe(t, c.caminho(NomeExe))
+	b := c.baixado(t, v050)
+	tr := c.troca(prazoComSinal)
+	dupla := falhaDupla(b)
+	chamadas := 0
+	tr.renomear = func(de, para string) error {
+		if filepath.Base(para) == NomeExe && de != b.Caminho && temPrefixo(filepath.Base(de), PrefixoTemp) {
+			chamadas++
+			if chamadas <= 3 {
+				return &os.LinkError{Op: "rename", Old: de, New: para, Err: syscall.Errno(32)}
+			}
+		}
+		return dupla(de, para)
+	}
+	if err := tr.Instalar(context.Background(), b); !errors.Is(err, ErrReversaoIncompleta) {
+		t.Fatalf("Instalar = %v, quer ErrReversaoIncompleta", err)
+	}
+	if chamadas != 4 {
+		t.Errorf("renames do temporário = %d, quer 4", chamadas)
+	}
+	conferirCopiaAnterior(t, c, b, antes)
+}
+
+// A cópia do anterior falha: o socorro copia o baixado, como no reverter.
+func TestInstalar_SocorroCopiaOBaixado(t *testing.T) {
+	c := novoCenarioTroca(t, "sinal")
+	b := c.baixado(t, v050)
+	tr := c.troca(prazoComSinal)
+	dupla := falhaDupla(b)
+	primeiroTmp := ""
+	tr.renomear = func(de, para string) error {
+		if filepath.Base(para) == NomeExe && de != b.Caminho && temPrefixo(filepath.Base(de), PrefixoTemp) {
+			if primeiroTmp == "" {
+				primeiroTmp = de
+			}
+			if de == primeiroTmp {
+				return falhaInjetada(de, para)
+			}
+		}
+		return dupla(de, para)
+	}
+	if err := tr.Instalar(context.Background(), b); !errors.Is(err, ErrReversaoIncompleta) {
+		t.Fatalf("Instalar = %v, quer ErrReversaoIncompleta", err)
+	}
+	if v := versaoDe(t, c.caminho(NomeExe)); v != v050 {
+		t.Errorf("eprocia.exe = %v, quer a cópia do baixado (0.5.0)", v)
+	}
+	if sobra := outrosTemporarios(t, c.pasta, filepath.Base(b.Caminho)); len(sobra) != 0 {
+		t.Errorf("sobraram temporários: %v", sobra)
+	}
+	nenhumFilho(t, c.dados)
+}
+
 // Quem chama Instalar já segura a Trava; o desfazer não pode travá-la de novo.
 func TestInstalar_DesfazerComTravaJaTravada(t *testing.T) {
 	c := novoCenarioTroca(t, "sinal")
