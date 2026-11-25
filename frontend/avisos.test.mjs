@@ -84,7 +84,7 @@ test('aviso do painel fica no pé, fora da área rolável e fora do Settings', (
   const pe = app.indexOf('class="painel-aviso"');
   assert.ok(conteudo >= 0 && pe > conteudo, 'pé do painel depois de .sidebar-content');
   const fimConteudo = app.lastIndexOf('</div>', pe);
-  assert.ok(fimConteudo > app.indexOf('class="manual-card"'), 'o pé do painel não pode estar dentro da área rolável');
+  assert.ok(fimConteudo > app.indexOf('<Settings', conteudo), 'o pé do painel não pode estar dentro da área rolável');
   assert.match(app, /<Settings\b[^>]*avisar=\{avisarPainel\}/);
   assert.match(settings, /export let avisar\b/);
   assert.match(estilo(app), /\.sidebar\.collapsed \.painel-aviso\s*\{[^}]*display:\s*none/);
@@ -118,7 +118,7 @@ test('Settings confirma com Check ao lado do controle, sem toast de sucesso', ()
   assert.match(settings, /import Salvo from '\.\/Salvo\.svelte'/);
   assert.match(settings, /criarConfirmacao\(/);
   assert.match(settings, /onDestroy\(confirmacao\.limpar\)/);
-  const campos = ['watchdog', 'pasta', 'ocr', 'limpeza', 'omitir', 'autostart'];
+  const campos = ['watchdog', 'pasta', 'ocr', 'limpeza', 'omitir', 'autostart', 'forcar'];
   for (const campo of campos) {
     assert.match(settings, new RegExp(`<Salvo campo="${campo}" \\{confirmado\\} />`), `${campo} sem confirmação`);
   }

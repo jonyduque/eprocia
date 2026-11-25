@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path"
@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	"eprocia/internal/ocr/versao"
+	"eprocia/internal/registro"
 )
 
 //go:generate go run ./versao/gerar
@@ -53,11 +54,11 @@ func InitBinaries() (string, error) {
 		return "", err
 	}
 	if err := extrairBase(tempDir); err != nil {
-		log.Printf("[OCR] Falha ao extrair arquivos embutidos: %v", err)
+		slog.Error("falha ao extrair os binários embutidos", "erro", err)
 		return "", fmt.Errorf("falha ao extrair os binários embutidos: %w", err)
 	}
 
-	log.Printf("[OCR] Verificação/extração de binários concluída com sucesso no diretório: %s", tempDir)
+	slog.Info("binários embutidos prontos")
 	binDir = tempDir
 	popplerDir = filepath.Join(tempDir, "poppler")
 	return binDir, nil
@@ -66,9 +67,9 @@ func InitBinaries() (string, error) {
 // pastaBinarios cria a pasta de extração em %TEMP%.
 func pastaBinarios() (string, error) {
 	tempDir := filepath.Join(os.TempDir(), "eprocIA_bin")
-	log.Printf("[OCR] Iniciando verificação e extração do embed.FS para %s...", tempDir)
+	slog.Debug("verificando os binários embutidos", "pasta", tempDir)
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
-		log.Printf("[OCR] Falha ao criar diretório de binários: %v", err)
+		slog.Error("falha ao criar a pasta dos binários", "erro", err)
 		return "", fmt.Errorf("falha ao criar a pasta temporária dos binários: %w", err)
 	}
 	return tempDir, nil
@@ -88,7 +89,7 @@ func initPoppler() (string, error) {
 		return "", err
 	}
 	if err := extrairSub(tempDir, "poppler"); err != nil {
-		log.Printf("[OCR] Falha ao extrair o Poppler embutido: %v", err)
+		slog.Error("falha ao extrair o Poppler embutido", "erro", err)
 		return "", fmt.Errorf("falha ao extrair o Poppler embutido: %w", err)
 	}
 	popplerDir = filepath.Join(tempDir, "poppler")
@@ -242,7 +243,6 @@ type ferramentas struct {
 func prepararFerramentas(mode string) (ferramentas, error) {
 	binDir, err := InitBinaries()
 	if err != nil {
-		log.Printf("[OCR] Falha ao inicializar binários: %v", err)
 		return ferramentas{}, err
 	}
 	f := ferramentas{
@@ -264,10 +264,9 @@ func prepararFerramentas(mode string) (ferramentas, error) {
 	}
 	f.tessdata, err = tessdataDoModo(binDir, mode)
 	if err != nil {
-		log.Printf("[OCR] Falha ao extrair tessdata do modo %s: %v", mode, err)
+		slog.Error("falha ao extrair o tessdata", "modo", mode, "erro", err)
 		return ferramentas{}, err
 	}
-	log.Printf("[OCR] Usando tessdata no modo %s em: %s", mode, f.tessdata)
 	return f, nil
 }
 
@@ -279,7 +278,8 @@ const dpiRender = "150"
 // sai sem compressão: o PNG gastava cerca de 0,5 s por página só para
 // codificar o que o tesseract decodifica em seguida.
 func (f ferramentas) renderizar(ctx context.Context, pdfPath, dir string, primeira, ultima int) error {
-	log.Printf("[OCR] Executando pdftoppm para as páginas %d a %d do PDF %s...", primeira, ultima, pdfPath)
+	lg := registro.Logger(ctx)
+	lg.Debug("pdftoppm", "primeira", primeira, "ultima", ultima)
 	prazo := prazoDe(prazoRenderBase, prazoRenderPorPagina, ultima-primeira+1)
 	err := rodarComPrazo(ctx, prazo, func(ctx context.Context) *exec.Cmd {
 		cmd := exec.CommandContext(ctx, f.pdftoppm,
@@ -296,7 +296,7 @@ func (f ferramentas) renderizar(ctx context.Context, pdfPath, dir string, primei
 		return cmd
 	})
 	if err != nil {
-		log.Printf("[OCR] pdftoppm falhou: %v", err)
+		lg.Debug("pdftoppm falhou", "erro", err)
 		return fmt.Errorf("falha no pdftoppm embutido: %w", err)
 	}
 	return nil
@@ -410,18 +410,28 @@ func (f ferramentas) reconhecer(ctx context.Context, dir, entrada string, pagina
 		return saida.String(), nil
 	}
 
-	log.Printf("[OCR] Executando tesseract no idioma 'por'...")
+	lg := registro.Logger(ctx)
+	lg.Debug("tesseract", "idioma", "por", "paginas", paginas)
 	texto, err := rodar("--dpi", dpiRender, "-l", "por")
 	if err != nil && (errors.Is(err, ErrPrazo) || ctx.Err() != nil) {
 		// O fallback esgotaria o prazo de novo, ou já não tem para quem voltar.
-		log.Printf("[OCR] Tesseract em português interrompido: %v", err)
+		lg.Debug("tesseract em português interrompido", "erro", err)
 		return "", fmt.Errorf("falha no tesseract embutido: %w", err)
 	}
 	if err != nil {
-		log.Printf("[OCR] Tesseract em português falhou: %v. Tentando inglês como fallback...", err)
+		// Este erro não sobe ao etl (o fallback o substitui): o código de
+		// saída e o stderr só chegam ao log por esta linha.
+		attrs := []any{"erro", err}
+		if ep, ok := errors.AsType[*ErroProcesso](err); ok {
+			attrs = append(attrs, "codigo_saida", ep.Codigo)
+			if ep.Stderr != "" {
+				attrs = append(attrs, "stderr", ep.Stderr)
+			}
+		}
+		lg.Warn("tesseract em português falhou; tentando o modelo padrão", attrs...)
 		texto, err = rodar("--dpi", dpiRender)
 		if err != nil {
-			log.Printf("[OCR] Tesseract fallback (inglês) falhou: %v", err)
+			lg.Debug("tesseract com o modelo padrão falhou", "erro", err)
 			return "", fmt.Errorf("falha no tesseract embutido: %w", err)
 		}
 	}
@@ -450,7 +460,8 @@ func ocrPaginas(ctx context.Context, pdfPath string, paginas []int, mode string,
 	if len(paginas) == 0 {
 		return nil, nil
 	}
-	log.Printf("[OCR] Iniciando OCR do PDF %s, páginas %v, modo %s", pdfPath, paginas, mode)
+	lg := registro.Logger(ctx)
+	lg.Debug("OCR iniciado", "paginas", paginas, "modo", mode)
 	f, err := prepararFerramentas(mode)
 	if err != nil {
 		return nil, err
@@ -461,7 +472,6 @@ func ocrPaginas(ctx context.Context, pdfPath string, paginas []int, mode string,
 		return nil, fmt.Errorf("falha ao criar a pasta temporária do OCR: %w", err)
 	}
 	defer func() {
-		log.Printf("[OCR] Removendo pasta temporária de processamento: %s", tempDir)
 		os.RemoveAll(tempDir)
 	}()
 
@@ -524,7 +534,7 @@ func ocrPaginas(ctx context.Context, pdfPath string, paginas []int, mode string,
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("[OCR] OCR concluído. Caracteres extraídos: %d", len(texto))
+	lg.Debug("OCR concluído", "caracteres", len(texto))
 	if len(nomes) == 1 {
 		return []string{texto}, nil
 	}

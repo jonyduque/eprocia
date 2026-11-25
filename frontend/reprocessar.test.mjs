@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { aplicarReprocessarComOCR, ESTADO_REPROCESSAR_INICIAL } from './src/lib/reprocessar.js';
+import { aplicarReprocessarComOCR, ESTADO_REPROCESSAR_INICIAL, argumentosLerComOCR, limpezaInicialReprocessar } from './src/lib/reprocessar.js';
 
 describe('reprocessar com OCR', () => {
   it('painel fechado: abre com OCR normal', () => {
@@ -30,5 +30,64 @@ describe('reprocessar com OCR', () => {
     const f = readFileSync(new URL('./src/components/ProcessList.svelte', import.meta.url), 'utf8');
     assert.match(f, /aplicarReprocessarComOCR\(/);
     assert.match(f, /\{#key /);
+  });
+  it('Reprocessar envia o Forçar OCR como quarto argumento do ReprocessQueueItem', () => {
+    const f = readFileSync(new URL('./src/components/ProcessList.svelte', import.meta.url), 'utf8');
+    const corpo = f.slice(f.indexOf('async function confirmarReprocessar'));
+    assert.match(corpo.slice(0, 300), /ReprocessQueueItem\(item\.id, ocr, limpeza, !!forcar\)/);
+    const r = readFileSync(new URL('./src/components/ReprocessarItem.svelte', import.meta.url), 'utf8');
+    assert.match(r, /aoConfirmar\(ocr, limpeza, forcar\)/);
+  });
+});
+
+// O formulário do Reprocessar abre com a mesma limpeza que o Ler com OCR usaria.
+describe('limpezaInicialReprocessar', () => {
+  it('ajuste do item, depois o nível do relatório, depois o global, depois standard', () => {
+    const cfg = { cleaning_level: 'aggressive' };
+    assert.equal(limpezaInicialReprocessar({ cleaning_level: 'none', relatorio: { limpeza: { nivel: 'basic' } } }, cfg), 'none');
+    assert.equal(limpezaInicialReprocessar({ relatorio: { limpeza: { nivel: 'basic' } } }, cfg), 'basic');
+    assert.equal(limpezaInicialReprocessar({}, cfg), 'aggressive');
+    assert.equal(limpezaInicialReprocessar(undefined, null), 'standard');
+  });
+  it('igual à limpeza do Ler com OCR', () => {
+    for (const item of [{}, { cleaning_level: 'basic' }, { relatorio: { limpeza: { nivel: 'none' } } }]) {
+      const cfg = { ocr_mode: 'normal', cleaning_level: 'aggressive' };
+      assert.equal(limpezaInicialReprocessar(item, cfg), argumentosLerComOCR(item, cfg).limpeza);
+    }
+  });
+  it('ProcessList passa limpezaInicialReprocessar ao ReprocessarItem', () => {
+    const f = readFileSync(new URL('./src/components/ProcessList.svelte', import.meta.url), 'utf8');
+    assert.match(f, /limpezaInicial=\{limpezaInicialReprocessar\(item, config\)\}/);
+  });
+});
+
+describe('argumentosLerComOCR', () => {
+  it('global none dá normal', () => {
+    const a = argumentosLerComOCR({ cleaning_level: 'basic' }, { ocr_mode: 'none', cleaning_level: 'standard' });
+    assert.equal(a.ocr, 'normal');
+  });
+  it('global best dá best', () => {
+    const a = argumentosLerComOCR({}, { ocr_mode: 'best', cleaning_level: 'standard' });
+    assert.equal(a.ocr, 'best');
+  });
+  it('forcar é sempre false, mesmo com a global ligada ou o item forçado', () => {
+    assert.equal(argumentosLerComOCR({}, { ocr_mode: 'fast', forcar_ocr: true }).forcar, false);
+    assert.equal(argumentosLerComOCR({ forcar_ocr: true }, { ocr_mode: 'none', forcar_ocr: true }).forcar, false);
+  });
+  it('mantém o nível de limpeza do item; sem ele, o global', () => {
+    assert.equal(argumentosLerComOCR({ cleaning_level: 'aggressive' }, { ocr_mode: 'normal', cleaning_level: 'basic' }).limpeza, 'aggressive');
+    assert.equal(argumentosLerComOCR({}, { ocr_mode: 'normal', cleaning_level: 'basic' }).limpeza, 'basic');
+  });
+  it('não usa o modo de OCR do item (o item ficou sem OCR)', () => {
+    assert.equal(argumentosLerComOCR({ ocr_mode: 'none' }, { ocr_mode: 'fast' }).ocr, 'fast');
+  });
+  it('item comum (sem ajuste) usa o nível em que rodou, mesmo com a global mudada depois', () => {
+    const item = { relatorio: { limpeza: { nivel: 'basic' } } };
+    assert.equal(argumentosLerComOCR(item, { ocr_mode: 'normal', cleaning_level: 'aggressive' }).limpeza, 'basic');
+    // O ajuste do Reprocessar vale mais que o relatório.
+    assert.equal(argumentosLerComOCR({ ...item, cleaning_level: 'none' }, { cleaning_level: 'aggressive' }).limpeza, 'none');
+  });
+  it('config ausente não lança', () => {
+    assert.deepEqual(argumentosLerComOCR({}, null), { ocr: 'normal', limpeza: 'standard', forcar: false });
   });
 });

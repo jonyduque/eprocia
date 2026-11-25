@@ -3,7 +3,8 @@ package etl
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
+	"path/filepath"
 	"strings"
 )
 
@@ -26,7 +27,8 @@ func (p *PDFParser) parsePoppler(
 ) (map[string]any, error) {
 	numPages := p.numPaginas
 	comOCR := ocrEnabled && ocrRunner != nil
-	log.Printf("[PDFParser] PDF %s lido pelo segundo leitor: %d páginas", p.filePath, numPages)
+	lg := p.logger(ctx)
+	lg.Debug("PDF lido pelo segundo leitor", "paginas", numPages)
 
 	caminho, err := p.caminhoParaOCR()
 	var textos []string
@@ -41,27 +43,43 @@ func (p *PDFParser) parsePoppler(
 			return nil, errCtx
 		}
 		if !comOCR {
-			return nil, resumirSegundoLeitor(p.filePath, "", err)
+			return nil, resumirSegundoLeitor(ctx, filepath.Base(p.filePath), "", err)
 		}
-		log.Printf("[PDFParser] Segundo leitor não extraiu o texto de %s: %v. Todas as páginas vão ao OCR.", p.filePath, err)
+		lg.Warn("segundo leitor não extraiu o texto; todas as páginas vão ao OCR", atributosErro(comEtapa(EtapaLerPDF, err))...)
 		textos = make([]string, numPages)
 	}
 
 	d := p.novoDespachoOCR(ctx, numPages, ocrRunner, onPageComplete)
 	for pageNum := 1; pageNum <= numPages; pageNum++ {
 		if err := ctx.Err(); err != nil {
-			log.Printf("[PDFParser] Contexto cancelado na leitura da página %d: %v", pageNum, err)
+			lg.Debug("leitura cancelada", "pag", pageNum, "erro", err)
 			d.esperarDespachados()
 			return nil, err
 		}
 		texto := strings.TrimSpace(textos[pageNum-1])
+		bytesNativo := len(texto)
 		ilegivel := textoIlegivel(texto)
 		curto := len(texto) < 100
+		motivo := motivoPadrao
 		if ilegivel {
 			texto = marcadorIlegivel(texto)
+			motivo = motivoIlegivel
 		}
-		if (ilegivel || curto) && comOCR {
-			d.agendar(ocrTask{pageNum: pageNum, fallback: texto})
+		vaiAoOCR := (ilegivel || curto) && comOCR
+		// Forçar OCR: a página com texto que ficaria com o nativo vai também.
+		if p.forcar && comOCR && !vaiAoOCR {
+			vaiAoOCR, motivo = true, motivoForcado
+		}
+		if lg.Enabled(ctx, slog.LevelDebug) {
+			attrs := []any{"pag", pageNum, "bytes_nativo", bytesNativo}
+			if vaiAoOCR {
+				attrs = append(attrs, "motivo", motivo.String())
+			}
+			lg.Debug("página analisada", attrs...)
+		}
+		if vaiAoOCR {
+			// O motivo não muda a decisão aqui: só o nome em motivo_ocr.
+			d.agendar(ocrTask{pageNum: pageNum, fallback: texto, motivo: motivo})
 			continue
 		}
 		pageData := map[string]any{
@@ -82,11 +100,11 @@ func (p *PDFParser) parsePoppler(
 
 	paginasMap := d.esperar()
 	if err := ctx.Err(); err != nil {
-		log.Printf("[PDFParser] Análise abortada devido a cancelamento do contexto: %v", err)
+		lg.Debug("análise cancelada", "erro", err)
 		return nil, err
 	}
 	if n := d.falhas.Load(); n > 0 {
-		log.Printf("[PDFParser] ATENÇÃO: %d página(s) de %s com falha de OCR.", n, p.filePath)
+		lg.Warn("página com falha de OCR", append([]any{"paginas", n}, atributosErro(comEtapa(EtapaOCR, d.erroOCR()))...)...)
 	}
 	return paginasMap, nil
 }

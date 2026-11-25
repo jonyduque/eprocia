@@ -7,6 +7,7 @@
       "arquivos": [
         "main.go",
         "app.go",
+        "registro_app.go",
         "icon.go",
         "bandeja.go",
         "instancia*.go",
@@ -18,6 +19,9 @@
         "internal/models/*.go",
         "internal/janela/*.go",
         "internal/autostart/*.go",
+        "internal/registro/*.go",
+        "internal/telemetria/*.go",
+        "scripts/anonimizar-log/*.go",
         "go.mod"
       ],
       "lentes": [

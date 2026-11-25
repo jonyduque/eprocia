@@ -162,7 +162,7 @@ test('janela sem marco region; arrastar ZIP escutado na window', () => {
 });
 
 test('painel é um aside nomeado fora do main; main só na fila', () => {
-  assert.match(tag(app, 'id="sidebar"'), /aria-label="Configurações e importação"/);
+  assert.match(tag(app, 'id="sidebar"'), /aria-label="Configurações"/);
   const ini = app.indexOf('<main');
   assert.ok(ini > app.indexOf('</aside>'), 'aside fora do main');
   assert.match(tag(app, '<main'), /class="content-area"/);
@@ -171,8 +171,7 @@ test('painel é um aside nomeado fora do main; main só na fila', () => {
 
 test('títulos do painel no mesmo nível e divisor com nome curto', () => {
   assert.match(app, /<h2[^>]*>Configurações<\/h2>/);
-  assert.match(app, /<h2[^>]*>Importação Manual<\/h2>/);
-  assert.doesNotMatch(app, /<h3>Importação Manual/);
+  assert.doesNotMatch(app, /Importação Manual/);
   assert.doesNotMatch(settings, /<h2/);
   assert.match(tag(app, 'class="resize-handle"'), /aria-label="Largura do painel"/);
   assert.doesNotMatch(app, /Redimensionador/);
@@ -182,7 +181,7 @@ test('ajudas ligadas aos campos e interruptores com role=switch', () => {
   for (const [campo, ajuda] of [['ocr-mode', 'ajuda-ocr'], ['cleaning-level', 'ajuda-limpeza'], ['omitir-tipos', 'ajuda-omitir']]) {
     // No Segmentado, idAjuda vira o aria-describedby do fieldset.
     assert.match(tag(settings, `id="${campo}"`), new RegExp(`(aria-describedby|idAjuda)="${ajuda}"`), campo);
-    assert.match(settings, new RegExp(`<p class="help-text" id="${ajuda}">`), ajuda);
+    assert.match(settings, new RegExp(`<p class="help-text[^"]*" id="${ajuda}">`), ajuda);
   }
   for (const id of ['watchdog-toggle', 'autostart-toggle']) {
     assert.match(tag(settings, `id="${id}"`), /role="switch"/, id);

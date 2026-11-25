@@ -405,7 +405,14 @@ test('chip de fila pausada mora na linha do cabeçalho e entra/sai com fade', ()
   assert.match(cab, /\{#if aviso\}\s*<span class="queue-chip" title=\{aviso\} transition:fade=\{\{ duration: duracaoMovimento\(DUR_FAST\) \}\}>/);
   assert.doesNotMatch(lista, /<div class="queue-notice">/, 'faixa própria empurrava a lista');
   const chip = regra(estilo(lista), '.queue-chip');
-  assert.match(chip, /min-width:\s*0/);
+  // F-AN-05 fixou min-width: 0 para o chip encolher na linha do cabeçalho em vez
+  // de empurrar a lista. Desde 2026-11-24 (Task 19, rodada 3) o mínimo é o ícone
+  // inteiro (12px + padding 8px x 2 + borda 1px x 2, com border-box): ainda
+  // pequeno e fixo, então o cabeçalho segue numa linha, e o chip nunca vira um
+  // toco com o ícone cortado. O texto encolhe até sumir antes disso.
+  assert.match(chip, /min-width:\s*calc\(12px \+ 16px \+ 2px\)/);
+  assert.match(chip, /padding:\s*1px 8px/);
+  assert.match(cab, /<span class="queue-chip"[^>]*>\s*<Icone icone=\{CirclePause\} tamanho=\{12\} \/>/);
   assert.match(chip, /flex-shrink:\s*\d+/);
 });
 

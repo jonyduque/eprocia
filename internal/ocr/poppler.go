@@ -5,13 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -48,18 +49,67 @@ func (l *limitado) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// blocoLimitado é o menor pedaço que ReadFrom reserva de uma vez no buffer.
+const blocoLimitado = 512
+
+// tamDescarte é o bloco de leitura do descarte depois do limite: com 512 bytes,
+// 80 MiB acima do teto custavam ~160 mil leituras.
+const tamDescarte = 32 << 10
+
+// descartes guarda os blocos de descarte entre processos: o conteúdo é jogado
+// fora, e o pool evita alocar 32 KiB a cada stderr que passa do limite.
+var descartes = sync.Pool{New: func() any { return new([tamDescarte]byte) }}
+
+// ReadFrom lê de r até o EOF direto no espaço livre do buffer, sem passar do
+// limite, e descarta o resto em blocos de tamDescarte (só pegos do pool quando
+// o descarte começa), continuando a ler para o filho não travar com o pipe
+// cheio. Sem ele, o io.Copy do exec (cmd.Stdout e cmd.Stderr que não são
+// *os.File) aloca 32 KiB por processo.
+func (l *limitado) ReadFrom(r io.Reader) (int64, error) {
+	var total int64
+	var lixo []byte
+	defer func() {
+		if lixo != nil {
+			descartes.Put((*[tamDescarte]byte)(lixo))
+		}
+	}()
+	for {
+		var b []byte
+		if falta := l.max - l.buf.Len(); falta > 0 {
+			l.buf.Grow(min(falta, blocoLimitado))
+			b = l.buf.AvailableBuffer()
+			b = b[:min(cap(b), falta)]
+		} else {
+			if lixo == nil {
+				lixo = descartes.Get().(*[tamDescarte]byte)[:]
+			}
+			b = lixo
+		}
+		n, err := r.Read(b)
+		total += int64(n)
+		if n > 0 {
+			if lixo == nil {
+				l.buf.Write(b[:n])
+			} else {
+				l.cortou = true
+			}
+		}
+		if err == io.EOF {
+			return total, nil
+		}
+		if err != nil {
+			return total, err
+		}
+	}
+}
+
 // String serve só ao stderr.
 func (l *limitado) String() string { return strings.TrimSpace(l.buf.String()) }
 
 // popplerFerramentas devolve a pasta do Poppler extraída, sem tocar no
 // tesseract nem no tessdata: InfoPDF e TextoPDF valem com o OCR desligado.
 func popplerFerramentas() (string, error) {
-	dir, err := initPoppler()
-	if err != nil {
-		log.Printf("[OCR] Falha ao inicializar o Poppler: %v", err)
-		return "", err
-	}
-	return dir, nil
+	return initPoppler()
 }
 
 // rodarPoppler roda um executável do Poppler e devolve o stdout.
@@ -69,21 +119,18 @@ func rodarPoppler(ctx context.Context, popplerDir, exe string, prazo time.Durati
 		return "", fmt.Errorf("%s embutido não encontrado em %s: %w", exe, caminho, err)
 	}
 	saida := limitado{max: maxSaidaPoppler}
-	erroPadrao := limitado{max: maxStderr}
+	// O stderr fica com rodarComPrazo, que o devolve no *ErroProcesso.
 	err := rodarComPrazo(ctx, prazo, func(ctx context.Context) *exec.Cmd {
 		cmd := exec.CommandContext(ctx, caminho, args...)
 		cmd.Stdout = &saida
-		cmd.Stderr = &erroPadrao
 		prepareCmd(cmd)
 		cmd.Env = append(os.Environ(), "PATH="+popplerDir+";"+os.Getenv("PATH"))
 		return cmd
 	})
 	if err != nil {
-		if strings.Contains(erroPadrao.String(), "Incorrect password") {
-			return "", fmt.Errorf("falha no %s: %w", exe, ErrSenha)
-		}
-		if det := erroPadrao.String(); det != "" {
-			return "", fmt.Errorf("falha no %s: %w: %s", exe, err, det)
+		if ep, ok := errors.AsType[*ErroProcesso](err); ok && strings.Contains(ep.Stderr, "Incorrect password") {
+			// Sem o stderr na mensagem; o *ErroProcesso segue na cadeia.
+			return "", fmt.Errorf("falha no %s: %w: %w", exe, ErrSenha, err)
 		}
 		return "", fmt.Errorf("falha no %s: %w", exe, err)
 	}

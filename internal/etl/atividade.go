@@ -3,6 +3,9 @@ package etl
 import (
 	"slices"
 	"sync"
+	"sync/atomic"
+
+	"eprocia/internal/models"
 )
 
 // Estados de um documento na atividade de um ZIP.
@@ -50,6 +53,8 @@ type Atividade struct {
 	limiteOCR  int
 	ocrAtivos  int
 	versao     uint64
+	// relatorio é o do ZIP, gravado uma vez no fim (fora de mu).
+	relatorio atomic.Pointer[models.RelatorioZip]
 }
 
 // NovaAtividade cria a atividade de um item da fila.

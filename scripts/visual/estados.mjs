@@ -11,6 +11,8 @@ const CONFIG = {
   watchdog_enabled: true,
 };
 
+const CAMINHO_LONGO = 'C:\\Usuarios\\exemplo\\OneDrive - Empresa Exemplo\\Área de Trabalho\\Pasta com um nome bem longo\\Processos baixados';
+
 export function processo(n) {
   return `5000000-00.2026.4.00.${String(n).padStart(4, '0')}`;
 }
@@ -92,6 +94,93 @@ function atividadeNaoLidos(n) {
   return { item_id: item(n, 'success').id, docs, limite_docs: 7, limite_ocr: 7, ocr_ativos: 0 };
 }
 
+// relatorioZip monta um models.RelatorioZip fictício (internal/models). As cinco
+// categorias de página somam o total; ocr_sem_ganho e ocr_falhou_com_reserva são
+// sub-contadores de lida_nativa.
+function relatorioZip({ docs, pdf, html, paginas, ocr = null, atencao, porLeitura, totalMs, bytesTxt, tokens }) {
+  const p = {
+    lida_nativa: 0, lida_ocr: 0, vazia: 0, sem_ocr: 0, com_erro: 0,
+    ocr_sem_ganho: 0, ocr_falhou_com_reserva: 0, de_nao_lidos: 0, de_omitidos: 0, duplicadas: 0,
+    ...paginas,
+  };
+  p.total = p.lida_nativa + p.lida_ocr + p.vazia + p.sem_ocr + p.com_erro;
+  const o = ocr ?? { processos: 0, blocos: 0, paginas_em_bloco: 0, refacoes: 0, prazos: 0,
+    bloco_medio_ms: 0, bloco_mediana_ms: 0, bloco_p95_ms: 0, pagina_estimada_ms: 0 };
+  const ocrParede = o.blocos > 0 ? Math.round(totalMs * 0.6) : 0;
+  const naoLidos = Object.entries(porLeitura)
+    .filter(([k]) => !['lido', 'segundo_leitor', 'ocr'].includes(k))
+    .reduce((s, [, n]) => s + n, 0);
+  return {
+    documentos: { total: docs, lidos: docs - naoLidos, nao_lidos: naoLidos, omitidos: 0, duplicados_h7: 0, pdf, html, por_leitura: porLeitura },
+    paginas: p,
+    tempo: {
+      total_ms: totalMs, abrir_ms: 40, pre_contagem_ms: 310, leitura_parede_ms: totalMs - 600, leitura_soma_ms: Math.round(totalMs * 2.4),
+      ocr_trabalho_ms: o.blocos * o.bloco_medio_ms, ocr_parede_ms: ocrParede, formatacao_ms: 180, gravacao_ms: 20,
+    },
+    ocr: o,
+    limpeza: { nivel: 'standard', bytes_antes: Math.round(bytesTxt * 1.22), bytes_depois: bytesTxt, bytes_duplicatas: 0,
+      tokens_antes: Math.round(tokens * 1.22), tokens_depois: tokens },
+    bytes_txt: bytesTxt,
+    tokens,
+    ...(atencao ? { atencao } : {}),
+  };
+}
+
+const concluido = (n, rel) => item(n, 'success', {
+  progress: 100,
+  message: 'Concluído',
+  output_path: `${CONFIG.monitored_path}\\${processo(n)}.txt`,
+  docs_count: rel.documentos.total, pages_count: rel.paginas.total, estimated_tokens: rel.tokens,
+  processed_docs: rel.documentos.total, total_docs: rel.documentos.total,
+  processed_pages: rel.paginas.total, total_pages: rel.paginas.total,
+  unread_docs: rel.documentos.nao_lidos,
+  relatorio: rel,
+});
+
+// Fila do estado `relatorio`: um ZIP só com texto nativo, um com OCR e páginas
+// em branco (nenhum aviso) e um com os três avisos e documentos para conferir.
+const FILA_RELATORIO = [
+  concluido(11, relatorioZip({
+    docs: 57, pdf: 55, html: 2, porLeitura: { lido: 57 },
+    paginas: { lida_nativa: 142 }, totalMs: 8400, bytesTxt: 393800, tokens: 98450,
+  })),
+  concluido(12, relatorioZip({
+    docs: 31, pdf: 31, html: 0, porLeitura: { lido: 24, ocr: 7 },
+    paginas: { lida_nativa: 60, lida_ocr: 24, vazia: 4, ocr_sem_ganho: 1 },
+    ocr: { processos: 7, blocos: 7, paginas_em_bloco: 25, refacoes: 0, prazos: 0,
+      bloco_medio_ms: 9800, bloco_mediana_ms: 9100, bloco_p95_ms: 16400, pagina_estimada_ms: 2744 },
+    totalMs: 41200, bytesTxt: 251300, tokens: 62800,
+  })),
+  concluido(13, relatorioZip({
+    docs: 18, pdf: 18, html: 0, porLeitura: { lido: 15, ocr: 2, sem_ocr: 1 },
+    paginas: { lida_nativa: 48, lida_ocr: 6, vazia: 2, sem_ocr: 5, com_erro: 3, ocr_falhou_com_reserva: 2, de_nao_lidos: 3 },
+    ocr: { processos: 3, blocos: 3, paginas_em_bloco: 11, refacoes: 1, prazos: 1,
+      bloco_medio_ms: 12600, bloco_mediana_ms: 11800, bloco_p95_ms: 30000, pagina_estimada_ms: 3436 },
+    atencao: [
+      { nome: 'Evento 4 - ANEXO1.pdf', evento: 4, sem_ocr: [2, 3, 4, 5, 6], total_sem_ocr: 5 },
+      { nome: 'Evento 9 - LAUDO2.pdf', evento: 9, com_erro: [1, 2, 3], total_com_erro: 3,
+        ocr_falhou_com_reserva: [5, 9], total_ocr_falhou_com_reserva: 2 },
+    ],
+    totalMs: 52800, bytesTxt: 140200, tokens: 35050,
+  })),
+];
+
+// Relatórios dos concluídos de `fila` e `nao-lidos`, com os números de sucesso():
+// no app real todo item concluído traz o seu.
+const REL_NATIVO = relatorioZip({
+  docs: 57, pdf: 55, html: 2, porLeitura: { lido: 57 },
+  paginas: { lida_nativa: 142 }, totalMs: 8400, bytesTxt: 393800, tokens: 98450,
+});
+// Os mesmos documentos de atividadeNaoLidos: um sem OCR e um com senha (as
+// páginas deles ficam em de_nao_lidos); o sem OCR acende o "Ler com OCR".
+const REL_NAO_LIDOS = relatorioZip({
+  docs: 57, pdf: 55, html: 2, porLeitura: { lido: 52, segundo_leitor: 1, ocr: 2, sem_ocr: 1, senha: 1 },
+  paginas: { lida_nativa: 131, lida_ocr: 8, de_nao_lidos: 3 },
+  ocr: { processos: 2, blocos: 2, paginas_em_bloco: 8, refacoes: 0, prazos: 0,
+    bloco_medio_ms: 8800, bloco_mediana_ms: 8800, bloco_p95_ms: 9900, pagina_estimada_ms: 2200 },
+  totalMs: 21300, bytesTxt: 393800, tokens: 98450,
+});
+
 // listaAltoContraste: states captured with forced colors, from review.json
 // (visual.alto_contraste). A missing list or key is an empty list.
 export function listaAltoContraste(config) {
@@ -103,7 +192,8 @@ export const ESTADOS = {
   vazio: { config: { ...CONFIG, monitored_path: '', watchdog_enabled: false }, fila: [], pausado: false },
   fila: {
     config: CONFIG,
-    fila: [sucesso(1), sucesso(2), item(3, 'pending'), item(4, 'pending'), item(5, 'cancelled', { message: 'Cancelado pelo usuário' })],
+    fila: [{ ...sucesso(1), relatorio: REL_NATIVO }, { ...sucesso(2), relatorio: REL_NATIVO }, item(3, 'pending'), item(4, 'pending'),
+      item(5, 'cancelled', { message: 'Cancelado pelo usuário' })],
     pausado: false,
   },
   processando: {
@@ -123,14 +213,43 @@ export const ESTADOS = {
   },
   'nao-lidos': {
     config: CONFIG,
-    fila: [{ ...sucesso(1), unread_docs: 2 }, sucesso(2)],
+    fila: [{ ...sucesso(1), unread_docs: 2, relatorio: REL_NAO_LIDOS }, { ...sucesso(2), relatorio: REL_NATIVO }],
     pausado: false,
     atividades: { [item(1, 'success').id]: atividadeNaoLidos(1) },
   },
   configuracoes: {
-    config: { ...CONFIG, monitored_path: 'C:\\Usuarios\\exemplo\\OneDrive - Empresa Exemplo\\Área de Trabalho\\Pasta com um nome bem longo\\Processos baixados', ocr_mode: 'best', cleaning_level: 'basic' },
+    config: { ...CONFIG, monitored_path: CAMINHO_LONGO, ocr_mode: 'best', cleaning_level: 'basic', forcar_ocr: false },
     fila: [],
     pausado: false,
+    LogAtivo: false,
+  },
+  relatorio: {
+    config: CONFIG,
+    fila: FILA_RELATORIO,
+    pausado: false,
+  },
+  // Log ligado (EPROCIA_LOG): o bloco com "Abrir pasta de logs" aparece no fim do painel.
+  'configuracoes-log': {
+    config: { ...CONFIG, forcar_ocr: true, ocr_mode: 'normal' },
+    fila: [],
+    pausado: false,
+    LogAtivo: true,
+  },
+  // OCR desligado: o interruptor Forçar OCR fica marcado e desabilitado, com a ajuda.
+  'configuracoes-none': {
+    config: { ...CONFIG, forcar_ocr: true, ocr_mode: 'none' },
+    fila: [],
+    pausado: false,
+    LogAtivo: false,
+  },
+  // Categoria Processamento recolhida (eprocia.categorias, lib/categorias.js),
+  // com o log ligado para o bloco Sistema mostrar o conteúdo todo.
+  'configuracoes-recolhida': {
+    config: { ...CONFIG, ocr_mode: 'normal' },
+    fila: [],
+    pausado: false,
+    LogAtivo: true,
+    categorias: { monitoramento: false, processamento: true, sistema: false },
   },
 };
 
@@ -139,6 +258,7 @@ export const ESTADOS = {
 // with fakes that serve the given state. Unknown calls resolve to undefined.
 export function instalarStubs({ estado, tema }) {
   localStorage.setItem('theme', tema === 'claro' ? 'light' : 'dark');
+  if (estado.categorias) localStorage.setItem('eprocia.categorias', JSON.stringify(estado.categorias));
   const dados = {
     GetConfig: estado.config,
     GetQueue: estado.fila,
@@ -147,6 +267,10 @@ export function instalarStubs({ estado, tema }) {
     // e as capturas saem com spinner, pulso e realce parados.
     JanelaVisivel: true,
     GetQueueActivity: (id) => estado.atividades?.[id] ?? null,
+    // Log desligado salvo quando o estado pede (EPROCIA_LOG só existe no app real).
+    LogAtivo: estado.LogAtivo === true,
+    AbrirPastaLogs: undefined,
+    ReprocessQueueItem: (_id, _ocr, _limpeza, _forcar) => undefined,
     SelectZipFiles: [],
     SelectDirectory: '',
     SelectZipFile: '',

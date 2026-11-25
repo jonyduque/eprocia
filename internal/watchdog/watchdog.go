@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -90,10 +90,10 @@ func (w *Watcher) Start(path string) error {
 	// ZIPs baixados enquanto o app estava fechado não geram evento do fsnotify.
 	pendentes, err := pendingZips(path, time.Now().Add(-janelaPendentes), w.falhas.Ignorar)
 	if err != nil {
-		log.Printf("Watchdog: falha ao procurar ZIPs pendentes em %s: %v", path, err)
+		slog.Warn("watchdog: falha ao procurar ZIPs pendentes", "pasta", path, "erro", err)
 	}
 	if len(pendentes) > 0 {
-		log.Printf("Watchdog: %d ZIP(s) pendente(s) encontrados em %s", len(pendentes), path)
+		slog.Info("watchdog: ZIPs pendentes encontrados", "pasta", path, "quantidade", len(pendentes))
 		w.wg.Go(func() {
 			// Em série, para a fila receber na ordem de download.
 			for _, p := range pendentes {
@@ -107,7 +107,7 @@ func (w *Watcher) Start(path string) error {
 		})
 	}
 
-	log.Printf("Watchdog started monitoring: %s", path)
+	slog.Info("watchdog: monitoramento iniciado", "pasta", path)
 	return nil
 }
 
@@ -127,7 +127,7 @@ func (w *Watcher) stopLocked() {
 	w.watcher.Close()
 	w.wg.Wait()
 
-	log.Printf("Watchdog stopped monitoring: %s", w.currentPath)
+	slog.Info("watchdog: monitoramento encerrado", "pasta", w.currentPath)
 	w.watcher = nil
 	w.currentPath = ""
 }
@@ -164,7 +164,7 @@ func (w *Watcher) watchLoop(watcher *fsnotify.Watcher, done chan struct{}) {
 			if !ok {
 				return
 			}
-			log.Printf("Watchdog error: %v", err)
+			slog.Warn("watchdog: erro do monitor de pasta", "erro", err)
 
 		case <-done:
 			return
@@ -215,5 +215,5 @@ func (w *Watcher) handleNewFile(filePath string, done <-chan struct{}) {
 		}
 	}
 
-	log.Printf("Watchdog: file %s could not be stabilized or opened", filePath)
+	slog.Warn("watchdog: ZIP não estabilizou ou não abriu", "zip", filepath.Base(filePath))
 }

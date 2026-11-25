@@ -37,6 +37,7 @@
     ReprocessQueueItem
   } from '../wailsjs/go/main/App.js';
   import AtividadeItem from './AtividadeItem.svelte';
+  import RelatorioItem from './RelatorioItem.svelte';
   import ReprocessarItem from './ReprocessarItem.svelte';
   import Aviso from './Aviso.svelte';
   import { onDestroy, tick } from 'svelte';
@@ -46,7 +47,9 @@
   import { criarAnunciador } from '../lib/regiaoViva.js';
   import { estadoItem, avisoFila } from '../lib/estado.js';
   import { criarAviso, duracaoMovimento, DUR_FAST, DUR_BASE } from '../lib/aviso.js';
-  import { aplicarReprocessarComOCR, alvoAoFecharReprocessar } from '../lib/reprocessar.js';
+  import { aplicarReprocessarComOCR, alvoAoFecharReprocessar, argumentosLerComOCR, limpezaInicialReprocessar } from '../lib/reprocessar.js';
+  import { resumoPaginas, avisosPaginas, mostrarLerComOCR } from '../lib/relatorio.js';
+  import { EXPLICACAO_OCR, ROTULO_LER_COM_OCR, DICA_LER_COM_OCR, DICA_ABRIR_RELATORIO, DICA_FECHAR_RELATORIO } from '../lib/textos.js';
   import { dica } from '../lib/dica.js';
   import { rotuloNaoLidos, avisoCopiaNaoLidos, tituloNaoLidos } from '../lib/naoLidos.js';
   import { rolagem } from '../lib/rolagem.js';
@@ -199,15 +202,48 @@
     (alvoAoFecharReprocessar(origem, botaoReprocessarDa(id)) ?? tituloEl)?.focus();
   }
 
-  async function confirmarReprocessar(item, ocr, limpeza) {
+  // Painel de detalhes do relatório (linha-resumo do item concluído).
+  let relatorioAberto = {};
+  // Envio do botão ROTULO_LER_COM_OCR em curso: trava o duplo clique até a fila responder.
+  let lendoOCR = {};
+  function alternarRelatorio(id) {
+    relatorioAberto = { ...relatorioAberto, [id]: !relatorioAberto[id] };
+  }
+
+  // Botão ROTULO_LER_COM_OCR: refaz o ZIP com o OCR ligado só nas páginas candidatas,
+  // sem Forçar OCR e com a limpeza do item (a config global não muda).
+  async function lerComOCR(item) {
+    if (lendoOCR[item.id]) return;
+    lendoOCR = { ...lendoOCR, [item.id]: true };
+    const a = argumentosLerComOCR(item, config);
     try {
-      await ReprocessQueueItem(item.id, ocr, limpeza);
+      await ReprocessQueueItem(item.id, a.ocr, a.limpeza, a.forcar);
+      const botao = botaoReprocessarDa(item.id);
+      botao?.focus();
+      guardarFoco(item.id, { currentTarget: botao }, 'cancelar');
+      reprocessarAberto = { ...reprocessarAberto, [item.id]: false };
+      relatorioAberto = { ...relatorioAberto, [item.id]: false };
+      origemReprocessar = { ...origemReprocessar, [item.id]: null };
+      const { [item.id]: _, ...resto } = atividadesBuscadas;
+      atividadesBuscadas = resto;
+    } catch (err) {
+      console.error('Erro ao reprocessar com OCR:', err);
+      avisoAcao.mostrar('Erro ao reprocessar: ' + (err?.message ?? err), 'error');
+    } finally {
+      lendoOCR = { ...lendoOCR, [item.id]: false };
+    }
+  }
+
+  async function confirmarReprocessar(item, ocr, limpeza, forcar) {
+    try {
+      await ReprocessQueueItem(item.id, ocr, limpeza, !!forcar);
       // O item volta para a fila e a linha troca Reprocessar por Cancelar quando
       // o queue:update chegar: o foco espera no Reprocessar e depois vai ao Cancelar.
       const botao = botaoReprocessarDa(item.id);
       botao?.focus();
       guardarFoco(item.id, { currentTarget: botao }, 'cancelar');
       reprocessarAberto = { ...reprocessarAberto, [item.id]: false };
+      relatorioAberto = { ...relatorioAberto, [item.id]: false };
       origemReprocessar = { ...origemReprocessar, [item.id]: null };
       const { [item.id]: _, ...resto } = atividadesBuscadas;
       atividadesBuscadas = resto;
@@ -480,7 +516,7 @@
   <div class="list-header" class:rolado={listaRolada}>
     <div class="header-left">
       <Icone icone={List} />
-      <h2 title="Fila de Processamento" tabindex="-1" bind:this={tituloEl}>Fila de Processamento</h2>
+      <h2 title="Fila" tabindex="-1" bind:this={tituloEl}>Fila</h2>
       {#if aviso}
         <span class="queue-chip" title={aviso} transition:fade={{ duration: duracaoMovimento(DUR_FAST) }}>
           <Icone icone={CirclePause} tamanho={12} />
@@ -817,6 +853,61 @@
               </div>
             {/if}
 
+            {#if estado === 'sucesso' && item.relatorio}
+              {@const resumo = resumoPaginas(item.relatorio)}
+              {@const avisos = avisosPaginas(item.relatorio)}
+              {@const ler = mostrarLerComOCR(item.relatorio)}
+              {#if resumo || avisos.length > 0 || ler}
+                <div class="relatorio-linha">
+                  {#if resumo}
+                    <button
+                      type="button"
+                      class="resumo-relatorio"
+                      data-parada="relatorio"
+                      tabindex={tabParada(item.id, 'relatorio', paradaAtiva)}
+                      aria-expanded={!!relatorioAberto[item.id]}
+                      aria-controls="relatorio-{item.id}"
+                      title={relatorioAberto[item.id] ? DICA_FECHAR_RELATORIO : DICA_ABRIR_RELATORIO}
+                      on:click={() => alternarRelatorio(item.id)}
+                    >
+                      <span class="chevron" class:aberto={relatorioAberto[item.id]} aria-hidden="true">
+                        <Icone icone={ChevronDown} tamanho={12} />
+                      </span>
+                      <span class="resumo-texto">{resumo}</span>
+                    </button>
+                  {/if}
+                  {#if avisos.length > 0}
+                    <ul class="avisos-relatorio">
+                      {#each avisos as a (a.tipo)}
+                        <li class="aviso-relatorio">
+                          <Icone icone={CircleAlert} tamanho={12} cor="var(--warning)" />
+                          <span>{a.texto}</span>
+                        </li>
+                      {/each}
+                    </ul>
+                    <p class="explicacao-ocr">{EXPLICACAO_OCR}</p>
+                  {/if}
+                  {#if ler}
+                    <button
+                      type="button"
+                      class="btn-ler-ocr"
+                      data-parada="lerocr"
+                      tabindex={tabParada(item.id, 'lerocr', paradaAtiva)}
+                      aria-disabled={!!lendoOCR[item.id]}
+                      title={DICA_LER_COM_OCR}
+                      on:click={() => lerComOCR(item)}
+                    >
+                      <Icone icone={RotateCcw} tamanho={12} />
+                      {ROTULO_LER_COM_OCR}
+                    </button>
+                  {/if}
+                </div>
+                {#if resumo && relatorioAberto[item.id]}
+                  <RelatorioItem id="relatorio-{item.id}" relatorio={item.relatorio} />
+                {/if}
+              {/if}
+            {/if}
+
             {#if expansivel && atividadeAberta[item.id]}
               <AtividadeItem
                 id="atividade-{item.id}"
@@ -831,8 +922,9 @@
                 <ReprocessarItem
                   id="reprocessar-{item.id}"
                   ocrInicial={ocrSugerido[item.id] || item.ocr_mode || config?.ocr_mode || 'normal'}
-                  limpezaInicial={item.cleaning_level || config?.cleaning_level || 'standard'}
-                  aoConfirmar={(ocr, limpeza) => confirmarReprocessar(item, ocr, limpeza)}
+                  limpezaInicial={limpezaInicialReprocessar(item, config)}
+                  forcarInicial={!!config?.forcar_ocr}
+                  aoConfirmar={(ocr, limpeza, forcar) => confirmarReprocessar(item, ocr, limpeza, forcar)}
                   aoCancelar={() => fecharReprocessar(item.id)}
                 />
               {/key}
@@ -925,7 +1017,13 @@
     background-color: var(--warning-soft);
     border: 1px solid var(--warning-line);
     white-space: nowrap;
-    min-width: 0;
+    /* Base 0 e crescimento até o próprio texto: o chip só ocupa a sobra, e o
+       título (flex: 0 1 auto) só encolhe com o chip já no mínimo. */
+    flex: 1 1 0;
+    max-width: max-content;
+    /* No mínimo, o ícone inteiro (12px + padding + borda): nunca um toco com o
+       ícone cortado; o texto some antes (título e DOM guardam o texto inteiro). */
+    min-width: calc(12px + 16px + 2px);
     flex-shrink: 10;
     overflow: hidden;
   }
@@ -935,11 +1033,13 @@
   }
 
   .queue-chip-text {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .header-left h2 {
+    flex: 0 1 auto;
     font-size: var(--fs-title);
     font-weight: 600;
     margin: 0;
@@ -1073,9 +1173,10 @@
   }
 
   /* Fila estreita: os botões ficam só com o ícone; o nome segue no aria-label.
-     O cabeçalho com rótulos (e o ícone do título) só cabe com 484px de card
-     (medido em 2026-11-22); 492 = 484 + 8 de margem. */
-  @container (max-width: 492px) {
+     Com Pausar, Limpar concluídos e Limpar tudo rotulados, o título inteiro só
+     cabe com 660px de card (caixa de conteúdo; medido em 2026-11-24, claro e
+     escuro). Abaixo disso os rótulos espremiam o título até sumir. */
+  @container (max-width: 660px) {
     .rotulo-acao {
       display: none;
     }
@@ -1133,7 +1234,7 @@
     max-width: 250px;
   }
 
-  /* Mesmo botão da Importação Manual do painel (App.svelte). */
+  /* Botão "Selecionar arquivos ZIP..." da fila vazia. */
   .manual-select-btn {
     background-color: var(--bg-main);
     border: 1px solid var(--border);
@@ -1559,7 +1660,7 @@
     margin-left: 30px;
     padding: 6px 8px;
     border-left: 2px solid var(--error);
-    border-radius: 4px;
+    border-radius: 0 4px 4px 0;
     background-color: var(--error-soft);
     font-size: var(--fs-meta);
     color: var(--text-primary);
@@ -1568,6 +1669,114 @@
     cursor: text;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+  }
+
+  /* Linha-resumo do relatório: largura inteira, abaixo da linha do item. */
+  .relatorio-linha {
+    flex-basis: 100%;
+    margin-left: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    min-width: 0;
+    font-size: var(--fs-meta);
+  }
+
+  .resumo-relatorio {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    min-height: 20px;
+    padding: 0 4px;
+    margin-left: -4px;
+    border: none;
+    border-radius: 3px;
+    background: transparent;
+    font: inherit;
+    color: var(--text-secondary);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .resumo-relatorio:hover .resumo-texto {
+    color: var(--text-primary);
+    text-decoration: underline;
+  }
+
+  .resumo-relatorio:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+
+  .resumo-texto {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .avisos-relatorio {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .aviso-relatorio {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    color: var(--warning-strong);
+    font-weight: 500;
+  }
+
+  .aviso-relatorio :global(svg) {
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .explicacao-ocr {
+    margin: 0;
+    color: var(--text-secondary);
+  }
+
+  .btn-ler-ocr {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 24px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--warning-line);
+    background-color: var(--warning-soft);
+    color: var(--warning-strong);
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  /* aria-disabled, e não disabled: num erro do envio o foco fica no botão em
+     vez de cair no body; a guarda de lerComOCR barra o segundo clique. */
+  .btn-ler-ocr[aria-disabled='true'] {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .btn-ler-ocr:hover:not([aria-disabled='true']) {
+    border-color: var(--warning);
+  }
+
+  .btn-ler-ocr:focus-visible {
+    outline: 2px solid var(--warning);
+    outline-offset: 1px;
+  }
+
+  @container (max-width: 420px) {
+    .relatorio-linha {
+      margin-left: 0;
+    }
   }
 
   .erro-detalhe p {

@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,6 +16,7 @@ import (
 	"eprocia/internal/etl"
 	"eprocia/internal/janela"
 	"eprocia/internal/models"
+	"eprocia/internal/registro"
 	"eprocia/internal/watchdog"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -45,6 +46,9 @@ type App struct {
 	emitir func(evento string, dados ...any)
 	// oculta acompanha a janela na bandeja para JanelaVisivel.
 	oculta atomic.Bool
+	// fecharTelemetria descarrega a telemetria no shutdown; nil com o log
+	// desligado.
+	fecharTelemetria func()
 }
 
 // eventoVisibilidade avisa o frontend que a janela sumiu na bandeja (false)
@@ -57,7 +61,7 @@ func NewApp() *App {
 	app := &App{autostart: autostart.Aplicar, clipboard: runtime.ClipboardSetText}
 	app.watcher = watchdog.NewWatcher(func(filePath string) {
 		if app.queue != nil {
-			app.queue.AddFiles([]string{filePath})
+			app.queue.AddFilesComOrigem([]string{filePath}, "monitorada")
 		}
 	})
 	return app
@@ -73,6 +77,9 @@ func (a *App) startup(ctx context.Context) {
 	a.queue.SetContext(ctx)
 	a.iniciarNotificacoes(ctx)
 	a.queue.SetOnFinished(a.aoTerminar)
+	// A fila nasce depois de iniciarRegistro (main): a telemetria se liga
+	// aqui, e só com o log ativo; desligado, nada dela executa.
+	a.ligarTelemetriaSeAtivo(pastaDadosApp())
 
 	// main já leu a config para escolher o fundo da janela.
 	cfg := a.cfg
@@ -88,7 +95,7 @@ func (a *App) startup(ctx context.Context) {
 	a.sincronizarAutostart(cfg)
 	if cfg.WatchdogEnabled && cfg.MonitoredPath != "" {
 		if err := a.watcher.Start(cfg.MonitoredPath); err != nil {
-			log.Printf("Erro ao iniciar o monitoramento da pasta %q: %v", cfg.MonitoredPath, err)
+			slog.Warn("falha ao iniciar o monitoramento da pasta", "pasta", cfg.MonitoredPath, "erro", err)
 			runtime.EventsEmit(ctx, "watchdog:error", err.Error())
 		}
 	}
@@ -98,13 +105,13 @@ func (a *App) startup(ctx context.Context) {
 // sido apagada por fora ou apontar para um executável que mudou de lugar.
 func (a *App) sincronizarAutostart(cfg *models.Config) {
 	if err := a.autostart(cfg.AutoStart); err != nil {
-		log.Printf("Erro ao sincronizar a inicialização com o Windows: %v", err)
+		slog.Warn("falha ao sincronizar a inicialização com o Windows", "erro", err)
 	}
 }
 
 func (a *App) iniciarNotificacoes(ctx context.Context) {
 	if err := runtime.InitializeNotifications(ctx); err != nil {
-		log.Printf("Aviso: notificações indisponíveis: %v", err)
+		slog.Warn("notificações indisponíveis", "erro", err)
 		return
 	}
 	if !runtime.IsNotificationAvailable(ctx) {
@@ -131,7 +138,7 @@ func (a *App) aoTerminar(item *etl.QueueItem) {
 	}
 	titulo, corpo := mensagemFim(item)
 	if err := a.notificar(titulo, corpo); err != nil {
-		log.Printf("Erro ao enviar notificação de %s: %v", item.Name, err)
+		slog.Warn("falha ao enviar a notificação", "item_id", item.ID, "zip", item.Name, "erro", err)
 	}
 }
 
@@ -161,7 +168,7 @@ func carregarConfig(load func() (*models.Config, error)) *models.Config {
 	if err == nil && cfg != nil {
 		return cfg
 	}
-	log.Printf("Aviso: falha ao carregar a configuração (%v); usando a configuração padrão", err)
+	slog.Warn("falha ao carregar a configuração; usando a configuração padrão", "erro", err)
 	padrao, _ := config.DefaultConfig()
 	return padrao
 }
@@ -173,6 +180,9 @@ func (a *App) shutdown(ctx context.Context) {
 	}
 	if a.queue != nil {
 		a.queue.Shutdown()
+	}
+	if a.fecharTelemetria != nil {
+		a.fecharTelemetria()
 	}
 }
 
@@ -230,6 +240,8 @@ func (a *App) Quit() {
 	if an := a.animador.Load(); an != nil {
 		an.Cancelar()
 	}
+	// O que já foi registrado chega ao arquivo antes de a saída começar.
+	registro.Descarregar()
 	if a.ctx != nil {
 		runtime.Quit(a.ctx)
 	}
@@ -267,7 +279,7 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 	var errAuto error
 	if cfg.AutoStart != autoAnterior {
 		if err := a.autostart(cfg.AutoStart); err != nil {
-			log.Printf("Erro ao alterar a inicialização com o Windows: %v", err)
+			slog.Warn("falha ao alterar a inicialização com o Windows", "erro", err)
 			cfg.AutoStart = autoAnterior
 			errAuto = fmt.Errorf("configurações salvas, mas não foi possível alterar a inicialização com o Windows: %w", err)
 		}
@@ -276,7 +288,7 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 	if err := config.Save(cfg); err != nil {
 		if errAuto == nil && cfg.AutoStart != autoAnterior {
 			if errVolta := a.autostart(autoAnterior); errVolta != nil {
-				log.Printf("Erro ao desfazer a inicialização com o Windows: %v", errVolta)
+				slog.Warn("falha ao desfazer a inicialização com o Windows", "erro", errVolta)
 			}
 		}
 		return err
@@ -291,7 +303,7 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 	// tentar de novo depois de uma falha mesmo sem mudar o caminho.
 	if cfg.WatchdogEnabled && cfg.MonitoredPath != "" {
 		if err := a.watcher.Start(cfg.MonitoredPath); err != nil {
-			log.Printf("Erro ao iniciar o monitoramento da pasta %q: %v", cfg.MonitoredPath, err)
+			slog.Warn("falha ao iniciar o monitoramento da pasta", "pasta", cfg.MonitoredPath, "erro", err)
 			return fmt.Errorf("configurações salvas, mas não foi possível monitorar a pasta %q: %w", cfg.MonitoredPath, err)
 		}
 	} else {
@@ -426,6 +438,15 @@ func (a *App) AddFilesToQueue(filePaths []string) int {
 	return 0
 }
 
+// AddDroppedFiles põe na fila os ZIPs arrastados para a janela (origem
+// "arrastada") e devolve quantos entraram.
+func (a *App) AddDroppedFiles(filePaths []string) int {
+	if a.queue != nil {
+		return a.queue.AddFilesComOrigem(filePaths, "arrastada")
+	}
+	return 0
+}
+
 // GetQueue returns the current list of items in the queue.
 func (a *App) GetQueue() []*etl.QueueItem {
 	if a.queue != nil {
@@ -471,12 +492,14 @@ func (a *App) RemoveQueueItem(id string) {
 }
 
 // ReprocessQueueItem devolve à fila um item concluído, com erro ou cancelado,
-// usando o OCR e a higienização informados só para ele.
-func (a *App) ReprocessQueueItem(id, ocrMode, cleaningLevel string) error {
+// usando o OCR, a higienização e o Forçar OCR informados só para ele. O
+// Forçar OCR é sempre explícito: a tela decide o valor (a caixa nasce da
+// config global; "Ler com OCR" manda false).
+func (a *App) ReprocessQueueItem(id, ocrMode, cleaningLevel string, forcarOCR bool) error {
 	if a.queue == nil {
 		return fmt.Errorf("fila não inicializada")
 	}
-	return a.queue.Reprocessar(id, ocrMode, cleaningLevel)
+	return a.queue.Reprocessar(id, ocrMode, cleaningLevel, &forcarOCR)
 }
 
 // GetQueueActivity devolve o estado de cada documento do item (o que está em

@@ -171,7 +171,7 @@
 {/if}
 
 <style>
-  /* Mesmo visual de .collapsed-tool-btn (App.svelte), com os pontos de nível
+  /* Botão quadrado de 32px da barra recolhida, com os pontos de nível
      embaixo do ícone. */
   .nivel-btn {
     background-color: var(--surface-hover);

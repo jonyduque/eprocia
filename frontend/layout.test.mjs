@@ -96,6 +96,22 @@ test('título da fila trunca em uma linha', () => {
   assert.match(regra(css, '.header-actions'), /flex-shrink:\s*0/);
 });
 
+// DESIGN.md §5.1: o chip "Fila pausada" encolhe antes do título. Com base 0 e
+// crescimento até o próprio texto, o chip só ocupa o que sobra; o título fica
+// com a largura do texto e só encolhe quando o chip já está no mínimo.
+test('chip da fila pausada encolhe antes do título', () => {
+  const css = estilo(lista);
+  const chip = regra(css, '.queue-chip');
+  assert.match(chip, /flex:\s*1 1 0(px)?\s*;/);
+  assert.match(chip, /max-width:\s*max-content/);
+  // O mínimo é o ícone inteiro (movimento.test.mjs); o texto some antes.
+  assert.match(regra(css, '.queue-chip-text'), /min-width:\s*0/);
+  // Texto inteiro sempre acessível: no title e no DOM, mesmo cortado na tela.
+  assert.match(lista, /<span class="queue-chip" title=\{aviso\}[^>]*>[\s\S]*?<span class="queue-chip-text">\{aviso\}<\/span>/);
+  const h2 = regra(css, '.header-left h2');
+  assert.match(h2, /flex:\s*0 1 auto/);
+});
+
 test('campo Filtrar não cresce no foco', () => {
   const css = estilo(lista);
   const campo = regra(css, '.search-input');
@@ -107,7 +123,10 @@ test('campo Filtrar não cresce no foco', () => {
 test('em contêiner estreito os botões ficam só com ícone e mantêm nome acessível', () => {
   const css = estilo(lista);
   assert.match(regra(css, '.list-card'), /container-type:\s*inline-size/);
-  assert.match(css, /@container[^{]*\(max-width:\s*492px\)\s*\{[^}]*\.rotulo-acao\s*\{[^}]*display:\s*none/);
+  // Medido em 2026-11-24 (Task 19, rodada 1; Chromium, estado relatorio, claro e
+  // escuro, caixa de conteúdo do card de 480 a 700 px): com Pausar, Limpar
+  // concluídos e Limpar tudo rotulados, o título inteiro só cabe a partir de 660 px.
+  assert.match(css, /@container[^{]*\(max-width:\s*660px\)\s*\{[^}]*\.rotulo-acao\s*\{[^}]*display:\s*none/);
   for (const nome of ['Retomar', 'Pausar', 'Limpar concluídos', 'Limpar tudo']) {
     assert.match(lista, new RegExp(`aria-label="${nome}"`), `${nome} sem aria-label`);
     assert.match(lista, new RegExp(`<span class="rotulo-acao">${nome}</span>`), `${nome} sem rótulo ocultável`);
@@ -131,8 +150,5 @@ test('seções do painel não encolhem: a rolagem fica na área do painel', () =
   const cfg = regra(estilo(settings), '.settings-card');
   assert.match(cfg, /flex:\s*none/, 'Configurações encolhe e corta os controles a 600px de altura');
   assert.doesNotMatch(cfg, /overflow:\s*hidden/);
-  const manual = regra(estilo(app), '.manual-card');
-  assert.match(manual, /flex:\s*none/, 'Importação Manual encolhe');
-  assert.doesNotMatch(manual, /overflow:\s*hidden/);
   assert.match(regra(estilo(app), '.sidebar-content'), /overflow-y:\s*auto/);
 });

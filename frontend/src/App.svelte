@@ -6,7 +6,6 @@
   import CirclePause from 'lucide-svelte/icons/circle-pause';
   import Copy from 'lucide-svelte/icons/copy';
   import FileArchive from 'lucide-svelte/icons/file-archive';
-  import FilePlusCorner from 'lucide-svelte/icons/file-plus-corner';
   import FolderSearch from 'lucide-svelte/icons/folder-search';
   import FolderX from 'lucide-svelte/icons/folder-x';
   import Minus from 'lucide-svelte/icons/minus';
@@ -17,7 +16,6 @@
   import Sparkles from 'lucide-svelte/icons/sparkles';
   import Square from 'lucide-svelte/icons/square';
   import Sun from 'lucide-svelte/icons/sun';
-  import Upload from 'lucide-svelte/icons/upload';
   import X from 'lucide-svelte/icons/x';
   import { onMount, onDestroy, tick } from 'svelte';
   import {
@@ -31,10 +29,12 @@
   import {
     GetConfig,
     AddFilesToQueue,
+    AddDroppedFiles,
     GetQueue,
     SelectZipFiles,
     IsQueuePaused,
     JanelaVisivel,
+    LogAtivo,
     Hide,
     SetTheme,
     SaveConfig,
@@ -79,6 +79,8 @@
   let sistemaEscuro = consultaTema.matches;
   let config = null;
   let erroConfig = '';
+  // Fixo durante a execução (EPROCIA_LOG é lida ao iniciar): consultado uma vez.
+  let logAtivo = false;
   let isPaused = false;
   let isWorking = false;
 
@@ -142,6 +144,9 @@
       if (!visibilidadeAvisada) mudarVisibilidade(visivel);
     }).catch((err) => console.warn('Erro ao consultar a visibilidade da janela:', err));
     atualizarMaximizada();
+    LogAtivo().then((ativo) => {
+      logAtivo = ativo === true;
+    }).catch((err) => console.warn('Erro ao consultar o log:', err));
 
     // Load initial config
     await refreshConfig();
@@ -192,7 +197,7 @@
         // um ZIP já pendente ou em processamento é descartado por ela.
         if (zips.length === 0) soltura.recebido(0);
         else {
-          AddFilesToQueue(zips).then((n) => {
+          AddDroppedFiles(zips).then((n) => {
             soltura.recebido(n);
             anunciar(n > 0 ? textoAceitos(n) : textoJaNaFila(zips.length));
           }).catch((err) => {
@@ -267,8 +272,8 @@
   let avisoRapido = null;
   const aviso = criarAviso((a) => { avisoRapido = a; });
 
-  // Pé do painel, fora da área rolável: erros do Settings e da importação
-  // manual. Com o painel recolhido o pé some, e o aviso vai para o flutuante.
+  // Pé do painel, fora da área rolável: erros do Settings e da seleção
+  // de ZIPs. Com o painel recolhido o pé some, e o aviso vai para o flutuante.
   let avisoPe = null;
   const avisoPainel = criarAviso((a) => { avisoPe = a; });
   function avisarPainel(texto, tipo) {
@@ -372,7 +377,7 @@
     }
   }
 
-  // Manual Trigger
+  // Seleção de ZIPs pelo botão da fila vazia (ProcessList.aoSelecionarZip).
   async function triggerManualSelect() {
     try {
       const filePaths = await SelectZipFiles();
@@ -549,7 +554,7 @@
     <aside
       id="sidebar"
       class="sidebar"
-      aria-label="Configurações e importação"
+      aria-label="Configurações"
       style="width: {sidebarCollapsed ? '48px' : larguraPainel + 'px'}"
       style:--largura-painel="{larguraPainel}px"
       class:collapsed={sidebarCollapsed}
@@ -577,24 +582,9 @@
       <!-- Escondido, não desmontado: o Settings mantém o aviso e a config. -->
       <div class="sidebar-content" class:mais-abaixo={painelMaisAbaixo} use:rolagem={marcarPainel} inert={sidebarCollapsed}>
         <!-- Settings Component -->
-        <Settings bind:config {erroConfig} aoFalharSalvar={refreshConfig} avisar={avisarPainel} />
-
-        <!-- Manual Process Card -->
-        <div class="manual-card">
-          <div class="card-header">
-            <Icone icone={FilePlusCorner} tamanho={14} />
-            <h2>Importação Manual</h2>
-          </div>
-
-          <button
-            type="button"
-            class="manual-select-btn"
-            on:click={triggerManualSelect}
-          >
-            <Icone icone={Upload} tamanho={14} />
-            <span>Selecionar arquivos ZIP...</span>
-          </button>
-        </div>
+        <!-- Sem importação no painel: os ZIPs entram só pela fila (botão da
+             fila vazia) ou arrastados para a janela. -->
+        <Settings bind:config {erroConfig} {logAtivo} aoFalharSalvar={refreshConfig} avisar={avisarPainel} />
       </div>
 
       <div class="painel-aviso">
@@ -622,10 +612,6 @@
             {/key}
           </button>
           <span id="estado-monitor-recolhido" class="sr-only">{textoMonitor}</span>
-
-          <button class="collapsed-tool-btn" on:click={triggerManualSelect} title="Processar ZIP Manualmente" aria-label="Processar ZIP manualmente">
-            <Icone icone={Upload} />
-          </button>
 
           <MenuNivel
             id="ocr"
@@ -1137,29 +1123,10 @@
   }
 
   .collapsed-indicator:disabled,
-  .collapsed-tool-btn:disabled,
   .monitor-btn:disabled,
   .status-link:disabled {
     cursor: default;
     opacity: 0.6;
-  }
-
-  .collapsed-tool-btn {
-    background-color: var(--surface-hover);
-    border: 1px solid var(--border);
-    color: var(--text-secondary);
-    width: 32px;
-    height: 32px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-  }
-
-  .collapsed-tool-btn:hover {
-    color: var(--accent);
-    border-color: var(--accent);
   }
 
   .content-area {
@@ -1170,55 +1137,6 @@
     overflow: hidden;
     padding: 8px;
     background-color: transparent;
-  }
-
-  /* Manual process card */
-  /* Seção do painel: divisor de 1px no lugar da moldura de cartão. */
-  /* flex: none: a 600px de altura a área rola em vez de espremer a seção. */
-  .manual-card {
-    flex: none;
-    border-top: 1px solid var(--border);
-    padding-top: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .manual-card .card-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--text-secondary);
-  }
-
-  .manual-card h2 {
-    font-size: var(--fs-section);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-secondary);
-    margin: 0;
-  }
-
-  .manual-select-btn {
-    background-color: var(--bg-main);
-    border: 1px solid var(--border);
-    color: var(--text-primary);
-    font-size: var(--fs-base);
-    font-weight: 600;
-    width: 100%;
-    padding: 10px 8px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    cursor: pointer;
-  }
-
-  .manual-select-btn:hover {
-    border-color: var(--accent);
-    background-color: var(--surface-hover);
   }
 
   .truncate {

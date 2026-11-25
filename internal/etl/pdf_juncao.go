@@ -16,6 +16,7 @@ const (
 	motivoIlegivel                          // texto nativo ilegível (regra de hoje)
 	motivoImagemDescoberta                  // regra nova
 	motivoIsca                              // regra nova
+	motivoForcado                           // Forçar OCR: página que analisarPagina não mandou ao OCR
 )
 
 // juncaoMinRunasPalavra é o tamanho mínimo, em caracteres, de uma palavra.
@@ -23,9 +24,11 @@ const juncaoMinRunasPalavra = 3
 
 // conteudoAposOCR decide o conteúdo de uma página cujo OCR terminou sem erro.
 // Com reserva, um OCR em branco ou ilegível não a apaga: a página fica com a
-// reserva e ocr == false.
+// reserva e ocr == false. motivoForcado segue a regra de motivoPadrao (o OCR
+// legível substitui o nativo, sem junção), mas nunca piora a página: mesmo
+// com a reserva vazia, um OCR em branco ou ilegível deixa o nativo.
 func conteudoAposOCR(task ocrTask, ocrText string) (content string, ocr bool) {
-	if task.fallback == "" {
+	if task.fallback == "" && task.motivo != motivoForcado {
 		return ocrText, true
 	}
 	if strings.TrimSpace(ocrText) == "" || textoIlegivel(ocrText) {

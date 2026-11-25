@@ -94,13 +94,13 @@ test('F-AC-03: sem pasta, interruptor desligado e desabilitado com ajuda ligada'
   assert.match(settings, /id="ajuda-monitoramento"[^>]*>Escolha uma pasta para monitorar</);
 });
 
-test('F-AC-03/F-AC-09: painel mostra o estado com o ícone e o rótulo únicos', () => {
-  for (const f of [settings, app]) {
-    assert.match(f, /import FolderSearch from 'lucide-svelte\/icons\/folder-search'/);
-    assert.match(f, /import CirclePause from 'lucide-svelte\/icons\/circle-pause'/);
-    assert.match(f, /import FolderX from 'lucide-svelte\/icons\/folder-x'/);
-    assert.match(f, /ROTULO_MONITORAMENTO\[estado\]/);
-  }
+test('F-AC-03/F-AC-09: rodapé e barra recolhida mostram o estado com o ícone e o rótulo únicos', () => {
+  assert.match(app, /import FolderSearch from 'lucide-svelte\/icons\/folder-search'/);
+  assert.match(app, /import CirclePause from 'lucide-svelte\/icons\/circle-pause'/);
+  assert.match(app, /import FolderX from 'lucide-svelte\/icons\/folder-x'/);
+  assert.match(app, /ROTULO_MONITORAMENTO\[estado\]/);
+  // Ajuste do dono (2026-11-24): o painel aberto não repete o estado.
+  assert.doesNotMatch(settings, /ROTULO_MONITORAMENTO|ICONE_MONITORAMENTO/);
 });
 
 test('F-AC-09: rodapé com botão de ícone, alvo 24px e rótulo fixo', () => {

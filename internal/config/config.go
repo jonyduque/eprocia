@@ -44,6 +44,7 @@ func DefaultConfig() (*models.Config, error) {
 		WatchdogEnabled: true,
 		Theme:           "system",
 		OmitirTipos:     []string{},
+		ForcarOCR:       false,
 	}, nil
 }
 
@@ -94,6 +95,7 @@ type configOverlay struct {
 	WatchdogEnabled *bool    `json:"watchdog_enabled"`
 	Theme           *string  `json:"theme"`
 	OmitirTipos     []string `json:"omitir_tipos"`
+	ForcarOCR       *bool    `json:"forcar_ocr"`
 }
 
 // LoadFromFile loads the configuration from a specific file path.
@@ -139,6 +141,10 @@ func LoadFromFile(path string) (*models.Config, error) {
 	}
 	if overlay.OmitirTipos != nil {
 		cfg.OmitirTipos = NormalizarTipos(overlay.OmitirTipos)
+	}
+	// Preservado mesmo com ocr_mode "none": lá ele só não tem efeito.
+	if overlay.ForcarOCR != nil {
+		cfg.ForcarOCR = *overlay.ForcarOCR
 	}
 
 	return cfg, nil

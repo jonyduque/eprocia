@@ -37,6 +37,8 @@ Abaixo estão as funcionalidades obrigatórias que o sistema deve executar.
 | **RF06** | **OCR** | Reconhecimento óptico de caracteres para PDFs de imagem. | Se a extração de texto retornar vazio ou insuficiente, o sistema deve tentar aplicar OCR (Tesseract) na página. Com o OCR ligado, também vai ao OCR a página que tem texto nativo mas em que 30% ou mais da área é imagem sem texto por perto (com texto em no máximo 10% da página), e a página com imagem cujo texto nativo não parece português (texto-isca). Um OCR em branco, ilegível ou que falha não apaga o texto nativo da página, e a falha do OCR (erro ou prazo) deixa no arquivo um texto fixo que pede ao modelo de IA que avise o usuário (seção 6); na página de imagem descoberta, as linhas nativas que faltam no texto do OCR (menos de 60% das palavras da linha presentes) entram nele, na ordem da página. O texto de Form XObject faz parte do texto nativo. |
 | **RF07** | **Saída** | Geração de Arquivo Único Estruturado. | O output deve ser um arquivo `.txt` contendo todos os documentos concatenados. |
 | **RF08** | **Estrutura** | Tagueamento XML/Markdown no texto final. | Cada documento deve ser envolvido por tags indicando seu ID e nome original. Ex: `<doc id="Evento 1">...</doc>`. |
+| **RF09** | **Relatório** | Relatório do processamento de cada ZIP concluído. | O item da fila mostra quantas páginas vieram do texto do PDF, do OCR ou estavam em branco, e avisa só o que pede atenção: páginas com imagem ou desenho que precisavam de OCR e ficaram sem (OCR desligado), páginas com erro, páginas em que o OCR falhou e ficou o texto do PDF, documentos digitalizados não lidos por falta de OCR. Quando faltou OCR, oferece "Ler com OCR", que refaz só aquele ZIP com o OCR ligado, sem mudar a configuração. Os detalhes trazem tempos, a redução da higienização, os tipos omitidos e os documentos e páginas a conferir no PDF original. O `.txt` traz a linha de páginas sem OCR no cabeçalho (seção 6). |
+| **RF10** | **OCR** | Forçar OCR em todas as páginas de PDF. | Opção desligada por padrão, nas configurações (vale para todo ZIP) e no reprocessamento de um item (vale só para ele). Ligada, toda página de PDF vai ao OCR, inclusive as que têm texto nativo e as repetidas; sem efeito com o OCR desligado. Uma página que só foi ao OCR por essa opção nunca fica pior do que sem ela quando o OCR falha, sai em branco ou ilegível: fica o texto nativo, com o aviso de falha do OCR quando houve falha. |
 
 ## 4. Requisitos Não-Funcionais
 
@@ -46,6 +48,7 @@ Abaixo estão as funcionalidades obrigatórias que o sistema deve executar.
 | **RNF02** | **Eficiência** | O foco é a redução de tokens. Elementos como números de página, rodapés repetitivos e quebras de linha excessivas devem ser higienizados sempre que possível. |
 | **RNF03** | **Portabilidade** | O software deve ser distribuído preferencialmente como um executável standalone (Windows `.exe`). |
 | **RNF04** | **Dependência** | Eventuais binários devem ser empacotados no binário final |
+| **RNF05** | **Diagnóstico** | Log em arquivo e telemetria só com a variável de ambiente `EPROCIA_LOG` (`1` ou `detalhado`), lida na partida; sem ela, nada é gravado e a interface não mostra nada sobre log. Os dois ficam só no computador, sem envio pela rede. O log leva nomes de ZIP e de documento, com o nome do usuário do Windows trocado; a telemetria não leva nome nenhum. |
 
 ## 5. Arquitetura Técnica Proposta
 
@@ -79,6 +82,7 @@ Para garantir que o Gemini entenda a separação dos documentos, o arquivo final
 PROCESSO JUDICIAL - ORDEM CRONOLÓGICA
 Total de Documentos: [N]
 Documentos não lidos: [N]
+Páginas que precisavam de OCR e ficaram sem: [N]
 Data de Consolidação: [DD/MM/AAAA HH:MM:SS]
 Tokens estimados: [T]
 
@@ -119,6 +123,7 @@ Tokens estimados: [T]
 ```
 
 - **Documentos não lidos:** quantos documentos o app não conseguiu ler (arquivo ilegível, PDF digitalizado com o OCR desligado, nenhum texto encontrado etc.). Sai sempre, também com 0.
+- **Páginas que precisavam de OCR e ficaram sem:** só aparece quando maior que 0; são as páginas com imagem ou desenho cujo texto do PDF não bastou e o OCR estava desligado.
 - **`NÃO LIDO` no `<summary>`:** o documento não lido aparece como `- Evento N - NOME: NÃO LIDO`, no lugar do total de páginas.
 - **Corpo de um documento não lido:** uma única linha `[documento não lido: <motivo>; consulte o PDF original]` (em HTML, `consulte o arquivo original`), seguida do `[ERRO ...]` técnico quando houver. Documento não lido não entra na detecção de duplicatas.
 - **Falha do OCR:** o texto diz que houve erro no OCR e pede ao modelo de IA que avise o usuário; do erro só leva uma frase fixa (`tempo esgotado` ou `o OCR não conseguiu ler a página`), nunca caminho nem saída do programa. A página que ficou sem texto leva `[ERRO de OCR: <frase>; avise o usuário de que houve erro no OCR desta página e recomende a consulta ao PDF original]` como conteúdo. A página que ficou com o texto nativo leva, antes dele, a linha `[aviso de OCR: houve erro no OCR desta página e o texto dela pode estar incompleto; avise o usuário e recomende a consulta ao PDF original]`; essa página não entra na detecção de duplicatas. No documento não lido por falha do OCR, o `[ERRO de OCR: ...]` vem logo depois da linha `[documento não lido: ...]`.

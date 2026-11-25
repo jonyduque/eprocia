@@ -3,6 +3,10 @@
 import {models} from '../models';
 import {etl} from '../models';
 
+export function AbrirPastaLogs():Promise<void>;
+
+export function AddDroppedFiles(arg1:Array<string>):Promise<number>;
+
 export function AddFilesToQueue(arg1:Array<string>):Promise<number>;
 
 export function CancelQueueItem(arg1:string):Promise<void>;
@@ -27,6 +31,8 @@ export function IsQueuePaused():Promise<boolean>;
 
 export function JanelaVisivel():Promise<boolean>;
 
+export function LogAtivo():Promise<boolean>;
+
 export function OpenDirectory(arg1:string):Promise<void>;
 
 export function PauseQueue():Promise<void>;
@@ -37,7 +43,7 @@ export function Quit():Promise<void>;
 
 export function RemoveQueueItem(arg1:string):Promise<void>;
 
-export function ReprocessQueueItem(arg1:string,arg2:string,arg3:string):Promise<void>;
+export function ReprocessQueueItem(arg1:string,arg2:string,arg3:string,arg4:boolean):Promise<void>;
 
 export function ResumeQueue():Promise<void>;
 

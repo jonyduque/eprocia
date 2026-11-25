@@ -1,6 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { RAIZ, normalizar } from './lib.mjs';
 import * as gerados from './proteger-gerados.mjs';
@@ -12,6 +14,7 @@ import * as ambiente from './ambiente.mjs';
 
 const edit = (file_path) => ({ tool_name: 'Edit', tool_input: { file_path } });
 const bash = (command) => ({ tool_name: 'Bash', tool_input: { command } });
+const ps = (command) => ({ tool_name: 'PowerShell', tool_input: { command } });
 
 describe('lib.normalizar', () => {
   it('torna relativo à raiz e usa barras normais', () => {
@@ -89,6 +92,221 @@ describe('proteger-dados', () => {
     it(`deixa: ${JSON.stringify(c)}`, () => assert.equal(dados.avaliar(bash(c), { ...ctx, listar: () => { throw new Error('não devia listar'); } }).codigo, 0));
   }
   it('sai 0 sem comando', () => assert.equal(dados.avaliar({ tool_input: {} }, ctx).codigo, 0));
+  for (const c of ['eprocia.log', 'logs/eprocia.1.log', 'telemetria.jsonl',
+    'C:/Users/x/AppData/Roaming/eprocIA/telemetria/telemetria.1.jsonl']) {
+    it(`log e telemetria são sensíveis: ${c}`, () => assert.equal(dados.arquivoSensivel(c), true));
+  }
+  for (const c of ['docs/exemplo.log', 'scripts/anonimizar-log/testdata/entrada.jsonl']) {
+    it(`log e telemetria de exemplo não são sensíveis: ${c}`, () => assert.equal(dados.arquivoSensivel(c), false));
+  }
+  // Task 10 (f5b7a48): `git add internal/etl/testdata/saida_antes` numa worktree passou
+  // porque a expansão listava a checkout do hook ($CLAUDE_PROJECT_DIR), não a do comando.
+  describe('expande no diretório do comando', () => {
+    const dirDe = (c, ev = {}) => {
+      let visto;
+      dados.avaliar({ ...bash(c), ...ev }, { ...ctx, listar: (p, d) => { visto = d; return []; } });
+      return visto && path.resolve(visto);
+    };
+    it('usa o cwd do evento', () => assert.equal(dirDe('git add pasta', { cwd: 'D:\\wt' }), path.resolve('D:/wt')));
+    it('segue cd anterior no mesmo comando', () => assert.equal(dirDe('cd /d/outra && git add -A', { cwd: 'D:\\wt' }), path.resolve('D:/outra')));
+    it('cd relativo ao cwd', () => assert.equal(dirDe('cd sub; git add -u', { cwd: 'D:\\wt' }), path.resolve('D:/wt/sub')));
+    it('segue git -C', () => assert.equal(dirDe('git -C sub commit -a -m x', { cwd: 'D:\\wt' }), path.resolve('D:/wt/sub')));
+    it('sem cwd usa a raiz do harness', () => assert.equal(dirDe('git add -A'), path.resolve(RAIZ)));
+    // Rodada 1 da revisão.
+    it('cd dentro de subshell não vale fora dela', () => assert.equal(dirDe('(cd sub) && git add .', { cwd: 'D:\\wt' }), path.resolve('D:/wt')));
+    it('cd dentro de subshell vale dentro dela', () => assert.equal(dirDe('(cd sub && git add .)', { cwd: 'D:\\wt' }), path.resolve('D:/wt/sub')));
+    it('subshells irmãs não herdam o cd', () => assert.equal(dirDe('(cd sub) && (git add .)', { cwd: 'D:\\wt' }), path.resolve('D:/wt')));
+    it('cd pula -- e -L/-P', () => assert.equal(dirDe('cd -P -- sub && git add .', { cwd: 'D:\\wt' }), path.resolve('D:/wt/sub')));
+    it('cd sem argumento volta ao cwd do evento', () => assert.equal(dirDe('cd sub; cd; git add .', { cwd: 'D:\\wt' }), path.resolve('D:/wt')));
+    it('cd - volta ao cwd do evento', () => assert.equal(dirDe('cd sub; cd -; git add .', { cwd: 'D:\\wt' }), path.resolve('D:/wt')));
+    it('pushd é como cd', () => assert.equal(dirDe('pushd sub && git add .', { cwd: 'D:\\wt' }), path.resolve('D:/wt/sub')));
+    it('popd desfaz pushd', () => assert.equal(dirDe('pushd sub && popd && git add .', { cwd: 'D:\\wt' }), path.resolve('D:/wt')));
+    // Rodada 2 da revisão.
+    it('cd depois de { segue', () => assert.equal(dirDe('{ cd /x; git add .; }', { cwd: 'D:\\wt' }), path.resolve('X:/')));
+    it('cd depois de if segue', () => assert.equal(dirDe('if cd /x; then git add .; fi', { cwd: 'D:\\wt' }), path.resolve('X:/')));
+    it('cd depois de ! e while segue', () => assert.equal(dirDe('! cd sub; while cd fundo; do git add .; done', { cwd: 'D:\\wt' }), path.resolve('D:/wt/sub/fundo')));
+    it('popd com pilha vazia mantém o dir', () => assert.equal(dirDe('cd sub; popd; git add .', { cwd: 'D:\\wt' }), path.resolve('D:/wt/sub')));
+    it('listagem: prazo único de 3 s e stdio sem herdar', () => {
+      const chamadas = [];
+      let t = 0;
+      const exec = (cmd, args, o) => { chamadas.push(o); t += 2000; return args[0] === 'rev-parse' ? 'D:/wt\n' : 'a.txt\0'; };
+      const r = dados.listarCandidatos([], 'D:\\wt', { exec, agora: () => t });
+      assert.deepEqual([...r], ['a.txt']);
+      assert.equal(r.raiz, 'D:/wt');
+      assert.deepEqual(chamadas.map((o) => o.timeout), [3000, 1000]);
+      for (const o of chamadas) assert.deepEqual(o.stdio, ['ignore', 'pipe', 'ignore']);
+    });
+    it('listagem: sem prazo restante falha fechada', () => {
+      let t = 0;
+      const exec = () => { t += 3000; return 'D:/wt\n'; };
+      assert.equal(dados.listarCandidatos([], 'D:\\wt', { exec, agora: () => t }), null);
+    });
+    it('bench dentro da checkout listada', () => {
+      const listar = () => Object.assign(['corpus/proc.json'], { raiz: 'D:\\wt' });
+      const r = dados.avaliar({ ...bash('git add -A'), cwd: 'D:\\wt' }, { benchDir: 'D:\\wt\\corpus', listar });
+      assert.equal(r.codigo, 2);
+      assert.equal(dados.arquivoSensivel('corpus/proc.json', 'D:/wt/corpus', 'D:/wt'), true);
+      assert.equal(dados.arquivoSensivel('outro/proc.json', 'D:/wt/corpus', 'D:/wt'), false);
+    });
+    it('lista de verdade um repositório separado', () => {
+      const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'eprocia-hook-'));
+      try {
+        execFileSync('git', ['init', '-q', repo]);
+        fs.mkdirSync(path.join(repo, 'saida_antes'));
+        fs.writeFileSync(path.join(repo, 'saida_antes', 'sintetico.txt'), 'FULANO DE TAL\n');
+        fs.writeFileSync(path.join(repo, 'a.go'), 'package a\n');
+        const r = dados.avaliar({ ...bash('git add saida_antes'), cwd: repo }, { benchDir: '' });
+        assert.equal(r.codigo, 2);
+        assert.match(r.stderr, /saida_antes\/sintetico\.txt/);
+        // Em subpasta, o caminho listado é o da raiz: internal/docs/x.txt não vira docs/x.txt.
+        fs.mkdirSync(path.join(repo, 'internal', 'docs'), { recursive: true });
+        fs.writeFileSync(path.join(repo, 'internal', 'docs', 'x.txt'), 'FULANO DE TAL\n');
+        const sub = dados.avaliar({ ...bash('git add docs'), cwd: path.join(repo, 'internal') }, { benchDir: '' });
+        assert.equal(sub.codigo, 2);
+        assert.match(sub.stderr, /internal\/docs\/x\.txt/);
+        // EPROCIA_BENCH_DIR dentro da checkout listada também casa (rodada 1, item 4).
+        fs.rmSync(path.join(repo, 'saida_antes'), { recursive: true });
+        fs.rmSync(path.join(repo, 'internal'), { recursive: true });
+        fs.mkdirSync(path.join(repo, 'corpus'));
+        fs.writeFileSync(path.join(repo, 'corpus', 'proc.json'), '{}\n');
+        const b = dados.avaliar({ ...bash('git add -A'), cwd: repo }, { benchDir: path.join(repo, 'corpus') });
+        assert.equal(b.codigo, 2);
+        assert.match(b.stderr, /corpus\/proc\.json/);
+      } finally {
+        fs.rmSync(repo, { recursive: true, force: true });
+      }
+    });
+    it('EPROCIA_BENCH_DIR com nome curto 8.3 casa com a raiz longa do git', (t) => {
+      // No runner do CI o TEMP é C:\Users\RUNNER~1\...; o git devolve a raiz longa.
+      const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'eprocia-hook-curto-'));
+      try {
+        execFileSync('git', ['init', '-q', repo]);
+        fs.mkdirSync(path.join(repo, 'corpus-longo'));
+        fs.writeFileSync(path.join(repo, 'corpus-longo', 'proc.json'), '{}\n');
+        const longo = path.join(repo, 'corpus-longo');
+        const curto = execFileSync('cmd', ['/d', '/c', `for %I in ("${longo}") do @echo %~sI`], { encoding: 'utf8', windowsVerbatimArguments: true }).trim();
+        if (!curto || curto.toLowerCase() === longo.toLowerCase()) {
+          t.skip('o volume não gera nomes 8.3');
+          return;
+        }
+        const r = dados.avaliar({ ...bash('git add -A'), cwd: repo }, { benchDir: curto });
+        assert.equal(r.codigo, 2);
+        assert.match(r.stderr, /corpus-longo\/proc\.json/);
+      } finally {
+        fs.rmSync(repo, { recursive: true, force: true });
+      }
+    });
+  });
+  // d5 (2026-11-24): o mesmo hook na ferramenta PowerShell, com a sintaxe dela.
+  describe('ferramenta PowerShell', () => {
+    const naoLista = () => { throw new Error('não devia listar'); };
+    const dirDe = (c, ev = {}) => {
+      let visto;
+      const r = dados.avaliar({ ...ps(c), ...ev }, { ...ctx, listar: (p, d) => { visto = d; return []; } });
+      return { r, dir: visto && path.resolve(visto) };
+    };
+    for (const c of [
+      'git add x.pdf',
+      "git add 'pasta com espaço\\y.PDF'",
+      'git add "a b.zip"',
+      'git status; git add x.zip',
+      'git status && git add x.zip',
+      'git status || git add x.zip',
+      'Get-Date | git add x.zip',
+      '& git add x.zip',
+      "& 'C:\\Program Files\\Git\\cmd\\git.exe' add x.zip",
+      'git -C sub add x.zip',
+      'git add a.go,x.zip',
+      'git add a.go `\n  x.zip',
+      'if ($true) { git add x.zip }',
+      'git commit -m "msg" dados.zip',
+      'git add saida.txt',
+      'git add D:\\corpus\\proc.json',
+    ]) {
+      it(`bloqueia: ${JSON.stringify(c)}`, () => assert.equal(dados.avaliar(ps(c), { ...ctx, listar: () => [] }).codigo, 2));
+    }
+    it('bloqueia git add -A com .zip não ignorado', () => {
+      const r = dados.avaliar(ps('git add -A'), { ...ctx, listar: () => ['a.go', 'Processo 1.zip'] });
+      assert.equal(r.codigo, 2);
+      assert.match(r.stderr, /Processo 1\.zip/);
+    });
+    for (const c of ['git add .', 'git add .\\', 'git add *', 'git add dir\\', 'git add internal', 'git commit -am "x"', 'git commit --all -m x', 'git add --all']) {
+      it(`expande e bloqueia amplo com dado real: ${c}`, () => {
+        const r = dados.avaliar(ps(c), { ...ctx, listar: () => ['Processo 1.zip'] });
+        assert.equal(r.codigo, 2);
+      });
+    }
+    it('segue Set-Location sub; git add .', () => {
+      const { dir } = dirDe('Set-Location sub; git add .', { cwd: 'D:\\wt' });
+      assert.equal(dir, path.resolve('D:/wt/sub'));
+    });
+    it('Set-Location sub; git add . com .zip lá bloqueia', () => {
+      const vistos = [];
+      const r = dados.avaliar({ ...ps('Set-Location sub; git add .'), cwd: 'D:\\wt' },
+        { ...ctx, listar: (p, d) => { vistos.push(path.resolve(d)); return ['sub/Processo.zip']; } });
+      assert.equal(r.codigo, 2);
+      assert.deepEqual(vistos, [path.resolve('D:/wt/sub')]);
+    });
+    for (const [c, esperado] of [
+      ['cd sub; git add .', 'D:/wt/sub'],
+      ['sl sub; git add .', 'D:/wt/sub'],
+      ['chdir sub; git add .', 'D:/wt/sub'],
+      ['Set-Location -Path sub; git add .', 'D:/wt/sub'],
+      ['Set-Location -LiteralPath "com espaço"; git add .', 'D:/wt/com espaço'],
+      ['set-location -Path:sub; git add .', 'D:/wt/sub'],
+      ["cd 'E:\\outra'; git add -A", 'E:/outra'],
+      ['Push-Location sub; git add .', 'D:/wt/sub'],
+      ['pushd sub; popd; git add .', 'D:/wt'],
+      ['Push-Location sub; Pop-Location; git add .', 'D:/wt'],
+      ['git -C sub add -A', 'D:/wt/sub'],
+      ['if (Test-Path sub) { cd sub }; git add .', 'D:/wt/sub'],
+      ['(cd sub); git add .', 'D:/wt/sub'],
+    ]) {
+      it(`pasta de ${JSON.stringify(c)}`, () => {
+        const { r, dir } = dirDe(c, { cwd: 'D:\\wt' });
+        assert.equal(r.codigo, 0);
+        assert.equal(dir, path.resolve(esperado));
+      });
+    }
+    it('cd ~ vai para a pasta do usuário', () => {
+      assert.equal(dirDe('cd ~; git add .', { cwd: 'D:\\wt' }).dir, path.resolve(os.homedir()));
+    });
+    for (const c of ['cd $env:TEMP; git add .', 'cd -; git add -A', 'Set-Location (Get-Item x); git add .']) {
+      it(`pasta desconhecida falha fechada: ${JSON.stringify(c)}`, () => {
+        const r = dados.avaliar({ ...ps(c), cwd: 'D:\\wt' }, { ...ctx, listar: naoLista });
+        assert.equal(r.codigo, 2);
+        assert.match(r.stderr, /pasta/);
+      });
+    }
+    for (const c of ['git add $arquivo', 'Get-ChildItem *.zip | ForEach-Object { git add $_ }', 'git add $(Get-ChildItem)', 'git add @lista']) {
+      it(`argumento dinâmico falha fechada: ${JSON.stringify(c)}`, () => {
+        const r = dados.avaliar(ps(c), { ...ctx, listar: naoLista });
+        assert.equal(r.codigo, 2);
+        assert.match(r.stderr, /pelo nome/);
+      });
+    }
+    for (const c of ['git add arquivo.go', 'git add frontend\\src\\App.svelte', "git commit -m 'remove a.zip'",
+      'git commit -m "fix $(x)" -- a.go', 'git status', 'Get-ChildItem *.zip', 'git add a.go # x.zip', 'echo "git add a.zip"',
+      'cd $env:TEMP; git status', 'git add scripts\\bench\\fixtures\\misto.zip']) {
+      it(`deixa: ${JSON.stringify(c)}`, () => assert.equal(dados.avaliar(ps(c), { ...ctx, listar: naoLista }).codigo, 0));
+    }
+    it('no Bash, a sintaxe continua a do Bash', () => {
+      // Subshell desfaz o cd (no PowerShell, parênteses não desfazem).
+      let visto;
+      dados.avaliar({ ...bash('(cd sub); git add .'), cwd: 'D:\\wt' }, { ...ctx, listar: (p, d) => { visto = d; return []; } });
+      assert.equal(path.resolve(visto), path.resolve('D:/wt'));
+      // Sem a regra de argumento dinâmico do PowerShell.
+      assert.equal(dados.avaliar(bash('git add $arquivo'), { ...ctx, listar: () => [] }).codigo, 0);
+      // Sem tool_name vale o Bash.
+      assert.equal(dados.avaliar({ tool_input: { command: 'git add $arquivo' } }, { ...ctx, listar: () => [] }).codigo, 0);
+    });
+  });
+  it('bloqueia git add eprocia.log', () => assert.equal(dados.avaliar(bash('git add eprocia.log'), ctx).codigo, 2));
+  it('bloqueia git add -A com .jsonl não ignorado', () => {
+    const r = dados.avaliar(bash('git add -A'), { ...ctx, listar: () => ['a.go', 'telemetria.jsonl'] });
+    assert.equal(r.codigo, 2);
+    assert.match(r.stderr, /telemetria\.jsonl/);
+  });
 });
 
 describe('guarda-bench', () => {
@@ -166,6 +384,48 @@ describe('execução como script', () => {
     const r = rodarHook('proteger-gerados.mjs', JSON.stringify(edit('frontend/dist/x.js')));
     assert.equal(r.status, 2);
     assert.match(r.stderr, /Bloqueado/);
+  });
+  it('proteger-dados bloqueia pela ferramenta PowerShell', () => {
+    const r = rodarHook('proteger-dados.mjs', JSON.stringify(ps("git add 'x.pdf'")));
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /Bloqueado/);
+  });
+  // Rodada 1 da revisão do d5: bypasses achados pelo revisor, pelo stdin como o Claude Code manda.
+  describe('rodada 1: bypasses fechados', () => {
+    const cwd = RAIZ;
+    const rodar = (tool, c) => rodarHook('proteger-dados.mjs', JSON.stringify({ tool_name: tool, cwd, tool_input: { command: c } }));
+    const ambos = [
+      'git.exe add x.pdf', 'Git add x.pdf', 'GIT add x.pdf', 'C:/Git/cmd/GIT.EXE add x.pdf',
+      'git stage x.pdf', 'git add --pathspec-from-file=l.lst', 'git add --pathspec-from-file l.lst',
+      'git --work-tree w add x.pdf', 'git --git-dir g --namespace n add x.pdf', 'git --work-tree w add -A',
+      'cmd /c "git add x.pdf"', 'bash -c "git add x.pdf"', 'sh -c \'git commit -am m\'', 'pwsh -c "git add x.pdf"',
+      'powershell -Command "git stage x.pdf"', 'eval "git add x.pdf"', 'echo x.pdf | xargs git add',
+    ];
+    for (const tool of ['PowerShell', 'Bash']) {
+      for (const c of ambos) {
+        it(`${tool} bloqueia: ${JSON.stringify(c)}`, () => assert.equal(rodar(tool, c).status, 2));
+      }
+    }
+    for (const c of ["git add ('x.pdf')", 'git add ("x.pdf")', 'git add {x.pdf}', "iex 'git add x.pdf'",
+      'Invoke-Expression "git add -A"', "Start-Process git -ArgumentList 'add x.pdf'"]) {
+      it(`PowerShell bloqueia: ${JSON.stringify(c)}`, () => assert.equal(rodar('PowerShell', c).status, 2));
+    }
+    for (const c of ['git add arquivo.go', 'bash -c "git status"', 'pwsh -c "git log -1"', 'if (Test-Path a.go) { git add a.go }',
+      'Get-ChildItem | ForEach-Object { $_.Name }', 'git stage a.go']) {
+      it(`PowerShell deixa: ${JSON.stringify(c)}`, () => assert.equal(rodar('PowerShell', c).status, 0));
+    }
+    it('GIT add -A amplo expande e bloqueia com dado real', () => {
+      for (const tool of ['PowerShell', 'Bash']) {
+        const r = dados.avaliar({ tool_name: tool, tool_input: { command: 'GIT add -A' } }, { listar: () => ['real.zip'] });
+        assert.equal(r.codigo, 2, tool);
+      }
+    });
+    it('--no-ignore-removal e -fA contam como -A', () => {
+      for (const c of ['git add --no-ignore-removal', 'git add -fA', 'git stage -A']) {
+        const r = dados.avaliar(bash(c), { listar: () => ['real.zip'] });
+        assert.equal(r.codigo, 2, c);
+      }
+    });
   });
   it('aviso sai 0 com JSON de contexto', () => {
     const r = rodarHook('guarda-bench.mjs', JSON.stringify(bash('go test -bench .')));

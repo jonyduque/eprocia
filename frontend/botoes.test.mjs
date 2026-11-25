@@ -243,7 +243,7 @@ test('o instantâneo da troca dura --dur-base e não bloqueia o ponteiro', () =>
 test('superfícies não animam fundo nem borda na troca de tema', () => {
   assert.doesNotMatch(regra(css, 'body'), /transition/);
   const superficies = {
-    'App.svelte': ['.custom-titlebar', '.sidebar', 'footer', '.manual-card'],
+    'App.svelte': ['.custom-titlebar', '.sidebar', 'footer'],
     'ProcessList.svelte': ['.list-card'],
   };
   for (const [nome, sels] of Object.entries(superficies)) {

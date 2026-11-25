@@ -4,6 +4,11 @@
   import { cubicOut } from 'svelte/easing';
   import { duracaoMovimento, DUR_FAST } from '../lib/aviso.js';
   import { OPCOES_OCR, OPCOES_LIMPEZA } from '../lib/atividade.js';
+  import {
+    AJUDA_FORCAR_OCR_REPROCESSAR,
+    AJUDA_FORCAR_OCR_SEM_OCR,
+    ROTULO_FORCAR_OCR_REPROCESSAR
+  } from '../lib/textos.js';
   import Segmentado from './Segmentado.svelte';
   import Icone from './Icone.svelte';
   import RotateCcw from 'lucide-svelte/icons/rotate-ccw';
@@ -14,12 +19,15 @@
   // Valores iniciais: os da última execução do item, ou os da config atual.
   export let ocrInicial = 'normal';
   export let limpezaInicial = 'basic';
-  // Recebe (ocr, limpeza); devolve uma Promise que rejeita se a fila recusar.
+  // O valor da config global (forcar_ocr); vale só para esta execução.
+  export let forcarInicial = false;
+  // Recebe (ocr, limpeza, forcar); devolve uma Promise que rejeita se a fila recusar.
   export let aoConfirmar = async () => {};
   export let aoCancelar = () => {};
 
   let ocr = ocrInicial;
   let limpeza = limpezaInicial;
+  let forcar = forcarInicial;
   let enviando = false;
   let primeiroCampo;
 
@@ -29,7 +37,7 @@
     if (enviando) return;
     enviando = true;
     try {
-      await aoConfirmar(ocr, limpeza);
+      await aoConfirmar(ocr, limpeza, forcar);
     } finally {
       enviando = false;
     }
@@ -51,6 +59,19 @@
   <div class="campo">
     <Segmentado nome="{id}-limpeza" legenda="Higienização" icone={Sparkles} discreto opcoes={OPCOES_LIMPEZA} bind:valor={limpeza} />
   </div>
+  <!-- Com OCR desligado fica desabilitada e o valor não muda (o pipeline o ignora). -->
+  <div class="campo-forcar">
+    <label class="caixa">
+      <input
+        type="checkbox"
+        bind:checked={forcar}
+        disabled={ocr === 'none'}
+        aria-describedby="{id}-ajuda-forcar"
+      />
+      <span>{ROTULO_FORCAR_OCR_REPROCESSAR}</span>
+    </label>
+    <p class="ajuda" id="{id}-ajuda-forcar">{ocr === 'none' ? AJUDA_FORCAR_OCR_SEM_OCR : AJUDA_FORCAR_OCR_REPROCESSAR}</p>
+  </div>
   <div class="botoes">
     <button type="button" class="secundario" on:click={aoCancelar}>Cancelar</button>
     <button type="submit" class="primario" disabled={enviando}>
@@ -67,7 +88,7 @@
     margin-left: 30px;
     padding: 8px;
     border-left: 2px solid var(--accent);
-    border-radius: 4px;
+    border-radius: 0 4px 4px 0;
     background-color: var(--bg-main);
     display: flex;
     flex-wrap: wrap;
@@ -80,6 +101,37 @@
   .campo {
     min-width: 0;
     flex: 1 1 220px;
+  }
+
+  .campo-forcar {
+    flex-basis: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .caixa {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    cursor: pointer;
+    color: var(--text-primary);
+  }
+
+  .caixa input {
+    margin: 1px 0 0;
+    flex-shrink: 0;
+    accent-color: var(--accent);
+  }
+
+  .caixa:has(input:disabled) {
+    cursor: default;
+    color: var(--text-secondary);
+  }
+
+  .ajuda {
+    margin: 0 0 0 19px;
+    color: var(--text-secondary);
   }
 
   .botoes {

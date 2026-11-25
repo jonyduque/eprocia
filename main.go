@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"embed"
-	"log"
+	"log/slog"
 	"os"
+	"path/filepath"
 	"runtime"
 
 	"eprocia/internal/autostart"
 	"eprocia/internal/config"
+	"eprocia/internal/registro"
 
 	"github.com/energye/systray"
 	"github.com/wailsapp/wails/v2"
@@ -22,23 +24,26 @@ var assets embed.FS
 func main() {
 	// Uma instância por executável: outra cópia do mesmo exe avisa e sai (na
 	// partida automática, sai calada). Se a trava falhar, o app abre assim
-	// mesmo. O handle fica aberto até o processo terminar.
-	liberar, ok, err := travarInstancia(nomeTravaInstancia(caminhoExecutavel()))
-	switch {
-	case err != nil:
-		log.Printf("[Instância] trava indisponível: %v", err)
-	case !ok:
+	// mesmo. O handle fica aberto até o processo terminar. O registro só é
+	// iniciado depois da trava: a segunda cópia não mexe no log da primeira.
+	app := NewApp()
+	sair, liberar := prepararInstancia(
+		func() (func(), bool, error) {
+			return travarInstancia(nomeTravaInstancia(caminhoExecutavel()))
+		},
+		func() {
+			app.cfg = carregarConfig(config.Load)
+			iniciarRegistro(os.Getenv("EPROCIA_LOG"), pastaDadosApp(), app.cfg)
+		},
+	)
+	if sair {
 		if !autostart.IniciarOculto(os.Args) {
 			avisarInstanciaAberta()
 		}
 		os.Exit(0)
-	default:
-		defer liberar()
 	}
+	defer liberar()
 
-	// Create an instance of the app structure
-	app := NewApp()
-	app.cfg = carregarConfig(config.Load)
 	iniciarOculto := autostart.IniciarOculto(os.Args)
 	app.iniciarOculta(iniciarOculto)
 
@@ -48,7 +53,7 @@ func main() {
 	})
 
 	// Run the application
-	err = wails.Run(&options.App{
+	err := wails.Run(&options.App{
 		Title:     "eprocIA",
 		Width:     1024,
 		Height:    768,
@@ -62,6 +67,7 @@ func main() {
 		OnStartup:        app.startup,
 		OnShutdown: func(ctx context.Context) {
 			app.shutdown(ctx)
+			registro.Encerrar()
 			systray.Quit()
 		},
 		// Fechar a janela (X, Alt+F4, barra de tarefas) vai para a bandeja
@@ -77,8 +83,20 @@ func main() {
 	})
 
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("falha ao executar a janela do app", "erro", err)
+		registro.Encerrar()
+		os.Exit(1)
 	}
+}
+
+// pastaDadosApp é %AppData%\eprocIA, onde ficam a config e os logs; vazia se
+// o Windows não informar a pasta (o log fica desligado).
+func pastaDadosApp() string {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(dir, "eprocIA")
 }
 
 // executarTray roda o laço do tray. A janela oculta do systray recebe as

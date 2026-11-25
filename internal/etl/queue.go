@@ -2,15 +2,19 @@ package etl
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"log"
+	"log/slog"
+	"os"
 	"path/filepath"
+	"runtime/debug"
 	"slices"
 	"sync"
 	"time"
 
 	"eprocia/internal/config"
 	"eprocia/internal/models"
+	"eprocia/internal/registro"
 
 	"github.com/google/uuid"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -34,17 +38,26 @@ type QueueItem struct {
 	TotalPages      int     `json:"total_pages"`
 	// UnreadDocs conta os documentos que ficaram sem texto aproveitável; o item
 	// continua "success".
-	UnreadDocs int    `json:"unread_docs"`
-	Error      string `json:"error,omitempty"`
-	Timestamp  int64  `json:"timestamp"`
+	UnreadDocs int `json:"unread_docs"`
+	// Relatorio é o relatório da última execução com sucesso; nil enquanto o
+	// item aguarda ou processa, e depois de erro ou cancelamento.
+	Relatorio *models.RelatorioZip `json:"relatorio,omitempty"`
+	Error     string               `json:"error,omitempty"`
+	Timestamp int64                `json:"timestamp"`
 	// OcrMode e CleaningLevel são os da última execução do item (ou os que a
 	// próxima vai usar, num item reprocessado que ainda aguarda).
-	OcrMode       string             `json:"ocr_mode,omitempty"`
-	CleaningLevel string             `json:"cleaning_level,omitempty"`
-	cancel        context.CancelFunc `json:"-"`
+	OcrMode       string `json:"ocr_mode,omitempty"`
+	CleaningLevel string `json:"cleaning_level,omitempty"`
+	// ForcarOCR é o Forçar OCR efetivo da última execução (false com OCR
+	// desligado), ou o que a próxima vai usar se o Reprocessar o informou.
+	ForcarOCR bool               `json:"forcar_ocr,omitempty"`
+	cancel    context.CancelFunc `json:"-"`
 
-	// ajuste troca OCR e higienização da config global só para este item.
+	// ajuste troca OCR, higienização e Forçar OCR da config global só para
+	// este item.
 	ajuste *ajusteConfig
+	// origem é por onde o ZIP entrou: "monitorada", "arrastada" ou "manual".
+	origem string
 	// atividade guarda o estado por documento da execução atual ou da última.
 	atividade *Atividade
 
@@ -55,6 +68,8 @@ type QueueItem struct {
 
 type ajusteConfig struct {
 	ocrMode, cleaningLevel string
+	// forcarOCR nil usa o Forçar OCR da config global.
+	forcarOCR *bool
 }
 
 // Queue handles file processing sequentially in a thread-safe manner.
@@ -90,6 +105,10 @@ type Queue struct {
 	// onFinished recebe uma cópia do item que terminou com sucesso ou erro
 	// (cancelamentos não avisam), para notificar com a janela oculta.
 	onFinished func(item *QueueItem)
+
+	// aoTerminarZip recebe cada execução terminada (sucesso, erro ou
+	// cancelamento), para a telemetria; sempre chamado fora de q.mu.
+	aoTerminarZip func(models.ExecucaoZip)
 }
 
 // prazoShutdown limita quanto o encerramento do app espera o item em curso.
@@ -131,7 +150,7 @@ func (q *Queue) shutdownComPrazo(prazo time.Duration) bool {
 	case <-terminou:
 		return true
 	case <-time.After(prazo):
-		log.Printf("[Queue] Encerramento: o item em processamento não terminou em %v; saindo mesmo assim", prazo)
+		slog.Warn("encerramento: o item em processamento não terminou no prazo; saindo mesmo assim", "prazo_ms", prazo.Milliseconds())
 		return false
 	}
 }
@@ -167,10 +186,55 @@ func (q *Queue) avisarFimLocked(item *QueueItem) func() {
 	return func() { fn(copia) }
 }
 
+// SetAoTerminarZip registra quem recebe, uma vez por execução, o resumo de
+// cada ZIP que terminou com sucesso, erro ou cancelamento (a telemetria). A
+// chamada é feita fora de q.mu.
+func (q *Queue) SetAoTerminarZip(fn func(models.ExecucaoZip)) {
+	q.mu.Lock()
+	q.aoTerminarZip = fn
+	q.mu.Unlock()
+}
+
+// execucaoLocked exige q.mu travado; devolve a chamada a aoTerminarZip a
+// fazer depois de destravar. Um pânico no callback não chega à fila.
+func (q *Queue) execucaoLocked(item *QueueItem, reprocesso bool, cfg *models.Config, bytesZip int64, classeErro, etapaErro string) func() {
+	fn := q.aoTerminarZip
+	if fn == nil {
+		return func() {}
+	}
+	e := models.ExecucaoZip{
+		ItemID:     item.ID,
+		Reprocesso: reprocesso,
+		Origem:     item.origem,
+		BytesZip:   bytesZip,
+		Status:     item.Status,
+		ClasseErro: classeErro,
+		EtapaErro:  etapaErro,
+		Relatorio:  item.Relatorio,
+	}
+	if cfg != nil {
+		e.Config = *cfg
+		e.Config.ForcarOCR = forcarOCREfetivo(cfg)
+	}
+	return func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("pânico no aviso de fim de ZIP", "item_id", e.ItemID, "erro", fmt.Sprint(r))
+			}
+		}()
+		fn(e)
+	}
+}
+
 // AddFiles adds multiple zip files to the queue and returns how many actually
-// entered (duplicates of pending/processing items are dropped).
+// entered (duplicates of pending/processing items are dropped). Origem manual.
 func (q *Queue) AddFiles(paths []string) int {
-	log.Printf("[Queue] AddFiles chamada com caminhos: %v", paths)
+	return q.AddFilesComOrigem(paths, "manual")
+}
+
+// AddFilesComOrigem é AddFiles com a origem do ZIP ("monitorada",
+// "arrastada" ou "manual"), que vai para o log e a telemetria.
+func (q *Queue) AddFilesComOrigem(paths []string, origem string) int {
 	q.mu.Lock()
 	hasPending := false
 	adicionados := 0
@@ -184,7 +248,7 @@ func (q *Queue) AddFiles(paths []string) int {
 			}
 		}
 		if duplicated {
-			log.Printf("[Queue] Arquivo duplicado ignorado: %s", path)
+			slog.Info("ZIP duplicado ignorado", "zip", filepath.Base(path))
 			continue
 		}
 
@@ -197,22 +261,20 @@ func (q *Queue) AddFiles(paths []string) int {
 			Progress:  0.0,
 			Message:   "Na fila...",
 			Timestamp: time.Now().UnixMilli(),
+			origem:    origem,
 		}
 		// Prepend to show newest on top
 		q.items = append([]*QueueItem{item}, q.items...)
 		hasPending = true
 		adicionados++
-		log.Printf("[Queue] Arquivo adicionado à fila: %s (Status: %s)", item.Name, item.Status)
+		slog.Info("ZIP adicionado à fila", "item_id", item.ID, "zip", item.Name, "origem", origem)
 	}
 	q.mu.Unlock()
 
 	q.broadcast()
 
 	if hasPending {
-		log.Printf("[Queue] Fila possui novos itens pendentes. Iniciando processamento...")
 		q.startProcessing()
-	} else {
-		log.Printf("[Queue] Nenhum item novo pendente na fila.")
 	}
 	return adicionados
 }
@@ -250,16 +312,21 @@ func copiarItem(item *QueueItem) *QueueItem {
 		ProcessedPages:  item.ProcessedPages,
 		TotalPages:      item.TotalPages,
 		UnreadDocs:      item.UnreadDocs,
-		Error:           item.Error,
-		Timestamp:       item.Timestamp,
-		OcrMode:         item.OcrMode,
-		CleaningLevel:   item.CleaningLevel,
+		// O relatório não muda depois de pronto: basta o ponteiro.
+		Relatorio:     item.Relatorio,
+		Error:         item.Error,
+		Timestamp:     item.Timestamp,
+		OcrMode:       item.OcrMode,
+		CleaningLevel: item.CleaningLevel,
+		ForcarOCR:     item.ForcarOCR,
 	}
 }
 
 // Reprocessar devolve à fila um item que já terminou, com OCR e higienização
-// próprios. A config global não muda; o .txt anterior é sobrescrito.
-func (q *Queue) Reprocessar(id, ocrMode, cleaningLevel string) error {
+// próprios e, se forcarOCR não for nil, com Forçar OCR próprio (nil usa o da
+// config global; com ocrMode "none" ele não tem efeito). A config global não
+// muda; o .txt anterior é sobrescrito.
+func (q *Queue) Reprocessar(id, ocrMode, cleaningLevel string, forcarOCR *bool) error {
 	if !config.ModoOCRValido(ocrMode) {
 		return fmt.Errorf("modo de OCR inválido: %q", ocrMode)
 	}
@@ -278,7 +345,17 @@ func (q *Queue) Reprocessar(id, ocrMode, cleaningLevel string) error {
 		return fmt.Errorf("o item ainda está na fila ou em processamento")
 	}
 	pararEnvioPendente(item)
-	item.ajuste = &ajusteConfig{ocrMode: ocrMode, cleaningLevel: cleaningLevel}
+	// item.ForcarOCR mostra já o efetivo da próxima execução; com nil vale o da
+	// global (sem q.cfg, a config só é lida no processItem, que o corrige).
+	var forcar *bool
+	if forcarOCR != nil {
+		v := *forcarOCR
+		forcar = &v
+		item.ForcarOCR = v && ocrMode != "none"
+	} else {
+		item.ForcarOCR = q.cfg != nil && q.cfg.ForcarOCR && ocrMode != "none"
+	}
+	item.ajuste = &ajusteConfig{ocrMode: ocrMode, cleaningLevel: cleaningLevel, forcarOCR: forcar}
 	item.OcrMode, item.CleaningLevel = ocrMode, cleaningLevel
 	item.Status = "pending"
 	item.Message = "Na fila..."
@@ -288,13 +365,18 @@ func (q *Queue) Reprocessar(id, ocrMode, cleaningLevel string) error {
 	item.DocsCount, item.PagesCount, item.EstimatedTokens = 0, 0, 0
 	item.ProcessedDocs, item.TotalDocs, item.ProcessedPages, item.TotalPages = 0, 0, 0, 0
 	item.UnreadDocs = 0
+	item.Relatorio = nil
 	item.Timestamp = time.Now().UnixMilli()
 	// Vai para o topo, como um arquivo novo: a fila processa de baixo para cima.
 	q.items = slices.Delete(q.items, idx, idx+1)
 	q.items = append([]*QueueItem{item}, q.items...)
 	q.mu.Unlock()
 
-	log.Printf("[Queue] Reprocessando %s (OCR: %s, higienização: %s)", item.Name, ocrMode, cleaningLevel)
+	attrs := []any{"item_id", item.ID, "zip", item.Name, "ocr_mode", ocrMode, "cleaning_level", cleaningLevel}
+	if forcar != nil {
+		attrs = append(attrs, "forcar_ocr", *forcar)
+	}
+	slog.Info("reprocessar", attrs...)
 	q.broadcast()
 	q.startProcessing()
 	return nil
@@ -320,6 +402,7 @@ func (q *Queue) Pause() {
 	q.mu.Lock()
 	q.isPaused = true
 	q.mu.Unlock()
+	slog.Info("fila pausada")
 	q.broadcast()
 }
 
@@ -328,6 +411,7 @@ func (q *Queue) Resume() {
 	q.mu.Lock()
 	q.isPaused = false
 	q.mu.Unlock()
+	slog.Info("fila retomada")
 	q.broadcast()
 	q.startProcessing()
 }
@@ -351,6 +435,7 @@ func (q *Queue) CancelItem(id string) {
 	}
 
 	if target != nil {
+		slog.Info("cancelamento pedido", "item_id", target.ID, "zip", target.Name, "status", target.Status)
 		if target.Status == "processing" && target.cancel != nil {
 			target.cancel()
 		} else if target.Status == "pending" {
@@ -416,13 +501,12 @@ func (q *Queue) LimparConcluidos() {
 
 func (q *Queue) startProcessing() {
 	q.mu.Lock()
-	log.Printf("[Queue] startProcessing chamado. isPaused: %t, isWorking: %t, total_items: %d", q.isPaused, q.isWorking, len(q.items))
+	slog.Debug("startProcessing", "pausada", q.isPaused, "em_execucao", q.isWorking, "itens", len(q.items))
 	if q.encerrada {
 		q.mu.Unlock()
 		return
 	}
 	if q.isPaused || q.isWorking {
-		log.Printf("[Queue] Processador pausado ou já em execução. Retornando.")
 		q.mu.Unlock()
 		return
 	}
@@ -437,12 +521,10 @@ func (q *Queue) startProcessing() {
 	}
 
 	if nextItem == nil {
-		log.Printf("[Queue] Nenhum item pendente encontrado na fila.")
 		q.mu.Unlock()
 		return
 	}
 
-	log.Printf("[Queue] Próximo item para processamento: %s (%s)", nextItem.Name, nextItem.Path)
 	q.isWorking = true
 	// Go sob q.mu com encerrada == false: Shutdown marca encerrada antes de
 	// esperar, então nenhum Add acontece com o contador em zero durante o Wait.
@@ -452,9 +534,16 @@ func (q *Queue) startProcessing() {
 }
 
 func (q *Queue) processItem(item *QueueItem) {
+	// Para a telemetria: a config efetiva, o tamanho do ZIP e se é reprocesso.
+	var (
+		cfgExec    *models.Config
+		bytesZip   int64
+		reprocesso bool
+	)
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("[Queue] ERRO CRÍTICO (panic) no processador de fila para %s: %v", item.Name, r)
+			slog.Default().With("item_id", item.ID).Error("pânico no processador da fila", "zip", item.Name,
+				"erro", fmt.Sprint(r), "pilha", string(debug.Stack()))
 			q.mu.Lock()
 			item.cancel = nil
 			pararEnvioPendente(item)
@@ -463,34 +552,45 @@ func (q *Queue) processItem(item *QueueItem) {
 			item.Error = fmt.Sprintf("Panic: %v", r)
 			q.isWorking = false
 			avisar := q.avisarFimLocked(item)
+			telemetria := q.execucaoLocked(item, reprocesso, cfgExec, bytesZip, "panico", "")
 			q.mu.Unlock()
 			q.broadcast()
 			avisar()
+			telemetria()
 			q.startProcessing()
 		}
 	}()
 
-	log.Printf("[Queue] Iniciando processamento do arquivo: %s", item.Path)
-
 	q.mu.Lock()
 	ctx, cancel := context.WithCancel(q.baseCtx)
 	defer cancel()
+	// Toda linha do pipeline deste item leva o item_id (o mesmo da telemetria).
+	ctx = registro.ComLogger(ctx, slog.Default().With("item_id", item.ID))
 	item.cancel = cancel
 	item.Status = "processing"
 	item.Message = "Iniciando..."
 	item.Progress = 0
 	item.ProcessedDocs, item.TotalDocs, item.ProcessedPages, item.TotalPages = 0, 0, 0, 0
+	// Erro e cancelamento deixam o relatório nil; só o sucesso o preenche.
+	item.Relatorio = nil
 	atv := NovaAtividade(item.ID)
 	item.atividade = atv
 	cfg := q.cfg
 	ajuste := item.ajuste
+	reprocesso = ajuste != nil
+	origem := item.origem
 	q.mu.Unlock()
 
 	q.broadcast()
 
+	lg := registro.Logger(ctx)
+	if info, err := os.Stat(item.Path); err == nil {
+		bytesZip = info.Size()
+	}
+	lg.Info("item na vez", "zip", item.Name, "origem", origem, "reprocesso", reprocesso, "bytes_zip", bytesZip)
 	onProgress := func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int) {
-		log.Printf("[Queue] Progresso [%s]: %.2f%% - %s (Docs: %d/%d, Páginas: %d/%d)",
-			item.Name, progress*100, message, processedDocs, totalDocs, processedPages, totalPages)
+		lg.Debug("progresso", "zip", item.Name, "progresso", progress, "mensagem", message,
+			"docs", processedDocs, "total_docs", totalDocs, "paginas", processedPages, "total_paginas", totalPages)
 		q.mu.Lock()
 		if item.Status == "processing" {
 			// Os documentos rodam em paralelo e o pipeline lê os contadores sem
@@ -515,16 +615,18 @@ func (q *Queue) processItem(item *QueueItem) {
 		var err error
 		cfg, err = carregar()
 		if err != nil {
-			log.Printf("[Queue] Erro ao carregar configurações para %s: %v", item.Name, err)
+			lg.Error("falha ao carregar a configuração do item", "zip", item.Name, "erro", err)
 			q.mu.Lock()
 			item.Status = "error"
 			item.Message = "Erro ao carregar configurações"
 			item.Error = err.Error()
 			q.isWorking = false
 			avisar := q.avisarFimLocked(item)
+			telemetria := q.execucaoLocked(item, reprocesso, nil, bytesZip, "config", "")
 			q.mu.Unlock()
 			q.broadcast()
 			avisar()
+			telemetria()
 			q.startProcessing()
 			return
 		}
@@ -533,10 +635,15 @@ func (q *Queue) processItem(item *QueueItem) {
 	if ajuste != nil {
 		copia := *cfg
 		copia.OcrMode, copia.CleaningLevel = ajuste.ocrMode, ajuste.cleaningLevel
+		if ajuste.forcarOCR != nil {
+			copia.ForcarOCR = *ajuste.forcarOCR
+		}
 		cfg = &copia
 	}
+	cfgExec = cfg
 	q.mu.Lock()
 	item.OcrMode, item.CleaningLevel = cfg.OcrMode, cfg.CleaningLevel
+	item.ForcarOCR = forcarOCREfetivo(cfg)
 	q.mu.Unlock()
 
 	processar := q.processar
@@ -554,8 +661,8 @@ func (q *Queue) processItem(item *QueueItem) {
 	q.isWorking = false
 	pararEnvioPendente(item)
 
+	classeErro, etapaErro := "", ""
 	if err != nil {
-		log.Printf("[Queue] Erro no processamento de %s: %v", item.Name, err)
 		if ctx.Err() == context.Canceled {
 			item.Status = "cancelled"
 			item.Message = "Cancelado"
@@ -564,9 +671,12 @@ func (q *Queue) processItem(item *QueueItem) {
 			item.Status = "error"
 			item.Message = err.Error()
 			item.Error = err.Error()
+			classeErro = string(classificarErro(err))
+			if ee, ok := errors.AsType[ErroEtapa](err); ok {
+				etapaErro = ee.Etapa
+			}
 		}
 	} else {
-		log.Printf("[Queue] Sucesso no processamento de %s. Docs: %d, Páginas: %d, Tokens estimados: %d", item.Name, docsCount, pagesCount, tokens)
 		item.Status = "success"
 		item.Progress = 1.0
 		item.Message = "Concluído"
@@ -579,12 +689,15 @@ func (q *Queue) processItem(item *QueueItem) {
 		item.ProcessedPages = pagesCount
 		item.TotalPages = pagesCount
 		item.UnreadDocs = atv.NaoLidos()
+		item.Relatorio = atv.Relatorio()
 	}
 	avisar := q.avisarFimLocked(item)
+	telemetria := q.execucaoLocked(item, reprocesso, cfg, bytesZip, classeErro, etapaErro)
 	q.mu.Unlock()
 
 	q.broadcast()
 	avisar()
+	telemetria()
 	q.startProcessing()
 }
 
