@@ -1,0 +1,84 @@
+//go:build ensaio
+
+package atualizacao
+
+import (
+	"context"
+	"errors"
+	"testing"
+)
+
+func TestEnsaio_ConsultaTagRC(t *testing.T) {
+	const tag = "v0.5.0-rc1"
+	t.Setenv("EPROCIA_ENSAIO_TAG", tag)
+
+	t.Run("aceita", func(t *testing.T) {
+		c := novoCenario(t)
+		c.rel = c.releaseCompleta(tag, "0.5.0-rc1")
+		c.rel.Prerelease = true
+		rel, err := c.cliente.Verificar(context.Background(), versaoTeste)
+		if err != nil || rel == nil {
+			t.Fatalf("Verificar = (%+v, %v)", rel, err)
+		}
+		if c.caminho != "/api/releases/tags/"+tag {
+			t.Errorf("caminho = %q", c.caminho)
+		}
+		if rel.Tag != tag || rel.Versao != (Versao{0, 5, 0}) {
+			t.Errorf("release = %+v", rel)
+		}
+		if rel.Exe.Nome != "eprocia-0.5.0-rc1-windows-amd64.exe" ||
+			rel.Instalador.Nome != "eprocia-0.5.0-rc1-windows-amd64-instalador.exe" ||
+			rel.Somas.Nome != nomeSomas {
+			t.Errorf("assets = %+v %+v %+v", rel.Exe, rel.Instalador, rel.Somas)
+		}
+	})
+
+	t.Run("draft", func(t *testing.T) {
+		c := novoCenario(t)
+		c.rel = c.releaseCompleta(tag, "0.5.0-rc1")
+		c.rel.Prerelease = true
+		c.rel.Draft = true
+		rel, err := c.cliente.Verificar(context.Background(), versaoTeste)
+		if rel != nil || err != nil {
+			t.Fatalf("Verificar = (%+v, %v), quer (nil, nil)", rel, err)
+		}
+	})
+
+	t.Run("asset de outra rc", func(t *testing.T) {
+		c := novoCenario(t)
+		c.rel = c.releaseCompleta(tag, "0.5.0-rc1")
+		c.rel.Prerelease = true
+		c.rel.Assets[0] = c.assetDe(tag, "eprocia-0.5.0-rc2-windows-amd64.exe", 10)
+		_, err := c.cliente.Verificar(context.Background(), versaoTeste)
+		if !errors.Is(err, ErrIncompleta) {
+			t.Fatalf("erro = %v, quer ErrIncompleta", err)
+		}
+	})
+
+	t.Run("sinal", func(t *testing.T) {
+		if ensaioIgnoraSinal() {
+			t.Error("ensaioIgnoraSinal() verdadeiro sem a variável")
+		}
+		t.Setenv("EPROCIA_ENSAIO_SEM_SINAL", "1")
+		if !ensaioIgnoraSinal() {
+			t.Error("ensaioIgnoraSinal() falso com EPROCIA_ENSAIO_SEM_SINAL=1")
+		}
+	})
+}
+
+func TestEnsaio_TagForaDoFormato(t *testing.T) {
+	for _, tag := range []string{"v0.5.0", "v0.5.0-beta", "../x", ""} {
+		t.Run(tag, func(t *testing.T) {
+			t.Setenv("EPROCIA_ENSAIO_TAG", tag)
+			c := novoCenario(t)
+			c.rel = c.releaseCompleta("v0.5.0", "0.5.0")
+			rel, err := c.cliente.Verificar(context.Background(), versaoTeste)
+			if err != nil || rel == nil {
+				t.Fatalf("Verificar = (%+v, %v)", rel, err)
+			}
+			if c.caminho != "/api/releases/latest" {
+				t.Errorf("caminho = %q, quer /api/releases/latest", c.caminho)
+			}
+		})
+	}
+}

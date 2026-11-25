@@ -58,6 +58,10 @@ type Cliente struct {
 	regras    Regras
 	http      *http.Client
 	userAgent string
+
+	// prazoConsulta é o prazo total de Verificar; zero usa PrazoConsulta
+	// (os testes o reduzem).
+	prazoConsulta time.Duration
 }
 
 // NovoCliente monta o cliente; raizes nil usa as raízes do sistema.
