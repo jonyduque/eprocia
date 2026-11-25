@@ -45,3 +45,36 @@ func TestAplicarEm_GravaEApagaValor(t *testing.T) {
 		t.Fatalf("valor ainda presente depois de desativar: %v", err)
 	}
 }
+
+func TestGravarVersaoDesinstalacao(t *testing.T) {
+	chave := fmt.Sprintf(`Software\eprocIA_teste_desinst_%d`, time.Now().UnixNano())
+	t.Cleanup(func() { registry.DeleteKey(registry.CURRENT_USER, chave) })
+
+	// Chave ausente: nada a gravar, sem erro, e a chave não é criada.
+	if err := gravarVersaoEm(chave, "0.5.0"); err != nil {
+		t.Fatalf("chave ausente: %v", err)
+	}
+	if k, err := registry.OpenKey(registry.CURRENT_USER, chave, registry.QUERY_VALUE); !errors.Is(err, registry.ErrNotExist) {
+		if err == nil {
+			k.Close()
+		}
+		t.Fatalf("chave ausente foi criada (err = %v)", err)
+	}
+
+	k, _, err := registry.CreateKey(registry.CURRENT_USER, chave, registry.SET_VALUE)
+	if err != nil {
+		t.Fatal(err)
+	}
+	k.Close()
+	if err := gravarVersaoEm(chave, "0.5.0"); err != nil {
+		t.Fatalf("chave existente: %v", err)
+	}
+	k, err = registry.OpenKey(registry.CURRENT_USER, chave, registry.QUERY_VALUE)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer k.Close()
+	if v, _, err := k.GetStringValue("DisplayVersion"); err != nil || v != "0.5.0" {
+		t.Fatalf("DisplayVersion = %q (%v), esperado 0.5.0", v, err)
+	}
+}
