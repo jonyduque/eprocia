@@ -46,7 +46,7 @@ func apagarSe(pasta string, apagar func(nome string) bool) {
 	entradas, err := os.ReadDir(pasta)
 	if err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
-			slog.Default().Warn("limpeza da atualização: pasta não lida", "erro", err)
+			slog.Default().Warn("limpeza da atualização: pasta não lida", atributosErro(err)...)
 		}
 		return
 	}
@@ -55,7 +55,7 @@ func apagarSe(pasta string, apagar func(nome string) bool) {
 			continue
 		}
 		if err := os.RemoveAll(filepath.Join(pasta, e.Name())); err != nil {
-			slog.Default().Warn("limpeza da atualização: arquivo ficou", "arquivo", e.Name(), "erro", err)
+			slog.Default().Warn("limpeza da atualização: arquivo ficou", append([]any{"arquivo", e.Name()}, atributosErro(err)...)...)
 		}
 	}
 }
