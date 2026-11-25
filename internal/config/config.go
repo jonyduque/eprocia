@@ -174,7 +174,28 @@ func SaveToFile(path string, cfg *models.Config) error {
 		cfg = &copia
 	}
 
-	data, err := json.MarshalIndent(cfg, "", "  ")
+	conhecidos, err := json.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	var novos map[string]json.RawMessage
+	if err := json.Unmarshal(conhecidos, &novos); err != nil {
+		return err
+	}
+
+	// Chaves que esta versão não conhece (gravadas por uma mais nova) ficam como
+	// estão. Arquivo ausente, ilegível ou que não seja objeto = mapa vazio.
+	mapa := map[string]json.RawMessage{}
+	if antigo, err := os.ReadFile(path); err == nil {
+		if json.Unmarshal(antigo, &mapa) != nil || mapa == nil {
+			mapa = map[string]json.RawMessage{}
+		}
+	}
+	for k, v := range novos {
+		mapa[k] = v
+	}
+
+	data, err := json.MarshalIndent(mapa, "", "  ")
 	if err != nil {
 		return err
 	}
