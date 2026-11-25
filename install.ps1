@@ -805,6 +805,9 @@ function Install-App {
     } finally {
         foreach ($f in $tmp, $tmpScript) { if (Test-Path -LiteralPath $f) { Remove-Item -LiteralPath $f -Force } }
     }
+    # Sobras da atualizacao pelo proprio app: o exe antigo e o que nao abriu.
+    Remove-Item -LiteralPath (Join-Path $installDir 'eprocia.anterior.exe') -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath (Join-Path $installDir 'eprocia.falhou.exe') -Force -ErrorAction SilentlyContinue
     # Sem a marca de download, o SmartScreen não barra cada abertura.
     Unblock-File -LiteralPath $exe
     $version = Get-ExeVersion $exe
