@@ -6,6 +6,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
+	"time"
 
 	"eprocia/internal/atualizacao"
 )
@@ -22,6 +24,13 @@ func main() {
 			falhar(err)
 		}
 		fmt.Println(v)
+	case "dorme":
+		// Dorme EPROCIA_TESTE_MS milissegundos e sai 0.
+		ms, err := strconv.Atoi(os.Getenv("EPROCIA_TESTE_MS"))
+		if err != nil || ms < 0 {
+			falhar(fmt.Errorf("EPROCIA_TESTE_MS inválido: %q", os.Getenv("EPROCIA_TESTE_MS")))
+		}
+		time.Sleep(time.Duration(ms) * time.Millisecond)
 	default:
 		falhar(fmt.Errorf("modo desconhecido: %q", modo))
 	}
