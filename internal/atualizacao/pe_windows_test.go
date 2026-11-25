@@ -68,3 +68,15 @@ func TestCarimbo_AuxiliarContinuaExecutando(t *testing.T) {
 		t.Fatalf("auxiliar imprimiu %q, quer %q", got, v.String())
 	}
 }
+
+func TestCarimbo_ParteForaDaFaixa(t *testing.T) {
+	for _, v := range []Versao{{65536, 0, 0}, {0, -1, 0}, {0, 0, 70000}} {
+		if _, _, err := partesFixas(v); err == nil {
+			t.Errorf("partesFixas(%v) sem erro, quer erro", v)
+		}
+	}
+	ms, ls, err := partesFixas(Versao{65535, 1, 2})
+	if err != nil || ms != 0xFFFF0001 || ls != 0x00020000 {
+		t.Fatalf("partesFixas(65535.1.2) = %#x, %#x, %v", ms, ls, err)
+	}
+}

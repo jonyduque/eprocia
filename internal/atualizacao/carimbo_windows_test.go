@@ -5,6 +5,7 @@ package atualizacao
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"os"
 	"testing"
 	"unicode/utf16"
@@ -41,11 +42,19 @@ func copiarArquivo(t *testing.T, origem, destino string) {
 	}
 }
 
+// partesFixas monta FileVersionMS/LS; cada parte precisa caber em 16 bits.
+func partesFixas(v Versao) (ms, ls uint32, err error) {
+	for i, p := range v {
+		if p < 0 || p > 0xffff {
+			return 0, 0, fmt.Errorf("parte %d da versão (%d) fora de 0..65535", i, p)
+		}
+	}
+	return uint32(v[0])<<16 | uint32(v[1]), uint32(v[2]) << 16, nil
+}
+
 // blocoVersao monta um VS_VERSIONINFO só com o VS_FIXEDFILEINFO (sem
 // StringFileInfo nem VarFileInfo).
-func blocoVersao(v Versao) []byte {
-	ms := uint32(v[0])<<16 | uint32(v[1])&0xffff
-	ls := uint32(v[2]) << 16
+func blocoVersao(ms, ls uint32) []byte {
 	fixo := windows.VS_FIXEDFILEINFO{
 		Signature:        0xFEEF04BD,
 		StrucVersion:     0x00010000,
@@ -79,6 +88,10 @@ func blocoVersao(v Versao) []byte {
 // carimbarVersao grava em exe um recurso RT_VERSION id 1, idioma 0.
 func carimbarVersao(t *testing.T, exe string, v Versao) {
 	t.Helper()
+	ms, ls, err := partesFixas(v)
+	if err != nil {
+		t.Fatalf("carimbar %v: %v", v, err)
+	}
 	caminho, err := windows.UTF16PtrFromString(exe)
 	if err != nil {
 		t.Fatalf("caminho %s: %v", exe, err)
@@ -87,7 +100,7 @@ func carimbarVersao(t *testing.T, exe string, v Versao) {
 	if h == 0 {
 		t.Fatalf("BeginUpdateResourceW: %v", errBegin)
 	}
-	dados := blocoVersao(v)
+	dados := blocoVersao(ms, ls)
 	r, _, errUpd := procUpdateResource.Call(h, rtVersion, 1, 0,
 		uintptr(unsafe.Pointer(&dados[0])), uintptr(len(dados)))
 	if r == 0 {

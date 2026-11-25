@@ -28,7 +28,8 @@ func rodarComAuxiliar(m *testing.M) int {
 		nome = "auxiliar.exe"
 	}
 	auxiliar = filepath.Join(dir, nome)
-	cmd := exec.Command("go", "build", "-o", auxiliar, "./testdata/auxiliar")
+	// O go da mesma instalação que roda os testes, não o primeiro do PATH.
+	cmd := exec.Command(filepath.Join(runtime.GOROOT(), "bin", "go"), "build", "-o", auxiliar, "./testdata/auxiliar")
 	if saida, err := cmd.CombinedOutput(); err != nil {
 		fmt.Fprintf(os.Stderr, "compilar o auxiliar: %v\n%s", err, saida)
 		return 2
