@@ -306,7 +306,7 @@ test('Invoke-Elevated: UAC com uma string so, espera fim, le o log da pasta prot
   const al = /Start-Process[^\n]*-ArgumentList ([^\n]*)/.exec(corpo);
   assert.ok(al, 'Start-Process -ArgumentList ausente');
   assert.ok(!al[1].startsWith('@('), '-ArgumentList em array');
-  assert.ok(al[1].startsWith('"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"$bootstrap`""'));
+  assert.ok(!al[1].startsWith('@('), '-ArgumentList em array');
   for (const m of corpo.matchAll(/install\.log/g)) {
     assert.match(corpo.slice(m.index - 30, m.index), /Join-Path \$dst '$/, 'install.log fora da pasta protegida');
   }
@@ -438,6 +438,21 @@ test('correcao 1/4: powershell.exe sempre pelo caminho completo', () => {
   assert.ok(corpoDe('Invoke-Elevated').includes('Start-Process -FilePath $psExe -ArgumentList'));
   assert.ok(corpoDe('Invoke-AsUser').includes('New-ScheduledTaskAction -Execute $psExe'));
   assert.ok(!/-FilePath powershell\.exe|-Execute 'powershell\.exe'/.test(texto));
+});
+
+test('correcao 2/1: a linha do UAC e conferida antes do Start-Process (antes do UAC)', () => {
+  const corpo = corpoDe('Invoke-Elevated');
+  emOrdem(corpo, [
+    '$uacArgs = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"$bootstrap`""',
+    "if ($uacArgs.Length -ge 2000) { Fail 'Caminho da pasta temporaria longo demais para a acao como administrador. Nada foi alterado.' }",
+    'Start-Process -FilePath $psExe -ArgumentList $uacArgs -Verb RunAs',
+  ], 'Invoke-Elevated');
+});
+
+test('correcao 2/2: o UninstallString da chave HKCU usa o caminho completo do powershell.exe', () => {
+  const corpo = corpoDe('Install-App');
+  assert.ok(corpo.includes('$uninstall = "`"$psExe`" -NoProfile -ExecutionPolicy Bypass -File `"$localScript`" -Uninstall"'));
+  assert.ok(!/"powershell\.exe -NoProfile/.test(texto));
 });
 
 test('correcao 1/5: o pai so confia em fim e install.log de pasta de administrador, sem link', () => {

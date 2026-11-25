@@ -972,7 +972,8 @@ function Install-App {
         Write-Step 'Atalho na área de trabalho' $shortcuts[1]
     }
 
-    $uninstall = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$localScript`" -Uninstall"
+    # Caminho completo do powershell.exe, como nos outros lugares (sem busca na pasta atual).
+    $uninstall = "`"$psExe`" -NoProfile -ExecutionPolicy Bypass -File `"$localScript`" -Uninstall"
     New-Item -Path $uninstallKey -Force | Out-Null
     $values = [ordered]@{
         DisplayName          = $app
@@ -1396,10 +1397,13 @@ function Invoke-Elevated([string[]]$ChildArgs, [string]$Payload) {
         if ($Yes -and -not $Log) { $all += '-CloseAny' }
         $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
         $bootstrap = Get-ElevationBootstrap $parent $scriptHash $name $payloadHash $sid $all
+        # Uma string so: no 5.1 um array e juntado sem aspas e o -Command colapsaria espacos.
+        $uacArgs = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"$bootstrap`""
+        # O ShellExecuteEx nao garante mais que cerca de 2.048 caracteres: confere antes do UAC.
+        if ($uacArgs.Length -ge 2000) { Fail 'Caminho da pasta temporaria longo demais para a acao como administrador. Nada foi alterado.' }
         Write-Step 'Pedindo permissao de administrador (UAC)'
         try {
-            # Uma string so: no 5.1 um array e juntado sem aspas e o -Command colapsaria espacos.
-            $p = Start-Process -FilePath $psExe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"$bootstrap`"" -Verb RunAs -WindowStyle Hidden -PassThru
+            $p = Start-Process -FilePath $psExe -ArgumentList $uacArgs -Verb RunAs -WindowStyle Hidden -PassThru
         } catch {
             for ($e = $_.Exception; $e; $e = $e.InnerException) {
                 if ($e -is [ComponentModel.Win32Exception] -and $e.NativeErrorCode -eq 1223) {
