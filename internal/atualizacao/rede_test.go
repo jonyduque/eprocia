@@ -1,6 +1,7 @@
 package atualizacao
 
 import (
+	"errors"
 	"os/exec"
 	"slices"
 	"strings"
@@ -10,10 +11,13 @@ import (
 // TestRede_SoAtualizacaoImportaNetHTTP garante que nenhum outro pacote do
 // módulo importa net/http diretamente.
 func TestRede_SoAtualizacaoImportaNetHTTP(t *testing.T) {
-	cmd := exec.Command("go", "list", "-f", `{{.ImportPath}} {{join .Imports " "}}`, "./...")
+	cmd := exec.Command("go", "list", "-e", "-f", `{{.ImportPath}} {{join .Imports " "}}`, "./...")
 	cmd.Dir = "../.."
 	saida, err := cmd.Output()
 	if err != nil {
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
+			t.Fatalf("go list: %v\n%s", err, exitErr.Stderr)
+		}
 		t.Fatalf("go list: %v", err)
 	}
 	linhas := strings.Split(strings.TrimSpace(string(saida)), "\n")

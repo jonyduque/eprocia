@@ -128,6 +128,9 @@ func (c *Cliente) conferirInicial(bruta string, tipo tipoURL) (*url.URL, error) 
 	if prefixo == "" || !strings.HasPrefix(bruta, prefixo) {
 		return nil, fmt.Errorf("%w: fora do prefixo", ErrURLRecusada)
 	}
+	if strings.Contains(u.Path, `\`) {
+		return nil, fmt.Errorf("%w: caminho com barra invertida", ErrURLRecusada)
+	}
 	for seg := range strings.SplitSeq(u.Path, "/") {
 		if seg == "." || seg == ".." {
 			return nil, fmt.Errorf("%w: caminho com . ou ..", ErrURLRecusada)
@@ -144,11 +147,17 @@ func (c *Cliente) obter(ctx context.Context, url string, tipo tipoURL, accept st
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrURLRecusada, err)
+		return nil, fmt.Errorf("montar requisição: %w", err)
 	}
 	req.Header.Set("User-Agent", c.userAgent)
 	if accept != "" {
 		req.Header.Set("Accept", accept)
 	}
-	return c.http.Do(req)
+	resp, err := c.http.Do(req)
+	if err != nil {
+		// Com erro do CheckRedirect, Do devolve também a resposta anterior
+		// (corpo já fechado); quem chama não deve vê-la.
+		return nil, err
+	}
+	return resp, nil
 }

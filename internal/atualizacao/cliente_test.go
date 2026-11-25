@@ -92,6 +92,8 @@ func TestCliente_RecusaForaDoPrefixo(t *testing.T) {
 		{"download fora", srv.URL + "/outro/x", urlDownload},
 		{"download com prefixo da API", srv.URL + "/api/x", urlDownload},
 		{"download com ponto-ponto", srv.URL + "/download/../outro/x", urlDownload},
+		{"download com barra invertida codificada", srv.URL + "/download/..%5C..%5Cx", urlDownload},
+		{"download com barra invertida", srv.URL + `/download/..\..\x`, urlDownload},
 		{"api fora", srv.URL + "/outro/x", urlAPI},
 		{"api com prefixo do download", srv.URL + "/download/x", urlAPI},
 	}
@@ -112,6 +114,17 @@ func TestCliente_RecusaForaDoPrefixo(t *testing.T) {
 	fechar(r)
 	if err != nil {
 		t.Fatalf("URL dentro do prefixo recusada: %v", err)
+	}
+}
+
+func TestCliente_ErroDeMontagemNaoERecusa(t *testing.T) {
+	srv := novoServidorTLS(t, func(http.ResponseWriter, *http.Request) {})
+	c := NovoCliente(regrasTeste(srv.URL), raizesDe(srv.Server), versaoTeste)
+	var semCtx context.Context // nil: NewRequestWithContext falha
+	r, err := c.obter(semCtx, srv.URL+"/api/x", urlAPI, "*/*")
+	fechar(r)
+	if err == nil || errors.Is(err, ErrURLRecusada) {
+		t.Fatalf("erro = %v, quer erro que não seja ErrURLRecusada", err)
 	}
 }
 
@@ -136,7 +149,10 @@ func testarRedirecionamentoRecusado(t *testing.T, destino *servidorContado, alvo
 	})
 	c := NovoCliente(regrasTeste(origem.URL), raizesDe(origem.Server, destino.Server), versaoTeste)
 	r, err := c.obter(context.Background(), origem.URL+"/download/x", urlDownload, "*/*")
-	fechar(r)
+	if r != nil {
+		fechar(r)
+		t.Error("resposta devolvida junto com o erro")
+	}
 	if !errors.Is(err, ErrURLRecusada) {
 		t.Fatalf("erro = %v, quer ErrURLRecusada", err)
 	}
@@ -201,9 +217,12 @@ func TestCliente_RedirecionamentoSemFimRecusado(t *testing.T) {
 	})
 	c := NovoCliente(regrasTeste(srv.URL), raizesDe(srv.Server), versaoTeste)
 	r, err := c.obter(context.Background(), srv.URL+"/download/x", urlDownload, "*/*")
-	fechar(r)
-	if err == nil {
-		t.Fatal("laço de redirecionamento aceito")
+	if r != nil {
+		fechar(r)
+		t.Error("resposta devolvida junto com o erro")
+	}
+	if !errors.Is(err, ErrURLRecusada) {
+		t.Fatalf("erro = %v, quer ErrURLRecusada", err)
 	}
 	if n := srv.n.Load(); n > 11 {
 		t.Fatalf("servidor recebeu %d requisições, quer no máximo 11", n)
