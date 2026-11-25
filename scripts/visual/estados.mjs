@@ -222,6 +222,8 @@ export const ESTADOS = {
     fila: [],
     pausado: false,
     LogAtivo: false,
+    // Bloco Atualizações (EstadoAtualizacao): download em curso, com a barra.
+    atualizacao: { ativo: true, fase: 'baixando', versao: '9.9.1', progresso: 42, mensagem: '', modo: 'trocar', motivo: '', atual: '9.9.0' },
   },
   relatorio: {
     config: CONFIG,
@@ -250,6 +252,8 @@ export const ESTADOS = {
     pausado: false,
     LogAtivo: true,
     categorias: { monitoramento: false, processamento: true, sistema: false },
+    // Com Processamento recolhida o bloco Atualizações cabe a 768px: versão nova disponível.
+    atualizacao: { ativo: true, fase: 'disponivel', versao: '9.9.1', progresso: 0, mensagem: '', modo: 'trocar', motivo: '', atual: '9.9.0' },
   },
 };
 
@@ -269,6 +273,8 @@ export function instalarStubs({ estado, tema }) {
     GetQueueActivity: (id) => estado.atividades?.[id] ?? null,
     // Log desligado salvo quando o estado pede (EPROCIA_LOG só existe no app real).
     LogAtivo: estado.LogAtivo === true,
+    // Sem a chave no estado, atualizador desligado: o bloco Atualizações não aparece.
+    EstadoAtualizacao: estado.atualizacao ?? { ativo: false, fase: '', versao: '', progresso: 0, mensagem: '', modo: '', motivo: '', atual: '' },
     AbrirPastaLogs: undefined,
     ReprocessQueueItem: (_id, _ocr, _limpeza, _forcar) => undefined,
     SelectZipFiles: [],

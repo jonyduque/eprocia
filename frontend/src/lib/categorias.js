@@ -2,9 +2,10 @@
 // Sem storage (ou com o valor salvo ilegível), todas ficam expandidas.
 
 export const CHAVE_CATEGORIAS = 'eprocia.categorias';
-export const CATEGORIAS = Object.freeze(['monitoramento', 'processamento', 'sistema']);
+export const CATEGORIAS = Object.freeze(['monitoramento', 'processamento', 'sistema', 'atualizacoes']);
 
-// { monitoramento, processamento, sistema }: true = recolhida.
+// { monitoramento, processamento, sistema, atualizacoes }: true = recolhida.
+// Chave ausente no valor salvo (de antes de uma categoria nova) fica expandida.
 export function lerCategorias(storage) {
   let salvo = null;
   try {

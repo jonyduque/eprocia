@@ -9,6 +9,7 @@
   import ScanEye from 'lucide-svelte/icons/scan-eye';
   import ScanText from 'lucide-svelte/icons/scan-text';
   import Sparkles from 'lucide-svelte/icons/sparkles';
+  import Atualizacoes from './Atualizacoes.svelte';
   import Salvo from './Salvo.svelte';
   import Segmentado from './Segmentado.svelte';
   import { onDestroy, tick } from 'svelte';
@@ -38,6 +39,9 @@
   export let avisar = () => {};
   // App.LogAtivo(), lido uma vez pelo App: sem log, nada sobre ele aparece aqui.
   export let logAtivo = false;
+  // Estado da atualização (App): sem atualizador ativo o bloco não aparece.
+  export let estadoAtualizacao = null;
+  export let filaOcupada = false;
 
   const PADRAO = {
     monitored_path: '',
@@ -377,6 +381,27 @@
         {/if}
       </div>
     </div>
+
+    {#if estadoAtualizacao?.ativo}
+      <div class="grupo" data-bloco="atualizacoes">
+        <h3 class="rotulo-grupo">
+          <button
+            type="button"
+            class="cabecalho-grupo"
+            aria-expanded={!recolhidas.atualizacoes}
+            aria-controls="grupo-atualizacoes"
+            on:click={() => alternar('atualizacoes')}
+          >
+            <span class="chevron-grupo" aria-hidden="true"><Icone icone={ChevronDown} tamanho={14} /></span>
+            Atualizações
+          </button>
+        </h3>
+
+        <div class="conteudo-grupo" class:animar={animar.atualizacoes} id="grupo-atualizacoes" hidden={recolhidas.atualizacoes}>
+          <Atualizacoes estado={estadoAtualizacao} {filaOcupada} {avisar} />
+        </div>
+      </div>
+    {/if}
   {/if}
 
   <!-- Sempre montada: o leitor de tela só anuncia mudanças numa região que

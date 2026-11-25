@@ -132,8 +132,12 @@ describe('estados visuais', () => {
       // LogAtivo devolve um booleano (false sem a chave no estado); os outros
       // bindings do plano existem e resolvem sem erro.
       assert.equal(await window.go.main.App.LogAtivo(), false);
+      // Sem a chave atualizacao, o atualizador fica desligado (bloco escondido).
+      assert.equal((await window.go.main.App.EstadoAtualizacao()).ativo, false);
       assert.equal(await window.go.main.App.AbrirPastaLogs(), undefined);
       assert.equal(await window.go.main.App.ReprocessQueueItem('x', 'normal', 'standard', true), undefined);
+      instalarStubs({ estado: ESTADOS.configuracoes, tema: 'escuro' });
+      assert.deepEqual(await window.go.main.App.EstadoAtualizacao(), ESTADOS.configuracoes.atualizacao);
       instalarStubs({ estado: ESTADOS['configuracoes-log'], tema: 'escuro' });
       assert.equal(await window.go.main.App.LogAtivo(), true);
       // Categorias recolhidas só quando o estado pede (o app lê eprocia.categorias ao abrir).

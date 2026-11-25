@@ -131,13 +131,13 @@ test('Configurações vira seção com rótulo pequeno, sem Importação Manual'
   assert.doesNotMatch(app, /manual-card|Importação Manual/);
 });
 
-test('Configurações em três blocos rotulados: Monitoramento, Processamento, Sistema', () => {
+test('Configurações em quatro blocos rotulados: Monitoramento, Processamento, Sistema, Atualizações', () => {
   // O rótulo é o texto do botão que recolhe a categoria (depois do chevron).
   const blocos = [...settings.matchAll(/<h3 class="rotulo-grupo">[\s\S]*?<\/span>\s*([^<\s][^<]*?)\s*<\/button>\s*<\/h3>/g)].map((m) => m[1]);
-  assert.deepEqual(blocos, ['Monitoramento', 'Processamento', 'Sistema']);
+  assert.deepEqual(blocos, ['Monitoramento', 'Processamento', 'Sistema', 'Atualizações']);
   rotuloSecao(regra(estilo(settings), '.rotulo-grupo'), 'blocos');
   const ordem = ['Monitoramento', 'id="watchdog-toggle"', 'id="monitored-path"', 'Processamento',
-    'id="ocr-mode"', 'id="cleaning-level"', 'id="omitir-tipos"', 'Sistema', 'id="autostart-toggle"'];
+    'id="ocr-mode"', 'id="cleaning-level"', 'id="omitir-tipos"', 'Sistema', 'id="autostart-toggle"', 'data-bloco="atualizacoes"'];
   const pos = ordem.map((o) => settings.indexOf(o));
   for (let i = 1; i < pos.length; i++) assert.ok(pos[i] > pos[i - 1], `${ordem[i]} fora de ordem`);
 });

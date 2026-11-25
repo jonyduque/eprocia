@@ -13,7 +13,7 @@ const ler = (...p) => readFileSync(join(raiz, ...p), 'utf8').replace(/\r\n/g, '\
 const settings = ler('src', 'components', 'Settings.svelte');
 const design = ler('..', 'DESIGN.md');
 
-const TODAS_EXPANDIDAS = { monitoramento: false, processamento: false, sistema: false };
+const TODAS_EXPANDIDAS = { monitoramento: false, processamento: false, sistema: false, atualizacoes: false };
 
 function memoria(inicial = {}) {
   const dados = { ...inicial };
@@ -35,8 +35,8 @@ function regra(css, seletor) {
   return css.slice(i, css.indexOf('}', i));
 }
 
-test('categorias: as três do painel, nessa ordem', () => {
-  assert.deepEqual([...CATEGORIAS], ['monitoramento', 'processamento', 'sistema']);
+test('categorias: as quatro do painel, nessa ordem', () => {
+  assert.deepEqual([...CATEGORIAS], ['monitoramento', 'processamento', 'sistema', 'atualizacoes']);
   assert.equal(CHAVE_CATEGORIAS, 'eprocia.categorias');
 });
 
@@ -50,6 +50,11 @@ test('lerCategorias: devolve o que foi salvo e ignora o que não é booleano', (
   assert.deepEqual(lerCategorias(s), { ...TODAS_EXPANDIDAS, processamento: true });
 });
 
+test('lerCategorias: o valor salvo antes de Atualizações, sem a chave nova, continua válido', () => {
+  const s = memoria({ [CHAVE_CATEGORIAS]: JSON.stringify({ monitoramento: true, processamento: false, sistema: true }) });
+  assert.deepEqual(lerCategorias(s), { monitoramento: true, processamento: false, sistema: true, atualizacoes: false });
+});
+
 test('lerCategorias: valor ilegível ou storage que lança, todas expandidas', () => {
   assert.deepEqual(lerCategorias(memoria({ [CHAVE_CATEGORIAS]: '{quebrado' })), TODAS_EXPANDIDAS);
   assert.deepEqual(lerCategorias(memoria({ [CHAVE_CATEGORIAS]: '[true]' })), TODAS_EXPANDIDAS);
@@ -57,7 +62,7 @@ test('lerCategorias: valor ilegível ou storage que lança, todas expandidas', (
   assert.deepEqual(lerCategorias(lanca), TODAS_EXPANDIDAS);
 });
 
-test('gravarCategorias: grava só as três chaves e não lança sem storage', () => {
+test('gravarCategorias: grava só as quatro chaves e não lança sem storage', () => {
   const s = memoria();
   assert.equal(gravarCategorias(s, { ...TODAS_EXPANDIDAS, sistema: true, outra: true }), true);
   assert.deepEqual(JSON.parse(s.dados[CHAVE_CATEGORIAS]), { ...TODAS_EXPANDIDAS, sistema: true });
@@ -67,7 +72,7 @@ test('gravarCategorias: grava só as três chaves e não lança sem storage', ()
   assert.equal(gravarCategorias(lanca, TODAS_EXPANDIDAS), false);
 });
 
-for (const [chave, rotulo] of [['monitoramento', 'Monitoramento'], ['processamento', 'Processamento'], ['sistema', 'Sistema']]) {
+for (const [chave, rotulo] of [['monitoramento', 'Monitoramento'], ['processamento', 'Processamento'], ['sistema', 'Sistema'], ['atualizacoes', 'Atualizações']]) {
   test(`${rotulo}: cabeçalho é um botão que recolhe o conteúdo`, () => {
     const i = settings.indexOf(`aria-controls="grupo-${chave}"`);
     assert.ok(i >= 0, `aria-controls de ${chave} ausente`);
