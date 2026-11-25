@@ -6,7 +6,7 @@
 
 **Transforma o ZIP de um processo do Eproc num único texto organizado, pronto para colar numa IA.**
 
-100% offline · OCR embutido · ordem cronológica por evento
+Offline (a rede só é usada ao clicar em Procurar atualização) · OCR embutido · ordem cronológica por evento
 
 [![CI](https://github.com/jonyduque/eprocia/actions/workflows/ci.yml/badge.svg)](https://github.com/jonyduque/eprocia/actions/workflows/ci.yml)
 [![Versão](https://img.shields.io/github/v/release/jonyduque/eprocia?label=vers%C3%A3o&color=0056B3)](https://github.com/jonyduque/eprocia/releases/latest)
@@ -15,7 +15,7 @@
 ![Go](https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white)
 ![Wails](https://img.shields.io/badge/Wails-v2-DF0000)
 ![Svelte](https://img.shields.io/badge/Svelte-5-FF3E00?logo=svelte&logoColor=white)
-![Offline](https://img.shields.io/badge/rede-nenhuma-2E7D32)
+![Rede: só ao procurar atualização](https://img.shields.io/badge/rede-s%C3%B3%20ao%20procurar%20atualiza%C3%A7%C3%A3o-2E7D32)
 
 [📥 Baixar](https://github.com/jonyduque/eprocia/releases/latest) ·
 [✨ Recursos](#-o-que-ele-faz) ·
