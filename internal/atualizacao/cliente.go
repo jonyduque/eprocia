@@ -62,6 +62,13 @@ type Cliente struct {
 	// prazoConsulta é o prazo total de Verificar; zero usa PrazoConsulta
 	// (os testes o reduzem).
 	prazoConsulta time.Duration
+
+	// Campos de Baixar que os testes trocam: limiteAsset (zero usa
+	// LimiteAsset), prazoSemDados (zero usa PrazoSemDados) e depoisDeCopiar,
+	// chamado com o caminho do arquivo já fechado, antes da conferência.
+	limiteAsset    int64
+	prazoSemDados  time.Duration
+	depoisDeCopiar func(caminho string)
 }
 
 // NovoCliente monta o cliente; raizes nil usa as raízes do sistema.
