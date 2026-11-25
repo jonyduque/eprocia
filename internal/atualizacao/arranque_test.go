@@ -6,8 +6,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
+
+	"golang.org/x/sys/windows"
 )
 
 // iniciarDorminhoco sobe o auxiliar no modo dorme; o cleanup encerra o filho.
@@ -98,4 +101,54 @@ func TestVersaoAnterior_AntesDoProtocolo(t *testing.T) {
 	if v, ok := VersaoAnterior(inst, Versao{0, 5, 1}); !ok || v != (Versao{0, 5, 0}) {
 		t.Errorf("VersaoAnterior = %v, %v; quer 0.5.0, true", v, ok)
 	}
+}
+
+// trocarOpenProcess faz OpenProcess negar acesso para os direitos em negados
+// e chama o real para os demais.
+func trocarOpenProcess(t *testing.T, negados ...uint32) {
+	t.Helper()
+	real := openProcess
+	openProcess = func(acesso uint32, herdar bool, pid uint32) (windows.Handle, error) {
+		if slices.Contains(negados, acesso) {
+			return 0, windows.ERROR_ACCESS_DENIED
+		}
+		return real(acesso, herdar, pid)
+	}
+	t.Cleanup(func() { openProcess = real })
+}
+
+func TestEsperarSair_AcessoNegado(t *testing.T) {
+	t.Run("sonda e vê a saída antes do prazo", func(t *testing.T) {
+		trocarOpenProcess(t, windows.SYNCHRONIZE)
+		cmd := iniciarDorminhoco(t, "300")
+		inicio := time.Now()
+		if !EsperarSair(cmd.Process.Pid, 5*time.Second) {
+			t.Fatal("EsperarSair devolveu falso com o filho saindo em 300 ms")
+		}
+		if d := time.Since(inicio); d >= 5*time.Second {
+			t.Fatalf("demorou %v", d)
+		}
+	})
+	t.Run("sonda e respeita o prazo", func(t *testing.T) {
+		trocarOpenProcess(t, windows.SYNCHRONIZE)
+		cmd := iniciarDorminhoco(t, "3000")
+		inicio := time.Now()
+		if EsperarSair(cmd.Process.Pid, 300*time.Millisecond) {
+			t.Fatal("EsperarSair devolveu verdadeiro com o filho dormindo")
+		}
+		if d := time.Since(inicio); d < 300*time.Millisecond || d > 2*time.Second {
+			t.Fatalf("voltou em %v; quer o prazo de 300 ms", d)
+		}
+	})
+	t.Run("nada abre: espera o prazo inteiro", func(t *testing.T) {
+		trocarOpenProcess(t, windows.SYNCHRONIZE, windows.PROCESS_QUERY_LIMITED_INFORMATION)
+		cmd := iniciarDorminhoco(t, "3000")
+		inicio := time.Now()
+		if EsperarSair(cmd.Process.Pid, 300*time.Millisecond) {
+			t.Fatal("EsperarSair devolveu verdadeiro sem poder abrir o processo")
+		}
+		if d := time.Since(inicio); d < 300*time.Millisecond || d > 2*time.Second {
+			t.Fatalf("voltou em %v; quer o prazo de 300 ms", d)
+		}
+	})
 }

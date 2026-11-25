@@ -23,6 +23,12 @@ func Limpar(pastaInstalacao, pastaDados, pastaAtualizacao string) {
 		return strings.EqualFold(nome, NomeFalhou) || temPrefixo(nome, PrefixoTemp)
 	})
 	apagarSe(pastaDados, func(nome string) bool { return temPrefixo(nome, PrefixoSinal) })
+	// A pasta de atualização perde todo o conteúdo: se ela for uma junção ou
+	// um link, apagar o conteúdo seria apagar o alvo.
+	if info, err := os.Lstat(pastaAtualizacao); err == nil && info.Mode()&(fs.ModeSymlink|fs.ModeIrregular) != 0 {
+		slog.Default().Warn("limpeza da atualização: pasta de atualização é link ou junção; não limpa")
+		return
+	}
 	apagarSe(pastaAtualizacao, func(string) bool { return true })
 }
 
