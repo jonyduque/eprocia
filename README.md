@@ -242,6 +242,14 @@ As configurações ficam em `%APPDATA%\eprocIA\config.json`.
 - Quando faltou OCR, o botão **Ler com OCR** refaz o ZIP com o OCR ligado (o modo das Configurações, ou Normal se ele estiver desligado), só nas páginas que precisam e com a mesma higienização. As Configurações não mudam.
 - **Forçar OCR** manda ao OCR toda página de PDF, mesmo com texto (HTML não passa). Existe nas Configurações (vale para todo ZIP) e no Reprocessar (vale só para aquele arquivo). Não tem efeito com o OCR desligado. É bem mais lento, e numa página com texto bom o resultado pode sair um pouco pior; mas, quando o OCR falha, sai em branco ou ilegível numa página que só foi a ele por Forçar OCR, fica o texto do PDF, como sem forçar.
 
+## 🔄 Atualização pelo programa
+
+O eprocIA **não procura atualização sozinho**: nem ao abrir, nem de tempos em tempos. Só quando você clica em **Procurar atualização**, no bloco Atualizações das Configurações, ele consulta a última versão publicada em `jonyduque/eprocia` no GitHub. O GitHub vê o IP da máquina, a hora e o `User-Agent` `eprocIA/<versão>`; nenhum nome de arquivo, caminho ou conteúdo sai (PRD, RNF06). Não há telemetria.
+
+- **Instalação por usuário** (a do `install.ps1`): "Atualizar" baixa, confere o SHA-256 e instala a versão nova com o programa aberto; ela passa a valer ao reiniciar, pelo botão **Reiniciar agora** ou na próxima abertura. O programa não guarda a versão anterior: para voltar, use `install.ps1 -Version`.
+- **Instalação pelo instalador (NSIS):** "Baixar e abrir o instalador" baixa, confere e abre o instalador, que pede permissão de administrador e fecha o programa.
+- Em qualquer outro local do executável, o programa só avisa que há versão nova.
+
 ## 📝 Log e telemetria (opcional)
 
 Desligados por padrão: sem a variável de ambiente `EPROCIA_LOG`, o app não grava log nem telemetria e as Configurações não mostram nada sobre eles.
@@ -287,7 +295,7 @@ go run ./scripts/anonimizar-log eprocia.log eprocia.1.log
 
 ## 🔒 Privacidade
 
-Nada sai da sua máquina. O eprocIA não faz nenhuma chamada de rede: o OCR, as fontes e a interface vêm embutidos no executável. O texto só vai para uma IA quando **você** cola. O log e a telemetria, quando ligados por `EPROCIA_LOG`, ficam só no computador.
+Nada sai da sua máquina. O eprocIA só usa a rede quando você clica em "Procurar atualização" (veja acima); fora isso, não faz nenhuma chamada: o OCR, as fontes e a interface vêm embutidos no executável. O texto só vai para uma IA quando **você** cola. O log e a telemetria, quando ligados por `EPROCIA_LOG`, ficam só no computador.
 
 ## 🛠️ Desenvolvimento
 

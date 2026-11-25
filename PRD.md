@@ -44,11 +44,12 @@ Abaixo estão as funcionalidades obrigatórias que o sistema deve executar.
 
 | ID | Categoria | Descrição |
 | --- | --- | --- |
-| **RNF01** | **Privacidade** | Todo o processamento deve ser **Local (Offline)**. Nenhum dado pode trafegar para APIs externas de conversão. |
+| **RNF01** | **Privacidade** | Todo o processamento deve ser **Local (Offline)**. Nenhum dado pode trafegar para APIs externas de conversão, exceto a consulta de atualização iniciada pelo botão, regida pelo RNF06. |
 | **RNF02** | **Eficiência** | O foco é a redução de tokens. Elementos como números de página, rodapés repetitivos e quebras de linha excessivas devem ser higienizados sempre que possível. |
 | **RNF03** | **Portabilidade** | O software deve ser distribuído preferencialmente como um executável standalone (Windows `.exe`). |
 | **RNF04** | **Dependência** | Eventuais binários devem ser empacotados no binário final |
 | **RNF05** | **Diagnóstico** | Log em arquivo e telemetria só com a variável de ambiente `EPROCIA_LOG` (`1` ou `detalhado`), lida na partida; sem ela, nada é gravado e a interface não mostra nada sobre log. Os dois ficam só no computador, sem envio pela rede. O log leva nomes de ZIP e de documento, com o nome do usuário do Windows trocado; a telemetria não leva nome nenhum. |
+| **RNF06** | **Atualização** | A única conexão de rede do programa é a consulta e o download de versões no GitHub (`jonyduque/eprocia`), e ela só acontece quando o usuário clica em "Procurar atualização" (e, depois, em "Atualizar"). Não há procura automática, periódica nem na abertura. A consulta não envia conteúdo, nome nem caminho de processo; o GitHub vê só o IP, a hora e o `User-Agent` `eprocIA/<versão>`. Sem telemetria, nem contagem de atualizações. O log local (RNF05, quando ligado) registra hora e resultado de cada consulta e de cada troca. |
 
 ## 5. Arquitetura Técnica Proposta
 
