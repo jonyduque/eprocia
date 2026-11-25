@@ -210,9 +210,15 @@ func TestBaixar_CorpoMaiorQueOAnunciado(t *testing.T) {
 		_, _ = w.Write(c.exe)
 		_, _ = w.Write([]byte("bytes a mais"))
 	}
-	_, err := c.baixar(context.Background(), nil)
-	if err == nil {
-		t.Fatal("aceitou corpo maior que o tamanho do asset")
+	maior := int64(0)
+	_, err := c.baixar(context.Background(), func(feito, total int64) {
+		maior = max(maior, feito)
+	})
+	if !errors.Is(err, errCorpoMaior) {
+		t.Fatalf("erro = %v, quer errCorpoMaior", err)
+	}
+	if maior > c.rel.Exe.Tamanho {
+		t.Fatalf("progresso chegou a %d, acima do tamanho %d", maior, c.rel.Exe.Tamanho)
 	}
 	pastaVazia(t, c.pasta)
 }
@@ -222,8 +228,8 @@ func TestBaixar_TamanhoDiferenteDoAsset(t *testing.T) {
 		c := novoCenarioDownload(t, exeCarimbado(t, Versao{0, 5, 0}))
 		c.rel.Exe.Tamanho += 10
 		_, err := c.cliente.Baixar(context.Background(), c.rel, c.rel.Exe, c.pasta, nomeDownload, nil)
-		if err == nil {
-			t.Fatal("aceitou Content-Length diferente do tamanho do asset")
+		if !errors.Is(err, errTamanhoDiferente) || !strings.Contains(err.Error(), "Content-Length") {
+			t.Fatalf("erro = %v, quer errTamanhoDiferente pelo Content-Length", err)
 		}
 		pastaVazia(t, c.pasta)
 	})
@@ -235,8 +241,8 @@ func TestBaixar_TamanhoDiferenteDoAsset(t *testing.T) {
 			_, _ = w.Write(c.exe[:len(c.exe)-10])
 		}
 		_, err := c.baixar(context.Background(), nil)
-		if err == nil {
-			t.Fatal("aceitou corpo menor que o tamanho do asset")
+		if !errors.Is(err, errTamanhoDiferente) || !strings.Contains(err.Error(), "corpo menor") {
+			t.Fatalf("erro = %v, quer errTamanhoDiferente pelo corpo menor", err)
 		}
 		pastaVazia(t, c.pasta)
 	})

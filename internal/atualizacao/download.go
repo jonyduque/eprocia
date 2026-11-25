@@ -24,6 +24,13 @@ const (
 // ErrParado: o download ficou PrazoSemDados sem receber bytes.
 var ErrParado = errors.New("o download parou de receber dados")
 
+var (
+	// errCorpoMaior: o corpo passou do tamanho do asset (ou do teto).
+	errCorpoMaior = errors.New("corpo maior que o tamanho do asset")
+	// errTamanhoDiferente: Content-Length ou corpo de tamanho diferente do asset.
+	errTamanhoDiferente = errors.New("tamanho diferente do asset")
+)
+
 // Baixado é o asset gravado e conferido. SHA256 é o do SHA256SUMS.txt (igual
 // ao recalculado sobre o arquivo, depois de conferir).
 type Baixado struct {
@@ -197,7 +204,7 @@ func (c *Cliente) copiar(ctx context.Context, f *os.File, asset Asset, limite in
 		return errors.New("Content-Length acima do teto")
 	}
 	if resp.ContentLength >= 0 && resp.ContentLength != asset.Tamanho {
-		return errors.New("Content-Length difere do tamanho do asset")
+		return fmt.Errorf("%w: Content-Length", errTamanhoDiferente)
 	}
 
 	buf := make([]byte, 32<<10)
@@ -211,7 +218,7 @@ func (c *Cliente) copiar(ctx context.Context, f *os.File, asset Asset, limite in
 			vigia.Reset(prazo)
 			feito += int64(n)
 			if feito > asset.Tamanho || feito > limite {
-				return errors.New("corpo maior que o tamanho do asset")
+				return errCorpoMaior
 			}
 			if _, err := f.Write(buf[:n]); err != nil {
 				return fmt.Errorf("gravar download: %w", err)
@@ -228,7 +235,7 @@ func (c *Cliente) copiar(ctx context.Context, f *os.File, asset Asset, limite in
 		}
 	}
 	if feito != asset.Tamanho {
-		return errors.New("corpo menor que o tamanho do asset")
+		return fmt.Errorf("%w: corpo menor", errTamanhoDiferente)
 	}
 	return nil
 }
