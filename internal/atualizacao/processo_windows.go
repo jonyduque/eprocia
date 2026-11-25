@@ -5,6 +5,7 @@ package atualizacao
 import (
 	"errors"
 	"math"
+	"syscall"
 	"time"
 
 	"golang.org/x/sys/windows"
@@ -71,4 +72,13 @@ func EsperarSair(pid int, prazo time.Duration) bool {
 // inexistente diz se o erro do OpenProcess é o de PID sem processo.
 func inexistente(err error) bool {
 	return errors.Is(err, windows.ERROR_INVALID_PARAMETER)
+}
+
+// atributosFilho: o processo novo da troca nasce sem console e sem herdar
+// handles, fora do grupo do antigo, para sobreviver a ele.
+func atributosFilho() *syscall.SysProcAttr {
+	return &syscall.SysProcAttr{
+		CreationFlags:    windows.DETACHED_PROCESS | windows.CREATE_NEW_PROCESS_GROUP,
+		NoInheritHandles: true,
+	}
 }

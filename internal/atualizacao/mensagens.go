@@ -23,3 +23,11 @@ func MsgNaoAbriu(nova, atual string) string {
 func MsgInstalacaoCancelada(atual string) string {
 	return fmt.Sprintf("A instalação foi cancelada; o eprocIA continua na versão %s", atual)
 }
+
+// MsgReversaoIncompleta: a troca falhou e nem a reversão restaurou os nomes.
+const MsgReversaoIncompleta = "A atualização falhou e a versão anterior não pôde ser restaurada; reinstale o eprocIA"
+
+// MsgNaoAplicou: a troca falhou antes de o processo novo arrancar; nada mudou.
+func MsgNaoAplicou(atual string) string {
+	return fmt.Sprintf("A atualização não pôde ser aplicada; o eprocIA continua na versão %s", atual)
+}

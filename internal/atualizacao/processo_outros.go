@@ -31,3 +31,6 @@ func EsperarSair(pid int, prazo time.Duration) bool {
 		time.Sleep(50 * time.Millisecond)
 	}
 }
+
+// atributosFilho fora do Windows: nada a ajustar.
+func atributosFilho() *syscall.SysProcAttr { return nil }

@@ -1,4 +1,4 @@
-//go:build ensaio
+//go:build ensaio && windows
 
 package atualizacao
 
@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 )
 
 func TestEnsaio_ConsultaTagRC(t *testing.T) {
@@ -94,4 +95,20 @@ func TestEnsaio_TagForaDoFormato(t *testing.T) {
 			}
 		})
 	}
+}
+
+// No build de ensaio com EPROCIA_ENSAIO_SEM_SINAL=1 a troca ignora o sinal
+// (o novo grava e fica no ar) e reverte no prazo.
+func TestAplicar_EnsaioIgnoraSinal(t *testing.T) {
+	t.Setenv("EPROCIA_ENSAIO_SEM_SINAL", "1")
+	c := novoCenarioTroca(t, "sinal")
+	antes := somaDe(t, c.caminho(NomeExe))
+	b := c.baixado(t, v050)
+	err := c.troca(time.Second).Aplicar(context.Background(), b)
+	var naoAbriu ErrNaoAbriu
+	if !errors.As(err, &naoAbriu) || naoAbriu != (ErrNaoAbriu{"0.5.0"}) {
+		t.Fatalf("Aplicar = %v, quer ErrNaoAbriu{0.5.0}", err)
+	}
+	conferirRevertido(t, c, antes, v050)
+	naoExiste(t, c.caminho(NomeAnterior))
 }
