@@ -157,6 +157,20 @@ test('página final: "Abrir o eprocIA" marcada, pelo explorer.exe', () => {
   }
 });
 
+test('project.nsi em UTF-8 com BOM (sem BOM o makensis lê como ANSI e os acentos saem trocados)', () => {
+  const bytes = readFileSync(join(raiz, 'build', 'windows', 'installer', 'project.nsi'));
+  assert.deepEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+});
+
+test('silencioso: não recria o atalho da área de trabalho de quem o apagou', () => {
+  const iDesk = idx(/^Section\b.*\bSecDesktop$/);
+  const ini = bloco(idx(/^Function\s+\.onInit$/), /^FunctionEnd$/);
+  assert.ok(idx(/^Function\s+\.onInit$/) > iDesk, '.onInit precisa vir depois de SecDesktop (${SecDesktop} só existe depois da seção)');
+  const t = ini.join('\n');
+  assert.match(t, /\$\{If\}\s+\$\{Silent\}[\s\S]*!insertmacro wails\.setShellContext[\s\S]*\$\{IfNot\}\s+\$\{FileExists\}\s+"\$DESKTOP\\\$\{INFO_PRODUCTNAME\}\.lnk"\s*\n\s*!insertmacro UnselectSection \$\{SecDesktop\}\s*\n\s*\$\{EndIf\}[\s\S]*\$\{EndIf\}/);
+  assert.ok(ini.includes('!insertmacro wails.checkArchitecture'), 'checkArchitecture saiu do .onInit');
+});
+
 test('desinstalador remove os dois atalhos', () => {
   const un = bloco(idx(/^Section\s+"uninstall"$/), /^SectionEnd$/);
   assert.ok(un.includes('Delete "$DESKTOP\\${INFO_PRODUCTNAME}.lnk"'));

@@ -1,4 +1,4 @@
-Unicode true
+﻿Unicode true
 
 ####
 ## Please note: Template replacements don't work in this file. They are provided with default defines like
@@ -89,10 +89,6 @@ Function AbrirEprocIA
     Exec '"$WINDIR\explorer.exe" "$INSTDIR\${PRODUCT_EXECUTABLE}"'
 FunctionEnd
 
-Function .onInit
-   !insertmacro wails.checkArchitecture
-FunctionEnd
-
 Section "${INFO_PRODUCTNAME} e atalho no menu Iniciar" SecApp
     SectionIn RO # Sempre instalado.
     !insertmacro wails.setShellContext
@@ -117,6 +113,18 @@ Section "Atalho na área de trabalho" SecDesktop
     !insertmacro wails.setShellContext
     CreateShortCut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
 SectionEnd
+
+Function .onInit
+   !insertmacro wails.checkArchitecture
+   # No silencioso (/S) não há página de componentes:
+   # o atalho da área de trabalho só volta se já existia.
+   ${If} ${Silent}
+       !insertmacro wails.setShellContext
+       ${IfNot} ${FileExists} "$DESKTOP\${INFO_PRODUCTNAME}.lnk"
+           !insertmacro UnselectSection ${SecDesktop}
+       ${EndIf}
+   ${EndIf}
+FunctionEnd
 
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
     !insertmacro MUI_DESCRIPTION_TEXT ${SecApp} "O programa, com atalho no menu Iniciar."
