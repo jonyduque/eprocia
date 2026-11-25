@@ -203,7 +203,7 @@ No PowerShell:
 irm https://raw.githubusercontent.com/jonyduque/eprocia/main/install.ps1 | iex
 ```
 
-O [`install.ps1`](install.ps1) baixa a release mais recente, confere o SHA-256 com o `SHA256SUMS.txt` e instala em `%LOCALAPPDATA%\Programs\eprocIA`, com atalhos no menu Iniciar e na área de trabalho e entrada em **Aplicativos instalados**. Nunca pede administrador. Num terminal elevado, ele roda de novo sem privilégios como o dono da sessão do Windows, então nada vai para o perfil do administrador. Para atualizar, rode de novo com o app fechado pela bandeja.
+O [`install.ps1`](install.ps1) baixa a release mais recente, confere o SHA-256 com o `SHA256SUMS.txt` e instala em `%LOCALAPPDATA%\Programs\eprocIA`, com atalhos no menu Iniciar e na área de trabalho e entrada em **Aplicativos instalados**. Rodar de novo atualiza no lugar a versão já instalada: a por usuário ou, se só houver ela, a instalação para todos os usuários (feita pelo instalador). Com o eprocIA aberto, ele pergunta antes de fechá-lo e só o fecha na hora de trocar o arquivo, depois do download. Só pede administrador (UAC) para atualizar ou remover a instalação para todos os usuários; a instalação por usuário nunca pede. Num terminal elevado, ele pergunta antes de rodar de novo, sem privilégios, como o dono da sessão do Windows, então nada vai para o perfil do administrador. `-Yes` pula as perguntas (inclusive a de fechar o app aberto).
 
 Com opções:
 

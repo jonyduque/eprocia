@@ -30,8 +30,15 @@ wails build -clean -nsis
 # (ignores the life signal, to prove the rollback). release.yml passes no tags.
 wails build -clean -nsis -tags ensaio
 
-# Per-user install, also `irm .../install.ps1 | iex` (no admin; elevated shells
-# re-run it unelevated as the session user via a one-off scheduled task). Must
+# Per-user install, also `irm .../install.ps1 | iex` (per-user needs no admin; an
+# NSIS install is upgraded in place by an elevated child that runs only from an
+# admin-only %ProgramData% folder after a short -Command bootstrap (under 2,000
+# chars, a ShellExecuteEx limit) creates it with the ACL, checks it is new, empty
+# and admin-owned, and checks the hashes; the child's log stays in that folder;
+# elevated shells ask, then re-run it unelevated as the session user via a
+# one-off scheduled task; a running eprocIA is closed only after the user
+# confirms, right before the swap). Internal args to a -File child go as
+# -ClosePids:<list>: powershell.exe 5.1 exits 5 on a bare '-' value. Must
 # stay Windows PowerShell 5.1 compatible and saved WITHOUT a BOM (a BOM breaks
 # `irm | iex`); under -File the 5.1 re-reads itself as UTF-8, so never put
 # characters whose UTF-8 bytes include 0x91-0x94 (arrows, Ó, Ô) in the source:
