@@ -64,6 +64,8 @@ type App struct {
 
 	// Atualização pelo aplicativo (app_atualizacao.go).
 	atualizador *atualizacao.Atualizador
+	// abrirURL é trocado nos testes; o padrão é runtime.BrowserOpenURL.
+	abrirURL func(url string)
 	// apos é o PID do processo antigo (--apos-atualizar); 0 = abertura normal.
 	apos int
 	// limparAnterior: --limpar-anterior, apagar eprocia.anterior.exe depois

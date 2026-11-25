@@ -733,3 +733,200 @@ func TestAtualizacao_SemTravaNoPrazoNaoLigaMonitor(t *testing.T) {
 		t.Fatalf("watcher ligado em %q sem a trava", got)
 	}
 }
+
+// redeFalsa devolve uma release fixa e conta as chamadas.
+type redeFalsa struct {
+	mu        sync.Mutex
+	rel       *atualizacao.Release
+	consultas int
+	baixados  int
+	caminho   string
+}
+
+func (r *redeFalsa) Verificar(context.Context, atualizacao.Versao) (*atualizacao.Release, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.consultas++
+	return r.rel, nil
+}
+
+func (r *redeFalsa) Baixar(_ context.Context, rel *atualizacao.Release, a atualizacao.Asset, _, _ string, _ func(int64, int64)) (atualizacao.Baixado, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.baixados++
+	return atualizacao.Baixado{Caminho: r.caminho, Asset: a, Versao: rel.Versao}, nil
+}
+
+func (r *redeFalsa) chamadas() (int, int) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.consultas, r.baixados
+}
+
+// trocadorFalso conta as criações e os reinícios.
+type trocadorFalso struct {
+	mu        sync.Mutex
+	criados   int
+	reiniciou int
+}
+
+func (tf *trocadorFalso) Instalar(context.Context, atualizacao.Baixado) error { return nil }
+
+func (tf *trocadorFalso) Reiniciar(context.Context, atualizacao.Versao) error {
+	tf.mu.Lock()
+	tf.reiniciou++
+	tf.mu.Unlock()
+	return nil
+}
+
+func (tf *trocadorFalso) contar() (int, int) {
+	tf.mu.Lock()
+	defer tf.mu.Unlock()
+	return tf.criados, tf.reiniciou
+}
+
+func releaseMaior(t *testing.T) *atualizacao.Release {
+	t.Helper()
+	v, err := atualizacao.ParseVersao("99.0.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &atualizacao.Release{Tag: "v99.0.0", Versao: v, NotasURL: "https://github.com/jonyduque/eprocia/releases/tag/v99.0.0"}
+}
+
+func TestInstalarAtualizacao_SemVerificar(t *testing.T) {
+	rede := &redeFalsa{rel: releaseMaior(t)}
+	m := novoAppAtualizacao(t, cenario{rede: rede})
+	m.iniciar()
+	if err := m.app.InstalarAtualizacao(); err == nil {
+		t.Fatal("InstalarAtualizacao sem Verificar devolveu nil")
+	}
+	if c, b := rede.chamadas(); c != 0 || b != 0 {
+		t.Fatalf("a Rede foi chamada: consultas=%d baixados=%d", c, b)
+	}
+}
+
+func TestVerificarAtualizacao_DevolveInfo(t *testing.T) {
+	rede := &redeFalsa{rel: releaseMaior(t)}
+	m := novoAppAtualizacao(t, cenario{rede: rede})
+	m.iniciar()
+	info, err := m.app.VerificarAtualizacao()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info == nil || info.Modo != "trocar" {
+		t.Fatalf("Info = %+v; quer Modo trocar", info)
+	}
+	if got := m.app.EstadoAtualizacao().Fase; got != atualizacao.FaseDisponivel {
+		t.Fatalf("fase = %q; quer disponivel", got)
+	}
+	temEvento := false
+	for _, e := range m.f.eventos() {
+		if e == "atualizacao:estado" {
+			temEvento = true
+		}
+	}
+	if !temEvento {
+		t.Fatalf("eventos %v sem atualizacao:estado", m.f.eventos())
+	}
+}
+
+func TestAbrirNovidades_SoPrefixo(t *testing.T) {
+	casos := []struct {
+		url  string
+		abre bool
+	}{
+		{"https://github.com/jonyduque/eprocia/releases/tag/v0.5.0", true},
+		{"https://github.com/outro/x/releases/", false},
+		{"https://evil.example/", false},
+		{"", false},
+	}
+	for _, c := range casos {
+		t.Run(c.url, func(t *testing.T) {
+			rel := releaseMaior(t)
+			rel.NotasURL = c.url
+			m := novoAppAtualizacao(t, cenario{rede: &redeFalsa{rel: rel}})
+			m.iniciar()
+			var abertas []string
+			m.app.abrirURL = func(u string) { abertas = append(abertas, u) }
+			if _, err := m.app.VerificarAtualizacao(); err != nil {
+				t.Fatal(err)
+			}
+			err := m.app.AbrirNovidades()
+			if c.abre && (err != nil || len(abertas) != 1 || abertas[0] != c.url) {
+				t.Fatalf("err=%v abertas=%v; quer abrir %q", err, abertas, c.url)
+			}
+			if !c.abre && (err == nil || len(abertas) != 0) {
+				t.Fatalf("err=%v abertas=%v; quer erro sem abrir", err, abertas)
+			}
+		})
+	}
+}
+
+func TestAbrirPaginaVersoes(t *testing.T) {
+	app := NewApp()
+	var abertas []string
+	app.abrirURL = func(u string) { abertas = append(abertas, u) }
+	if err := app.AbrirPaginaVersoes(); err != nil {
+		t.Fatal(err)
+	}
+	if len(abertas) != 1 || abertas[0] != "https://github.com/jonyduque/eprocia/releases" {
+		t.Fatalf("abertas = %v", abertas)
+	}
+}
+
+func TestGetVersao(t *testing.T) {
+	if got := NewApp().GetVersao(); got != versaoApp() {
+		t.Fatalf("GetVersao = %q; quer %q", got, versaoApp())
+	}
+}
+
+func TestAtualizacao_SemAtualizadorNaoQuebra(t *testing.T) {
+	app := NewApp()
+	if app.EstadoAtualizacao().Ativo {
+		t.Fatal("estado ativo sem Atualizador")
+	}
+	if _, err := app.VerificarAtualizacao(); err == nil {
+		t.Fatal("VerificarAtualizacao sem Atualizador devolveu nil")
+	}
+	if app.InstalarAtualizacao() == nil || app.ReiniciarAtualizacao() == nil || app.AbrirNovidades() == nil {
+		t.Fatal("esperava erro sem Atualizador")
+	}
+	app.CancelarAtualizacao()
+}
+
+func TestReiniciarAtualizacao_ForaDeInstalada(t *testing.T) {
+	rede := &redeFalsa{rel: releaseMaior(t), caminho: filepath.Join(t.TempDir(), "novo.exe")}
+	tf := &trocadorFalso{}
+	m := novoAppAtualizacao(t, cenario{rede: rede})
+	m.opcoes.Trocador = func([]string, sync.Locker) atualizacao.Trocador {
+		tf.mu.Lock()
+		tf.criados++
+		tf.mu.Unlock()
+		return tf
+	}
+	m.iniciar()
+	if err := m.app.ReiniciarAtualizacao(); err == nil {
+		t.Fatal("ReiniciarAtualizacao fora de instalada devolveu nil")
+	}
+	if c, r := tf.contar(); c != 0 || r != 0 {
+		t.Fatalf("Trocador criado=%d reiniciou=%d; quer 0/0", c, r)
+	}
+
+	if _, err := m.app.VerificarAtualizacao(); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.app.InstalarAtualizacao(); err != nil {
+		t.Fatal(err)
+	}
+	esperarAte(t, 5*time.Second, "fase instalada", func() bool {
+		return m.app.EstadoAtualizacao().Fase == atualizacao.FaseInstalada
+	})
+	if err := m.app.ReiniciarAtualizacao(); err != nil {
+		t.Fatal(err)
+	}
+	esperarAte(t, 5*time.Second, "Trocador.Reiniciar", func() bool {
+		_, r := tf.contar()
+		return r == 1
+	})
+}

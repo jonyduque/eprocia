@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -292,4 +294,117 @@ func (a *App) apagarVersaoAnterior() {
 	if err := apagar(a.pastaInstalacao); err != nil {
 		slog.Warn("limpeza da versão anterior: o eprocia.anterior.exe ficou")
 	}
+}
+
+const (
+	urlVersoes        = "https://github.com/jonyduque/eprocia/releases"
+	prefixoNovidades  = "https://github.com/jonyduque/eprocia/releases/"
+	msgAtualizacaoOff = "A atualização pelo aplicativo não está disponível"
+)
+
+var (
+	errAtualizacaoOff = errors.New(msgAtualizacaoOff)
+	errSemNotas       = errors.New("Não há página de novidades para abrir")
+)
+
+// paraJS devolve ao frontend só uma frase fixa: o erro do Atualizador já
+// traz texto fixo (as Msg* ou os sentinelas), e qualquer outro vira a frase
+// genérica, nunca err.Error() com caminho ou URL.
+func paraJS(err error) error {
+	if err == nil {
+		return nil
+	}
+	for _, s := range []error{
+		atualizacao.ErrSemConsulta, atualizacao.ErrNaoInstalavel, atualizacao.ErrEmCurso,
+		atualizacao.ErrDesligado, atualizacao.ErrFaltaReiniciar,
+	} {
+		if errors.Is(err, s) {
+			return s
+		}
+	}
+	switch err.Error() {
+	case atualizacao.MsgSemRede, atualizacao.MsgRecusada:
+		return err
+	}
+	return errors.New(atualizacao.MsgSemRede)
+}
+
+// GetVersao é a versão do aplicativo em execução.
+func (a *App) GetVersao() string { return versaoApp() }
+
+// EstadoAtualizacao é o instantâneo do estado da atualização, sem rede.
+func (a *App) EstadoAtualizacao() atualizacao.Estado {
+	if a.atualizador == nil {
+		return atualizacao.Estado{}
+	}
+	return a.atualizador.Estado()
+}
+
+// VerificarAtualizacao consulta a release mais nova (só a pedido do usuário).
+func (a *App) VerificarAtualizacao() (*atualizacao.Info, error) {
+	if a.atualizador == nil {
+		return nil, errAtualizacaoOff
+	}
+	ctx := a.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	info, err := a.atualizador.Verificar(ctx)
+	if err != nil {
+		return nil, paraJS(err)
+	}
+	return &info, nil
+}
+
+// InstalarAtualizacao baixa e instala a versão da última consulta.
+func (a *App) InstalarAtualizacao() error {
+	if a.atualizador == nil {
+		return errAtualizacaoOff
+	}
+	return paraJS(a.atualizador.Instalar())
+}
+
+// CancelarAtualizacao cancela o download ou a espera da fila.
+func (a *App) CancelarAtualizacao() {
+	if a.atualizador != nil {
+		a.atualizador.Cancelar()
+	}
+}
+
+// ReiniciarAtualizacao reinicia para a versão instalada (só na fase instalada).
+func (a *App) ReiniciarAtualizacao() error {
+	if a.atualizador == nil {
+		return errAtualizacaoOff
+	}
+	return paraJS(a.atualizador.Reiniciar())
+}
+
+func (a *App) abrirNoNavegador(url string) {
+	if a.abrirURL != nil {
+		a.abrirURL(url)
+		return
+	}
+	if a.ctx != nil {
+		runtime.BrowserOpenURL(a.ctx, url)
+	}
+}
+
+// AbrirNovidades abre as notas da release da última consulta, só se a URL for
+// do repositório do eprocIA.
+func (a *App) AbrirNovidades() error {
+	if a.atualizador == nil {
+		return errAtualizacaoOff
+	}
+	url := a.atualizador.NotasURL()
+	if !strings.HasPrefix(url, prefixoNovidades) {
+		return errSemNotas
+	}
+	a.abrirNoNavegador(url)
+	return nil
+}
+
+// AbrirPaginaVersoes abre a página de versões do repositório.
+func (a *App) AbrirPaginaVersoes() error {
+	a.abrirNoNavegador(urlVersoes)
+	return nil
 }
