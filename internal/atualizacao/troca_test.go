@@ -305,6 +305,9 @@ func TestAplicar_FalhaNoSegundoRename(t *testing.T) {
 	if errors.As(err, &naoAbriu) || errors.Is(err, ErrReversaoIncompleta) || errors.Is(err, ErrNaoConferiu) {
 		t.Fatalf("Aplicar = %v, quer erro de \"nada mudou\"", err)
 	}
+	if !errors.Is(err, ErrNaoAplicou) {
+		t.Errorf("Aplicar = %v, quer ErrNaoAplicou", err)
+	}
 	if somaDe(t, c.caminho(NomeExe)) != antes {
 		t.Error("eprocia.exe mudou")
 	}
@@ -363,6 +366,9 @@ func TestVoltar_FalhaNosPassos2e3(t *testing.T) {
 			if errors.As(err, &naoAbriu) || errors.Is(err, ErrReversaoIncompleta) {
 				t.Fatalf("Voltar = %v, quer erro de \"nada mudou\"", err)
 			}
+			if !errors.Is(err, ErrNaoAplicou) {
+				t.Errorf("Voltar = %v, quer ErrNaoAplicou", err)
+			}
 			if somaDe(t, c.caminho(NomeExe)) != somaN {
 				t.Error("eprocia.exe mudou")
 			}
@@ -392,21 +398,196 @@ func TestVoltar_SemSinalReverte(t *testing.T) {
 	semTemporarios(t, c.pasta)
 }
 
-func TestReversao_Incompleta(t *testing.T) {
-	c := novoCenarioTroca(t, "sai1")
+// falhaInjetada é o erro dos renomear falsos.
+func falhaInjetada(de, para string) error {
+	return &os.LinkError{Op: "rename", Old: de, New: para, Err: errors.New("falha injetada")}
+}
+
+// outrosTemporarios lista os eprocia.exe.download-* da pasta, menos exceto.
+func outrosTemporarios(t *testing.T, pasta, exceto string) []string {
+	t.Helper()
+	entradas, err := os.ReadDir(pasta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var nomes []string
+	for _, e := range entradas {
+		if temPrefixo(e.Name(), PrefixoTemp) && e.Name() != exceto {
+			nomes = append(nomes, e.Name())
+		}
+	}
+	return nomes
+}
+
+func TestAplicar_DesfazerFalhaCopiaAnterior(t *testing.T) {
+	c := novoCenarioTroca(t, "sinal")
+	antes := somaDe(t, c.caminho(NomeExe))
 	b := c.baixado(t, v050)
 	tr := c.troca(prazoComSinal)
 	tr.renomear = func(de, para string) error {
-		if filepath.Base(de) == NomeAnterior && filepath.Base(para) == NomeExe {
-			return &os.LinkError{Op: "rename", Old: de, New: para, Err: errors.New("falha injetada")}
+		if filepath.Base(para) == NomeExe && (de == b.Caminho || filepath.Base(de) == NomeAnterior) {
+			return falhaInjetada(de, para)
 		}
 		return os.Rename(de, para)
 	}
-	err := tr.Aplicar(context.Background(), b)
-	if !errors.Is(err, ErrReversaoIncompleta) {
+	if err := tr.Aplicar(context.Background(), b); !errors.Is(err, ErrReversaoIncompleta) {
 		t.Fatalf("Aplicar = %v, quer ErrReversaoIncompleta", err)
 	}
-	if _, err := os.Stat(c.caminho(NomeExe)); err != nil {
-		t.Errorf("a pasta ficou sem eprocia.exe: %v", err)
+	if somaDe(t, c.caminho(NomeExe)) != antes {
+		t.Error("eprocia.exe não é a cópia do 0.4.4")
+	}
+	if sobra := outrosTemporarios(t, c.pasta, filepath.Base(b.Caminho)); len(sobra) != 0 {
+		t.Errorf("sobraram temporários: %v", sobra)
+	}
+	if pids := filhos(t, c.dados); len(pids) != 0 {
+		t.Errorf("processos iniciados: %v", pids)
+	}
+}
+
+func TestVoltar_DesfazerFalhaCopiaAnterior(t *testing.T) {
+	c, somaN, somaAnterior := cenarioVoltar(t, "sinal")
+	tr := c.troca(prazoComSinal)
+	chamada := 0
+	tr.renomear = func(de, para string) error {
+		chamada++
+		if chamada == 3 || (filepath.Base(de) == NomeAnterior && filepath.Base(para) == NomeExe) {
+			return falhaInjetada(de, para)
+		}
+		return os.Rename(de, para)
+	}
+	if err := tr.Voltar(context.Background()); !errors.Is(err, ErrReversaoIncompleta) {
+		t.Fatalf("Voltar = %v, quer ErrReversaoIncompleta", err)
+	}
+	if somaDe(t, c.caminho(NomeExe)) != somaN {
+		t.Error("eprocia.exe não é a cópia da versão N")
+	}
+	// O eprocia.anterior.exe é a N em execução (não pode ser substituído); a
+	// N-1 fica num único temporário, que a limpeza da abertura apaga.
+	if v := versaoDe(t, c.caminho(NomeAnterior)); v != v044 {
+		t.Errorf("eprocia.anterior.exe = %v, quer 0.4.4", v)
+	}
+	sobra := outrosTemporarios(t, c.pasta, "")
+	if len(sobra) != 1 || somaDe(t, c.caminho(sobra[0])) != somaAnterior {
+		t.Errorf("temporários = %v, quer só o da N-1", sobra)
+	}
+	if pids := filhos(t, c.dados); len(pids) != 0 {
+		t.Errorf("processos iniciados: %v", pids)
+	}
+}
+
+func TestAplicar_FalhaNoStartReverte(t *testing.T) {
+	c := novoCenarioTroca(t, "sinal")
+	antes := somaDe(t, c.caminho(NomeExe))
+	b := c.baixado(t, v050)
+	tr := c.troca(prazoComSinal)
+	// Depois do segundo rename, o eprocia.exe deixa de ser PE: o Start falha.
+	tr.renomear = func(de, para string) error {
+		if err := os.Rename(de, para); err != nil {
+			return err
+		}
+		if de == b.Caminho {
+			return os.WriteFile(para, []byte("não é um executável"), 0o644)
+		}
+		return nil
+	}
+	err := tr.Aplicar(context.Background(), b)
+	var naoAbriu ErrNaoAbriu
+	if !errors.As(err, &naoAbriu) || naoAbriu != (ErrNaoAbriu{"0.5.0"}) {
+		t.Fatalf("Aplicar = %v, quer ErrNaoAbriu{0.5.0}", err)
+	}
+	if somaDe(t, c.caminho(NomeExe)) != antes {
+		t.Error("eprocia.exe não voltou a ser o de antes")
+	}
+	if _, err := os.Stat(c.caminho(NomeFalhou)); err != nil {
+		t.Errorf("sem eprocia.falhou.exe: %v", err)
+	}
+	naoExiste(t, c.caminho(NomeAnterior))
+	if pids := filhos(t, c.dados); len(pids) != 0 {
+		t.Errorf("processos iniciados: %v", pids)
+	}
+}
+
+func TestAplicar_ContextoCanceladoReverte(t *testing.T) {
+	c := novoCenarioTroca(t, "parado")
+	antes := somaDe(t, c.caminho(NomeExe))
+	b := c.baixado(t, v050)
+	ctx, cancelar := context.WithCancel(context.Background())
+	defer cancelar()
+	time.AfterFunc(time.Second, cancelar)
+	inicio := time.Now()
+	err := c.troca(prazoComSinal).Aplicar(ctx, b)
+	var naoAbriu ErrNaoAbriu
+	if !errors.As(err, &naoAbriu) || naoAbriu != (ErrNaoAbriu{"0.5.0"}) {
+		t.Fatalf("Aplicar = %v, quer ErrNaoAbriu{0.5.0}", err)
+	}
+	if d := time.Since(inicio); d >= prazoComSinal/2 {
+		t.Errorf("demorou %v com o contexto cancelado em 1 s", d)
+	}
+	if !EsperarSair(unicoFilho(t, c.dados), 0) {
+		t.Error("o filho parado ainda roda depois de Aplicar devolver")
+	}
+	conferirRevertido(t, c, antes, v050)
+}
+
+func TestVoltar_AnteriorSemVersaoNaoMuda(t *testing.T) {
+	c := novoCenarioTroca(t, "sinal")
+	if err := os.WriteFile(c.caminho(NomeAnterior), []byte("não é um executável"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	somaN, somaAnterior := somaDe(t, c.caminho(NomeExe)), somaDe(t, c.caminho(NomeAnterior))
+	tr := c.troca(prazoComSinal)
+	tr.renomear = func(de, para string) error {
+		t.Errorf("rename %s -> %s com o anterior sem versão", filepath.Base(de), filepath.Base(para))
+		return os.Rename(de, para)
+	}
+	if err := tr.Voltar(context.Background()); !errors.Is(err, ErrNaoAplicou) {
+		t.Fatalf("Voltar = %v, quer ErrNaoAplicou", err)
+	}
+	if somaDe(t, c.caminho(NomeExe)) != somaN || somaDe(t, c.caminho(NomeAnterior)) != somaAnterior {
+		t.Error("os arquivos mudaram")
+	}
+	if pids := filhos(t, c.dados); len(pids) != 0 {
+		t.Errorf("processos iniciados: %v", pids)
+	}
+}
+
+func TestReversao_Incompleta(t *testing.T) {
+	casos := []struct {
+		nome  string
+		falha func(b Baixado, de, para string) bool
+		quer  Versao
+	}{
+		// O rename do anterior falha; a cópia dele ocupa o eprocia.exe.
+		{"copia o anterior", func(_ Baixado, de, para string) bool {
+			return filepath.Base(de) == NomeAnterior && filepath.Base(para) == NomeExe
+		}, v044},
+		// Nem o anterior nem a cópia dele chegam a eprocia.exe; o novo volta.
+		{"repoe o falhou", func(b Baixado, de, para string) bool {
+			if filepath.Base(para) != NomeExe || de == b.Caminho {
+				return false
+			}
+			return filepath.Base(de) == NomeAnterior || temPrefixo(filepath.Base(de), PrefixoTemp)
+		}, v050},
+	}
+	for _, caso := range casos {
+		t.Run(caso.nome, func(t *testing.T) {
+			c := novoCenarioTroca(t, "sai1")
+			b := c.baixado(t, v050)
+			tr := c.troca(prazoComSinal)
+			tr.renomear = func(de, para string) error {
+				if caso.falha(b, de, para) {
+					return falhaInjetada(de, para)
+				}
+				return os.Rename(de, para)
+			}
+			err := tr.Aplicar(context.Background(), b)
+			if !errors.Is(err, ErrReversaoIncompleta) {
+				t.Fatalf("Aplicar = %v, quer ErrReversaoIncompleta", err)
+			}
+			if v := versaoDe(t, c.caminho(NomeExe)); v != caso.quer {
+				t.Errorf("eprocia.exe = %v, quer %v", v, caso.quer)
+			}
+			semTemporarios(t, c.pasta)
+		})
 	}
 }
