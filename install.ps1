@@ -119,6 +119,9 @@ $ProgressPreference = 'SilentlyContinue'
 $repo = 'jonyduque/eprocia'
 $app = 'eprocIA'
 $exeName = 'eprocia.exe'
+# Sempre pelo caminho completo: o ShellExecuteEx (-Verb RunAs) e o agendador procurariam
+# antes na pasta atual ou no PATH.
+$psExe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 $flagTray = '--tray' # internal/autostart.FlagTray
 $scriptUrl = "https://raw.githubusercontent.com/$repo/main/install.ps1"
 $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\eprocIA'
@@ -403,13 +406,17 @@ function Test-Interactive {
 $script:confirmed = $false
 # PIDs do eprocIA que o usuario aceitou encerrar (Confirm-Close); o Stop-App so encerra estes.
 $script:closePids = @()
+# PIDs que a simulacao mostrou (e o "Sim" dela aceitou).
+$script:dryRunPids = @()
 
 # Pergunta antes de mudar a máquina, com a escolha por setas: a ação ($Action, descrita por
 # $Detail) ou Cancelar; Enter escolhe, Esc cancela. Com -Yes não pergunta; na simulação só
 # mostra o que perguntaria; sem console, exige -Yes.
-function Confirm-Plan([string]$Question, [string]$Action, [string]$Detail) {
-    if ($Yes -or $script:confirmed) { return $true }
-    if ($DryRun) { Write-Note "Perguntaria: $Question ($Action ou Cancelar)"; return $true }
+# -Fresh: pergunta de novo mesmo depois do "Sim" da simulacao (algo que ela nao mostrou).
+function Confirm-Plan([string]$Question, [string]$Action, [string]$Detail, [switch]$Fresh) {
+    if ($Yes) { return $true }
+    if ($script:confirmed -and -not $Fresh) { return $true }
+    if ($DryRun -and -not $script:confirmed) { Write-Note "Perguntaria: $Question ($Action ou Cancelar)"; return $true }
     if (-not (Test-Interactive)) { Fail 'Sem console para confirmar. Rode de novo com -Yes para seguir sem pergunta.' }
     $options = [ordered]@{}
     $options[$Action] = $Detail
@@ -733,8 +740,14 @@ function Confirm-Close([string]$Exe) {
     }
     if ($ocr) { Write-Warn 'Ha um processamento em curso (OCR); encerrar agora interrompe o processamento' }
     else { Write-Note 'Um processamento em curso seria interrompido' }
-    if (-not (Confirm-Plan 'Encerrar o eprocIA aberto?' 'Encerrar' 'Fecha o eprocIA na hora de trocar')) { return $false }
-    $script:closePids = @($procs | ForEach-Object { [int]$_.ProcessId })
+    $ids = @($procs | ForEach-Object { [int]$_.ProcessId })
+    # O "Sim" da simulacao so vale para os PIDs que ela mostrou; um eprocIA aberto depois
+    # disso faz perguntar de novo (sem console, para sem mudar nada).
+    $unseen = @($ids | Where-Object { $script:dryRunPids -notcontains $_ })
+    $fresh = $script:confirmed -and $unseen.Count -gt 0
+    if (-not (Confirm-Plan 'Encerrar o eprocIA aberto?' 'Encerrar' 'Fecha o eprocIA na hora de trocar' -Fresh:$fresh)) { return $false }
+    if ($DryRun -and -not $script:confirmed) { $script:dryRunPids = $ids }
+    $script:closePids = $ids
     $true
 }
 
@@ -778,7 +791,7 @@ function Stop-App([string]$Exe) {
     Write-Step 'Encerrando o eprocIA (PID)' (@($procs | ForEach-Object { $_.ProcessId }) -join ', ')
     Stop-Process -Id $ids -Force -ErrorAction SilentlyContinue
     try { Wait-Process -Id $ids -Timeout 15 -ErrorAction SilentlyContinue } catch { }
-    if (@(Get-Process -Id $ids -ErrorAction SilentlyContinue).Count -gt 0) { Fail 'O eprocIA nao fechou em 15 s. Nada foi instalado.' }
+    if (@(Get-Process -Id $ids -ErrorAction SilentlyContinue).Count -gt 0) { Fail 'O eprocIA nao fechou em 15 s; nada foi trocado.' }
 }
 
 # Troca o exe: o Windows segura a imagem de um processo recem-encerrado por um instante,
@@ -1080,7 +1093,7 @@ function Invoke-AsUser {
         }
 
         $task = "eprocIA-install-$id"
-        $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ($argv -join ' ')
+        $action = New-ScheduledTaskAction -Execute $psExe -Argument ($argv -join ' ')
         $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
         $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 10)
         Register-ScheduledTask -TaskName $task -Action $action -Principal $principal -Settings $settings | Out-Null
@@ -1226,13 +1239,18 @@ function Get-Target {
 
 # Dono da pasta, como SID (o nome de Administradores muda com o idioma do Windows).
 function Get-OwnerSid([string]$Path) {
-    $sections = [Security.AccessControl.AccessControlSections]::Owner
+    (Get-DirAcl $Path).GetOwner([Security.Principal.SecurityIdentifier]).Value
+}
+
+# Dono e DACL da pasta (.NET em vez de Get-Acl, como em Get-Sha256: o 5.1 aberto a partir do
+# 7 pode nao carregar o modulo).
+function Get-DirAcl([string]$Path) {
+    $sections = [Security.AccessControl.AccessControlSections]'Owner, Access'
     if ($PSVersionTable.PSVersion.Major -ge 6) {
-        $acl = [IO.FileSystemAclExtensions]::GetAccessControl((New-Object IO.DirectoryInfo $Path), $sections)
+        [IO.FileSystemAclExtensions]::GetAccessControl((New-Object IO.DirectoryInfo $Path), $sections)
     } else {
-        $acl = [IO.Directory]::GetAccessControl($Path, $sections)
+        [IO.Directory]::GetAccessControl($Path, $sections)
     }
-    $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value
 }
 
 # Cria (num processo ja elevado) uma pasta so de Administradores e SYSTEM, sem herdar do pai,
@@ -1253,9 +1271,25 @@ function New-ProtectedDir([string]$Path, [string]$ReaderSid) {
     }
     if ($PSVersionTable.PSVersion.Major -ge 6) { $null = [IO.FileSystemAclExtensions]::CreateDirectory($sec, $Path) }
     else { $null = [IO.Directory]::CreateDirectory($Path, $sec) }
-    $empty = @(Get-ChildItem -Force -LiteralPath $Path).Count -eq 0
-    $owner = Get-OwnerSid $Path
-    if (-not $empty -or $owner -notin 'S-1-5-32-544', 'S-1-5-18') { Fail $dirty }
+    # CreateDirectory nao falha com uma pasta (ou juncao) ja existente: confere tudo depois.
+    if (-not (Test-AdminDir $Path $ReaderSid)) { Fail $dirty }
+    if (@(Get-ChildItem -Force -LiteralPath $Path).Count -ne 0) { Fail $dirty }
+}
+
+# A pasta e de administrador de verdade: nao e link (juncao), o dono e Administradores ou
+# SYSTEM (por SID) e a DACL e protegida, so com regras de Administradores, SYSTEM e, se
+# houver, $ReaderSid. Usada antes de confiar numa pasta de %ProgramData%.
+function Test-AdminDir([string]$Path, [string]$ReaderSid = '') {
+    $admins = @('S-1-5-32-544', 'S-1-5-18')
+    $allowed = $admins + @(@($ReaderSid) | Where-Object { $_ })
+    try {
+        if ([IO.File]::GetAttributes($Path) -band [IO.FileAttributes]::ReparsePoint) { return $false }
+        if ((Get-OwnerSid $Path) -notin $admins) { return $false }
+        $acl = Get-DirAcl $Path
+        if (-not $acl.AreAccessRulesProtected) { return $false }
+        $other = @($acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]) | Where-Object { $_.IdentityReference.Value -notin $allowed })
+        return ($other.Count -eq 0)
+    } catch { return $false }
 }
 
 # Sobras de %ProgramData%\eprocia-elevar-* (queda de energia no meio de uma acao): so as de
@@ -1286,24 +1320,35 @@ function Remove-StaleElevationDirs {
 # SHA-256 das copias (diferente: 3, sem rodar nada); roda o script de la com -Machine e o log
 # na pasta protegida (-From = a ultima copia, a do arquivo da acao, quando houver); grava o
 # codigo em 'fim'; espera ate 30 s pelo 'lido' do pai; apaga a pasta e sai com o codigo.
-# Encurtado para caber: -PSPath e o alias de -LiteralPath; 2032127 = FullControl, 131241 =
-# ReadAndExecute; 0,0 = PropagationFlags None e AccessControlType Allow; -nop -ex = -NoProfile
-# -ExecutionPolicy; o powershell.exe filho vem do $PSHOME, nao do PATH.
-function Get-ElevationBootstrap([string]$Parent, [string]$Guid, [string]$ScriptHash, [string]$PayloadName, [string]$PayloadHash, [string]$UserSid, [string[]]$ActionArgs) {
+# Encurtado para caber: -PSPath e o alias de -LiteralPath; (131241,2032127)[bool] escolhe
+# ReadAndExecute ou FullControl; 0,0 = PropagationFlags None e AccessControlType Allow;
+# -nop -ex = -NoProfile -ExecutionPolicy; sc = Set-Content; $g diz se $d e link (1024 =
+# ReparsePoint); o powershell.exe filho vem do $PSHOME, nao do PATH. O nome da pasta
+# protegida e o da pasta do pai (eprocia-elevar-<guid>), tirado de $p.
+# Esse guid e previsivel (a pasta do pai aparece no %TEMP% antes do UAC): por isso, depois
+# de criar, uma juncao plantada (CreateDirectory nao falha com pasta existente) sai com 4, e
+# a DACL e conferida (protegida, so as tres regras) alem do dono. A remocao final e por
+# [IO.Directory]::Delete (nao segue links) e so se nao for link. Com hash diferente, as
+# copias saem antes do 'fim' (a pasta e legivel pelo usuario).
+function Get-ElevationBootstrap([string]$Parent, [string]$ScriptHash, [string]$PayloadName, [string]$PayloadHash, [string]$UserSid, [string[]]$ActionArgs) {
     $template = @'
 $ErrorActionPreference='Stop'
 $p=_PAI_
-$d=$env:ProgramData+'\eprocia-elevar-'+_GUID_
+$d=$env:ProgramData+'\'+(Split-Path -Leaf $p)
 $i=[Security.Principal.SecurityIdentifier]
 $v='S-1-5-32-544','S-1-5-18'
+$u=$v+_SID_
+$g={[IO.File]::GetAttributes($d)-band 1024}
 if(Test-Path -PSPath $d){exit 4}
 $s=New-Object Security.AccessControl.DirectorySecurity
 $s.SetAccessRuleProtection(1,0)
-foreach($r in $v+_SID_){$s.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule(($r -as $i),$(if($r -in $v){2032127}else{131241}),'ContainerInherit,ObjectInherit',0,0)))}
+foreach($r in $u){$s.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new(($r -as $i),(131241,2032127)[$r -in $v],'ContainerInherit,ObjectInherit',0,0))}
 $null=[IO.Directory]::CreateDirectory($d,$s)
-if(@(Get-ChildItem -Force -PSPath $d).Count -or [IO.Directory]::GetAccessControl($d).GetOwner($i).Value -notin $v){exit 4}
+if(&$g){exit 4}
+$q=[IO.Directory]::GetAccessControl($d)
+if(@(Get-ChildItem -Force -PSPath $d).Count -or $q.GetOwner($i) -notin $v -or !$q.AreAccessRulesProtected -or @($q.GetAccessRules(1,1,$i)|?{$_.IdentityReference -notin $u}).Count){exit 4}
 $c=3
-try{$k=1;foreach($x in ('install.ps1',_HS_),(_NOME_,_HA_)){if($x[0]){$t=$d+'\'+$x[0];Copy-Item -PSPath ($p+'\'+$x[0]) $t;if([Convert]::ToBase64String([Security.Cryptography.SHA256]::Create().ComputeHash([IO.File]::ReadAllBytes($t))) -cne $x[1]){$k=0}}};$a=@(_ARGS_);if($x[0]){$a+='-From',$t};if($k){& ($PSHOME+'\powershell.exe') -nop -ex Bypass -File ($d+'\install.ps1') -Machine -Log ($d+'\install.log') -Yes @a;$c=$LASTEXITCODE};[IO.File]::WriteAllText($d+'\fim',$c);$w=0;while(![IO.File]::Exists($p+'\lido') -and $w++ -lt 150){sleep -m 200}}finally{Remove-Item -PSPath $d -r -fo}
+try{$k=1;foreach($x in ('install.ps1',_HS_),(_NOME_,_HA_)){if($x[0]){$t=$d+'\'+$x[0];Copy-Item -PSPath ($p+'\'+$x[0]) $t;if([Convert]::ToBase64String([Security.Cryptography.SHA256]::Create().ComputeHash([IO.File]::ReadAllBytes($t))) -cne $x[1]){$k=0}}};$a=@(_ARGS_);if($x[0]){$a+='-From',$t};if($k){& $PSHOME\powershell.exe -nop -ex Bypass -File ($d+'\install.ps1') -Machine -Log ($d+'\install.log') -Yes @a;$c=$LASTEXITCODE}else{del ($d+'\*')};sc ($d+'\fim') $c;$w=0;while(![IO.File]::Exists($p+'\lido') -and $w++ -lt 150){sleep -m 200}}finally{if(!(&$g)){[IO.Directory]::Delete($d,1)}}
 exit $c
 '@
     $lit = { param([string]$Value) "'" + $Value.Replace("'", "''") + "'" }
@@ -1311,7 +1356,6 @@ exit $c
     $b64 = { param([string]$Hex) if (-not $Hex) { return '' }; [Convert]::ToBase64String([byte[]]@(for ($n = 0; $n -lt $Hex.Length; $n += 2) { [Convert]::ToByte($Hex.Substring($n, 2), 16) })) }
     $values = @{
         PAI  = & $lit $Parent
-        GUID = & $lit $Guid
         HS   = & $lit (& $b64 $ScriptHash)
         NOME = & $lit $PayloadName
         HA   = & $lit (& $b64 $PayloadHash)
@@ -1320,7 +1364,7 @@ exit $c
     }
     $line = @($template -split "`r?`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ }) -join ';'
     # Uma passada so: um valor (a pasta do pai) que contenha um marcador nao e trocado de novo.
-    [regex]::Replace($line, '_(PAI|GUID|HS|NOME|HA|SID|ARGS)_', [Text.RegularExpressions.MatchEvaluator] { param($m) $values[$m.Groups[1].Value] })
+    [regex]::Replace($line, '_(PAI|HS|NOME|HA|SID|ARGS)_', [Text.RegularExpressions.MatchEvaluator] { param($m) $values[$m.Groups[1].Value] })
 }
 
 # Roda a acao para todos num powershell.exe elevado (UAC) e mostra o log dele. O pai grava
@@ -1351,11 +1395,11 @@ function Invoke-Elevated([string[]]$ChildArgs, [string]$Payload) {
         $all = @($ChildArgs) + @("-ClosePids:$(Get-ClosePidText)")
         if ($Yes -and -not $Log) { $all += '-CloseAny' }
         $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-        $bootstrap = Get-ElevationBootstrap $parent $id $scriptHash $name $payloadHash $sid $all
+        $bootstrap = Get-ElevationBootstrap $parent $scriptHash $name $payloadHash $sid $all
         Write-Step 'Pedindo permissao de administrador (UAC)'
         try {
             # Uma string so: no 5.1 um array e juntado sem aspas e o -Command colapsaria espacos.
-            $p = Start-Process -FilePath powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"$bootstrap`"" -Verb RunAs -WindowStyle Hidden -PassThru
+            $p = Start-Process -FilePath $psExe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"$bootstrap`"" -Verb RunAs -WindowStyle Hidden -PassThru
         } catch {
             for ($e = $_.Exception; $e; $e = $e.InnerException) {
                 if ($e -is [ComponentModel.Win32Exception] -and $e.NativeErrorCode -eq 1223) {
@@ -1372,6 +1416,9 @@ function Invoke-Elevated([string[]]$ChildArgs, [string]$Payload) {
         $code = $null
         while ($true) {
             if (Test-Path -LiteralPath $fim) {
+                # Um 'fim' numa pasta que nao e de administrador (plantada antes, ou um link)
+                # nao vale: seria anunciar um resultado que o filho nao deu.
+                if (-not (Test-AdminDir $dst $sid)) { Fail 'A pasta temporaria do administrador nao estava limpa. Nada foi alterado.' }
                 $raw = ''
                 try { $raw = [IO.File]::ReadAllText($fim).Trim() } catch { }
                 if ($raw -match '^-?\d+$') { $code = [int]$raw; break }
@@ -1403,32 +1450,26 @@ function Invoke-Elevated([string[]]$ChildArgs, [string]$Payload) {
 }
 
 # Atualiza ou reinstala a instalacao para todos. Roda no filho elevado (-Machine, com o
-# -From ja na pasta protegida) ou num terminal ja elevado, que baixa e confere o instalador,
-# copia para uma pasta protegida nova, confere de novo e roda de la. Um -From que termina em
-# -instalador.exe e o instalador (NSIS, em silencio, /D= por ultimo e sem aspas); outro exe
-# e copiado sobre o eprocia.exe, com DisplayVersion gravado na chave HKLM. Nunca abre o app.
+# -From ja na pasta protegida) ou num terminal ja elevado, que cria antes uma pasta protegida
+# nova e baixa o instalador direto nela, conferido contra o SHA256SUMS.txt (o %TEMP% do
+# administrador, num token dividido, e gravavel pelo mesmo usuario sem elevacao), ou copia o
+# -From para la, e roda de la. Um -From que termina em -instalador.exe e o instalador (NSIS,
+# em silencio, /D= por ultimo e sem aspas); outro exe e copiado sobre o eprocia.exe, com
+# DisplayVersion gravado na chave HKLM. Nunca abre o app.
 function Install-Machine($Target, $Rel = $null) {
     Remove-StaleElevationDirs
-    $stage = ''
     $guard = ''
     $tmp = ''
     try {
         $src = $From
         if (-not $Machine) {
-            $id = [Guid]::NewGuid().ToString('N')
-            $stage = Join-Path ([IO.Path]::GetTempPath()) "eprocia-elevar-$id"
-            New-Item -ItemType Directory -Path $stage | Out-Null
-            $name = if (-not $From -or $From -like '*-instalador.exe') { 'eprocia-instalador.exe' } else { $exeName }
-            $staged = Join-Path $stage $name
-            if ($From) { Copy-Item -LiteralPath (Resolve-Path -LiteralPath $From).Path -Destination $staged }
-            else { Save-ReleaseInstaller $staged $Rel | Out-Null }
-            $hash = Get-Sha256 $staged
-            $protected = Join-Path $env:ProgramData "eprocia-elevar-$id"
+            $protected = Join-Path $env:ProgramData ('eprocia-elevar-' + [Guid]::NewGuid().ToString('N'))
             New-ProtectedDir $protected ''
             $guard = $protected
+            $name = if (-not $From -or $From -like '*-instalador.exe') { 'eprocia-instalador.exe' } else { $exeName }
             $src = Join-Path $guard $name
-            Copy-Item -LiteralPath $staged -Destination $src
-            if ((Get-Sha256 $src) -ne $hash) { Fail 'O arquivo mudou antes de rodar como administrador. Nada foi alterado.' }
+            if ($From) { Copy-Item -LiteralPath (Resolve-Path -LiteralPath $From).Path -Destination $src }
+            else { Save-ReleaseInstaller $src $Rel | Out-Null }
         }
         if (-not $src -or -not (Test-Path -LiteralPath $src -PathType Leaf)) { Fail "Arquivo nao encontrado: $src" }
         $isInstaller = $src -like '*-instalador.exe'
@@ -1449,8 +1490,8 @@ function Install-Machine($Target, $Rel = $null) {
         Write-Done "Pronto: eprocIA $(Get-ExeVersion $Target.Exe) instalado para todos os usuarios."
     } finally {
         if ($tmp -and (Test-Path -LiteralPath $tmp)) { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
-        if ($guard -and (Test-Path -LiteralPath $guard)) { [IO.Directory]::Delete($guard, $true) }
-        if ($stage -and (Test-Path -LiteralPath $stage)) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
+        # So a pasta que este processo criou e conferiu, e nunca um link.
+        if ($guard -and (Test-AdminDir $guard)) { [IO.Directory]::Delete($guard, $true) }
     }
 }
 

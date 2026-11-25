@@ -115,7 +115,6 @@ function montarBootstrap(v) {
     .split('\n').map((l) => l.trim()).filter((l) => l)
     .join(';')
     .replaceAll('_PAI_', aspas(v.pai))
-    .replaceAll('_GUID_', aspas(v.guid))
     .replaceAll('_HS_', aspas(b64(v.hs)))
     .replaceAll('_NOME_', aspas(v.nome))
     .replaceAll('_HA_', aspas(b64(v.ha)))
@@ -204,7 +203,7 @@ test('Stop-App confere sessao e lista antes de encerrar e espera sair', () => {
 
 test('New-ProtectedDir cria a pasta ja com a ACL e confere vazia e dono', () => {
   const corpo = corpoDe('New-ProtectedDir');
-  emOrdem(corpo, ['Test-Path', 'CreateDirectory', /Get-ChildItem[^\n]*-Force/, 'Owner'], 'New-ProtectedDir');
+  emOrdem(corpo, ['Test-Path', 'CreateDirectory', 'Test-AdminDir', /Get-ChildItem[^\n]*-Force/], 'New-ProtectedDir');
   for (const s of ['SetAccessRuleProtection', 'S-1-5-32-544', 'S-1-5-18', 'ContainerInherit,ObjectInherit']) assert.ok(corpo.includes(s), s);
   assert.ok(!/icacls/i.test(corpo));
   assert.ok(modeloBootstrap().includes('ContainerInherit,ObjectInherit'));
@@ -225,14 +224,28 @@ test('Remove-StaleElevationDirs pula links, exige dono admin e mais de um dia', 
 });
 
 const piorCaso = {
-  pai: 'C:\\' + 'P'.repeat(257),
-  guid: 'f'.repeat(32),
+  // 260 caracteres, com aspa simples (vira '' na linha) e espaco.
+  pai: "C:\\Jo'ao " + 'P'.repeat(251),
   hs: 'AB'.repeat(32),
   nome: 'eprocia-instalador.exe',
   ha: 'CD'.repeat(32),
   sid: 'S-1-5-21-' + '1'.repeat(51),
   args: ['-Uninstall', '-ClosePids:' + Array(8).fill('999999').join(','), '-CloseAny'],
 };
+
+test('montarBootstrap espelha Get-ElevationBootstrap: mesmos marcadores, linhas aparadas e juntadas com ;', () => {
+  const corpo = corpoDe('Get-ElevationBootstrap');
+  const re = /\[regex\]::Replace\(\$line, '_\(([A-Z|]+)\)_'/.exec(corpo);
+  assert.ok(re, 'troca por regex ausente');
+  const naFuncao = re[1].split('|').sort();
+  const noModelo = [...new Set(modeloBootstrap().match(/_[A-Z]+_/g))].map((m) => m.slice(1, -1)).sort();
+  const noTeste = ['PAI', 'HS', 'NOME', 'HA', 'SID', 'ARGS'].sort();
+  assert.deepEqual(naFuncao, noTeste);
+  assert.deepEqual(noModelo, noTeste);
+  assert.ok(corpo.includes("-split \"`r?`n\" | ForEach-Object { $_.Trim() } | Where-Object { $_ }) -join ';'"));
+  assert.ok(corpo.includes("$Value.Replace(\"'\", \"''\")"));
+  assert.ok(corpo.includes('[Convert]::ToBase64String('));
+});
 
 test('bootstrap: linha inteira abaixo de 2.000 caracteres no pior caso', () => {
   assert.equal(piorCaso.pai.length, 260);
@@ -255,16 +268,28 @@ test('bootstrap: modelo ASCII, sem aspa dupla, termina em exit $c, sem curinga d
 test('bootstrap: cria a pasta protegida, confere, copia, confere o hash, roda, sinaliza e apaga', () => {
   const modelo = modeloBootstrap();
   for (const s of ['ProgramData', 'DirectorySecurity', 'CreateDirectory', 'SetAccessRuleProtection', 'S-1-5-32-544', 'S-1-5-18', '_SID_']) assert.ok(modelo.includes(s), s);
-  emOrdem(modelo, ['Test-Path', 'CreateDirectory', /Get-ChildItem[^\n]*-Force/, 'Owner', 'Copy-Item', 'SHA256', '-File', "\\fim'", "\\lido'", 'Remove-Item'], 'bootstrap');
-  // $d e a pasta protegida; $p, a do pai: so o 'lido' e as origens das copias ficam no pai.
-  assert.match(modelo, /^\$d=\$env:ProgramData\+'\\eprocia-elevar-'\+_GUID_$/m);
+  emOrdem(modelo, ['Test-Path', 'CreateDirectory', 'if(&$g){exit 4}', /Get-ChildItem[^\n]*-Force/, 'Owner', 'AreAccessRulesProtected', 'GetAccessRules(', 'Copy-Item', 'SHA256', '-File', "\\fim'", "\\lido'", '[IO.Directory]::Delete($d,1)'], 'bootstrap');
+  // Correcao 1 (achado 1): depois de criar, uma juncao plantada (ReparsePoint) sai com 4,
+  // e a DACL e conferida (protegida, so as regras esperadas) alem do dono; a remocao final e
+  // por [IO.Directory]::Delete (nao segue links) e so se nao for ReparsePoint.
+  assert.match(modelo, /^\$g=\{\[IO\.File\]::GetAttributes\(\$d\)-band 1024\}$/m);
+  assert.match(modelo, /^if\(&\$g\)\{exit 4\}$/m);
+  assert.match(modelo, /!\$q\.AreAccessRulesProtected/);
+  assert.match(modelo, /\$q\.GetOwner\(\$i\) -notin \$v/);
+  assert.match(modelo, /\$q\.GetAccessRules\(1,1,\$i\)\|\?\{\$_\.IdentityReference -notin \$u\}/);
+  assert.match(modelo, /finally\{if\(!\(&\$g\)\)\{\[IO\.Directory\]::Delete\(\$d,1\)\}\}/);
+  assert.ok(!/Remove-Item -PSPath \$d -r/.test(modelo));
+  // Achado 6: hash diferente apaga as copias antes de gravar 'fim'.
+  emOrdem(modelo, ['if($k){', "}else{del ($d+'\\*')}", "sc ($d+'\\fim') $c"], 'copias apagadas');
+  // $d e a pasta protegida (mesmo nome da pasta do pai); $p, a do pai: so o 'lido' e as
+  // origens das copias ficam no pai.
+  assert.match(modelo, /^\$d=\$env:ProgramData\+'\\'\+\(Split-Path -Leaf \$p\)$/m);
   assert.match(modelo, /^\$p=_PAI_$/m);
   assert.match(modelo, /-File \(\$d\+'\\install\.ps1'\)/);
   assert.match(modelo, /-Log \(\$d\+'\\install\.log'\)/);
-  assert.match(modelo, /WriteAllText\(\$d\+'\\fim'/);
   assert.match(modelo, /\[IO\.File\]::Exists\(\$p\+'\\lido'\)/);
   assert.match(modelo, /ToBase64String\(\[Security\.Cryptography\.SHA256\]::Create\(\)\.ComputeHash\(\[IO\.File\]::ReadAllBytes\(\$t\)\)\) -cne \$x\[1\]/);
-  assert.match(modelo, /& \(\$PSHOME\+'\\powershell\.exe'\)/);
+  assert.match(modelo, /& \$PSHOME\\powershell\.exe -nop -ex Bypass -File/);
   assert.match(montarBootstrap(piorCaso), /'q6urq6urq6urq6urq6urq6urq6urq6urq6urq6urq6s='/);
   assert.ok(!/-(File|Log) \(\$p/.test(modelo), '-File/-Log na pasta do pai');
   assert.match(modelo, /SetAccessRuleProtection\(1,0\)/);
@@ -374,7 +399,54 @@ test('install.ps1 tem exatamente 2 exit no codigo', () => {
 test('funcoes novas sao so ASCII', () => {
   for (const nome of ['Get-Target', 'Get-AppProcesses', 'Get-OcrChildren', 'Confirm-Close', 'Stop-App', 'New-ProtectedDir',
     'Remove-StaleElevationDirs', 'Get-ElevationBootstrap', 'Invoke-Elevated', 'Install-Machine', 'Uninstall-Machine',
-    'Save-ReleaseInstaller', 'Move-ExeWithRetry']) {
+    'Save-ReleaseInstaller', 'Move-ExeWithRetry', 'Test-AdminDir']) {
     assert.match(corpoDe(nome), /^[\x00-\x7F]*$/, nome);
   }
+});
+
+// --- Correcao 1 (revisao de e33a166) ---------------------------------------------------
+
+test('correcao 1/1: New-ProtectedDir recusa juncao e confere a DACL alem do dono', () => {
+  const corpo = corpoDe('New-ProtectedDir');
+  emOrdem(corpo, ['CreateDirectory', 'Test-AdminDir $Path'], 'New-ProtectedDir');
+  const adm = corpoDe('Test-AdminDir');
+  emOrdem(adm, ['ReparsePoint', 'Get-OwnerSid'], 'Test-AdminDir');
+  for (const s of ['AreAccessRulesProtected', 'GetAccessRules(', 'S-1-5-32-544', 'S-1-5-18']) assert.ok(adm.includes(s), s);
+  // A pasta protegida do terminal elevado so e apagada se nao for link.
+  assert.match(corpoDe('Install-Machine'), /if \(\$guard -and \(Test-AdminDir \$guard\)\) \{ \[IO\.Directory\]::Delete\(\$guard, \$true\) \}/);
+});
+
+test('correcao 1/2: depois do "Sim" da simulacao, so os PIDs que ela mostrou passam sem pergunta', () => {
+  const plano = corpoDe('Confirm-Plan');
+  assert.ok(plano.includes('[switch]$Fresh'));
+  assert.ok(plano.includes('if ($script:confirmed -and -not $Fresh) { return $true }'));
+  assert.ok(plano.includes('if ($DryRun -and -not $script:confirmed)'));
+  const corpo = corpoDe('Confirm-Close');
+  assert.ok(corpo.includes('$script:dryRunPids'));
+  assert.match(corpo, /Confirm-Plan [^\n]*-Fresh:\$/);
+  assert.match(texto, /^\$script:dryRunPids = @\(\)$/m);
+});
+
+test('correcao 1/3: Install-Machine (terminal elevado) baixa direto na pasta protegida e confere com o SHA256SUMS', () => {
+  const corpo = corpoDe('Install-Machine');
+  emOrdem(corpo, ['New-ProtectedDir', 'Save-ReleaseInstaller $src', 'Stop-App'], 'Install-Machine');
+  for (const s of ['GetTempPath', 'Get-Sha256', '$stage']) assert.ok(!corpo.includes(s), s);
+});
+
+test('correcao 1/4: powershell.exe sempre pelo caminho completo', () => {
+  assert.match(texto, /^\$psExe = Join-Path \$env:SystemRoot 'System32\\WindowsPowerShell\\v1\.0\\powershell\.exe'$/m);
+  assert.ok(corpoDe('Invoke-Elevated').includes('Start-Process -FilePath $psExe -ArgumentList'));
+  assert.ok(corpoDe('Invoke-AsUser').includes('New-ScheduledTaskAction -Execute $psExe'));
+  assert.ok(!/-FilePath powershell\.exe|-Execute 'powershell\.exe'/.test(texto));
+});
+
+test('correcao 1/5: o pai so confia em fim e install.log de pasta de administrador, sem link', () => {
+  const corpo = corpoDe('Invoke-Elevated');
+  emOrdem(corpo, ['Test-AdminDir $dst', '[IO.File]::ReadAllText($fim)', "Join-Path $dst 'install.log'"], 'Invoke-Elevated');
+});
+
+test('correcao 1/7: mensagem do encerramento que nao terminou e neutra', () => {
+  const corpo = corpoDe('Stop-App');
+  assert.ok(corpo.includes("'O eprocIA nao fechou em 15 s; nada foi trocado.'"));
+  assert.ok(!corpo.includes('Nada foi instalado'));
 });
