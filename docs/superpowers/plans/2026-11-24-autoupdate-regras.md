@@ -68,7 +68,7 @@ Claude-Session: https://claude.ai/code/session_01YKHKdzvxGBDhYx5JAnxJoZ
 - Acrescentar dependência ao `go.mod` ou ao `frontend/package.json` (`golang.org/x/sys/windows` já é direta).
 - Usar PDF, ZIP, log ou texto real, ou definir `EPROCIA_BENCH_DIR`/`EPROCIA_LOG` fora de `t.Setenv`. Dado de teste é sintético (`FULANO DE TAL`, `5000000-00.2026.8.26.0001`, perfil `C:\Users\fulano`).
 - Mexer em `build/windows/installer/project.nsi` fora da Task 18 (que parte do patch `2026-11-24-autoupdate-project-nsi.patch`, decisão d3 do dono).
-- Passar `-tags ensaio` a um build que não seja o do ensaio manual (Task 4, passo 5), ou ler `EPROCIA_ENSAIO_*` fora de `internal/atualizacao/ensaio_on.go` e dos testes com a tag.
+- Passar `-tags ensaio` a um build que não seja o do ensaio manual (Task 4, passo 5), ou ler `EPROCIA_ENSAIO_*` fora de `internal/atualizacao/ensaio_on.go`. Nos testes `internal/atualizacao/ensaio*_test.go` (com ou sem a tag), essas variáveis só se definem por `t.Setenv`.
 - Despachar subagentes.
 
 ## Relatório
