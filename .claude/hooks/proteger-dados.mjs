@@ -2,6 +2,7 @@
 // processing outputs, the benchmark corpus) out of git. The event's tool_name
 // picks the syntax the command is read with.
 import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { executar, normalizar, RAIZ } from './lib.mjs';
@@ -269,13 +270,21 @@ function caminhosDeArgs(args) {
   return caminhos;
 }
 
+// nomeLongo expands an existing path to its long form: an 8.3 short name
+// (C:\Users\RUNNER~1, the TEMP of the CI runner) would never match the long
+// root that git reports for the checkout.
+function nomeLongo(p) {
+  if (!p) return p;
+  try { return fs.realpathSync.native(p); } catch { return p; }
+}
+
 // amplo: a pathspec that can match many files (., ./, dirs, globs).
 const amplo = (a) => a === '.' || a === './' || a === ':/' || a.endsWith('/') || /[*?[]/.test(a);
 
 export function avaliar(evento, ctx = {}) {
   const cmd = evento?.tool_input?.command;
   if (typeof cmd !== 'string' || !/\bgit\b/i.test(cmd)) return { codigo: 0 };
-  const benchDir = ctx.benchDir ?? process.env.EPROCIA_BENCH_DIR;
+  const benchDir = nomeLongo(ctx.benchDir ?? process.env.EPROCIA_BENCH_DIR);
   const listar = ctx.listar ?? listarCandidatos;
   // Broad pathspecs expand in the command's checkout (a worktree, say), not in
   // the one holding this hook ($CLAUDE_PROJECT_DIR): start at the event's cwd

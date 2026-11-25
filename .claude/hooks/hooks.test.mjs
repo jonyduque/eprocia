@@ -176,6 +176,26 @@ describe('proteger-dados', () => {
         fs.rmSync(repo, { recursive: true, force: true });
       }
     });
+    it('EPROCIA_BENCH_DIR com nome curto 8.3 casa com a raiz longa do git', (t) => {
+      // No runner do CI o TEMP é C:\Users\RUNNER~1\...; o git devolve a raiz longa.
+      const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'eprocia-hook-curto-'));
+      try {
+        execFileSync('git', ['init', '-q', repo]);
+        fs.mkdirSync(path.join(repo, 'corpus-longo'));
+        fs.writeFileSync(path.join(repo, 'corpus-longo', 'proc.json'), '{}\n');
+        const longo = path.join(repo, 'corpus-longo');
+        const curto = execFileSync('cmd', ['/d', '/c', `for %I in ("${longo}") do @echo %~sI`], { encoding: 'utf8', windowsVerbatimArguments: true }).trim();
+        if (!curto || curto.toLowerCase() === longo.toLowerCase()) {
+          t.skip('o volume não gera nomes 8.3');
+          return;
+        }
+        const r = dados.avaliar({ ...bash('git add -A'), cwd: repo }, { benchDir: curto });
+        assert.equal(r.codigo, 2);
+        assert.match(r.stderr, /corpus-longo\/proc\.json/);
+      } finally {
+        fs.rmSync(repo, { recursive: true, force: true });
+      }
+    });
   });
   // d5 (2026-11-24): o mesmo hook na ferramenta PowerShell, com a sintaxe dela.
   describe('ferramenta PowerShell', () => {
