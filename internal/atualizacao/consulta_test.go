@@ -142,7 +142,11 @@ func TestVerificar_Incompleta(t *testing.T) {
 	}{
 		{"sem exe", func(c *cenarioConsulta, r *releaseJSON) { r.Assets = r.Assets[1:] }},
 		{"dois exe", func(c *cenarioConsulta, r *releaseJSON) {
-			r.Assets = append(r.Assets, c.assetDe(tag, "eprocia-0.4.9-windows-amd64.exe", 10))
+			// Mesma versão e URL válida: só a contagem pode recusar.
+			r.Assets = append(r.Assets, c.assetDe(tag, "eprocia-0.5.0-windows-amd64.exe", 10))
+		}},
+		{"dois instaladores", func(c *cenarioConsulta, r *releaseJSON) {
+			r.Assets = append(r.Assets, c.assetDe(tag, "eprocia-0.5.0-windows-amd64-instalador.exe", 10))
 		}},
 		{"sem instalador", func(c *cenarioConsulta, r *releaseJSON) {
 			r.Assets = append(r.Assets[:1], r.Assets[2])

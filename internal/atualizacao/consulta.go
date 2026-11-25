@@ -124,8 +124,11 @@ func (c *Cliente) verificar(ctx context.Context, atual Versao) (*Release, error)
 		reExe, reInstalador *regexp.Regexp
 	)
 	if ensaio {
+		if api.TagName != tagRCEnsaio {
+			return nil, errors.New("tag da resposta difere da pedida")
+		}
 		m := tagRC.FindStringSubmatch(api.TagName)
-		if api.TagName != tagRCEnsaio || m == nil {
+		if m == nil {
 			return nil, nil
 		}
 		if versao, err = ParseVersao(m[1]); err != nil {

@@ -55,6 +55,19 @@ func TestEnsaio_ConsultaTagRC(t *testing.T) {
 		}
 	})
 
+	t.Run("tag da resposta difere da pedida", func(t *testing.T) {
+		c := novoCenario(t)
+		c.rel = c.releaseCompleta("v0.5.0-rc2", "0.5.0-rc2")
+		c.rel.Prerelease = true
+		rel, err := c.cliente.Verificar(context.Background(), versaoTeste)
+		if err == nil || rel != nil {
+			t.Fatalf("Verificar = (%+v, %v), quer erro", rel, err)
+		}
+		if errors.Is(err, ErrIncompleta) || errors.Is(err, ErrRecusada) {
+			t.Fatalf("erro = %v, quer erro comum", err)
+		}
+	})
+
 	t.Run("sinal", func(t *testing.T) {
 		if ensaioIgnoraSinal() {
 			t.Error("ensaioIgnoraSinal() verdadeiro sem a variável")
