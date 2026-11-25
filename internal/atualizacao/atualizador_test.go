@@ -1689,3 +1689,38 @@ func TestAtualizador_ProgressoEmInteiros(t *testing.T) {
 		t.Fatalf("%d estados baixando; quer de 2 a 101", n)
 	}
 }
+
+func TestAceitaEntrada(t *testing.T) {
+	for _, fase := range []string{FaseNada, FaseVerificando, FaseDisponivel, FaseIncompleta, FaseBaixando,
+		FaseConferindo, FaseInstalando, FaseInstalada, FaseAguardandoFila, FaseErro, FaseEmDia} {
+		if !AceitaEntrada(fase) {
+			t.Errorf("AceitaEntrada(%q) = false; quer true", fase)
+		}
+	}
+	for _, fase := range []string{FaseReiniciando, FaseAbrindoInstalador, fasePreparando} {
+		if AceitaEntrada(fase) {
+			t.Errorf("AceitaEntrada(%q) = true; quer false", fase)
+		}
+	}
+}
+
+// Reiniciar grava a fase interna de preparação sem emitir: a recusa de
+// entrada lê essa fase, não o último estado emitido.
+func TestAtualizador_AceitaEntradaNaPreparacao(t *testing.T) {
+	c := novoCenarioAt(t, ModoTrocar)
+	libera := make(chan struct{})
+	c.instalada()
+	if !c.a.AceitaEntrada() {
+		t.Fatal("instalada recusou entrada")
+	}
+	c.mu.Lock()
+	c.ociosa = func(int) bool { <-libera; return false }
+	c.mu.Unlock()
+	t.Cleanup(func() { close(libera) })
+	if err := c.a.Reiniciar(); err != nil {
+		t.Fatal(err)
+	}
+	if c.a.AceitaEntrada() {
+		t.Error("aceitou entrada na preparação do reinício")
+	}
+}

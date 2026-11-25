@@ -333,6 +333,16 @@ func paraJS(err error) error {
 	return errors.New(atualizacao.MsgSemRede)
 }
 
+// recusaEntrada é a guarda do backend para tudo que põe item na fila pelo
+// JS: durante o reinício ou a abertura do instalador (fase interna de
+// preparação incluída), a frase fixa de soltar depois; senão nil.
+func (a *App) recusaEntrada() error {
+	if a.atualizador != nil && !a.atualizador.AceitaEntrada() {
+		return errors.New(atualizacao.MsgSoltarDepois)
+	}
+	return nil
+}
+
 // GetVersao é a versão do aplicativo em execução.
 func (a *App) GetVersao() string { return versaoApp() }
 

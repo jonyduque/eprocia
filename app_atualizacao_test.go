@@ -268,8 +268,8 @@ func TestAtualizacao_ProcessoNovoRetido(t *testing.T) {
 	}
 	m.app.domPronto(nil)
 	inexistente := filepath.Join(t.TempDir(), "nao-existe.zip")
-	if n := m.app.AddFilesToQueue([]string{inexistente}); n != 1 {
-		t.Fatalf("AddFilesToQueue = %d; quer 1", n)
+	if n, err := m.app.AddFilesToQueue([]string{inexistente}); err != nil || n != 1 {
+		t.Fatalf("AddFilesToQueue = %d, %v; quer 1, nil", n, err)
 	}
 	itens := m.app.GetQueue()
 	if len(itens) != 1 {
@@ -987,5 +987,91 @@ func TestParaJS_FrasesDaTela(t *testing.T) {
 		if got != w {
 			t.Errorf("frase %q; quer %q", got, w)
 		}
+	}
+}
+
+// trocadorPreso segura o Reiniciar até libera fechar: a fase fica em
+// reiniciando enquanto o teste confere a fila.
+type trocadorPreso struct{ libera chan struct{} }
+
+func (tp trocadorPreso) Instalar(context.Context, atualizacao.Baixado) error { return nil }
+
+func (tp trocadorPreso) Reiniciar(context.Context, atualizacao.Versao) error {
+	<-tp.libera
+	return errors.New("liberado pelo teste")
+}
+
+// Durante o reinício, nenhum caminho do JS põe item na fila: a guarda do
+// frontend (aceitaEntrada) pode chegar tarde, e o backend recusa também.
+func TestAtualizacao_EntradaRecusadaNoReinicio(t *testing.T) {
+	rede := &redeFalsa{rel: releaseMaior(t), caminho: filepath.Join(t.TempDir(), "novo.exe")}
+	tp := trocadorPreso{libera: make(chan struct{})}
+	m := novoAppAtualizacao(t, cenario{rede: rede})
+	m.opcoes.Trocador = func([]string, sync.Locker) atualizacao.Trocador { return tp }
+	m.iniciar()
+	t.Cleanup(func() { fecharSeAberto(tp.libera) })
+
+	// Um item que termina (em erro: o ZIP não existe), para o Reprocessar.
+	primeiro := filepath.Join(t.TempDir(), "5000000-00.2026.8.26.0001.zip")
+	if n, err := m.app.AddFilesToQueue([]string{primeiro}); err != nil || n != 1 {
+		t.Fatalf("AddFilesToQueue antes do reinício = %d, %v; quer 1, nil", n, err)
+	}
+	id := m.app.GetQueue()[0].ID
+	esperarAte(t, 5*time.Second, "o item terminar", func() bool { return statusDe(m.app, id) == "error" })
+
+	if _, err := m.app.VerificarAtualizacao(); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.app.InstalarAtualizacao(); err != nil {
+		t.Fatal(err)
+	}
+	esperarAte(t, 5*time.Second, "fase instalada", func() bool {
+		return m.app.EstadoAtualizacao().Fase == atualizacao.FaseInstalada
+	})
+	if err := m.app.ReiniciarAtualizacao(); err != nil {
+		t.Fatal(err)
+	}
+	esperarAte(t, 5*time.Second, "fase reiniciando", func() bool {
+		return m.app.EstadoAtualizacao().Fase == atualizacao.FaseReiniciando
+	})
+
+	outro := filepath.Join(t.TempDir(), "outro.zip")
+	querRecusa := func(nome string, err error) {
+		t.Helper()
+		if err == nil || err.Error() != atualizacao.MsgSoltarDepois {
+			t.Errorf("%s durante o reinício: %v; quer %q", nome, err, atualizacao.MsgSoltarDepois)
+		}
+	}
+	n, err := m.app.AddFilesToQueue([]string{outro})
+	querRecusa("AddFilesToQueue", err)
+	if n != 0 {
+		t.Errorf("AddFilesToQueue = %d; quer 0", n)
+	}
+	n, err = m.app.AddDroppedFiles([]string{outro})
+	querRecusa("AddDroppedFiles", err)
+	if n != 0 {
+		t.Errorf("AddDroppedFiles = %d; quer 0", n)
+	}
+	_, err = m.app.ProcessFile(outro)
+	querRecusa("ProcessFile", err)
+	querRecusa("ReprocessQueueItem", m.app.ReprocessQueueItem(id, "none", "basic", false))
+
+	if itens := m.app.GetQueue(); len(itens) != 1 {
+		t.Fatalf("fila com %d itens; quer só o primeiro", len(itens))
+	}
+	if got := statusDe(m.app, id); got != "error" {
+		t.Errorf("o item recusado voltou à fila: status %q", got)
+	}
+}
+
+// A frase da recusa é a mesma do frontend (ATUALIZACAO.soltarDepois).
+func TestMsgSoltarDepois_IgualAoFrontend(t *testing.T) {
+	textos, err := os.ReadFile(filepath.Join("frontend", "src", "lib", "textos.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	quer := "soltarDepois: '" + atualizacao.MsgSoltarDepois + "'"
+	if atualizacao.MsgSoltarDepois == "" || !strings.Contains(string(textos), quer) {
+		t.Errorf("textos.js sem %q", quer)
 	}
 }

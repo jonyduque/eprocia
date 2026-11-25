@@ -385,8 +385,8 @@ func (a *App) SetTheme(tema string) error {
 
 // ProcessFile adds a file to the processing queue for backward compatibility.
 func (a *App) ProcessFile(filePath string) (string, error) {
-	a.AddFilesToQueue([]string{filePath})
-	return "", nil
+	_, err := a.AddFilesToQueue([]string{filePath})
+	return "", err
 }
 
 // OpenDirectory opens the native Windows Explorer selecting the file, or opens the directory.
@@ -478,20 +478,28 @@ func (a *App) SelectZipFiles() ([]string, error) {
 
 // AddFilesToQueue adds files manually to the processing queue and returns how
 // many actually entered (a path already pending or processing is dropped).
-func (a *App) AddFilesToQueue(filePaths []string) int {
-	if a.queue != nil {
-		return a.queue.AddFiles(filePaths)
+// Durante o reinício da atualização nada entra (recusaEntrada).
+func (a *App) AddFilesToQueue(filePaths []string) (int, error) {
+	if err := a.recusaEntrada(); err != nil {
+		return 0, err
 	}
-	return 0
+	if a.queue != nil {
+		return a.queue.AddFiles(filePaths), nil
+	}
+	return 0, nil
 }
 
 // AddDroppedFiles põe na fila os ZIPs arrastados para a janela (origem
-// "arrastada") e devolve quantos entraram.
-func (a *App) AddDroppedFiles(filePaths []string) int {
-	if a.queue != nil {
-		return a.queue.AddFilesComOrigem(filePaths, "arrastada")
+// "arrastada") e devolve quantos entraram; durante o reinício da
+// atualização, nenhum (recusaEntrada).
+func (a *App) AddDroppedFiles(filePaths []string) (int, error) {
+	if err := a.recusaEntrada(); err != nil {
+		return 0, err
 	}
-	return 0
+	if a.queue != nil {
+		return a.queue.AddFilesComOrigem(filePaths, "arrastada"), nil
+	}
+	return 0, nil
 }
 
 // GetQueue returns the current list of items in the queue.
@@ -545,6 +553,9 @@ func (a *App) RemoveQueueItem(id string) {
 func (a *App) ReprocessQueueItem(id, ocrMode, cleaningLevel string, forcarOCR bool) error {
 	if a.queue == nil {
 		return fmt.Errorf("fila não inicializada")
+	}
+	if err := a.recusaEntrada(); err != nil {
+		return err
 	}
 	return a.queue.Reprocessar(id, ocrMode, cleaningLevel, &forcarOCR)
 }

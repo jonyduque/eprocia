@@ -54,6 +54,17 @@ const (
 	fasePreparando = "preparando"
 )
 
+// AceitaEntrada: só durante o reinício e a abertura do instalador o
+// programa recusa arquivos (a troca dos arquivos não o fecha). Mesma regra
+// de aceitaEntrada em frontend/src/lib/atualizacao.js.
+func AceitaEntrada(fase string) bool {
+	switch fase {
+	case FaseReiniciando, FaseAbrindoInstalador, fasePreparando:
+		return false
+	}
+	return true
+}
+
 var (
 	// ErrSemConsulta: Instalar sem um Verificar bom antes.
 	ErrSemConsulta = errors.New("atualização sem consulta")

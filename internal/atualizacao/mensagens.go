@@ -19,6 +19,10 @@ const (
 	MsgSemConsulta    = "Procure a atualização antes de instalar"
 	MsgNaoInstalavel  = "Esta instalação não pode ser atualizada por aqui"
 	MsgDesligado      = "O eprocIA está fechando"
+
+	// MsgSoltarDepois: arquivo recusado durante o reinício ou a abertura do
+	// instalador (igual a ATUALIZACAO.soltarDepois do frontend).
+	MsgSoltarDepois = "O eprocIA está sendo atualizado; solte os arquivos de novo depois que ele reabrir"
 )
 
 // MsgAbrindo é mostrada enquanto a versão nova arranca.

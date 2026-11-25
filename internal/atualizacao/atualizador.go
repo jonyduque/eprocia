@@ -204,6 +204,15 @@ func (a *Atualizador) ociosa() bool {
 func (a *Atualizador) pausada() bool { return a.amb.Pausada != nil && a.amb.Pausada() }
 func (a *Atualizador) oculta() bool  { return a.amb.Oculta != nil && a.amb.Oculta() }
 
+// AceitaEntrada diz se a fila pode receber arquivos agora. Lê a fase
+// interna: a preparação (nunca emitida) já conta como reinício ou abertura
+// do instalador.
+func (a *Atualizador) AceitaEntrada() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return AceitaEntrada(a.fase)
+}
+
 // Estado devolve o estado atual.
 func (a *Atualizador) Estado() Estado {
 	a.mu.Lock()
