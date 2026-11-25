@@ -45,7 +45,10 @@ func aplicarEm(chave, nome, exe string, ativo bool) error {
 }
 
 // chaveDesinstalacao é a chave que o install.ps1 grava em HKCU.
-const chaveDesinstalacao = `Software\Microsoft\Windows\CurrentVersion\Uninstall\eprocIA`
+const (
+	chaveDesinstalacao = `Software\Microsoft\Windows\CurrentVersion\Uninstall\eprocIA`
+	valorVersao        = "DisplayVersion"
+)
 
 // GravarVersaoDesinstalacao atualiza o DisplayVersion da instalação por
 // usuário depois de uma troca. Sem a chave (instalação que não é do
@@ -63,7 +66,7 @@ func gravarVersaoEm(chave, versao string) error {
 		return fmt.Errorf("não foi possível abrir a chave de desinstalação: %w", err)
 	}
 	defer k.Close()
-	if err := k.SetStringValue("DisplayVersion", versao); err != nil {
+	if err := k.SetStringValue(valorVersao, versao); err != nil {
 		return fmt.Errorf("não foi possível gravar a versão na desinstalação: %w", err)
 	}
 	return nil

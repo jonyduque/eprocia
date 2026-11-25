@@ -9,6 +9,9 @@ const (
 	chaveUsuario = `Software\Microsoft\Windows\CurrentVersion\Uninstall\eprocIA`
 	// chaveNSIS é a UNINST_KEY do wails_tools.nsh (empresa + produto), em HKLM, visão 64 bits.
 	chaveNSIS = `Software\Microsoft\Windows\CurrentVersion\Uninstall\eprociaeprocia`
+
+	valorInstallLocation = "InstallLocation"
+	valorDisplayIcon     = "DisplayIcon"
 )
 
 type registroWindows struct{}
@@ -17,11 +20,11 @@ type registroWindows struct{}
 func RegistroWindows() Registro { return registroWindows{} }
 
 func (registroWindows) InstallLocationUsuario() (string, error) {
-	return lerValor(registry.CURRENT_USER, chaveUsuario, "InstallLocation", 0)
+	return lerValor(registry.CURRENT_USER, chaveUsuario, valorInstallLocation, 0)
 }
 
 func (registroWindows) DisplayIconMaquina() (string, error) {
-	return lerValor(registry.LOCAL_MACHINE, chaveNSIS, "DisplayIcon", registry.WOW64_64KEY)
+	return lerValor(registry.LOCAL_MACHINE, chaveNSIS, valorDisplayIcon, registry.WOW64_64KEY)
 }
 
 func lerValor(raiz registry.Key, chave, nome string, visao uint32) (string, error) {

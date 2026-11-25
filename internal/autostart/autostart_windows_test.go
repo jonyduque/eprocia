@@ -5,6 +5,10 @@ package autostart
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -76,5 +80,19 @@ func TestGravarVersaoDesinstalacao(t *testing.T) {
 	defer k.Close()
 	if v, _, err := k.GetStringValue("DisplayVersion"); err != nil || v != "0.5.0" {
 		t.Fatalf("DisplayVersion = %q (%v), esperado 0.5.0", v, err)
+	}
+}
+
+func TestChaveDesinstalacao_ConfereComInstallPs1(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("..", "..", "install.ps1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ps := strings.ReplaceAll(string(b), "\r\n", "\n")
+	if !strings.Contains(ps, `$uninstallKey = 'HKCU:\`+chaveDesinstalacao+`'`) {
+		t.Fatalf("install.ps1 não grava a chave HKCU %q", chaveDesinstalacao)
+	}
+	if !regexp.MustCompile(`(?m)^\s+` + valorVersao + `\s+= \$version$`).MatchString(ps) {
+		t.Fatalf("install.ps1 não grava %s = $version", valorVersao)
 	}
 }

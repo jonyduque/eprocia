@@ -60,10 +60,33 @@ func Detectar(exe string, reg Registro, podeEscrever func(pasta string) bool) In
 	return Instalacao{Modo: ModoSoAvisar, Pasta: pasta, Motivo: MotivoForaDaPasta}
 }
 
-// mesmoCaminho compara dois caminhos do Windows sem diferenciar caixa
-// (acentos incluídos) nem a barra final.
-func mesmoCaminho(a, b string) bool {
-	return strings.EqualFold(filepath.Clean(strings.TrimSpace(a)), filepath.Clean(strings.TrimSpace(b)))
+// mesmoCaminho diz se o caminho lido do registro (doRegistro) e o do exe
+// (resolvido) são o mesmo, sem diferenciar caixa (acentos incluídos) nem a
+// barra final. O install.ps1 grava o -Dir como digitado, então doRegistro é
+// resolvido antes (relativo, nome 8.3, link simbólico) e, se ainda diferir,
+// os dois são comparados como arquivo: EvalSymlinks não segue junções desde
+// o Go 1.23, os.SameFile segue.
+func mesmoCaminho(doRegistro, resolvido string) bool {
+	a := resolverCaminho(strings.TrimSpace(doRegistro))
+	b := filepath.Clean(strings.TrimSpace(resolvido))
+	if strings.EqualFold(a, b) {
+		return true
+	}
+	ia, errA := os.Stat(a)
+	ib, errB := os.Stat(b)
+	return errA == nil && errB == nil && os.SameFile(ia, ib)
+}
+
+// resolverCaminho torna p absoluto e sem links; em erro, devolve p limpo.
+func resolverCaminho(p string) string {
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		return filepath.Clean(p)
+	}
+	if r, err := filepath.EvalSymlinks(abs); err == nil {
+		return r
+	}
+	return abs
 }
 
 // limparIcone tira de um DisplayIcon o índice do ícone (",0") e as aspas.
