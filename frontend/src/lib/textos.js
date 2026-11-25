@@ -120,6 +120,7 @@ export const ATUALIZACAO = {
   paginaVersoes: 'Abrir a página de versões no navegador',
   instalando: 'Instalando a versão nova...',
   instalada: (v) => `Versão ${v} instalada`,
+  reiniciando: 'Reiniciando...',
   reiniciar: 'Reiniciar agora',
   reiniciarQuandoFilaTerminar: 'Reiniciar quando a fila terminar',
   aguardandoReinicio: 'O eprocIA reinicia quando a fila terminar',

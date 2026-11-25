@@ -112,7 +112,7 @@ describe('atualizacao', () => {
   });
   it('instalada com mensagem', () => {
     const s = { fase: 'instalada', versao: '0.5.0', mensagem: 'Abre na próxima vez.' };
-    assert.equal(textoFase(e(s)), 'Versão 0.5.0 instalada Abre na próxima vez.');
+    assert.equal(textoFase(e(s)), 'Abre na próxima vez.');
     assert.equal(A(s).reiniciar, null);
     assert.equal(A(s).atualizar, null);
   });
@@ -127,6 +127,8 @@ describe('atualizacao', () => {
   });
   it('reiniciando e abrindo_instalador', () => {
     assert.equal(textoFase(e({ fase: 'reiniciando', mensagem: 'Reiniciando' })), 'Reiniciando');
+    assert.equal(textoFase(e({ fase: 'reiniciando' })), 'Reiniciando...');
+    assert.equal(T.reiniciando, 'Reiniciando...');
     assert.equal(textoFase(e({ fase: 'abrindo_instalador' })), 'Abrindo o instalador...');
     assert.equal(textoFase(e({ fase: 'abrindo_instalador', mensagem: 'X' })), 'X');
     assert.deepEqual(A({ fase: 'reiniciando' }), nenhuma);

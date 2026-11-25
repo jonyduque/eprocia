@@ -26,12 +26,12 @@ export function textoFase(estado) {
     case 'instalando':
       return T.instalando;
     case 'instalada':
-      return mensagem ? `${T.instalada(versao)} ${mensagem}` : T.instalada(versao);
+      return mensagem || T.instalada(versao);
     case 'aguardando_fila':
       if (mensagem) return mensagem;
       return modo === 'instalador' ? T.aguardandoFila : T.aguardandoReinicio;
     case 'reiniciando':
-      return mensagem || '';
+      return mensagem || T.reiniciando;
     case 'abrindo_instalador':
       return mensagem || T.abrindoInstalador;
     case 'erro':
