@@ -100,3 +100,31 @@ export const AJUDA_FORCAR_OCR_REPROCESSAR = 'Mais lento; páginas repetidas tamb
 export const ROTULO_ABRIR_LOGS = 'Abrir pasta de logs';
 export const TEXTO_LOG_ATIVO = 'Log e telemetria ativos. Estes arquivos ficam só neste computador.';
 export const ERRO_ABRIR_LOGS = 'Erro ao abrir a pasta de logs: ';
+
+export const ATUALIZACAO = {
+  titulo: 'Atualizações',
+  versao: (v) => `Versão ${v}`,
+  procurar: 'Procurar atualização',
+  procurando: 'Procurando...',
+  emDia: (v) => `O eprocIA está em dia (${v})`,
+  disponivel: (v) => `Versão ${v} disponível`,
+  novidades: 'Ver novidades',
+  atualizar: 'Atualizar',
+  baixarInstalador: 'Baixar e abrir o instalador',
+  quandoFilaTerminar: 'Atualizar quando a fila terminar',
+  cancelar: 'Cancelar',
+  baixando: (p) => `Baixando... ${p}%`,
+  conferindo: 'Conferindo o download...',
+  aguardandoFila: 'A atualização começa quando a fila terminar',
+  abrindoInstalador: 'Abrindo o instalador...',
+  paginaVersoes: 'Abrir a página de versões no navegador',
+  instalando: 'Instalando a versão nova...',
+  instalada: (v) => `Versão ${v} instalada`,
+  reiniciar: 'Reiniciar agora',
+  reiniciarQuandoFilaTerminar: 'Reiniciar quando a fila terminar',
+  aguardandoReinicio: 'O eprocIA reinicia quando a fila terminar',
+  fraseInstalador:
+    "O Windows vai pedir permissão de administrador; o eprocIA fecha para a instalação. Na última tela, deixe marcado 'Abrir o eprocIA' para ele voltar sozinho",
+  incompleta: (v) => `A versão ${v} foi publicada, mas está incompleta; tente de novo mais tarde`,
+  soltarDepois: 'O eprocIA está sendo atualizado; solte os arquivos de novo depois que ele reabrir',
+};
