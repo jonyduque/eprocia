@@ -50,6 +50,31 @@ func escritaFalha(t *testing.T, caminho string) bool {
 	return false
 }
 
+// escritaRecusadaPorTrava: o arquivo existe e a escrita falha por violação
+// de compartilhamento (não por arquivo ausente ou outro motivo).
+func escritaRecusadaPorTrava(t *testing.T, caminho string) bool {
+	t.Helper()
+	if _, err := os.Stat(caminho); err != nil {
+		return false
+	}
+	f, err := os.OpenFile(caminho, os.O_WRONLY, 0)
+	if err == nil {
+		_ = f.Close()
+		return false
+	}
+	return errors.Is(err, windows.ERROR_SHARING_VIOLATION)
+}
+
+func TestShellExecuteInfo_Mascara(t *testing.T) {
+	info := novoShellExecuteInfo(nil, nil)
+	if info.fMask != seeMaskFlagNoUI|seeMaskNoAsync {
+		t.Fatalf("fMask = %#x, quer SEE_MASK_FLAG_NO_UI|SEE_MASK_NOASYNC (%#x)", info.fMask, seeMaskFlagNoUI|seeMaskNoAsync)
+	}
+	if info.nShow != swShowNormal || uintptr(info.cbSize) != unsafe.Sizeof(info) {
+		t.Fatalf("nShow = %d, cbSize = %d", info.nShow, info.cbSize)
+	}
+}
+
 func TestReabrirConferido_TravaEscrita(t *testing.T) {
 	b := instaladorBaixado(t)
 	tr, err := ReabrirConferido(b)
@@ -105,7 +130,7 @@ func TestAbrir_PassaCaminhoEFechaHandle(t *testing.T) {
 	travadoDurante := false
 	err = tr.Abrir(func(caminho string) error {
 		recebido = caminho
-		travadoDurante = escritaFalha(t, caminho)
+		travadoDurante = escritaRecusadaPorTrava(t, caminho)
 		return nil
 	})
 	if err != nil {

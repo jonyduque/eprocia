@@ -19,7 +19,10 @@ var (
 
 const (
 	seeMaskFlagNoUI = 0x00000400 // SEE_MASK_FLAG_NO_UI
-	swShowNormal    = 1          // SW_SHOWNORMAL
+	// SEE_MASK_NOASYNC: a chamada vem de uma goroutine sem laço de
+	// mensagens, então o shell precisa terminar antes de devolver.
+	seeMaskNoAsync = 0x00000100
+	swShowNormal   = 1 // SW_SHOWNORMAL
 )
 
 // shellExecuteInfoW tem o layout de SHELLEXECUTEINFOW (112 bytes em 64 bits).
@@ -75,13 +78,7 @@ func ShellExecuteEx(caminho string) error {
 	if err != nil {
 		return fmt.Errorf("abrir o instalador: caminho inválido")
 	}
-	info := shellExecuteInfoW{
-		fMask:  seeMaskFlagNoUI,
-		lpVerb: verbo,
-		lpFile: arquivo,
-		nShow:  swShowNormal,
-	}
-	info.cbSize = uint32(unsafe.Sizeof(info))
+	info := novoShellExecuteInfo(verbo, arquivo)
 	r, _, errCall := procShellExecuteExW.Call(uintptr(unsafe.Pointer(&info)))
 	if r != 0 {
 		return nil
@@ -91,6 +88,18 @@ func ShellExecuteEx(caminho string) error {
 		return fmt.Errorf("abrir o instalador: %T", errCall)
 	}
 	return erroShell(errno)
+}
+
+// novoShellExecuteInfo monta o SHELLEXECUTEINFOW da abertura do instalador.
+func novoShellExecuteInfo(verbo, arquivo *uint16) shellExecuteInfoW {
+	info := shellExecuteInfoW{
+		fMask:  seeMaskFlagNoUI | seeMaskNoAsync,
+		lpVerb: verbo,
+		lpFile: arquivo,
+		nShow:  swShowNormal,
+	}
+	info.cbSize = uint32(unsafe.Sizeof(info))
+	return info
 }
 
 // erroShell traduz o errno do ShellExecuteExW: ERROR_CANCELLED (UAC
