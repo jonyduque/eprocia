@@ -77,8 +77,9 @@ test('ProcessList: TXT ausente na linha e no Copiar', () => {
   const [b] = botoesCom(ml, 'data-acao="copiar"');
   assert.match(b, /aria-disabled=\{!!item\.output_missing\}/);
   assert.match(b, /item\.output_missing \? HISTORICO\.txtAusente/);
-  // Sem parada no foco itinerante (paradasItem tira 'copiar').
-  assert.match(b, /data-parada=\{item\.output_missing \? undefined : 'copiar'\}/);
+  // aria-disabled, e não disabled: o botão segue no foco itinerante da linha.
+  assert.match(b, /data-parada="copiar"/);
+  assert.doesNotMatch(b, /\sdisabled=/);
   assert.match(b, /on:click=\{\(\) => \{ if \(copiavel\(item\)\) handleCopy\(item\); \}\}/);
 });
 

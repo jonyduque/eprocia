@@ -795,11 +795,10 @@
                   >
                     <Icone icone={RotateCcw} tamanho={14} />
                   </button>
-                  <!-- TXT ausente: desativado e fora do foco itinerante (paradasItem). -->
                   <button
                     class="btn-action"
                     data-acao="copiar"
-                    data-parada={item.output_missing ? undefined : 'copiar'}
+                    data-parada="copiar"
                     tabindex={tabParada(item.id, 'copiar', paradaAtiva)}
                     aria-disabled={!!item.output_missing}
                     class:copiado={copiadoId === item.id}
@@ -1718,7 +1717,9 @@
     background-color: var(--surface-hover);
   }
 
-  /* Reprocessar durante a troca de versão (entradaBloqueada); a dica diz por quê.
+  /* Reprocessar e Processar de novo durante a troca de versão (entradaBloqueada) ou
+     com a origem ausente (source_missing), e Copiar com o TXT ausente
+     (output_missing); a dica diz por quê.
      aria-disabled, e não disabled: o botão segue no foco itinerante da linha. */
   .btn-action[aria-disabled='true'] {
     opacity: 0.6;

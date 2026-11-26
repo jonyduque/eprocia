@@ -376,12 +376,13 @@ test('paradasItem segue a ordem dos botões de cada linha', () => {
   assert.deepEqual(paradasItem({ status: 'cancelled' }, true), ['info', 'reprocessar', 'remover']);
 });
 
-// TXT ausente: o Copiar fica desativado e sem parada; Abrir pasta continua (abre a pasta).
-test('paradasItem tira o Copiar do item com TXT ausente', () => {
+// TXT ausente: o Copiar fica com aria-disabled e segue no foco itinerante, como
+// todo botão desativado da linha (a dica diz por quê); Abrir pasta continua.
+test('paradasItem mantém o Copiar do item com TXT ausente', () => {
   const item = { status: 'success', output_path: 'a.txt', output_missing: true };
-  assert.deepEqual(paradasItem(item, true), ['info', 'reprocessar', 'abrir', 'remover']);
+  assert.deepEqual(paradasItem(item, true), ['info', 'reprocessar', 'copiar', 'abrir', 'remover']);
   const pag = { paginas: { total: 4, lida_nativa: 3, sem_ocr: 1 } };
-  assert.deepEqual(paradasItem({ ...item, relatorio: pag }, true), ['info', 'reprocessar', 'abrir', 'remover', 'relatorio', 'lerocr']);
+  assert.deepEqual(paradasItem({ ...item, relatorio: pag }, true), ['info', 'reprocessar', 'copiar', 'abrir', 'remover', 'relatorio', 'lerocr']);
 });
 
 // Linha-resumo e "Ler com OCR" do relatório ficam abaixo dos botões, na ordem da tela.
