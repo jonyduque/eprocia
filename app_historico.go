@@ -138,16 +138,26 @@ func (a *App) aplicarHistorico(ligar bool) {
 		}
 		return
 	}
-	if a.historico != nil || a.historicoAdiado {
+	// Fechado pela troca de versão: um gravador aberto aqui gravaria por cima
+	// do arquivo que o processo novo carrega. Só a config muda; o Reabrir da
+	// reversão cria o gravador, se a troca falhar.
+	if a.historico != nil || a.historicoAdiado || a.historicoFechadoTroca {
 		return
 	}
+	a.ligarGravadorLocked(arquivo)
+	_ = a.queue.GravarHistoricoAgora() // a falha já foi ao log e ao aviso
+}
+
+// ligarGravadorLocked cria o gravador (sem proteção) e o entrega à fila.
+// Exige a.historicoMu travado.
+func (a *App) ligarGravadorLocked(arquivo string) bool {
 	if arquivo == "" {
 		slog.Warn("histórico desligado: pasta de dados desconhecida")
-		return
+		return false
 	}
 	a.historico = a.novoGravadorHistorico(arquivo, false)
 	a.queue.SetGravador(a.historico)
-	_ = a.queue.GravarHistoricoAgora() // a falha já foi ao log e ao aviso
+	return true
 }
 
 // historicoAtualizacao entrega o histórico ao atualizacao.Ambiente: fecha
@@ -161,25 +171,38 @@ func (h historicoAtualizacao) Fechar() error {
 	if h.a.queue == nil {
 		return nil
 	}
+	// A marca vem antes da escrita final: daí em diante o interruptor não
+	// cria gravador aberto neste processo (aplicarHistorico).
+	h.a.historicoMu.Lock()
+	h.a.historicoFechadoTroca = true
+	h.a.historicoMu.Unlock()
 	if err := h.a.queue.FecharHistorico(); err != nil {
 		slog.Warn("atualização: o histórico não foi gravado", "erro", err)
 	}
 	return nil
 }
 
-// Reabrir volta a aceitar gravações e agenda a lista atual, para que uma
-// remoção ou limpeza feita na espera do reinício chegue ao arquivo.
+// Reabrir tira a marca do Fechar, volta a aceitar gravações e agenda a lista
+// atual, para que uma remoção ou limpeza feita na espera do reinício chegue
+// ao arquivo. Se o interruptor foi ligado na espera, cria o gravador agora.
 func (h historicoAtualizacao) Reabrir() error {
+	if h.a.queue == nil {
+		return nil
+	}
 	h.a.historicoMu.Lock()
+	h.a.historicoFechadoTroca = false
 	g := h.a.historico
+	if g == nil && !h.a.historicoAdiado {
+		if cfg := h.a.configAtual(); cfg != nil && cfg.GuardarHistorico && h.a.ligarGravadorLocked(h.a.arquivoHistorico()) {
+			g = h.a.historico
+		}
+	}
 	h.a.historicoMu.Unlock()
 	if g != nil {
 		if err := g.Reabrir(); err != nil {
 			slog.Warn("atualização: o histórico não foi reaberto", "erro", err)
 		}
 	}
-	if h.a.queue != nil {
-		h.a.queue.AgendarHistorico()
-	}
+	h.a.queue.AgendarHistorico()
 	return nil
 }

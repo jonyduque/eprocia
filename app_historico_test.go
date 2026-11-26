@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -61,15 +63,25 @@ type estadoArquivo struct {
 
 func lerEstado(t *testing.T, caminho string) estadoArquivo {
 	t.Helper()
-	dados, err := os.ReadFile(caminho)
+	e, err := lerEstadoErr(caminho)
 	if err != nil {
 		t.Fatal(err)
+	}
+	return e
+}
+
+// lerEstadoErr é lerEstado sem t, para goroutines fora do teste (o erro volta
+// a quem chamou).
+func lerEstadoErr(caminho string) (estadoArquivo, error) {
+	dados, err := os.ReadFile(caminho)
+	if err != nil {
+		return estadoArquivo{}, err
 	}
 	info, err := os.Stat(caminho)
 	if err != nil {
-		t.Fatal(err)
+		return estadoArquivo{}, err
 	}
-	return estadoArquivo{dados, info.ModTime()}
+	return estadoArquivo{dados, info.ModTime()}, nil
 }
 
 func mesmoEstado(t *testing.T, caminho string, antes estadoArquivo) bool {
@@ -427,22 +439,38 @@ func TestHistorico_TrocaPeloAtualizador(t *testing.T) {
 				lista     []string
 				intacto   bool
 				carregado bool
+				erro      error
 			}
 			vistoCh := make(chan visto, 1)
+			// Roda na goroutine do atualizador: nada de t.Fatal aqui; o erro
+			// volta pelo vistoCh.
 			tf.antes = func() {
 				var v visto
+				defer func() { vistoCh <- v }()
 				itens, err := historico.Carregar(arquivo)
-				v.carregado = err == nil
+				if err != nil {
+					v.erro = err
+					return
+				}
+				v.carregado = true
 				for _, it := range itens {
 					v.lista = append(v.lista, it.Path)
 				}
-				if falha && v.carregado {
-					antes := lerEstado(t, arquivo)
+				if falha {
+					antes, err := lerEstadoErr(arquivo)
+					if err != nil {
+						v.erro = err
+						return
+					}
 					m.app.RemoveQueueItem(id)
 					time.Sleep(1200 * time.Millisecond)
-					v.intacto = mesmoEstado(t, arquivo, antes)
+					depois, err := lerEstadoErr(arquivo)
+					if err != nil {
+						v.erro = err
+						return
+					}
+					v.intacto = bytes.Equal(depois.dados, antes.dados) && depois.mod.Equal(antes.mod)
 				}
-				vistoCh <- v
 			}
 
 			if _, err := m.app.VerificarAtualizacao(); err != nil {
@@ -462,6 +490,9 @@ func TestHistorico_TrocaPeloAtualizador(t *testing.T) {
 			case v = <-vistoCh:
 			case <-time.After(5 * time.Second):
 				t.Fatal("o Trocador.Reiniciar não foi chamado")
+			}
+			if v.erro != nil {
+				t.Fatalf("no Reiniciar: %v", v.erro)
 			}
 			if !v.carregado || !caminhosIguais(v.lista, zip) {
 				t.Fatalf("no Reiniciar o historico.json tem %v (lido: %t); quer [%s]", v.lista, v.carregado, zip)
@@ -524,4 +555,113 @@ func TestCopyOutput_TXTAusente(t *testing.T) {
 	if item := itemPorCaminho(m.app, zip); item == nil || !item.OutputMissing {
 		t.Fatalf("depois do CopyOutput: %+v; quer OutputMissing", item)
 	}
+}
+
+// M1: no processo antigo, ligar o interruptor depois do Fechar da troca não
+// cria gravador aberto (ele gravaria por cima do arquivo do processo novo);
+// o Reabrir da reversão traz o gravador de volta.
+func TestHistorico_InterruptorDuranteATroca(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	m := novoAppAtualizacao(t, cenario{})
+	arquivo := arquivoHistoricoDe(m)
+	m.iniciar()
+	zip := filepath.Join(t.TempDir(), "a.zip")
+	adicionarETerminar(t, m.app, zip)
+	ad := historicoAtualizacao{m.app}
+	if err := ad.Fechar(); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := *m.app.configAtual()
+	cfg.GuardarHistorico = true
+	if err := m.app.SaveConfig(&cfg); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.app.AddFilesToQueue([]string{filepath.Join(t.TempDir(), "b.zip")}); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(1500 * time.Millisecond)
+	if existe(arquivo) {
+		t.Fatal("ligar o interruptor depois do Fechar da troca gravou o histórico")
+	}
+
+	if err := ad.Reabrir(); err != nil {
+		t.Fatal(err)
+	}
+	esperarAte(t, 2*time.Second, "o gravador voltar e gravar depois do Reabrir", func() bool {
+		got, ok := carregadosAgora(arquivo)
+		return ok && len(got) == 2
+	})
+}
+
+// M3: sem pastaDados, ligar o histórico (no startup ou pelo interruptor) não
+// grava nada e avisa no log.
+func TestHistorico_SemPastaDados(t *testing.T) {
+	antes, saidaLog, flags := slog.Default(), log.Writer(), log.Flags()
+	t.Cleanup(func() {
+		slog.SetDefault(antes)
+		log.SetOutput(saidaLog)
+		log.SetFlags(flags)
+	})
+	buf := &bufferSeguro{}
+	slog.SetDefault(slog.New(slog.NewTextHandler(buf, nil)))
+	t.Setenv("APPDATA", t.TempDir())
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	relativo := filepath.Join(cwd, "historico.json")
+	if existe(relativo) {
+		t.Fatalf("já há um %s antes do teste", relativo)
+	}
+
+	const linha = "histórico desligado: pasta de dados desconhecida"
+	t.Run("startup", func(t *testing.T) {
+		m := novoAppAtualizacao(t, cenario{})
+		ligarHistoricoNaConfig(m)
+		m.app.pastaDados = ""
+		m.iniciar()
+		adicionarETerminar(t, m.app, filepath.Join(t.TempDir(), "a.zip"))
+		m.app.shutdown(nil)
+		if !strings.Contains(buf.String(), linha) {
+			t.Fatalf("log sem %q:\n%s", linha, buf.String())
+		}
+	})
+	t.Run("interruptor", func(t *testing.T) {
+		m := novoAppAtualizacao(t, cenario{})
+		m.app.pastaDados = ""
+		m.iniciar()
+		adicionarETerminar(t, m.app, filepath.Join(t.TempDir(), "a.zip"))
+		n := strings.Count(buf.String(), linha)
+		cfg := *m.app.configAtual()
+		cfg.GuardarHistorico = true
+		if err := m.app.SaveConfig(&cfg); err != nil {
+			t.Fatal(err)
+		}
+		m.app.shutdown(nil)
+		if strings.Count(buf.String(), linha) <= n {
+			t.Fatalf("ligar o interruptor sem pastaDados não avisou:\n%s", buf.String())
+		}
+	})
+	if existe(relativo) {
+		_ = os.Remove(relativo)
+		t.Fatal("gravou historico.json na pasta corrente sem pastaDados")
+	}
+}
+
+// M4: no processo novo da atualização, o historico-*.tmp que o antigo pode
+// estar gravando fica até o antigo sair; depois, o gravador novo o apaga.
+func TestHistorico_TemporarioDoAntigoFicaAteEleSair(t *testing.T) {
+	m := novoAppAtualizacao(t, cenario{apos: 4242, travaLivre: true})
+	ligarHistoricoNaConfig(m)
+	tmp := filepath.Join(m.app.pastaDados, "historico-123.tmp")
+	criarArquivo(t, tmp)
+
+	m.iniciar()
+	m.app.domPronto(nil)
+	continua(t, 500*time.Millisecond, "o .tmp do antigo continuar antes de ele sair", func() bool {
+		return existe(tmp)
+	})
+	close(m.f.liberaSair)
+	esperarAte(t, 3*time.Second, "o .tmp sumir depois de o antigo sair", func() bool { return !existe(tmp) })
 }
