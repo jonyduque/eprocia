@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"eprocia/internal/config"
+	"eprocia/internal/historico"
 	"eprocia/internal/models"
 	"eprocia/internal/registro"
 	"eprocia/internal/saida"
@@ -143,6 +144,14 @@ type Queue struct {
 	// existe diz se um caminho de origem está no disco (nil = os.Stat sem
 	// erro); trocado nos testes.
 	existe func(caminho string) bool
+
+	// gravador recebe a lista gravada a cada broadcast (nil = histórico
+	// desligado). Lido sob q.mu; chamado só sob q.emitMu.
+	gravador GravadorHistorico
+	// sessaoComEntrada liga na primeira entrada nova da sessão (AddFiles,
+	// Reprocessar, ReprocessarMonitorado) e não volta a false: com ele, a
+	// lista gravada é a dos itens sem Restaurado; sem ele, a dos restaurados.
+	sessaoComEntrada bool
 }
 
 // prazoShutdown limita quanto o encerramento do app espera o item em curso.
@@ -180,13 +189,19 @@ func (q *Queue) shutdownComPrazo(prazo time.Duration) bool {
 		q.wg.Wait()
 		close(terminou)
 	}()
+	terminouNoPrazo := true
 	select {
 	case <-terminou:
-		return true
 	case <-time.After(prazo):
 		slog.Warn("encerramento: o item em processamento não terminou no prazo; saindo mesmo assim", "prazo_ms", prazo.Milliseconds())
-		return false
+		terminouNoPrazo = false
 	}
+	// A escrita final fecha o gravador: o broadcast tardio de um processItem
+	// que passou do prazo não regrava por cima.
+	if err := q.FecharHistorico(); err != nil {
+		slog.Warn("encerramento: não foi possível gravar o histórico", "erro", err)
+	}
+	return terminouNoPrazo
 }
 
 // SetContext sets the Wails context for event emission.
@@ -321,6 +336,7 @@ func (q *Queue) AddFilesComOrigem(paths []string, origem string) int {
 		}
 		// Prepend to show newest on top
 		q.items = append([]*QueueItem{item}, q.items...)
+		q.sessaoComEntrada = true
 		hasPending = true
 		adicionados++
 		slog.Info("ZIP adicionado à fila", "item_id", item.ID, "zip", item.Name, "origem", origem)
@@ -340,6 +356,7 @@ func (q *Queue) AddFilesComOrigem(paths []string, origem string) int {
 			origem:    origem,
 		}
 		q.items = append([]*QueueItem{item}, q.items...)
+		q.sessaoComEntrada = true
 		hasPending = true
 		adicionados += len(ordem)
 		slog.Info("PDF adicionado à fila", "item_id", item.ID, "zip", rotuloLog(item), "pdfs", len(ordem), "origem", origem)
@@ -486,6 +503,7 @@ func (q *Queue) Reprocessar(id, ocrMode, cleaningLevel string, forcarOCR *bool) 
 	}
 	item := q.items[idx]
 	reabrirLocked(item)
+	q.entradaLocked(item)
 	// item.ForcarOCR mostra já o efetivo da próxima execução; com nil vale o da
 	// global (sem q.cfg, a config só é lida no processItem, que o corrige).
 	var forcar *bool
@@ -572,6 +590,7 @@ func (q *Queue) ReprocessarMonitorado(path string) bool {
 	item.ajuste = nil
 	// Para a telemetria, ainda é um reprocessamento (q1).
 	item.reaberto = true
+	q.entradaLocked(item)
 	attrs := []any{"item_id", item.ID, "zip", rotuloLog(item)}
 	q.mu.Unlock()
 
@@ -1027,14 +1046,26 @@ func (q *Queue) broadcast() {
 
 	q.mu.RLock()
 	ctx := q.wailsCtx
+	gravador := q.gravador
+	var gravada []historico.Item
+	if gravador != nil {
+		gravada = q.listaGravadaLocked()
+	}
 	if ctx == nil {
 		q.mu.RUnlock()
+		// A gravação não depende do contexto do Wails.
+		if gravador != nil {
+			gravador.Agendar(gravada)
+		}
 		return
 	}
 	items := q.copyItemsLocked()
 	isPaused, isWorking := q.isPaused, q.isWorking
 	q.mu.RUnlock()
 
+	if gravador != nil {
+		gravador.Agendar(gravada)
+	}
 	q.emitir(ctx, "queue:update", items)
 	if q.statusEmitido && isPaused == q.ultimoPausado && isWorking == q.ultimoTrabalhou {
 		return
