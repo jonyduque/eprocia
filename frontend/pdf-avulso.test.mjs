@@ -16,7 +16,9 @@ const settings = ler('src', 'components', 'Settings.svelte');
 
 test('textos do PDF avulso', () => {
   assert.equal(ROTULO_MONITORAR_PDF, 'Também converter PDFs novos nesta pasta');
-  assert.equal(AJUDA_MONITORAR_PDF, 'Cada PDF que aparecer na pasta ganha um TXT ao lado, inclusive boletos e outros PDFs que não são de processo');
+  // A varredura de abertura (ao ligar e a cada abertura) também converte os
+  // PDFs das últimas 24 h ainda sem TXT: a ajuda diz isso.
+  assert.equal(AJUDA_MONITORAR_PDF, 'Cada PDF novo na pasta ganha um TXT ao lado, inclusive boletos e outros PDFs que não são de processo. Ao ligar e a cada abertura, os PDFs das últimas 24 h ainda sem TXT também são convertidos');
   assert.deepEqual(TIPO_ENTRADA, { zip: 'ZIP', pdf: 'PDF' });
 });
 

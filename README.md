@@ -233,7 +233,7 @@ Com opções:
 | 🧹 **Higienização de texto** | Nenhuma · Básica · **Padrão** · Máxima | Nenhuma preserva o texto como extraído; Básica remove espaços e linhas vazias; Padrão também remove cabeçalhos, rodapés e duplicatas e resume assinaturas; Máxima acrescenta a limpeza de ruído de OCR e junta parágrafos. |
 | 🚫 **Omitir documentos dos tipos** | códigos separados por vírgula (ex.: `EXTR, COMP`) | O documento desses tipos vira um aviso no texto e não é lido. |
 | 👀 **Monitoramento ativo** | liga/desliga | Vigia ou não a pasta escolhida. Arrastar ZIPs ou PDFs para a janela funciona sempre. |
-| 📄 **Também converter PDFs novos nesta pasta** | liga/desliga (**desligado**) | A pasta monitorada passa a converter cada PDF que aparecer nela, inclusive boletos e outros PDFs que não são de processo, num TXT ao lado. Um PDF que já tem TXT mais novo não é convertido de novo. |
+| 📄 **Também converter PDFs novos nesta pasta** | liga/desliga (**desligado**) | A pasta monitorada passa a converter cada PDF que aparecer nela, inclusive boletos e outros PDFs que não são de processo, num TXT ao lado. Ao ligar a opção e a cada abertura do eprocIA, a varredura da pasta também converte os PDFs das últimas 24 h que ainda não têm TXT. Um PDF que já tem TXT mais novo não é convertido de novo. |
 | 🚀 **Iniciar com o Windows** | liga/desliga | Abre oculto na bandeja no logon. |
 
 As configurações ficam em `%APPDATA%\eprocIA\config.json`.

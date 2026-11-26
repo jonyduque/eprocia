@@ -20,7 +20,7 @@ Comportamento esperado:
 - Copiar, Abrir pasta, Reprocessar, notificação de fim e contagem de não lidos funcionam igual.
 - A linha mostra um ícone diferente para PDF e para ZIP; um item de vários PDFs mostra o nome do TXT e a contagem ("5000000-00.2026.4.00.0001 (3 PDFs)").
 - Misturar ZIPs e PDFs no mesmo arraste funciona: cada ZIP vira seu item, e os PDFs daquele arraste juntos viram um item. Outros tipos continuam recusados, com a mensagem reescrita ("Arraste arquivos ZIP do Eproc ou PDF").
-- **Pasta monitorada (p2):** interruptor em Configurações, "Também converter PDFs novos nesta pasta", **desligado por padrão**. Ligado, a pasta monitorada pega também os PDFs novos, cada um no seu item e no seu TXT, mesmo que cheguem juntos (e4).
+- **Pasta monitorada (p2):** interruptor em Configurações, "Também converter PDFs novos nesta pasta", **desligado por padrão**. Ligado, a pasta monitorada pega também os PDFs novos, cada um no seu item e no seu TXT, mesmo que cheguem juntos (e4). A varredura de abertura da pasta (ao ligar a opção e a cada abertura do eprocIA) também converte os PDFs das últimas 24 h que ainda não têm TXT, como já faz com os ZIPs; a ajuda do interruptor diz isso (decisão do orquestrador, 2026-11-26: o comportamento fica, muda só o texto).
 
 ## 2. O que muda em cada camada
 
@@ -84,7 +84,7 @@ Comportamento esperado:
 - `App.svelte:187-206` (`OnFileDrop`): usa `separarEntradas` e manda todos os aceitos numa chamada só de `AddFilesToQueue` (é o que faz o Go juntar os PDFs num item); `textoJaNaFila` recebe o número de aceitos.
 - `App.svelte:380-390` (`triggerManualSelect`, que hoje chama `SelectZipFiles` em `:382`) e o botão do painel (`App.svelte:599`): chamar `SelectFiles`; rótulo "Selecionar arquivos...".
 - `ProcessList.svelte`: ícone por `kind` (`Icone.svelte` ganha o de documento, se ainda não tiver); nome com a contagem de PDFs; botão e texto do vazio (`ProcessList.svelte:560-564`, hoje "Selecionar arquivos ZIP..." e "ou arraste os ZIPs para a janela") passam a "Selecionar arquivos..." e "ou arraste ZIPs do Eproc ou PDFs para a janela".
-- `Settings.svelte`: interruptor "Também converter PDFs novos nesta pasta" sob a pasta monitorada, desligado por padrão, com a frase "Cada PDF que aparecer na pasta ganha um TXT ao lado, inclusive boletos e outros PDFs que não são de processo".
+- `Settings.svelte`: interruptor "Também converter PDFs novos nesta pasta" sob a pasta monitorada, desligado por padrão, com a frase "Cada PDF novo na pasta ganha um TXT ao lado, inclusive boletos e outros PDFs que não são de processo. Ao ligar e a cada abertura, os PDFs das últimas 24 h ainda sem TXT também são convertidos".
 - `DESIGN.md` e `PRD.md`: RF01 passa a dizer "ZIP do Eproc ou PDF avulso (vários PDFs de uma vez viram um TXT, por evento)"; RF02 ganha "e, se a opção estiver ligada, PDFs novos"; §5 passo 5 cita a regra do `_2`.
 
 ### 2.4 Instalador

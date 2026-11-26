@@ -134,5 +134,5 @@ export const ATUALIZACAO = {
 // entrada, lido pelo leitor de tela junto do ícone da linha.
 export const ROTULO_MONITORAR_PDF = 'Também converter PDFs novos nesta pasta';
 export const AJUDA_MONITORAR_PDF =
-  'Cada PDF que aparecer na pasta ganha um TXT ao lado, inclusive boletos e outros PDFs que não são de processo';
+  'Cada PDF novo na pasta ganha um TXT ao lado, inclusive boletos e outros PDFs que não são de processo. Ao ligar e a cada abertura, os PDFs das últimas 24 h ainda sem TXT também são convertidos';
 export const TIPO_ENTRADA = { zip: 'ZIP', pdf: 'PDF' };
