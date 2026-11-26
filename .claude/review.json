@@ -21,6 +21,8 @@
         "internal/autostart/*.go",
         "internal/registro/*.go",
         "internal/telemetria/*.go",
+        "internal/atualizacao/*.go",
+        "app_atualizacao.go",
         "scripts/anonimizar-log/*.go",
         "go.mod"
       ],

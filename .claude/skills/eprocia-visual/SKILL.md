@@ -17,14 +17,14 @@ node scripts/visual/capturar.mjs --saida <dir> --rapido               # 1024x768
 node scripts/visual/capturar.mjs --saida <dir> --estados fila,erro    # só alguns estados
 ```
 
-- Matriz completa: 800×600, 1024×768, 1440×900, 1920×1080 × escuro/claro × 10 estados (`vazio`, `fila`, `processando`, `erro`, `configuracoes`, `nao-lidos`, `relatorio`, `configuracoes-log`, `configuracoes-none`, `configuracoes-recolhida`), mais as variações por tamanho e tema:
+- Matriz completa: 800×600, 1024×768, 1440×900, 1920×1080 × escuro/claro × 20 estados (`vazio`, `fila`, `processando`, `erro`, `configuracoes`, `nao-lidos`, `relatorio`, `configuracoes-log`, `configuracoes-none`, `configuracoes-recolhida`, e os dez `atualizacao-*`: `em-dia`, `disponivel`, `instalador`, `so-avisar`, `incompleta`, `baixando`, `instalada`, `aguardando-fila`, `erro`, `reiniciando`), mais as variações por tamanho e tema:
   - `processando`: `-atividade` (painel do item em processamento), `-divisor-minimo` (arrastado até x=20), `-divisor-maximo` (até a borda direita) e `-recolhido`;
   - `fila`: `-reprocessar` (formulário aberto, com a caixa Forçar OCR);
   - `nao-lidos`: `-atividade` (painel, sem o aviso), `-copiado` (faixa de aviso depois de copiar) e `-divisor-maximo`;
   - `relatorio` (três concluídos com `relatorio`, o terceiro com os três avisos e `atencao`): `-relatorio` (painel de detalhes aberto no item com aviso), `-relatorio-fim` (o mesmo painel rolado até o fim) e `-ler-ocr` (foco de teclado no "Ler com OCR"); só a 1024 px, `-fila-660` e `-fila-661` (caixa de conteúdo do `.list-card` nos dois lados do `@container (max-width: 660px)` dos botões da fila, `LIMITE_BOTOES` em `capturar.mjs`, com a largura do painel gravada em `eprocia.sidebar`);
   - `configuracoes-log` (`LogAtivo: true`): `-log` (rolado até "Abrir pasta de logs") e `-log-280` (o mesmo com o painel em 280 px); o script mede o `.btn-log` e escreve no log.
   - Mais o alto contraste de `processando` e `configuracoes` a 1024×768.
-  Total: 190 (27 com `--rapido`). A atividade fictícia fica em `ESTADOS.<estado>.atividades` (por id do item) e é servida pelo stub de `GetQueueActivity`; `ESTADOS.<estado>.LogAtivo` é servido pelo stub de `LogAtivo` (falso quando ausente); `ESTADOS.<estado>.categorias` vai para `eprocia.categorias` no localStorage (Processamento recolhida em `configuracoes-recolhida`).
+  Total: 198 (28 com `--rapido`). A atividade fictícia fica em `ESTADOS.<estado>.atividades` (por id do item) e é servida pelo stub de `GetQueueActivity`; `ESTADOS.<estado>.LogAtivo` é servido pelo stub de `LogAtivo` (falso quando ausente); `ESTADOS.<estado>.categorias` vai para `eprocia.categorias` no localStorage (Processamento recolhida em `configuracoes-recolhida`). `ESTADOS.<estado>.atualizacao` é servido pelo stub de `EstadoAtualizacao` (sem a chave, atualizador desligado e o bloco Atualizações some), com a versão atual lida do `wails.json`; `fila-troca` mostra a fila na fase `reiniciando`, com os Reprocessar bloqueados.
 - Nome: `<L>x<A>-<tema>-<estado>[-variação].png`.
 - O Playwright `1.63.0` é instalado uma vez em `%LOCALAPPDATA%\eprocia-harness\` (fora do `package.json`) e usa o Chrome instalado (`channel: 'chrome'`), com o Chromium do Playwright como reserva.
 - As capturas usam `reducedMotion: 'reduce'` para não pegar animações no meio.
@@ -45,4 +45,4 @@ O Playwright renderiza no Chromium, não no WebView2 da janela frameless. Bordas
 
 ## Validação desta skill
 
-`node --test scripts/visual/estados.test.mjs` passa, e `node scripts/visual/capturar.mjs --saida <scratchpad> --rapido` termina com `[visual] 27 capturas em ...`.
+`node --test scripts/visual/estados.test.mjs` passa, e `node scripts/visual/capturar.mjs --saida <scratchpad> --rapido` termina com `[visual] 37 capturas em ...`.

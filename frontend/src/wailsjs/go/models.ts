@@ -1,3 +1,52 @@
+export namespace atualizacao {
+	
+	export class Estado {
+	    ativo: boolean;
+	    fase: string;
+	    versao: string;
+	    progresso: number;
+	    mensagem: string;
+	    modo: string;
+	    motivo: string;
+	    atual: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Estado(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ativo = source["ativo"];
+	        this.fase = source["fase"];
+	        this.versao = source["versao"];
+	        this.progresso = source["progresso"];
+	        this.mensagem = source["mensagem"];
+	        this.modo = source["modo"];
+	        this.motivo = source["motivo"];
+	        this.atual = source["atual"];
+	    }
+	}
+	export class Info {
+	    versao: string;
+	    notasURL: string;
+	    modo: string;
+	    motivo: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Info(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.versao = source["versao"];
+	        this.notasURL = source["notasURL"];
+	        this.modo = source["modo"];
+	        this.motivo = source["motivo"];
+	    }
+	}
+
+}
+
 export namespace etl {
 	
 	export class AtividadeDoc {

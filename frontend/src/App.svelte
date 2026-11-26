@@ -27,6 +27,7 @@
     OnFileDropOff
   } from './wailsjs/runtime/runtime.js';
   import {
+    EstadoAtualizacao,
     GetConfig,
     AddFilesToQueue,
     AddDroppedFiles,
@@ -54,6 +55,8 @@
   import { rolagem } from './lib/rolagem.js';
   import { ROTULO_MONITORAMENTO, estadoMonitoramento, textoMonitoramento } from './lib/monitoramento.js';
   import { criarSoltura, textoAceitos, textoJaNaFila } from './lib/soltura.js';
+  import { aceitaEntrada } from './lib/atualizacao.js';
+  import { ATUALIZACAO } from './lib/textos.js';
   import {
     CONSULTA_ESCURO,
     NOME_TEMA,
@@ -83,6 +86,9 @@
   let logAtivo = false;
   let isPaused = false;
   let isWorking = false;
+  // Estado da atualização (EstadoAtualizacao e atualizacao:estado). Com
+  // aceitaEntrada(fase) falso, nenhum caminho põe arquivo na fila.
+  let estadoAtualizacao = { ativo: false, fase: '' };
 
   // Lido antes da montagem para o painel já abrir com a largura salva.
   let larguraJanela = window.innerWidth;
@@ -111,6 +117,7 @@
 
   // Pausar a fila não interrompe o item em curso, que segue ativo.
   $: processingCount = contarAtivos(items);
+  $: filaOcupada = items.some((i) => i.status === 'pending' || i.status === 'processing');
 
   // Mesmos rótulos e ícones do painel (Settings.svelte).
   const ICONE_MONITORAMENTO = { monitorando: FolderSearch, pausado: CirclePause, sem_pasta: FolderX };
@@ -147,6 +154,18 @@
     LogAtivo().then((ativo) => {
       logAtivo = ativo === true;
     }).catch((err) => console.warn('Erro ao consultar o log:', err));
+
+    // Instantâneo local, sem rede; o evento pode chegar antes da resposta.
+    let atualizacaoAvisada = false;
+    unsubscribers.push(
+      EventsOn('atualizacao:estado', (e) => {
+        atualizacaoAvisada = true;
+        if (e) estadoAtualizacao = e;
+      })
+    );
+    EstadoAtualizacao().then((e) => {
+      if (!atualizacaoAvisada && e) estadoAtualizacao = e;
+    }).catch((err) => console.warn('Erro ao consultar a atualização:', err));
 
     // Load initial config
     await refreshConfig();
@@ -192,6 +211,12 @@
     // Register Native Drag and Drop for the whole window (global target)
     try {
       OnFileDrop((x, y, paths) => {
+        // Durante a troca de versão nada entra na fila.
+        if (!aceitaEntrada(estadoAtualizacao.fase)) {
+          soltura.recebido(0);
+          aviso.mostrar(ATUALIZACAO.soltarDepois, 'aviso');
+          return;
+        }
         const { zips, ignorados } = separarZips(paths);
         // O overlay e o anúncio esperam a fila dizer quantos entraram de fato:
         // um ZIP já pendente ou em processamento é descartado por ela.
@@ -378,10 +403,19 @@
   }
 
   // Seleção de ZIPs pelo botão da fila vazia (ProcessList.aoSelecionarZip).
+  // A fase pode mudar com o diálogo aberto: confere antes e depois dele.
   async function triggerManualSelect() {
+    if (!aceitaEntrada(estadoAtualizacao.fase)) {
+      avisarPainel(ATUALIZACAO.soltarDepois, 'aviso');
+      return;
+    }
     try {
       const filePaths = await SelectZipFiles();
       if (filePaths && filePaths.length > 0) {
+        if (!aceitaEntrada(estadoAtualizacao.fase)) {
+          avisarPainel(ATUALIZACAO.soltarDepois, 'aviso');
+          return;
+        }
         await AddFilesToQueue(filePaths);
       }
     } catch (err) {
@@ -584,7 +618,7 @@
         <!-- Settings Component -->
         <!-- Sem importação no painel: os ZIPs entram só pela fila (botão da
              fila vazia) ou arrastados para a janela. -->
-        <Settings bind:config {erroConfig} {logAtivo} aoFalharSalvar={refreshConfig} avisar={avisarPainel} />
+        <Settings bind:config {erroConfig} {logAtivo} {estadoAtualizacao} {filaOcupada} aoFalharSalvar={refreshConfig} avisar={avisarPainel} />
       </div>
 
       <div class="painel-aviso">
@@ -661,7 +695,7 @@
 
     <!-- Right Process List Area -->
     <main class="content-area">
-      <ProcessList bind:items={items} {isPaused} {atividades} {config} aoSelecionarZip={triggerManualSelect} />
+      <ProcessList bind:items={items} {isPaused} {atividades} {config} entradaBloqueada={!aceitaEntrada(estadoAtualizacao.fase)} aoSelecionarZip={triggerManualSelect} />
     </main>
   </div>
 

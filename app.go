@@ -8,9 +8,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
+	"eprocia/internal/atualizacao"
 	"eprocia/internal/autostart"
 	"eprocia/internal/config"
 	"eprocia/internal/etl"
@@ -28,7 +30,17 @@ type App struct {
 	watcher  *watchdog.Watcher
 	pipeline *etl.Pipeline
 	queue    *etl.Queue
-	cfg      *models.Config
+	// cfg é lido por goroutines (arranque da atualização) enquanto o
+	// frontend grava: só por configAtual e guardarConfig. O objeto guardado
+	// nunca é alterado; quem muda grava uma cópia.
+	cfg atomic.Pointer[models.Config]
+	// gravarMu serializa SaveConfig e SetTheme (ler, mudar, guardar).
+	gravarMu sync.Mutex
+	// monitorMu serializa ligar e desligar o watcher pela config;
+	// monitorRetido fica verdadeiro no processo novo da atualização até o
+	// antigo sair e a trava de instância ser obtida (arranqueApos).
+	monitorMu     sync.Mutex
+	monitorRetido atomic.Bool
 	// autostart é trocado nos testes para não mexer no registro real.
 	autostart func(ativo bool) error
 	// clipboard é trocado nos testes; o padrão é runtime.ClipboardSetText.
@@ -49,6 +61,30 @@ type App struct {
 	// fecharTelemetria descarrega a telemetria no shutdown; nil com o log
 	// desligado.
 	fecharTelemetria func()
+
+	// Atualização pelo aplicativo (app_atualizacao.go).
+	atualizador *atualizacao.Atualizador
+	// abrirURL é trocado nos testes; o padrão é runtime.BrowserOpenURL.
+	abrirURL func(url string)
+	// apos é o PID do processo antigo (--apos-atualizar); 0 = abertura normal.
+	apos int
+	// limparAnterior: --limpar-anterior, apagar eprocia.anterior.exe depois
+	// de o antigo sair.
+	limparAnterior  bool
+	modo            atualizacao.Modo
+	pastaInstalacao string
+	// pastaDados é %AppData%\eprocIA (main); os testes passam t.TempDir().
+	pastaDados string
+	// travarDepois bloqueia até obter a trava de instância adiada; nil = já
+	// obtida.
+	travarDepois func() bool
+	// esperarSair, gravarVersao e apagarAnterior são trocados nos testes;
+	// apagarAnterior nil = atualizacao.LimparAnterior.
+	esperarSair    func(pid int, prazo time.Duration) bool
+	gravarVersao   func(string) error
+	apagarAnterior func(pasta string) error
+	sinalUmaVez    sync.Once
+	limpezaUmaVez  sync.Once
 }
 
 // eventoVisibilidade avisa o frontend que a janela sumiu na bandeja (false)
@@ -58,7 +94,12 @@ const eventoVisibilidade = "janela:visivel"
 
 // NewApp creates a new App application struct
 func NewApp() *App {
-	app := &App{autostart: autostart.Aplicar, clipboard: runtime.ClipboardSetText}
+	app := &App{
+		autostart:    autostart.Aplicar,
+		clipboard:    runtime.ClipboardSetText,
+		esperarSair:  atualizacao.EsperarSair,
+		gravarVersao: autostart.GravarVersaoDesinstalacao,
+	}
 	app.watcher = watchdog.NewWatcher(func(filePath string) {
 		if app.queue != nil {
 			app.queue.AddFilesComOrigem([]string{filePath}, "monitorada")
@@ -72,33 +113,10 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.animador.Store(janela.NovoAnimador(janela.Nativa(a.ocultarJanela)))
-	a.pipeline = etl.NewPipeline()
-	a.queue = etl.NewQueue(a.pipeline)
-	a.queue.SetContext(ctx)
 	a.iniciarNotificacoes(ctx)
-	a.queue.SetOnFinished(a.aoTerminar)
-	// A fila nasce depois de iniciarRegistro (main): a telemetria se liga
-	// aqui, e só com o log ativo; desligado, nada dela executa.
-	a.ligarTelemetriaSeAtivo(pastaDadosApp())
-
-	// main já leu a config para escolher o fundo da janela.
-	cfg := a.cfg
-	if cfg == nil {
-		cfg = carregarConfig(config.Load)
-		a.cfg = cfg
-	}
-	a.queue.SetConfig(cfg)
-	if caminho, err := config.GetConfigPath(); err == nil {
-		a.falhas = watchdog.CarregarFalhas(filepath.Join(filepath.Dir(caminho), "falhas.json"))
-		a.watcher.SetFalhas(a.falhas)
-	}
-	a.sincronizarAutostart(cfg)
-	if cfg.WatchdogEnabled && cfg.MonitoredPath != "" {
-		if err := a.watcher.Start(cfg.MonitoredPath); err != nil {
-			slog.Warn("falha ao iniciar o monitoramento da pasta", "pasta", cfg.MonitoredPath, "erro", err)
-			runtime.EventsEmit(ctx, "watchdog:error", err.Error())
-		}
-	}
+	a.iniciarFila(ctx)
+	a.iniciarAtualizacao(a.opcoesAtualizacao())
+	a.sinalNoStartup()
 }
 
 // sincronizarAutostart alinha o registro à config no boot: a entrada pode ter
@@ -175,6 +193,11 @@ func carregarConfig(load func() (*models.Config, error)) *models.Config {
 
 // shutdown is called when the application closes
 func (a *App) shutdown(ctx context.Context) {
+	// Antes de parar watcher e fila: cancela um download e impede que uma
+	// troca comece durante a saída.
+	if a.atualizador != nil {
+		a.atualizador.Encerrar()
+	}
 	if a.watcher != nil {
 		a.watcher.Stop()
 	}
@@ -258,10 +281,16 @@ func (a *App) antesDeFechar(_ context.Context) (impedir bool) {
 	return true
 }
 
+// configAtual devolve a config em uso (nil antes de carregada). Não altere
+// o objeto devolvido: grave uma cópia com guardarConfig.
+func (a *App) configAtual() *models.Config { return a.cfg.Load() }
+
+func (a *App) guardarConfig(cfg *models.Config) { a.cfg.Store(cfg) }
+
 // GetConfig returns the current configuration settings.
 func (a *App) GetConfig() (*models.Config, error) {
-	if a.cfg != nil {
-		return a.cfg, nil
+	if cfg := a.configAtual(); cfg != nil {
+		return cfg, nil
 	}
 	return config.Load()
 }
@@ -269,9 +298,12 @@ func (a *App) GetConfig() (*models.Config, error) {
 // SaveConfig grava a configuração e reaplica o watchdog e a inicialização com
 // o Windows. O tema não vem do formulário: só SetTheme o altera.
 func (a *App) SaveConfig(cfg *models.Config) error {
-	autoAnterior := a.cfg != nil && a.cfg.AutoStart
-	if a.cfg != nil {
-		cfg.Theme = a.cfg.Theme
+	a.gravarMu.Lock()
+	defer a.gravarMu.Unlock()
+	atual := a.configAtual()
+	autoAnterior := atual != nil && atual.AutoStart
+	if atual != nil {
+		cfg.Theme = atual.Theme
 	}
 
 	// O registro vem antes da gravação: se ele recusar, o config.json guarda o
@@ -294,14 +326,28 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 		return err
 	}
 
-	a.cfg = cfg
+	a.guardarConfig(cfg)
 	if a.queue != nil {
 		a.queue.SetConfig(cfg)
 	}
+	if err := a.aplicarMonitor(cfg); err != nil {
+		return err
+	}
+	return errAuto
+}
 
+// aplicarMonitor reaplica o watcher à config salva. Com o monitor retido
+// (processo novo da atualização à espera do antigo e da trava), só
+// desliga: quem liga é o arranqueApos, que lê a config guardada.
+func (a *App) aplicarMonitor(cfg *models.Config) error {
+	a.monitorMu.Lock()
+	defer a.monitorMu.Unlock()
 	// Start é no-op se a pasta já está sendo monitorada; chamá-lo sempre permite
 	// tentar de novo depois de uma falha mesmo sem mudar o caminho.
 	if cfg.WatchdogEnabled && cfg.MonitoredPath != "" {
+		if a.monitorRetido.Load() {
+			return nil
+		}
 		if err := a.watcher.Start(cfg.MonitoredPath); err != nil {
 			slog.Warn("falha ao iniciar o monitoramento da pasta", "pasta", cfg.MonitoredPath, "erro", err)
 			return fmt.Errorf("configurações salvas, mas não foi possível monitorar a pasta %q: %w", cfg.MonitoredPath, err)
@@ -309,8 +355,7 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 	} else {
 		a.watcher.Stop()
 	}
-
-	return errAuto
+	return nil
 }
 
 // SetTheme grava o tema escolhido ("system", "light" ou "dark"), que main.go lê
@@ -319,27 +364,29 @@ func (a *App) SetTheme(tema string) error {
 	if !config.TemaValido(tema) {
 		return fmt.Errorf("tema inválido: %q", tema)
 	}
-	cfg := a.cfg
+	a.gravarMu.Lock()
+	defer a.gravarMu.Unlock()
+	cfg := a.configAtual()
 	if cfg == nil {
 		cfg = carregarConfig(config.Load)
 	}
+	// Cópia: o objeto guardado é lido por outras goroutines e pela fila.
 	novo := *cfg
 	novo.Theme = tema
 	if err := config.Save(&novo); err != nil {
 		return fmt.Errorf("não foi possível salvar o tema: %w", err)
 	}
-	if a.cfg != nil {
-		a.cfg.Theme = tema
-	} else {
-		a.cfg = &novo
+	a.guardarConfig(&novo)
+	if a.queue != nil {
+		a.queue.SetConfig(&novo)
 	}
 	return nil
 }
 
 // ProcessFile adds a file to the processing queue for backward compatibility.
 func (a *App) ProcessFile(filePath string) (string, error) {
-	a.AddFilesToQueue([]string{filePath})
-	return "", nil
+	_, err := a.AddFilesToQueue([]string{filePath})
+	return "", err
 }
 
 // OpenDirectory opens the native Windows Explorer selecting the file, or opens the directory.
@@ -431,20 +478,28 @@ func (a *App) SelectZipFiles() ([]string, error) {
 
 // AddFilesToQueue adds files manually to the processing queue and returns how
 // many actually entered (a path already pending or processing is dropped).
-func (a *App) AddFilesToQueue(filePaths []string) int {
-	if a.queue != nil {
-		return a.queue.AddFiles(filePaths)
+// Durante o reinício da atualização nada entra (recusaEntrada).
+func (a *App) AddFilesToQueue(filePaths []string) (int, error) {
+	if err := a.recusaEntrada(); err != nil {
+		return 0, err
 	}
-	return 0
+	if a.queue != nil {
+		return a.queue.AddFiles(filePaths), nil
+	}
+	return 0, nil
 }
 
 // AddDroppedFiles põe na fila os ZIPs arrastados para a janela (origem
-// "arrastada") e devolve quantos entraram.
-func (a *App) AddDroppedFiles(filePaths []string) int {
-	if a.queue != nil {
-		return a.queue.AddFilesComOrigem(filePaths, "arrastada")
+// "arrastada") e devolve quantos entraram; durante o reinício da
+// atualização, nenhum (recusaEntrada).
+func (a *App) AddDroppedFiles(filePaths []string) (int, error) {
+	if err := a.recusaEntrada(); err != nil {
+		return 0, err
 	}
-	return 0
+	if a.queue != nil {
+		return a.queue.AddFilesComOrigem(filePaths, "arrastada"), nil
+	}
+	return 0, nil
 }
 
 // GetQueue returns the current list of items in the queue.
@@ -498,6 +553,9 @@ func (a *App) RemoveQueueItem(id string) {
 func (a *App) ReprocessQueueItem(id, ocrMode, cleaningLevel string, forcarOCR bool) error {
 	if a.queue == nil {
 		return fmt.Errorf("fila não inicializada")
+	}
+	if err := a.recusaEntrada(); err != nil {
+		return err
 	}
 	return a.queue.Reprocessar(id, ocrMode, cleaningLevel, &forcarOCR)
 }

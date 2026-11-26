@@ -49,7 +49,7 @@
   import { criarAviso, duracaoMovimento, DUR_FAST, DUR_BASE } from '../lib/aviso.js';
   import { aplicarReprocessarComOCR, alvoAoFecharReprocessar, argumentosLerComOCR, limpezaInicialReprocessar } from '../lib/reprocessar.js';
   import { resumoPaginas, avisosPaginas, mostrarLerComOCR } from '../lib/relatorio.js';
-  import { EXPLICACAO_OCR, ROTULO_LER_COM_OCR, DICA_LER_COM_OCR, DICA_ABRIR_RELATORIO, DICA_FECHAR_RELATORIO } from '../lib/textos.js';
+  import { ATUALIZACAO, EXPLICACAO_OCR, ROTULO_LER_COM_OCR, DICA_LER_COM_OCR, DICA_ABRIR_RELATORIO, DICA_FECHAR_RELATORIO } from '../lib/textos.js';
   import { dica } from '../lib/dica.js';
   import { rotuloNaoLidos, avisoCopiaNaoLidos, tituloNaoLidos } from '../lib/naoLidos.js';
   import { rolagem } from '../lib/rolagem.js';
@@ -81,6 +81,9 @@
   export let config = null;
   // Abre a seleção de ZIPs do App: o vazio oferece a ação sem depender do painel.
   export let aoSelecionarZip = () => {};
+  // Durante a troca de versão (aceitaEntrada falso) nada volta à fila:
+  // os botões que reprocessam o item ficam bloqueados, com a dica do motivo.
+  export let entradaBloqueada = false;
 
   let filterText = '';
 
@@ -172,6 +175,8 @@
   let origemReprocessar = {};
   function alternarReprocessar(id, evento) {
     const abrir = !reprocessarAberto[id];
+    // Durante a troca só abrir é barrado; fechar pelo ícone continua.
+    if (entradaBloqueada && abrir) return;
     reprocessarAberto = { ...reprocessarAberto, [id]: abrir };
     const { [id]: _, ...resto } = ocrSugerido;
     ocrSugerido = resto;
@@ -214,6 +219,7 @@
   // sem Forçar OCR e com a limpeza do item (a config global não muda).
   async function lerComOCR(item) {
     if (lendoOCR[item.id]) return;
+    if (entradaBloqueada) return;
     lendoOCR = { ...lendoOCR, [item.id]: true };
     const a = argumentosLerComOCR(item, config);
     try {
@@ -744,8 +750,9 @@
                     data-acao="reprocessar"
                     data-parada="reprocessar"
                     tabindex={tabParada(item.id, 'reprocessar', paradaAtiva)}
+                    aria-disabled={entradaBloqueada}
                     on:click={(e) => alternarReprocessar(item.id, e)}
-                    use:dica={'Reprocessar com outras configurações'}
+                    use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : 'Reprocessar com outras configurações'}
                     aria-label={rotuloAcao('Reprocessar', item.name)}
                     aria-expanded={!!reprocessarAberto[item.id]}
                     aria-controls="reprocessar-{item.id}"
@@ -819,8 +826,9 @@
                     data-acao="reprocessar"
                     data-parada="reprocessar"
                     tabindex={tabParada(item.id, 'reprocessar', paradaAtiva)}
+                    aria-disabled={entradaBloqueada}
                     on:click={(e) => alternarReprocessar(item.id, e)}
-                    use:dica={'Reprocessar com outras configurações'}
+                    use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : 'Reprocessar com outras configurações'}
                     aria-label={rotuloAcao('Reprocessar', item.name)}
                     aria-expanded={!!reprocessarAberto[item.id]}
                     aria-controls="reprocessar-{item.id}"
@@ -893,8 +901,9 @@
                       class="btn-ler-ocr"
                       data-parada="lerocr"
                       tabindex={tabParada(item.id, 'lerocr', paradaAtiva)}
-                      aria-disabled={!!lendoOCR[item.id]}
-                      title={DICA_LER_COM_OCR}
+                      aria-disabled={!!lendoOCR[item.id] || entradaBloqueada}
+                      title={entradaBloqueada ? undefined : DICA_LER_COM_OCR}
+                      use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : ''}
                       on:click={() => lerComOCR(item)}
                     >
                       <Icone icone={RotateCcw} tamanho={12} />
@@ -926,6 +935,7 @@
                   forcarInicial={!!config?.forcar_ocr}
                   aoConfirmar={(ocr, limpeza, forcar) => confirmarReprocessar(item, ocr, limpeza, forcar)}
                   aoCancelar={() => fecharReprocessar(item.id)}
+                  {entradaBloqueada}
                 />
               {/key}
             {/if}
@@ -1617,9 +1627,16 @@
     border-radius: 4px;
   }
 
-  .btn-action:hover {
+  .btn-action:hover:not([aria-disabled='true']) {
     color: var(--text-primary);
     background-color: var(--surface-hover);
+  }
+
+  /* Reprocessar durante a troca de versão (entradaBloqueada); a dica diz por quê.
+     aria-disabled, e não disabled: o botão segue no foco itinerante da linha. */
+  .btn-action[aria-disabled='true'] {
+    opacity: 0.6;
+    cursor: default;
   }
 
   .btn-action.copiado,

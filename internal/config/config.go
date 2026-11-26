@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	"eprocia/internal/models"
 )
@@ -159,9 +161,14 @@ func Save(cfg *models.Config) error {
 	return SaveToFile(path, cfg)
 }
 
+// salvarMu serializa ler-sobrepor-gravar: duas gravações concorrentes perderiam chaves.
+var salvarMu sync.Mutex
+
 // SaveToFile saves the configuration to a specific file path.
 // It ensures that the parent directory exists.
 func SaveToFile(path string, cfg *models.Config) error {
+	salvarMu.Lock()
+	defer salvarMu.Unlock()
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
@@ -174,7 +181,26 @@ func SaveToFile(path string, cfg *models.Config) error {
 		cfg = &copia
 	}
 
-	data, err := json.MarshalIndent(cfg, "", "  ")
+	conhecidos, err := json.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	var novos map[string]json.RawMessage
+	if err := json.Unmarshal(conhecidos, &novos); err != nil {
+		return err
+	}
+
+	// Chaves que esta versão não conhece (gravadas por uma mais nova) ficam como
+	// estão. Arquivo ausente, ilegível ou que não seja objeto = mapa vazio.
+	mapa := map[string]json.RawMessage{}
+	if antigo, err := os.ReadFile(path); err == nil {
+		if json.Unmarshal(antigo, &mapa) != nil || mapa == nil {
+			mapa = map[string]json.RawMessage{}
+		}
+	}
+	maps.Copy(mapa, novos)
+
+	data, err := json.MarshalIndent(mapa, "", "  ")
 	if err != nil {
 		return err
 	}

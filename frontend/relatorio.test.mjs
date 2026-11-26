@@ -246,7 +246,8 @@ describe('convenções dos componentes', () => {
     const corpo = f.slice(0, f.search(/\r?\n  \}\r?\n/));
     assert.match(corpo, /if \(lendoOCR\[item\.id\]\) return;/);
     assert.match(corpo, /finally \{[\s\S]*lendoOCR = \{ \.\.\.lendoOCR, \[item\.id\]: false \}/);
-    assert.match(lista, /class="btn-ler-ocr"[^>]*aria-disabled=\{!!lendoOCR\[item\.id\]\}/);
+    // Também travado durante a troca de versão (Task 17 do autoupdate).
+    assert.match(lista, /class="btn-ler-ocr"[^>]*aria-disabled=\{!!lendoOCR\[item\.id\] \|\| entradaBloqueada\}/);
   });
   it('Ler com OCR não usa disabled: num erro o foco fica no botão, e não cai no body', () => {
     const botao = lista.match(/<button\b[^>]*class="btn-ler-ocr"[^>]*>/)?.[0] ?? '';

@@ -1,4 +1,4 @@
-Unicode true
+﻿Unicode true
 
 ####
 ## Please note: Template replacements don't work in this file. They are provided with default defines like
@@ -32,6 +32,10 @@ Unicode true
 ####
 ## Include the wails tools
 ####
+# Mensagens do wails_tools.nsh em português (ele só define as que faltarem).
+!define WAILS_WIN10_REQUIRED "O eprocIA precisa do Windows 10 (Server 2016) ou mais novo."
+!define WAILS_INSTALL_WEBVIEW_DETAILPRINT "Instalando: WebView2 Runtime"
+!define WAILS_ARCHITECTURE_NOT_SUPPORTED "O eprocIA não pode ser instalado nesta arquitetura do Windows."
 !include "wails_tools.nsh"
 
 # The version information for this two must consist of 4 parts
@@ -39,7 +43,7 @@ VIProductVersion "${INFO_PRODUCTVERSION}.0"
 VIFileVersion    "${INFO_PRODUCTVERSION}.0"
 
 VIAddVersionKey "CompanyName"     "${INFO_COMPANYNAME}"
-VIAddVersionKey "FileDescription" "${INFO_PRODUCTNAME} Installer"
+VIAddVersionKey "FileDescription" "Instalador do ${INFO_PRODUCTNAME}"
 VIAddVersionKey "ProductVersion"  "${INFO_PRODUCTVERSION}"
 VIAddVersionKey "FileVersion"     "${INFO_PRODUCTVERSION}"
 VIAddVersionKey "LegalCopyright"  "${INFO_COPYRIGHT}"
@@ -58,13 +62,19 @@ ManifestDPIAware true
 
 !insertmacro MUI_PAGE_WELCOME # Welcome to the installer page.
 # !insertmacro MUI_PAGE_LICENSE "resources\eula.txt" # Adds a EULA page to the installer
+!insertmacro MUI_PAGE_COMPONENTS # Atalho na área de trabalho (opcional).
 !insertmacro MUI_PAGE_DIRECTORY # In which folder install page.
 !insertmacro MUI_PAGE_INSTFILES # Installing page.
+# "Abrir o eprocIA" vem marcada; a função abre o exe pelo explorer.exe, para que
+# ele não herde o administrador do instalador.
+!define MUI_FINISHPAGE_RUN
+!define MUI_FINISHPAGE_RUN_TEXT "Abrir o eprocIA"
+!define MUI_FINISHPAGE_RUN_FUNCTION AbrirEprocIA
 !insertmacro MUI_PAGE_FINISH # Finished installation page.
 
 !insertmacro MUI_UNPAGE_INSTFILES # Uinstalling page
 
-!insertmacro MUI_LANGUAGE "English" # Set the Language of the installer
+!insertmacro MUI_LANGUAGE "PortugueseBR" # Set the Language of the installer
 
 ## The following two statements can be used to sign the installer and the uninstaller. The path to the binaries are provided in %1
 #!uninstfinalize 'signtool --file "%1"'
@@ -75,11 +85,12 @@ OutFile "..\..\bin\${INFO_PROJECTNAME}-${ARCH}-installer.exe" # Name of the inst
 InstallDir "$PROGRAMFILES64\${INFO_COMPANYNAME}\${INFO_PRODUCTNAME}" # Default installing folder ($PROGRAMFILES is Program Files folder).
 ShowInstDetails show # This will always show the installation details.
 
-Function .onInit
-   !insertmacro wails.checkArchitecture
+Function AbrirEprocIA
+    Exec '"$WINDIR\explorer.exe" "$INSTDIR\${PRODUCT_EXECUTABLE}"'
 FunctionEnd
 
-Section
+Section "${INFO_PRODUCTNAME} e atalho no menu Iniciar" SecApp
+    SectionIn RO # Sempre instalado.
     !insertmacro wails.setShellContext
 
     !insertmacro wails.webview2runtime
@@ -89,13 +100,36 @@ Section
     !insertmacro wails.files
 
     CreateShortcut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
-    CreateShortCut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
+    # Uma reinstalação sem a opção abaixo não deixa o atalho antigo para trás.
+    Delete "$DESKTOP\${INFO_PRODUCTNAME}.lnk"
 
     !insertmacro wails.associateFiles
     !insertmacro wails.associateCustomProtocols
 
     !insertmacro wails.writeUninstaller
 SectionEnd
+
+Section "Atalho na área de trabalho" SecDesktop
+    !insertmacro wails.setShellContext
+    CreateShortCut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
+SectionEnd
+
+Function .onInit
+   !insertmacro wails.checkArchitecture
+   # No silencioso (/S) não há página de componentes:
+   # o atalho da área de trabalho só volta se já existia.
+   ${If} ${Silent}
+       !insertmacro wails.setShellContext
+       ${IfNot} ${FileExists} "$DESKTOP\${INFO_PRODUCTNAME}.lnk"
+           !insertmacro UnselectSection ${SecDesktop}
+       ${EndIf}
+   ${EndIf}
+FunctionEnd
+
+!insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecApp} "O programa, com atalho no menu Iniciar."
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecDesktop} "Cria o atalho do ${INFO_PRODUCTNAME} na área de trabalho."
+!insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 Section "uninstall"
     !insertmacro wails.setShellContext

@@ -14,7 +14,7 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ESTADOS, instalarStubs, listaAltoContraste } from './estados.mjs';
+import { ESTADOS, VERSAO_ATUAL, instalarStubs, listaAltoContraste } from './estados.mjs';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PLAYWRIGHT = '1.63.0';
@@ -130,7 +130,7 @@ async function main() {
         for (const nome of estados) {
           const ctx = await navegador.newContext({ viewport: { width: w, height: h }, reducedMotion: 'reduce' });
           const page = await ctx.newPage();
-          await page.addInitScript(instalarStubs, { estado: ESTADOS[nome], tema });
+          await page.addInitScript(instalarStubs, { estado: ESTADOS[nome], tema, versao: VERSAO_ATUAL });
           await page.goto(vite.url);
           await page.waitForLoadState('networkidle');
           await page.waitForTimeout(300);
@@ -140,6 +140,18 @@ async function main() {
             await page.screenshot({ path: arquivo });
             gerados.push(arquivo);
           };
+          if (nome.startsWith('atualizacao-')) {
+            // O bloco Atualizações pode vir recolhido (eprocia.categorias): expande
+            // a categoria e só então rola o bloco até a vista.
+            const cab = page.locator('[aria-controls="grupo-atualizacoes"]');
+            if ((await cab.getAttribute('aria-expanded')) === 'false') {
+              await cab.click();
+              await page.locator('#grupo-atualizacoes').waitFor({ state: 'visible' });
+              await page.waitForTimeout(300);
+            }
+            await page.evaluate(() => document.querySelector('[data-bloco="atualizacoes"]')?.scrollIntoView({ block: 'center' }));
+            await page.waitForTimeout(200);
+          }
           await salvar('');
 
           // Painéis que abrem dentro da linha: a atividade dos documentos do item
@@ -287,7 +299,7 @@ async function main() {
     for (const nome of estados.filter((e) => ALTO_CONTRASTE.includes(e))) {
       const ctx = await navegador.newContext({ viewport: { width: 1024, height: 768 }, reducedMotion: 'reduce', forcedColors: 'active' });
       const page = await ctx.newPage();
-      await page.addInitScript(instalarStubs, { estado: ESTADOS[nome], tema: 'escuro' });
+      await page.addInitScript(instalarStubs, { estado: ESTADOS[nome], tema: 'escuro', versao: VERSAO_ATUAL });
       await page.goto(vite.url);
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(300);

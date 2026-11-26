@@ -109,6 +109,14 @@ type Queue struct {
 	// aoTerminarZip recebe cada execução terminada (sucesso, erro ou
 	// cancelamento), para a telemetria; sempre chamado fora de q.mu.
 	aoTerminarZip func(models.ExecucaoZip)
+
+	// retida impede o início de itens novos sem pausar a fila (a atualização
+	// espera o item em curso antes de trocar o executável).
+	retida bool
+
+	// aoFicarOciosa é avisado, numa goroutine e fora de q.mu, quando um
+	// caminho termina sem iniciar item e a fila está ociosa.
+	aoFicarOciosa func()
 }
 
 // prazoShutdown limita quanto o encerramento do app espera o item em curso.
@@ -423,6 +431,72 @@ func (q *Queue) IsPaused() bool {
 	return q.isPaused
 }
 
+// Reter impede que a fila inicie itens novos, sem pausá-la: os arquivos
+// continuam entrando como "pending", o item em curso termina normalmente e
+// nem Resume nem Reprocessar iniciam nada até Soltar. Não emite queue:status.
+func (q *Queue) Reter() {
+	q.mu.Lock()
+	q.retida = true
+	q.mu.Unlock()
+	slog.Info("fila retida")
+}
+
+// Soltar desfaz Reter e inicia o item pendente mais antigo, se houver.
+func (q *Queue) Soltar() {
+	q.mu.Lock()
+	q.retida = false
+	q.mu.Unlock()
+	slog.Info("fila solta")
+	q.startProcessing()
+}
+
+// Ociosa diz se a fila não tem item "pending" nem "processing" (nem um
+// processItem em curso, caso de um item em processamento já tirado da lista).
+func (q *Queue) Ociosa() bool {
+	q.mu.RLock()
+	defer q.mu.RUnlock()
+	return q.ociosaLocked()
+}
+
+// ociosaLocked exige q.mu travado (leitura ou escrita).
+func (q *Queue) ociosaLocked() bool {
+	if q.isWorking {
+		return false
+	}
+	return !slices.ContainsFunc(q.items, func(it *QueueItem) bool {
+		return it.Status == "pending" || it.Status == "processing"
+	})
+}
+
+// SetAoFicarOciosa registra quem é avisado quando um caminho da fila termina
+// sem iniciar item e ela está ociosa (fim do último item, Clear, CancelItem,
+// RemoveItem...). O aviso roda numa goroutine, fora de q.mu, e não depende do
+// contexto do Wails; pode chegar mais de uma vez para a mesma ociosidade.
+func (q *Queue) SetAoFicarOciosa(fn func()) {
+	q.mu.Lock()
+	q.aoFicarOciosa = fn
+	q.mu.Unlock()
+}
+
+// avisoSeOciosaLocked exige q.mu travado; devolve a chamada a fazer depois de
+// destravar, ou nil quando não há aviso (fila não ociosa ou sem callback).
+func (q *Queue) avisoSeOciosaLocked() func() {
+	fn := q.aoFicarOciosa
+	if fn == nil || !q.ociosaLocked() {
+		return nil
+	}
+	return func() {
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Error("pânico no aviso de fila ociosa", "erro", fmt.Sprint(r))
+				}
+			}()
+			fn()
+		}()
+	}
+}
+
 // CancelItem cancels processing of an item.
 func (q *Queue) CancelItem(id string) {
 	q.mu.Lock()
@@ -443,8 +517,12 @@ func (q *Queue) CancelItem(id string) {
 			target.Message = "Cancelado"
 		}
 	}
+	aviso := q.avisoSeOciosaLocked()
 	q.mu.Unlock()
 	q.broadcast()
+	if aviso != nil {
+		aviso()
+	}
 }
 
 // RemoveItem cancels (if running) and removes an item from the list.
@@ -478,8 +556,12 @@ func (q *Queue) Clear() {
 		}
 	}
 	q.items = make([]*QueueItem, 0)
+	aviso := q.avisoSeOciosaLocked()
 	q.mu.Unlock()
 	q.broadcast()
+	if aviso != nil {
+		aviso()
+	}
 }
 
 // LimparConcluidos tira da lista os itens com sucesso, erro ou cancelados; o
@@ -501,13 +583,17 @@ func (q *Queue) LimparConcluidos() {
 
 func (q *Queue) startProcessing() {
 	q.mu.Lock()
-	slog.Debug("startProcessing", "pausada", q.isPaused, "em_execucao", q.isWorking, "itens", len(q.items))
+	slog.Debug("startProcessing", "pausada", q.isPaused, "retida", q.retida, "em_execucao", q.isWorking, "itens", len(q.items))
 	if q.encerrada {
 		q.mu.Unlock()
 		return
 	}
-	if q.isPaused || q.isWorking {
+	if q.isPaused || q.retida || q.isWorking {
+		aviso := q.avisoSeOciosaLocked()
 		q.mu.Unlock()
+		if aviso != nil {
+			aviso()
+		}
 		return
 	}
 
@@ -521,7 +607,11 @@ func (q *Queue) startProcessing() {
 	}
 
 	if nextItem == nil {
+		aviso := q.avisoSeOciosaLocked()
 		q.mu.Unlock()
+		if aviso != nil {
+			aviso()
+		}
 		return
 	}
 

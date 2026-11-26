@@ -4,7 +4,9 @@
   import { cubicOut } from 'svelte/easing';
   import { duracaoMovimento, DUR_FAST } from '../lib/aviso.js';
   import { OPCOES_OCR, OPCOES_LIMPEZA } from '../lib/atividade.js';
+  import { dica } from '../lib/dica.js';
   import {
+    ATUALIZACAO,
     AJUDA_FORCAR_OCR_REPROCESSAR,
     AJUDA_FORCAR_OCR_SEM_OCR,
     ROTULO_FORCAR_OCR_REPROCESSAR
@@ -24,6 +26,8 @@
   // Recebe (ocr, limpeza, forcar); devolve uma Promise que rejeita se a fila recusar.
   export let aoConfirmar = async () => {};
   export let aoCancelar = () => {};
+  // Durante a troca de versão a fila não aceita entrada (aceitaEntrada).
+  export let entradaBloqueada = false;
 
   let ocr = ocrInicial;
   let limpeza = limpezaInicial;
@@ -34,7 +38,7 @@
   onMount(() => primeiroCampo?.focar());
 
   async function confirmar() {
-    if (enviando) return;
+    if (enviando || entradaBloqueada) return;
     enviando = true;
     try {
       await aoConfirmar(ocr, limpeza, forcar);
@@ -74,7 +78,7 @@
   </div>
   <div class="botoes">
     <button type="button" class="secundario" on:click={aoCancelar}>Cancelar</button>
-    <button type="submit" class="primario" disabled={enviando}>
+    <button type="submit" class="primario" disabled={enviando} aria-disabled={entradaBloqueada} use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : ''}>
       <Icone icone={RotateCcw} tamanho={12} />
       Reprocessar
     </button>
@@ -159,7 +163,7 @@
     color: var(--on-accent);
   }
 
-  .primario:hover {
+  .primario:hover:not([aria-disabled='true']) {
     background-color: var(--accent-strong-hover);
   }
 
@@ -169,6 +173,12 @@
   }
 
   .primario:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  /* Troca de versão em curso: segue focável (a dica explica); confirmar() barra o envio. */
+  .primario[aria-disabled='true'] {
     opacity: 0.6;
     cursor: default;
   }
