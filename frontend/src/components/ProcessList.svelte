@@ -51,7 +51,7 @@
   import { criarAviso, duracaoMovimento, DUR_FAST, DUR_BASE } from '../lib/aviso.js';
   import { aplicarReprocessarComOCR, alvoAoFecharReprocessar, argumentosLerComOCR, limpezaInicialReprocessar } from '../lib/reprocessar.js';
   import { resumoPaginas, avisosPaginas, mostrarLerComOCR } from '../lib/relatorio.js';
-  import { ATUALIZACAO, EXPLICACAO_OCR, ROTULO_LER_COM_OCR, DICA_LER_COM_OCR, DICA_ABRIR_RELATORIO, DICA_FECHAR_RELATORIO, TIPO_ENTRADA } from '../lib/textos.js';
+  import { ATUALIZACAO, HISTORICO, EXPLICACAO_OCR, ROTULO_LER_COM_OCR, DICA_LER_COM_OCR, DICA_ABRIR_RELATORIO, DICA_FECHAR_RELATORIO, TIPO_ENTRADA } from '../lib/textos.js';
   import { dica } from '../lib/dica.js';
   import { rotuloNaoLidos, avisoCopiaNaoLidos, tituloNaoLidos } from '../lib/naoLidos.js';
   import { rolagem } from '../lib/rolagem.js';
@@ -98,7 +98,8 @@
     aguardando: 'Aguardando',
     sucesso: 'Concluído',
     erro: 'Erro',
-    cancelado: 'Cancelado'
+    cancelado: 'Cancelado',
+    interrompido: HISTORICO.interrompido
   };
 
   $: aviso = avisoFila(items, isPaused);
@@ -149,7 +150,7 @@
   let atividadesBuscadas = {};
 
   function temAtividade(estado) {
-    return estado === 'processando' || estado === 'sucesso' || estado === 'erro' || estado === 'cancelado';
+    return estado === 'processando' || estado === 'sucesso' || estado === 'erro' || estado === 'cancelado' || estado === 'interrompido';
   }
 
   async function alternarAtividade(item) {
@@ -184,6 +185,8 @@
     const abrir = !reprocessarAberto[id];
     // Durante a troca só abrir é barrado; fechar pelo ícone continua.
     if (entradaBloqueada && abrir) return;
+    // Origem sumida (item do histórico): não há o que reprocessar.
+    if (abrir && items.find((i) => i.id === id)?.source_missing) return;
     reprocessarAberto = { ...reprocessarAberto, [id]: abrir };
     const { [id]: _, ...resto } = ocrSugerido;
     ocrSugerido = resto;
@@ -262,6 +265,22 @@
       atividadesBuscadas = resto;
     } catch (err) {
       console.error('Erro ao reprocessar:', err);
+      avisoAcao.mostrar('Erro ao reprocessar: ' + (err?.message ?? err), 'error');
+    }
+  }
+
+  // "Processar de novo" do item interrompido: volta à fila com a config atual,
+  // sem formulário. O foco espera no botão e vai ao Cancelar quando a linha troca.
+  async function processarDeNovo(item, evento) {
+    if (entradaBloqueada || item.source_missing) return;
+    guardarFoco(item.id, evento, 'cancelar');
+    try {
+      await ReprocessQueueItem(item.id, config?.ocr_mode || 'normal', config?.cleaning_level || 'standard', !!config?.forcar_ocr);
+      const { [item.id]: _, ...resto } = atividadesBuscadas;
+      atividadesBuscadas = resto;
+    } catch (err) {
+      focoPendente = null;
+      console.error('Erro ao processar de novo:', err);
       avisoAcao.mostrar('Erro ao reprocessar: ' + (err?.message ?? err), 'error');
     }
   }
@@ -563,7 +582,7 @@
           </button>
         {/if}
         {#if concluidos > 0}
-          <button class="btn-clear" on:click={handleLimparConcluidos} title="Remover da lista os concluídos, com erro e cancelados" aria-label="Limpar concluídos">
+          <button class="btn-clear" on:click={handleLimparConcluidos} title={HISTORICO.tituloLimparConcluidos} aria-label="Limpar concluídos">
             <Icone icone={ListX} tamanho={12} />
             <span class="rotulo-acao">Limpar concluídos</span>
           </button>
@@ -641,6 +660,8 @@
                     <Icone icone={CircleAlert} cor="var(--error)" />
                   {:else if estado === 'cancelado'}
                     <Icone icone={CircleSlash} cor="var(--text-secondary)" />
+                  {:else if estado === 'interrompido'}
+                    <Icone icone={CirclePause} cor="var(--warning)" />
                   {/if}
                 </span>
               {/key}
@@ -668,6 +689,9 @@
               <span class="details-row">
                 <span class="timestamp">{formatarQuando(item, agora)}</span>
                 {#if estado === 'sucesso'}
+                  {#if item.output_missing}
+                    <span class="txt-ausente">{HISTORICO.txtAusente}</span>
+                  {/if}
                   {#if copiadoId === item.id}
                     <span class="copiado-texto" in:fade={{ duration: duracaoMovimento(DUR_FAST) }}>Copiado</span>
                   {:else}
@@ -701,6 +725,8 @@
                   <span class="pending-message">Aguardando na fila...</span>
                 {:else if estado === 'cancelado'}
                   <span class="cancelled-message">Cancelado</span>
+                {:else if estado === 'interrompido'}
+                  <span class="interrupted-message">{HISTORICO.interrompido}</span>
                 {:else if estado === 'erro'}
                   <span class="error-message truncate">{item.message || 'Erro no processamento'}</span>
                 {/if}
@@ -760,23 +786,25 @@
                     data-acao="reprocessar"
                     data-parada="reprocessar"
                     tabindex={tabParada(item.id, 'reprocessar', paradaAtiva)}
-                    aria-disabled={entradaBloqueada}
+                    aria-disabled={entradaBloqueada || !!item.source_missing}
                     on:click={(e) => alternarReprocessar(item.id, e)}
-                    use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : 'Reprocessar com outras configurações'}
+                    use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : item.source_missing ? HISTORICO.origemAusente : 'Reprocessar com outras configurações'}
                     aria-label={rotuloAcao('Reprocessar', item.name)}
                     aria-expanded={!!reprocessarAberto[item.id]}
                     aria-controls="reprocessar-{item.id}"
                   >
                     <Icone icone={RotateCcw} tamanho={14} />
                   </button>
+                  <!-- TXT ausente: desativado e fora do foco itinerante (paradasItem). -->
                   <button
                     class="btn-action"
                     data-acao="copiar"
-                    data-parada="copiar"
+                    data-parada={item.output_missing ? undefined : 'copiar'}
                     tabindex={tabParada(item.id, 'copiar', paradaAtiva)}
+                    aria-disabled={!!item.output_missing}
                     class:copiado={copiadoId === item.id}
-                    on:click={() => handleCopy(item)}
-                    use:dica={copiadoId === item.id ? 'Copiado!' : 'Copiar o TXT para colar na IA'}
+                    on:click={() => { if (copiavel(item)) handleCopy(item); }}
+                    use:dica={item.output_missing ? HISTORICO.txtAusente : copiadoId === item.id ? 'Copiado!' : 'Copiar o TXT para colar na IA'}
                     aria-label={rotuloAcao('Copiar o TXT', item.name)}
                   >
                     {#key copiadoId === item.id}
@@ -799,6 +827,33 @@
                     aria-label={rotuloAcao('Abrir pasta contendo o TXT', item.name)}
                   >
                     <Icone icone={FolderOpen} tamanho={14} />
+                  </button>
+                  <button
+                    class="btn-action btn-remove"
+                    data-acao="remover"
+                    data-parada="remover"
+                    tabindex={tabParada(item.id, 'remover', paradaAtiva)}
+                    on:click={(e) => handleRemove(item.id, e)}
+                    use:dica={'Remover da lista'}
+                    aria-label={rotuloAcao('Remover da lista', item.name)}
+                  >
+                    <Icone icone={Trash2} tamanho={14} />
+                  </button>
+                </div>
+              {:else if item.status === 'interrupted'}
+                <!-- Interrompido pelo fechamento: volta à fila com a config atual. -->
+                <div class="error-actions">
+                  <button
+                    class="btn-action"
+                    data-acao="processar"
+                    data-parada="reprocessar"
+                    tabindex={tabParada(item.id, 'reprocessar', paradaAtiva)}
+                    aria-disabled={entradaBloqueada || !!item.source_missing}
+                    on:click={(e) => processarDeNovo(item, e)}
+                    use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : item.source_missing ? HISTORICO.origemAusente : HISTORICO.processarDeNovo}
+                    aria-label={rotuloAcao(HISTORICO.processarDeNovo, item.name)}
+                  >
+                    <Icone icone={Play} tamanho={14} />
                   </button>
                   <button
                     class="btn-action btn-remove"
@@ -836,9 +891,9 @@
                     data-acao="reprocessar"
                     data-parada="reprocessar"
                     tabindex={tabParada(item.id, 'reprocessar', paradaAtiva)}
-                    aria-disabled={entradaBloqueada}
+                    aria-disabled={entradaBloqueada || !!item.source_missing}
                     on:click={(e) => alternarReprocessar(item.id, e)}
-                    use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : 'Reprocessar com outras configurações'}
+                    use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : item.source_missing ? HISTORICO.origemAusente : 'Reprocessar com outras configurações'}
                     aria-label={rotuloAcao('Reprocessar', item.name)}
                     aria-expanded={!!reprocessarAberto[item.id]}
                     aria-controls="reprocessar-{item.id}"
@@ -932,6 +987,7 @@
                 id="atividade-{item.id}"
                 atividade={atividadeDe(item.id, atividades, atividadesBuscadas)}
                 emAndamento={estado === 'processando'}
+                restaurado={item.restaurado}
                 aoReprocessarComOCR={(e) => reprocessarComOCR(item.id, e)}
               />
             {/if}
@@ -1485,6 +1541,7 @@
   .details-row > .paused-message,
   .details-row > .pending-message,
   .details-row > .cancelled-message,
+  .details-row > .interrupted-message,
   .details-row > .error-message {
     flex: 1 1 0;
     min-width: 48px;
@@ -1565,6 +1622,18 @@
 
   .cancelled-message {
     color: var(--text-secondary);
+  }
+
+  .interrupted-message {
+    color: var(--warning-strong);
+  }
+
+  .details-row > .txt-ausente {
+    flex: none;
+    color: var(--warning-strong);
+    font-size: var(--fs-meta);
+    font-weight: 500;
+    white-space: nowrap;
   }
 
   .error-message {

@@ -56,7 +56,7 @@
   import { ROTULO_MONITORAMENTO, estadoMonitoramento, textoMonitoramento } from './lib/monitoramento.js';
   import { criarSoltura, textoAceitos, textoJaNaFila } from './lib/soltura.js';
   import { aceitaEntrada } from './lib/atualizacao.js';
-  import { ATUALIZACAO } from './lib/textos.js';
+  import { ATUALIZACAO, HISTORICO } from './lib/textos.js';
   import {
     CONSULTA_ESCURO,
     NOME_TEMA,
@@ -166,6 +166,11 @@
     EstadoAtualizacao().then((e) => {
       if (!atualizacaoAvisada && e) estadoAtualizacao = e;
     }).catch((err) => console.warn('Erro ao consultar a atualização:', err));
+
+    // Falha de escrita do historico.json: o Go avisa uma vez por sessão.
+    unsubscribers.push(
+      EventsOn('historico:falha', () => aviso.mostrar(HISTORICO.falhaGravar, 'aviso'))
+    );
 
     // Load initial config
     await refreshConfig();

@@ -118,7 +118,7 @@ test('Settings confirma com Check ao lado do controle, sem toast de sucesso', ()
   assert.match(settings, /import Salvo from '\.\/Salvo\.svelte'/);
   assert.match(settings, /criarConfirmacao\(/);
   assert.match(settings, /onDestroy\(confirmacao\.limpar\)/);
-  const campos = ['watchdog', 'pasta', 'ocr', 'limpeza', 'omitir', 'autostart', 'forcar', 'monitorarPdf'];
+  const campos = ['watchdog', 'pasta', 'ocr', 'limpeza', 'omitir', 'autostart', 'forcar', 'monitorarPdf', 'historico'];
   for (const campo of campos) {
     assert.match(settings, new RegExp(`<Salvo campo="${campo}" \\{confirmado\\} />`), `${campo} sem confirmação`);
   }

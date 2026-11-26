@@ -305,7 +305,8 @@ describe('interface da atualização', () => {
     assert.equal(bs.length, 2);
     for (const b of bs) {
       // aria-disabled, e não disabled: o botão segue no foco itinerante da linha.
-      assert.match(b, /aria-disabled=\{entradaBloqueada\}/);
+      // O histórico soma a origem ausente (historico.test.mjs).
+      assert.match(b, /aria-disabled=\{entradaBloqueada(?: \|\| !!item\.source_missing)?\}/);
       assert.doesNotMatch(b, /\sdisabled=/);
       assert.match(b, /use:dica=\{entradaBloqueada \? ATUALIZACAO\.soltarDepois : /);
       assert.doesNotMatch(b, /\btitle=/, 'a explicação vai na dica, não no title');

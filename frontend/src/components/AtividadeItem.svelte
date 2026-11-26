@@ -13,6 +13,7 @@
   import { cubicOut } from 'svelte/easing';
   import { prepararDocs, segmentos, naoLido, rotuloEstadoDoc, LIMITE_AGUARDANDO, LIMITE_FLIP_DOCS } from '../lib/atividade.js';
   import { duracaoMovimento, DUR_FAST } from '../lib/aviso.js';
+  import { HISTORICO } from '../lib/textos.js';
 
   // Instantâneo de etl.InstantaneoAtividade; null enquanto carrega e
   // 'nenhuma' quando o item foi cancelado antes de começar.
@@ -22,6 +23,8 @@
   export let emAndamento = true;
   // Abre o reprocessamento da linha com OCR ligado (botão "Reprocessar com OCR").
   export let aoReprocessarComOCR = () => {};
+  // Item que veio do histórico e não foi processado nesta sessão: sem instantâneo.
+  export let restaurado = false;
 
   let mostrarConcluidos = false;
   let expandirAguardando = false;
@@ -43,7 +46,11 @@
   {#if !atividade}
     <p class="vazio">Carregando a atividade...</p>
   {:else if atividade === 'nenhuma'}
-    <p class="vazio">Sem registro dos documentos: este item não chegou a ser processado.</p>
+    {#if restaurado}
+      <p class="vazio">{HISTORICO.semDetalhes}</p>
+    {:else}
+      <p class="vazio">Sem registro dos documentos: este item não chegou a ser processado.</p>
+    {/if}
   {:else}
     {#if emAndamento}
       <div class="medidores">

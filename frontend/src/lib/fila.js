@@ -160,7 +160,11 @@ export function textoConfirmarLimpeza(items) {
 export function paradasItem(item, expansivel) {
   const p = expansivel ? ['info'] : [];
   if (item.status === 'processing' || item.status === 'pending') return [...p, 'cancelar'];
-  if (item.status === 'success' && item.output_path) return [...p, 'reprocessar', 'copiar', 'abrir', 'remover', ...paradasRelatorio(item)];
+  if (item.status === 'success' && item.output_path) {
+    // TXT ausente: o Copiar fica desativado e fora do foco; Abrir pasta continua.
+    const copiar = item.output_missing ? [] : ['copiar'];
+    return [...p, 'reprocessar', ...copiar, 'abrir', 'remover', ...paradasRelatorio(item)];
+  }
   if (item.status === 'error') p.push('detalhes');
   return [...p, 'reprocessar', 'remover', ...paradasRelatorio(item)];
 }

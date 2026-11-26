@@ -5,6 +5,7 @@
   import FileSearch from 'lucide-svelte/icons/file-search';
   import FolderOpen from 'lucide-svelte/icons/folder-open';
   import FolderSearch from 'lucide-svelte/icons/folder-search';
+  import History from 'lucide-svelte/icons/history';
   import LoaderCircle from 'lucide-svelte/icons/loader-circle';
   import Power from 'lucide-svelte/icons/power';
   import ScanEye from 'lucide-svelte/icons/scan-eye';
@@ -26,6 +27,7 @@
     AJUDA_FORCAR_OCR_SEM_OCR,
     AJUDA_MONITORAR_PDF,
     ERRO_ABRIR_LOGS,
+    HISTORICO,
     ROTULO_FORCAR_OCR_CONFIG,
     ROTULO_MONITORAR_PDF
   } from '../lib/textos.js';
@@ -54,6 +56,7 @@
     auto_start: false,
     watchdog_enabled: true,
     monitorar_pdf: false,
+    guardar_historico: false,
     omitir_tipos: []
   };
 
@@ -151,7 +154,8 @@
     omitir: 'Tipos omitidos',
     autostart: 'Iniciar com o Windows',
     forcar: ROTULO_FORCAR_OCR_CONFIG,
-    monitorarPdf: ROTULO_MONITORAR_PDF
+    monitorarPdf: ROTULO_MONITORAR_PDF,
+    historico: HISTORICO.interruptor
   };
 
   async function abrirPastaLogs() {
@@ -392,6 +396,28 @@
             />
             <span class="slider" aria-hidden="true"></span>
           </label>
+        </div>
+
+        <div class="form-group">
+          <div class="toggle-group">
+            <label for="guardar-historico">
+              <span class="icone-rotulo"><Icone icone={History} tamanho={14} /></span>
+              <span class="rotulo-texto">{HISTORICO.interruptor}</span>
+              <Salvo campo="historico" {confirmado} />
+            </label>
+            <label class="switch">
+              <input
+                id="guardar-historico"
+                type="checkbox"
+                role="switch"
+                bind:checked={config.guardar_historico}
+                aria-describedby="ajuda-guardar-historico"
+                on:change={() => handleSave('historico')}
+              />
+              <span class="slider" aria-hidden="true"></span>
+            </label>
+          </div>
+          <p class="help-text" id="ajuda-guardar-historico">{HISTORICO.fraseInterruptor}</p>
         </div>
 
         {#if logAtivo}
