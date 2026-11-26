@@ -411,17 +411,30 @@ describe('interface da atualização', () => {
   it('App: erros de pôr na fila passam por avisoErroEntrada', () => {
     const ini = app.indexOf('OnFileDrop(');
     const cb = app.slice(ini, app.indexOf('}, false)', ini));
-    assert.match(cb, /avisoErroEntrada\(err, 'Erro ao adicionar à fila: '\)/);
+    assert.match(cb, /const r = avisoErroEntrada\(err, 'Erro ao adicionar à fila: '\);\s*aviso\.mostrar\(r\.texto, r\.tipo\);/);
     assert.doesNotMatch(cb, /'Erro ao adicionar à fila: ' \+/);
     const f = corpoFuncao(app, 'async function triggerManualSelect');
-    assert.match(f, /avisoErroEntrada\(err, 'Erro ao selecionar arquivos: '\)/);
+    assert.match(f, /const r = avisoErroEntrada\(err, 'Erro ao selecionar arquivos: '\);\s*avisarPainel\(r\.texto, r\.tipo\);/);
     assert.doesNotMatch(f, /'Erro ao selecionar arquivos: ' \+/);
   });
   it('ProcessList: erros de reprocessar passam por avisoErroEntrada', () => {
     for (const nome of ['async function lerComOCR', 'async function confirmarReprocessar']) {
       const f = corpoFuncao(lista, nome);
-      assert.match(f, /avisoErroEntrada\(err, 'Erro ao reprocessar: '\)/, nome);
+      assert.match(f, /const r = avisoErroEntrada\(err, 'Erro ao reprocessar: '\);\s*avisoAcao\.mostrar\(r\.texto, r\.tipo\);/, nome);
       assert.doesNotMatch(f, /'Erro ao reprocessar: ' \+/, nome);
     }
+  });
+});
+
+describe('README', () => {
+  it('README: atualização não nega a telemetria local', () => {
+    const readme = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'README.md'), 'utf8').replace(/\r\n/g, '\n');
+    const ini = readme.indexOf('## 🔄 Atualização pelo programa');
+    assert.ok(ini >= 0, 'seção de atualização ausente');
+    const fim = readme.indexOf('\n## ', ini + 1);
+    const secao = readme.slice(ini, fim < 0 ? undefined : fim);
+    assert.doesNotMatch(secao, /Não há telemetria/);
+    assert.match(secao, /EPROCIA_LOG/);
+    assert.match(secao, /fica só no computador/);
   });
 });
