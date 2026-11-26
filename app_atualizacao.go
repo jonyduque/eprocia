@@ -39,7 +39,15 @@ type arranque struct {
 	recusa         string // motivo fixo da recusa; "" = aceito ou sem flag
 	paiPID         int
 	paiExe         string // só o nome da imagem do pai
+	semConfirmar   string // motivo fixo de a flag ter sido aceita sem conferir o pai
+	errPai         error  // erro da leitura do pai, só para o log
 }
+
+// Motivos fixos de aceitar o --apos-atualizar sem conferir o pai (vão só ao log).
+const (
+	motivoPaiIlegivel      = "não foi possível ler o processo pai"
+	motivoPaiForaDoRetrato = "o processo pai não está no instantâneo"
+)
 
 // lerArranque lê --apos-atualizar e --limpar-anterior e confere a origem da
 // flag: o processo novo da troca é filho do antigo (troca.go, exec.Command),
@@ -61,6 +69,12 @@ func lerArranque(args []string, pai func() (int, string, error)) arranque {
 	}
 	r.apos = pid
 	r.limparAnterior = atualizacao.LimparAnteriorPedido(args)
+	switch {
+	case err != nil:
+		r.semConfirmar, r.errPai = motivoPaiIlegivel, err
+	case exe == "":
+		r.semConfirmar = motivoPaiForaDoRetrato
+	}
 	return r
 }
 
@@ -73,6 +87,20 @@ func (a *App) logarRecusaApos() {
 	}
 	slog.Warn("atualização: --apos-atualizar ignorado; partida normal",
 		"motivo", r.recusa, "pid_flag", r.pidFlag, "ppid", r.paiPID, "pai_exe", r.paiExe)
+}
+
+// logarAposSemConfirmar registra quando o --apos-atualizar foi aceito sem
+// conferir o pai; roda depois de iniciar o registro, junto de logarRecusaApos.
+func (a *App) logarAposSemConfirmar() {
+	r := a.arranque
+	if r.semConfirmar == "" {
+		return
+	}
+	attrs := []any{"motivo", r.semConfirmar, "pid_flag", r.pidFlag, "ppid", r.paiPID}
+	if r.errPai != nil {
+		attrs = append(attrs, "erro", r.errPai)
+	}
+	slog.Info("atualização: --apos-atualizar aceito sem conferir o processo pai", attrs...)
 }
 
 // travaAposAtualizar adia a trava de instância do processo aberto pela troca

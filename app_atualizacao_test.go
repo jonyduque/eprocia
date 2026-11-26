@@ -1077,6 +1077,7 @@ func TestMsgSoltarDepois_IgualAoFrontend(t *testing.T) {
 }
 
 func TestLerArranque(t *testing.T) {
+	errSnapshot := errors.New("snapshot")
 	comLimpar := []string{"eprocia.exe", "--apos-atualizar=4242", "--limpar-anterior"}
 	casos := []struct {
 		nome    string
@@ -1093,8 +1094,10 @@ func TestLerArranque(t *testing.T) {
 			arranque{pidFlag: 4242, recusa: "o pid informado não é o processo pai", paiPID: 9999, paiExe: "pwsh.exe"}, 1},
 		{"pai não é eprocIA", comLimpar, 4242, "pwsh.exe", nil,
 			arranque{pidFlag: 4242, recusa: "o processo pai não é o eprocIA", paiPID: 4242, paiExe: "pwsh.exe"}, 1},
-		{"erro do pai", comLimpar, 0, "", errors.New("snapshot"),
-			arranque{apos: 4242, limparAnterior: true, pidFlag: 4242}, 1},
+		{"erro do pai", comLimpar, 0, "", errSnapshot,
+			arranque{apos: 4242, limparAnterior: true, pidFlag: 4242, semConfirmar: motivoPaiIlegivel, errPai: errSnapshot}, 1},
+		{"pai fora do instantâneo", comLimpar, 4242, "", nil,
+			arranque{apos: 4242, limparAnterior: true, pidFlag: 4242, paiPID: 4242, semConfirmar: motivoPaiForaDoRetrato}, 1},
 		{"sem limpar", []string{"eprocia.exe", "--apos-atualizar=4242"}, 4242, "eprocia.exe", nil,
 			arranque{apos: 4242, pidFlag: 4242, paiPID: 4242, paiExe: "eprocia.exe"}, 1},
 		{"só limpar", []string{"eprocia.exe", "--limpar-anterior"}, 4242, "eprocia.exe", nil, arranque{}, 0},
@@ -1144,6 +1147,54 @@ func TestLogarRecusaApos(t *testing.T) {
 		buf.Reset()
 		app := &App{arranque: a}
 		app.logarRecusaApos()
+		if buf.Len() != 0 {
+			t.Errorf("arranque %+v logou %q", a, buf.String())
+		}
+	}
+}
+
+func TestLogarAposSemConfirmar(t *testing.T) {
+	antigo, saida, flags := slog.Default(), log.Writer(), log.Flags()
+	t.Cleanup(func() {
+		slog.SetDefault(antigo)
+		log.SetOutput(saida)
+		log.SetFlags(flags)
+	})
+	var buf bytes.Buffer
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+
+	casos := []struct {
+		a    arranque
+		quer []string
+	}{
+		{arranque{apos: 4242, pidFlag: 4242, semConfirmar: motivoPaiIlegivel, errPai: errors.New("snapshot")},
+			[]string{"level=INFO", "--apos-atualizar aceito sem conferir o processo pai", `motivo="não foi possível ler o processo pai"`, "pid_flag=4242", "erro=snapshot"}},
+		{arranque{apos: 4242, pidFlag: 4242, paiPID: 4242, semConfirmar: motivoPaiForaDoRetrato},
+			[]string{"level=INFO", "--apos-atualizar aceito sem conferir o processo pai", `motivo="o processo pai não está no instantâneo"`, "pid_flag=4242", "ppid=4242"}},
+	}
+	for _, c := range casos {
+		buf.Reset()
+		app := &App{arranque: c.a}
+		app.logarAposSemConfirmar()
+		linha := buf.String()
+		if strings.Count(linha, "\n") != 1 {
+			t.Fatalf("quer uma linha, veio %q", linha)
+		}
+		for _, quer := range c.quer {
+			if !strings.Contains(linha, quer) {
+				t.Errorf("log %q sem %q", linha, quer)
+			}
+		}
+	}
+	if strings.Contains(buf.String(), "erro=") {
+		t.Errorf("sem erro do pai, o log não traz erro: %q", buf.String())
+	}
+
+	for _, a := range []arranque{{}, {apos: 4242, pidFlag: 4242, paiPID: 4242, paiExe: "eprocia.exe"},
+		{pidFlag: 4242, recusa: atualizacao.MotivoPaiNaoEprocia, paiPID: 4242, paiExe: "pwsh.exe"}} {
+		buf.Reset()
+		app := &App{arranque: a}
+		app.logarAposSemConfirmar()
 		if buf.Len() != 0 {
 			t.Errorf("arranque %+v logou %q", a, buf.String())
 		}

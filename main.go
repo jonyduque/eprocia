@@ -47,6 +47,7 @@ func main() {
 			app.guardarConfig(carregarConfig(config.Load))
 			iniciarRegistro(os.Getenv("EPROCIA_LOG"), app.pastaDados, app.configAtual())
 			app.logarRecusaApos()
+			app.logarAposSemConfirmar()
 		},
 	)
 	if sair {
