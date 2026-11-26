@@ -43,6 +43,7 @@ function item(n, status, extra = {}) {
     total_pages: 0,
     timestamp: BASE_TS + n * 60000,
     unread_docs: 0,
+    kind: 'zip',
     ...extra,
   };
 }
@@ -188,6 +189,33 @@ const REL_NAO_LIDOS = relatorioZip({
   totalMs: 21300, bytesTxt: 393800, tokens: 98450,
 });
 
+// Fila do estado `fila-pdf`: um ZIP, um PDF avulso e um item de três PDFs do
+// mesmo processo (o nome do item é o do TXT sem extensão e "(N PDFs)").
+const pdfDe = (n, peca) => `${CONFIG.monitored_path}\\${processo(n)} - ${peca}.pdf`;
+const FILA_PDF = [
+  concluido(21, REL_NATIVO),
+  {
+    ...concluido(22, relatorioZip({
+      docs: 1, pdf: 1, html: 0, porLeitura: { lido: 1 },
+      paginas: { lida_nativa: 12 }, totalMs: 900, bytesTxt: 31200, tokens: 7800,
+    })),
+    kind: 'pdf',
+    name: processo(22),
+    path: `${CONFIG.monitored_path}\\${processo(22)}.pdf`,
+    paths: [`${CONFIG.monitored_path}\\${processo(22)}.pdf`],
+  },
+  {
+    ...concluido(23, relatorioZip({
+      docs: 3, pdf: 3, html: 0, porLeitura: { lido: 3 },
+      paginas: { lida_nativa: 27 }, totalMs: 2100, bytesTxt: 70400, tokens: 17600,
+    })),
+    kind: 'pdf',
+    name: `${processo(23)} (3 PDFs)`,
+    path: pdfDe(23, 'Evento 1 - INIC1'),
+    paths: [pdfDe(23, 'Evento 1 - INIC1'), pdfDe(23, 'Evento 5 - CONT1'), pdfDe(23, 'Evento 9 - SENT1')],
+  },
+];
+
 // listaAltoContraste: states captured with forced colors, from review.json
 // (visual.alto_contraste). A missing list or key is an empty list.
 export function listaAltoContraste(config) {
@@ -208,6 +236,7 @@ export const ESTADOS = {
       item(5, 'cancelled', { message: 'Cancelado pelo usuário' })],
     pausado: false,
   },
+  'fila-pdf': { config: CONFIG, fila: FILA_PDF, pausado: false },
   processando: {
     config: CONFIG,
     fila: [sucesso(1), processando(2, 42), item(3, 'pending'), item(4, 'pending')],
@@ -304,6 +333,7 @@ export function instalarStubs({ estado, tema, versao }) {
     AbrirPastaLogs: undefined,
     ReprocessQueueItem: (_id, _ocr, _limpeza, _forcar) => undefined,
     SelectZipFiles: [],
+    SelectFiles: [],
     SelectDirectory: '',
     SelectZipFile: '',
   };

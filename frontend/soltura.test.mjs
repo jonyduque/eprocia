@@ -122,9 +122,9 @@ test('App usa o controlador de soltura, sem clientX/clientY, e anuncia o aceito'
   assert.match(app, /soltura\.recebido\(/);
   // overlay e anúncio usam o número que a fila devolveu, não o que foi solto;
   // o soltar usa AddDroppedFiles, que marca a origem "arrastada" (telemetria)
-  assert.match(app, /AddDroppedFiles\(zips\)\.then\(\(n\) => \{\s*soltura\.recebido\(n\);/);
-  assert.match(app, /anunciar\(n > 0 \? textoAceitos\(n\) : textoJaNaFila\(zips\.length\)\)/);
-  assert.doesNotMatch(app, /soltura\.recebido\(zips\.length\)/);
+  assert.match(app, /AddDroppedFiles\(aceitos\)\.then\(\(n\) => \{\s*soltura\.recebido\(n\);/);
+  assert.match(app, /anunciar\(n > 0 \? textoAceitos\(n\) : textoJaNaFila\(aceitos\.length\)\)/);
+  assert.doesNotMatch(app, /soltura\.recebido\(aceitos\.length\)/);
   // a região viva é esvaziada antes de anunciar: o App escreve pelo anunciador,
   // que escreve '' e só então espera o tick e escreve o texto
   assert.match(app, /const anunciar = criarAnunciador\(\(t\) => \(anuncio = t\), tick\)/);

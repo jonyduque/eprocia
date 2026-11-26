@@ -284,11 +284,11 @@ describe('interface da atualização', () => {
   it('App: seleção manual confere antes do diálogo e de novo antes de pôr na fila', () => {
     const f = corpoFuncao(app, 'async function triggerManualSelect');
     const a1 = f.indexOf('aceitaEntrada(');
-    const sel = f.indexOf('SelectZipFiles(');
+    const sel = f.indexOf('SelectFiles(');
     const add = f.indexOf('AddFilesToQueue(');
-    assert.ok(a1 >= 0 && a1 < sel, 'aceitaEntrada antes de SelectZipFiles');
+    assert.ok(a1 >= 0 && a1 < sel, 'aceitaEntrada antes de SelectFiles');
     const a2 = f.indexOf('aceitaEntrada(', sel);
-    assert.ok(a2 > sel && a2 < add, 'aceitaEntrada entre SelectZipFiles e AddFilesToQueue');
+    assert.ok(a2 > sel && a2 < add, 'aceitaEntrada entre SelectFiles e AddFilesToQueue');
     assert.match(f, /avisarPainel\([\w.]*soltarDepois/);
   });
 

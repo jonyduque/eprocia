@@ -129,3 +129,10 @@ export const ATUALIZACAO = {
   incompleta: (v) => `A versão ${v} foi publicada, mas está incompleta; tente de novo mais tarde`,
   soltarDepois: 'O eprocIA está sendo atualizado; solte os arquivos de novo depois que ele reabrir',
 };
+
+// PDF avulso: opção de converter os PDFs novos da pasta monitorada e o tipo da
+// entrada, lido pelo leitor de tela junto do ícone da linha.
+export const ROTULO_MONITORAR_PDF = 'Também converter PDFs novos nesta pasta';
+export const AJUDA_MONITORAR_PDF =
+  'Cada PDF que aparecer na pasta ganha um TXT ao lado, inclusive boletos e outros PDFs que não são de processo';
+export const TIPO_ENTRADA = { zip: 'ZIP', pdf: 'PDF' };

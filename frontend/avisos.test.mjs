@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { criarConfirmacao, separarZips, avisoSoltura } from './src/lib/aviso.js';
+import { criarConfirmacao, separarEntradas, avisoSoltura } from './src/lib/aviso.js';
 
 const raiz = dirname(fileURLToPath(import.meta.url));
 const ler = (...p) => readFileSync(join(raiz, ...p), 'utf8');
@@ -118,7 +118,7 @@ test('Settings confirma com Check ao lado do controle, sem toast de sucesso', ()
   assert.match(settings, /import Salvo from '\.\/Salvo\.svelte'/);
   assert.match(settings, /criarConfirmacao\(/);
   assert.match(settings, /onDestroy\(confirmacao\.limpar\)/);
-  const campos = ['watchdog', 'pasta', 'ocr', 'limpeza', 'omitir', 'autostart', 'forcar'];
+  const campos = ['watchdog', 'pasta', 'ocr', 'limpeza', 'omitir', 'autostart', 'forcar', 'monitorarPdf'];
   for (const campo of campos) {
     assert.match(settings, new RegExp(`<Salvo campo="${campo}" \\{confirmado\\} />`), `${campo} sem confirmação`);
   }
@@ -156,18 +156,33 @@ test('Settings anuncia a confirmação e avisa erros pelo painel', () => {
 
 // --- F-AC-07 ---------------------------------------------------------------
 
-test('soltar arquivos: separa os ZIPs e descreve os ignorados', () => {
-  assert.deepEqual(separarZips(['a.ZIP', 'b.pdf', 'c.zip', 'd.txt']), { zips: ['a.ZIP', 'c.zip'], ignorados: 2 });
-  assert.deepEqual(separarZips(null), { zips: [], ignorados: 0 });
+test('soltar arquivos: separa ZIPs e PDFs e descreve os ignorados', () => {
+  assert.deepEqual(separarEntradas(['a.ZIP', 'b.pdf', 'c.zip', 'd.txt', 'e.PDF', 'f.docx']),
+    { aceitos: ['a.ZIP', 'b.pdf', 'c.zip', 'e.PDF'], ignorados: 2 });
+  assert.deepEqual(separarEntradas(null), { aceitos: [], ignorados: 0 });
   assert.equal(avisoSoltura(2, 0), null);
-  assert.deepEqual(avisoSoltura(0, 3), { texto: 'Só arquivos ZIP do eproc são aceitos. Ignorados: 3', tipo: 'error' });
-  assert.deepEqual(avisoSoltura(1, 1), { texto: '1 arquivo ignorado: só arquivos ZIP do eproc são aceitos.', tipo: 'aviso' });
-  assert.deepEqual(avisoSoltura(1, 2), { texto: '2 arquivos ignorados: só arquivos ZIP do eproc são aceitos.', tipo: 'aviso' });
+  assert.deepEqual(avisoSoltura(0, 3), { texto: 'Arraste arquivos ZIP do Eproc ou PDF. Ignorados: 3', tipo: 'error' });
+  assert.deepEqual(avisoSoltura(1, 1), { texto: '1 arquivo ignorado: só ZIP do Eproc ou PDF', tipo: 'aviso' });
+  assert.deepEqual(avisoSoltura(1, 2), { texto: '2 arquivos ignorados: só ZIP do Eproc ou PDF', tipo: 'aviso' });
+});
+
+test('App: soltar manda todos os aceitos numa chamada e a seleção usa SelectFiles', () => {
+  const i = app.indexOf('OnFileDrop(');
+  const bloco = app.slice(i, app.indexOf('useDropTarget', i));
+  assert.match(bloco, /separarEntradas\(paths\)/);
+  assert.equal(bloco.split('AddDroppedFiles(').length - 1, 1, 'AddDroppedFiles uma vez só');
+  assert.match(bloco, /AddDroppedFiles\(aceitos\)/);
+  assert.match(bloco, /textoJaNaFila\(aceitos\.length\)/);
+  assert.match(bloco, /avisoSoltura\(aceitos\.length, ignorados\)/);
+  assert.doesNotMatch(app, /SelectZipFiles|separarZips/);
+  assert.match(funcao(app, 'triggerManualSelect'), /await SelectFiles\(\)/);
+  assert.match(app, /Solte arquivos ZIP ou PDF em qualquer lugar para processar/);
+  assert.doesNotMatch(app, /Solte o arquivo ZIP/);
 });
 
 test('App não usa alert() e avisa as falhas de soltar e de selecionar ZIP', () => {
   assert.doesNotMatch(app, /\balert\(/);
-  assert.match(app, /separarZips\(paths\)/);
+  assert.match(app, /separarEntradas\(paths\)/);
   assert.match(app, /avisoSoltura\(/);
   const sel = funcao(app, 'triggerManualSelect');
   assert.match(sel.slice(sel.indexOf('catch')), /avisarPainel\('Erro ao selecionar arquivos: '/);

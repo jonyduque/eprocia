@@ -32,7 +32,7 @@
     AddFilesToQueue,
     AddDroppedFiles,
     GetQueue,
-    SelectZipFiles,
+    SelectFiles,
     IsQueuePaused,
     JanelaVisivel,
     LogAtivo,
@@ -49,7 +49,7 @@
   import { criarFilaPorQuadro } from './lib/quadro.js';
   import { fade } from 'svelte/transition';
   import { LARGURA_MIN_PAINEL, criarArrasto, larguraMaxPainel, limitarPainel, teclaDivisor } from './lib/divisor.js';
-  import { DUR_BASE, DUR_FAST, avisoSoltura, criarAviso, duracaoMovimento, separarZips } from './lib/aviso.js';
+  import { DUR_BASE, DUR_FAST, avisoSoltura, criarAviso, duracaoMovimento, separarEntradas } from './lib/aviso.js';
   import { OPCOES_LIMPEZA, OPCOES_OCR, rotuloOpcao } from './lib/atividade.js';
   import { gravarPainel, lerPainel } from './lib/painel.js';
   import { rolagem } from './lib/rolagem.js';
@@ -217,21 +217,22 @@
           aviso.mostrar(ATUALIZACAO.soltarDepois, 'aviso');
           return;
         }
-        const { zips, ignorados } = separarZips(paths);
+        const { aceitos, ignorados } = separarEntradas(paths);
         // O overlay e o anúncio esperam a fila dizer quantos entraram de fato:
-        // um ZIP já pendente ou em processamento é descartado por ela.
-        if (zips.length === 0) soltura.recebido(0);
+        // um ZIP já pendente ou em processamento é descartado por ela. Todos os
+        // aceitos vão numa chamada só: é ela que junta os PDFs num item.
+        if (aceitos.length === 0) soltura.recebido(0);
         else {
-          AddDroppedFiles(zips).then((n) => {
+          AddDroppedFiles(aceitos).then((n) => {
             soltura.recebido(n);
-            anunciar(n > 0 ? textoAceitos(n) : textoJaNaFila(zips.length));
+            anunciar(n > 0 ? textoAceitos(n) : textoJaNaFila(aceitos.length));
           }).catch((err) => {
             soltura.recebido(0);
             console.error('Erro ao adicionar à fila:', err);
             aviso.mostrar('Erro ao adicionar à fila: ' + (err?.message ?? err), 'error');
           });
         }
-        const r = avisoSoltura(zips.length, ignorados);
+        const r = avisoSoltura(aceitos.length, ignorados);
         if (r) aviso.mostrar(r.texto, r.tipo);
       }, false); // useDropTarget = false for global drop
     } catch (err) {
@@ -402,7 +403,7 @@
     }
   }
 
-  // Seleção de ZIPs pelo botão da fila vazia (ProcessList.aoSelecionarZip).
+  // Seleção de ZIPs e PDFs pelo botão da fila vazia (ProcessList.aoSelecionarZip).
   // A fase pode mudar com o diálogo aberto: confere antes e depois dele.
   async function triggerManualSelect() {
     if (!aceitaEntrada(estadoAtualizacao.fase)) {
@@ -410,7 +411,7 @@
       return;
     }
     try {
-      const filePaths = await SelectZipFiles();
+      const filePaths = await SelectFiles();
       if (filePaths && filePaths.length > 0) {
         if (!aceitaEntrada(estadoAtualizacao.fase)) {
           avisarPainel(ATUALIZACAO.soltarDepois, 'aviso');
@@ -516,7 +517,7 @@
           <p>{estadoSoltura.texto}</p>
         {:else}
           <Icone icone={FileArchive} tamanho={48} cor="var(--accent)" />
-          <p>Solte o arquivo ZIP em qualquer lugar para processar</p>
+          <p>Solte arquivos ZIP ou PDF em qualquer lugar para processar</p>
         {/if}
       </div>
     </div>

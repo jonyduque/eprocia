@@ -2,6 +2,7 @@
   import Icone from './Icone.svelte';
   import ChevronDown from 'lucide-svelte/icons/chevron-down';
   import EyeOff from 'lucide-svelte/icons/eye-off';
+  import FileSearch from 'lucide-svelte/icons/file-search';
   import FolderOpen from 'lucide-svelte/icons/folder-open';
   import FolderSearch from 'lucide-svelte/icons/folder-search';
   import LoaderCircle from 'lucide-svelte/icons/loader-circle';
@@ -23,8 +24,10 @@
   import {
     AJUDA_FORCAR_OCR_CONFIG,
     AJUDA_FORCAR_OCR_SEM_OCR,
+    AJUDA_MONITORAR_PDF,
     ERRO_ABRIR_LOGS,
-    ROTULO_FORCAR_OCR_CONFIG
+    ROTULO_FORCAR_OCR_CONFIG,
+    ROTULO_MONITORAR_PDF
   } from '../lib/textos.js';
   import { AbrirPastaLogs, SaveConfig, SelectDirectory } from '../wailsjs/go/main/App.js';
 
@@ -50,6 +53,7 @@
     forcar_ocr: false,
     auto_start: false,
     watchdog_enabled: true,
+    monitorar_pdf: false,
     omitir_tipos: []
   };
 
@@ -146,7 +150,8 @@
     limpeza: 'Higienização',
     omitir: 'Tipos omitidos',
     autostart: 'Iniciar com o Windows',
-    forcar: ROTULO_FORCAR_OCR_CONFIG
+    forcar: ROTULO_FORCAR_OCR_CONFIG,
+    monitorarPdf: ROTULO_MONITORAR_PDF
   };
 
   async function abrirPastaLogs() {
@@ -235,6 +240,30 @@
             </button>
           {/if}
           <Salvo campo="pasta" {confirmado} />
+        </div>
+
+        <!-- Habilitado mesmo com o monitoramento desligado: o valor só é salvo
+             e passa a valer quando a pasta voltar a ser monitorada. -->
+        <div class="form-group">
+          <div class="toggle-group">
+            <label for="monitorar-pdf">
+              <span class="icone-rotulo"><Icone icone={FileSearch} tamanho={14} /></span>
+              <span class="rotulo-texto">{ROTULO_MONITORAR_PDF}</span>
+              <Salvo campo="monitorarPdf" {confirmado} />
+            </label>
+            <label class="switch">
+              <input
+                id="monitorar-pdf"
+                type="checkbox"
+                role="switch"
+                bind:checked={config.monitorar_pdf}
+                aria-describedby="ajuda-monitorar-pdf"
+                on:change={() => handleSave('monitorarPdf')}
+              />
+              <span class="slider" aria-hidden="true"></span>
+            </label>
+          </div>
+          <p class="help-text" id="ajuda-monitorar-pdf">{AJUDA_MONITORAR_PDF}</p>
         </div>
       </div>
     </div>

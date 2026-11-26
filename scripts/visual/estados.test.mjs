@@ -5,7 +5,7 @@ import { ESTADOS, instalarStubs, listaAltoContraste } from './estados.mjs';
 
 // Fields of etl.QueueItem (internal/etl/queue.go) the UI reads.
 const CAMPOS = ['id', 'name', 'path', 'status', 'progress', 'message', 'output_path', 'docs_count', 'pages_count', 'estimated_tokens',
-  'processed_docs', 'total_docs', 'processed_pages', 'total_pages', 'timestamp', 'unread_docs'];
+  'processed_docs', 'total_docs', 'processed_pages', 'total_pages', 'timestamp', 'unread_docs', 'kind'];
 const STATUS = new Set(['pending', 'processing', 'paused', 'cancelled', 'success', 'error']);
 
 // Chaves de models.RelatorioZip (internal/models, frontend/src/wailsjs/go/models.ts),
@@ -26,12 +26,12 @@ const CATEGORIAS = ['lida_nativa', 'lida_ocr', 'vazia', 'sem_ocr', 'com_erro'];
 const ATUALIZACAO = ['atualizacao-em-dia', 'atualizacao-disponivel', 'atualizacao-instalador', 'atualizacao-so-avisar',
   'atualizacao-incompleta', 'atualizacao-baixando', 'atualizacao-instalada', 'atualizacao-aguardando-fila', 'atualizacao-erro',
   'atualizacao-reiniciando'];
-const NOVOS = ['relatorio', 'configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida', ...ATUALIZACAO];
+const NOVOS = ['relatorio', 'fila-pdf','configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida', ...ATUALIZACAO];
 
 describe('estados visuais', () => {
   it('cobre os estados da review.json', () => {
     assert.deepEqual(Object.keys(ESTADOS).sort(),
-      ['configuracoes', 'configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida', 'erro', 'fila', 'nao-lidos', 'processando', 'relatorio', 'vazio', ...ATUALIZACAO].sort());
+      ['configuracoes', 'configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida', 'erro', 'fila', 'fila-pdf', 'nao-lidos', 'processando', 'relatorio', 'vazio', ...ATUALIZACAO].sort());
   });
 
   it('relatorio: três concluídos, um só nativo, um com OCR e em branco, um com os três avisos e atencao', () => {
@@ -47,6 +47,23 @@ describe('estados visuais', () => {
     assert.equal(comOCR.sem_ocr + comOCR.com_erro + comOCR.ocr_falhou_com_reserva, 0);
     assert.ok(avisos.sem_ocr > 0 && avisos.com_erro > 0 && avisos.ocr_falhou_com_reserva > 0);
     assert.ok(fila[2].relatorio.atencao?.length > 0, 'atencao vazia');
+  });
+
+  it('fila-pdf: um ZIP, um PDF avulso e um item de três PDFs, todos concluídos', () => {
+    const [zip, pdf, lote] = ESTADOS['fila-pdf'].fila;
+    assert.equal(ESTADOS['fila-pdf'].fila.length, 3);
+    for (const i of [zip, pdf, lote]) assert.equal(i.status, 'success');
+    assert.equal(zip.kind, 'zip');
+    assert.match(zip.name, /\.zip$/);
+    assert.equal(pdf.kind, 'pdf');
+    assert.match(pdf.name, /^5000000-00\.2026\.4\.00\.\d{4}$/);
+    assert.equal(pdf.paths.length, 1);
+    assert.equal(lote.kind, 'pdf');
+    assert.match(lote.name, / \(3 PDFs\)$/);
+    assert.equal(lote.paths.length, 3);
+    for (const [nome, e] of Object.entries(ESTADOS)) {
+      for (const i of e.fila) assert.ok(i.kind === 'zip' || i.kind === 'pdf', `${nome}/${i.name}: kind`);
+    }
   });
 
   it('fila e nao-lidos: todo concluído tem relatorio, como no app real; nao-lidos mostra "Ler com OCR"', () => {
@@ -118,7 +135,8 @@ describe('estados visuais', () => {
         assert.ok(m[0].startsWith('C:\\\\Usuarios\\\\exemplo'), `caminho fora do exemplo: ${m[0]}`);
       }
       for (const i of ESTADOS[nome].fila) {
-        assert.match(i.name, /^5000000-00\.2026\.4\.00\.\d{4}\.zip$/, `nome fora de processo(n): ${i.name}`);
+        assert.match(i.name, /^5000000-00\.2026\.4\.00\.\d{4}(\.zip| \(\d+ PDFs\))?$/, `nome fora de processo(n): ${i.name}`);
+        for (const p of i.paths ?? []) assert.ok(p.startsWith('C:\\Usuarios\\exemplo'), `caminho fora do exemplo: ${p}`);
       }
     });
   }

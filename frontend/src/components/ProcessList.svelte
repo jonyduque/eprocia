@@ -10,6 +10,8 @@
   import Clock from 'lucide-svelte/icons/clock';
   import Coins from 'lucide-svelte/icons/coins';
   import Copy from 'lucide-svelte/icons/copy';
+  import File from 'lucide-svelte/icons/file';
+  import FileArchive from 'lucide-svelte/icons/file-archive';
   import FileText from 'lucide-svelte/icons/file-text';
   import Files from 'lucide-svelte/icons/files';
   import FolderOpen from 'lucide-svelte/icons/folder-open';
@@ -49,7 +51,10 @@
   import { criarAviso, duracaoMovimento, DUR_FAST, DUR_BASE } from '../lib/aviso.js';
   import { aplicarReprocessarComOCR, alvoAoFecharReprocessar, argumentosLerComOCR, limpezaInicialReprocessar } from '../lib/reprocessar.js';
   import { resumoPaginas, avisosPaginas, mostrarLerComOCR } from '../lib/relatorio.js';
-  import { ATUALIZACAO, EXPLICACAO_OCR, ROTULO_LER_COM_OCR, DICA_LER_COM_OCR, DICA_ABRIR_RELATORIO, DICA_FECHAR_RELATORIO } from '../lib/textos.js';
+  import { ATUALIZACAO, EXPLICACAO_OCR, ROTULO_LER_COM_OCR, DICA_LER_COM_OCR, DICA_ABRIR_RELATORIO, DICA_FECHAR_RELATORIO, TIPO_ENTRADA } from '../lib/textos.js';
+
+  // Ícone do tipo da entrada, antes do nome (DESIGN §4 e §5.1).
+  const ICONE_TIPO = { zip: FileArchive, pdf: File };
   import { dica } from '../lib/dica.js';
   import { rotuloNaoLidos, avisoCopiaNaoLidos, tituloNaoLidos } from '../lib/naoLidos.js';
   import { rolagem } from '../lib/rolagem.js';
@@ -597,9 +602,9 @@
         <p>Nenhum processo no histórico.</p>
         <button type="button" class="manual-select-btn" on:click={aoSelecionarZip}>
           <Icone icone={Upload} tamanho={14} />
-          <span>Selecionar arquivos ZIP...</span>
+          <span>Selecionar arquivos...</span>
         </button>
-        <p class="sub-text">ou arraste os ZIPs para a janela</p>
+        <p class="sub-text">ou arraste ZIPs do Eproc ou PDFs para a janela</p>
       </div>
     {:else}
       <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -607,6 +612,7 @@
         {#each filteredItems as item (item.id)}
           {@const estado = estadoItem(item.status, isPaused)}
           {@const expansivel = temAtividade(estado)}
+          {@const tipo = item.kind === 'pdf' ? 'pdf' : 'zip'}
           <div
             class="item-row {item.status}"
             role="listitem"
@@ -654,6 +660,8 @@
               title={expansivel ? (atividadeAberta[item.id] ? 'Ocultar a atividade dos documentos' : 'Ver a atividade dos documentos') : undefined}
               on:click={() => { if (expansivel) alternarAtividade(item); }}
             >
+              <span class="icone-tipo"><Icone icone={ICONE_TIPO[tipo]} tamanho={12} cor="var(--text-secondary)" /></span>
+              <span class="sr-only">{TIPO_ENTRADA[tipo]}</span>
               <span class="file-name" title={item.path}>{nomeExibido(item.name)}</span>
               <span class="details-row">
                 <span class="timestamp">{formatarHora(item.timestamp)}</span>
@@ -1382,6 +1390,13 @@
   .info-btn:focus-visible {
     outline: 2px solid var(--focus-ring);
     outline-offset: -2px;
+  }
+
+  /* Tipo da entrada (ZIP ou PDF), colado ao nome. */
+  .icone-tipo {
+    display: inline-flex;
+    flex-shrink: 0;
+    margin-right: -4px;
   }
 
   .chevron {

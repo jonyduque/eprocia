@@ -29,8 +29,8 @@ Abaixo estão as funcionalidades obrigatórias que o sistema deve executar.
 
 | ID | Área | Descrição do Requisito | Critério de Aceite |
 | --- | --- | --- | --- |
-| **RF01** | **Entrada** | Leitura de arquivos `.zip` sem necessidade de descompactação prévia no disco. | O sistema deve ler o stream de bytes diretamente do ZIP. |
-| **RF02** | **Automação** | Monitoramento de diretório (Watchdog). | O sistema deve detectar novos arquivos ZIP na pasta configurada e iniciar o processamento automaticamente. |
+| **RF01** | **Entrada** | ZIP do Eproc ou PDF avulso (vários PDFs de uma vez viram um TXT, por evento). Leitura de arquivos `.zip` sem necessidade de descompactação prévia no disco. | O sistema deve ler o stream de bytes diretamente do ZIP; o PDF avulso é lido sem nunca alterar o original. |
+| **RF02** | **Automação** | Monitoramento de diretório (Watchdog). | O sistema deve detectar novos arquivos ZIP na pasta configurada e, se a opção estiver ligada, PDFs novos, e iniciar o processamento automaticamente. |
 | **RF03** | **Ordenação** | Ordenação "Natural" baseada no padrão de nomenclatura do Eproc/PJe. | Arquivos devem ser ordenados pelo número do evento (`Evento X`) e não alfabeticamente. Ex: Evento 2 deve vir antes de Evento 10. |
 | **RF04** | **Extração PDF** | Extração de texto de arquivos PDF nativos (digital). | Deve-se utilizar alternativa técnica de maior performance para obter o texto limpo. |
 | **RF05** | **Extração HTML** | Parsing de arquivos HTML (Eventos do sistema). | O sistema deve extrair apenas o texto visível no corpo do documento, ignorando tags de script e estilo. |
@@ -72,7 +72,7 @@ Abaixo estão as funcionalidades obrigatórias que o sistema deve executar.
 4. **Loop de Processamento:**
 Itera sobre cada arquivo:
 Verifica extensão -> Seleciona Extrator (HTML/PDF) -> Valida se tem texto -> Se não, aplica OCR -> Se tem, extrai -> Limpa string -> Adiciona buffer.
-5. **Gravação:** Salva `processo.txt` na mesma pasta do ZIP original.
+5. **Gravação:** Salva `processo.txt` na mesma pasta do ZIP original. PDF avulso grava `<nome>.txt` na pasta do PDF (com vários PDFs, o nome é o número CNJ comum a todos ou o do primeiro PDF por evento, e a pasta é a desse primeiro) e nunca sobrescreve arquivo alheio: se o nome estiver ocupado (ou, só para o nome base, existir `<nome>.zip` na mesma pasta), usa `<nome>_2.txt` até `<nome>_999.txt`.
 
 ## 6. Estrutura do Arquivo de Saída (Output Design)
 
