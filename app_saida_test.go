@@ -224,3 +224,62 @@ func TestLerSaidaParaCopiar_RecusaSemCaminho(t *testing.T) {
 		}
 	}
 }
+
+// explorerFalso devolve um App cujo explorer guarda os argumentos recebidos.
+func explorerFalso() (*App, *[][]string) {
+	var chamadas [][]string
+	a := &App{explorer: func(args ...string) error {
+		chamadas = append(chamadas, args)
+		return nil
+	}}
+	return a, &chamadas
+}
+
+func TestOpenDirectory_ArquivoExiste(t *testing.T) {
+	dir := t.TempDir()
+	arq := filepath.Join(dir, "processo.txt")
+	if err := os.WriteFile(arq, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a, chamadas := explorerFalso()
+	if err := a.OpenDirectory(arq); err != nil {
+		t.Fatal(err)
+	}
+	if len(*chamadas) != 1 || len((*chamadas)[0]) != 2 || (*chamadas)[0][0] != "/select," || (*chamadas)[0][1] != arq {
+		t.Fatalf("chamadas = %v", *chamadas)
+	}
+}
+
+func TestOpenDirectory_ArquivoAusente(t *testing.T) {
+	dir := t.TempDir()
+	a, chamadas := explorerFalso()
+	if err := a.OpenDirectory(filepath.Join(dir, "sumiu.txt")); err != nil {
+		t.Fatal(err)
+	}
+	if len(*chamadas) != 1 || len((*chamadas)[0]) != 1 || (*chamadas)[0][0] != dir {
+		t.Fatalf("chamadas = %v", *chamadas)
+	}
+}
+
+func TestOpenDirectory_PastaAusente(t *testing.T) {
+	dir := t.TempDir()
+	a, chamadas := explorerFalso()
+	err := a.OpenDirectory(filepath.Join(dir, "nao", "sumiu.txt"))
+	if err == nil || !strings.Contains(err.Error(), "a pasta não existe mais") {
+		t.Fatalf("err = %v", err)
+	}
+	if len(*chamadas) != 0 {
+		t.Fatalf("explorer chamado: %v", *chamadas)
+	}
+}
+
+func TestOpenDirectory_Pasta(t *testing.T) {
+	dir := t.TempDir()
+	a, chamadas := explorerFalso()
+	if err := a.OpenDirectory(dir); err != nil {
+		t.Fatal(err)
+	}
+	if len(*chamadas) != 1 || len((*chamadas)[0]) != 1 || (*chamadas)[0][0] != dir {
+		t.Fatalf("chamadas = %v", *chamadas)
+	}
+}

@@ -49,6 +49,8 @@ type App struct {
 	autostart func(ativo bool) error
 	// clipboard é trocado nos testes; o padrão é runtime.ClipboardSetText.
 	clipboard func(ctx context.Context, texto string) error
+	// explorer é trocado nos testes; nil abre o explorer.exe de verdade.
+	explorer func(args ...string) error
 	// notificar fica nil quando o sistema não oferece notificações.
 	notificar func(titulo, corpo string) error
 	// falhas guarda os ZIPs com erro para a varredura inicial não repeti-los.
@@ -424,15 +426,28 @@ func (a *App) ProcessFile(filePath string) (string, error) {
 	return "", err
 }
 
-// OpenDirectory opens the native Windows Explorer selecting the file, or opens the directory.
+// OpenDirectory abre o Explorer selecionando o arquivo ou abrindo a pasta. Se
+// o arquivo sumiu, abre a pasta dele; se a pasta também sumiu, devolve erro.
 func (a *App) OpenDirectory(path string) error {
 	cleanPath := filepath.Clean(path)
-	info, err := os.Stat(cleanPath)
-	if err == nil && !info.IsDir() {
-		// If it's a file, select it in Windows Explorer
-		return exec.Command("explorer.exe", "/select,", cleanPath).Start()
+	abrir := a.explorer
+	if abrir == nil {
+		abrir = func(args ...string) error {
+			return exec.Command("explorer.exe", args...).Start()
+		}
 	}
-	return exec.Command("explorer.exe", cleanPath).Start()
+	info, err := os.Stat(cleanPath)
+	if err == nil {
+		if info.IsDir() {
+			return abrir(cleanPath)
+		}
+		return abrir("/select,", cleanPath)
+	}
+	pasta := filepath.Dir(cleanPath)
+	if di, derr := os.Stat(pasta); derr == nil && di.IsDir() {
+		return abrir(pasta)
+	}
+	return fmt.Errorf("a pasta não existe mais: %s", pasta)
 }
 
 // CopyOutput copia para a área de transferência o TXT gerado por um item concluído.
