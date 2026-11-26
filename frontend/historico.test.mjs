@@ -137,6 +137,25 @@ test('Settings: interruptor do histórico', () => {
 });
 
 test('App: historico:falha vira aviso', () => {
-  assert.match(app, /EventsOn\('historico:falha', \(\) => aviso\.mostrar\(HISTORICO\.falhaGravar, 'aviso'\)\)/);
+  assert.match(app, /EventsOn\('historico:falha', /);
+  assert.match(app, /aviso\.mostrar\(HISTORICO\.falhaGravar, 'aviso'\)/);
   assert.match(app, /import \{[^}]*\bHISTORICO\b[^}]*\} from '\.\/lib\/textos\.js'/);
+});
+
+// O evento pode sair antes do EventsOn (primeira gravação ~1 s após abrir):
+// depois de registrar, o onMount consulta HistoricoFalhou, e um aviso só
+// aparece uma vez mesmo que o evento e a consulta cheguem os dois.
+test('App: falha do histórico anterior ao EventsOn é consultada', () => {
+  assert.match(app, /import \{[^}]*\bHistoricoFalhou\b[^}]*\} from '\.\/wailsjs\/go\/main\/App\.js'/);
+  const i = app.indexOf("EventsOn('historico:falha'");
+  assert.ok(i >= 0);
+  const j = app.indexOf('HistoricoFalhou()', i);
+  assert.ok(j > i, 'HistoricoFalhou() deve vir depois do EventsOn');
+  // Antes do primeiro await do onMount, como a consulta da atualização.
+  const onMount = app.indexOf('onMount(async');
+  const primeiroAwait = app.indexOf('await ', onMount);
+  assert.ok(j < primeiroAwait, 'consulta antes do primeiro await');
+  const trecho = app.slice(app.lastIndexOf('\n', app.lastIndexOf('// Falha de escrita', i)), app.indexOf(';', app.indexOf('.catch(', j)) + 1);
+  assert.match(trecho, /let (\w+) = false;[\s\S]*EventsOn\('historico:falha', \(\) => avisarFalhaHistorico\(\)\)[\s\S]*HistoricoFalhou\(\)\.then\(\(f\) => \{ if \(f\) avisarFalhaHistorico\(\); \}\)/);
+  assert.match(trecho, /function avisarFalhaHistorico\(\) \{\s*if \((\w+)\) return;\s*\1 = true;\s*aviso\.mostrar\(HISTORICO\.falhaGravar, 'aviso'\);\s*\}/);
 });

@@ -32,6 +32,7 @@
     AddFilesToQueue,
     AddDroppedFiles,
     GetQueue,
+    HistoricoFalhou,
     SelectFiles,
     IsQueuePaused,
     JanelaVisivel,
@@ -167,10 +168,20 @@
       if (!atualizacaoAvisada && e) estadoAtualizacao = e;
     }).catch((err) => console.warn('Erro ao consultar a atualização:', err));
 
-    // Falha de escrita do historico.json: o Go avisa uma vez por sessão.
+    // Falha de escrita do historico.json: o Go avisa uma vez por sessão. O
+    // evento pode ter saído antes deste EventsOn; a consulta cobre esse caso,
+    // e a marca impede o aviso duplo quando os dois chegam.
+    let falhaHistoricoAvisada = false;
+    function avisarFalhaHistorico() {
+      if (falhaHistoricoAvisada) return;
+      falhaHistoricoAvisada = true;
+      aviso.mostrar(HISTORICO.falhaGravar, 'aviso');
+    }
     unsubscribers.push(
-      EventsOn('historico:falha', () => aviso.mostrar(HISTORICO.falhaGravar, 'aviso'))
+      EventsOn('historico:falha', () => avisarFalhaHistorico())
     );
+    HistoricoFalhou().then((f) => { if (f) avisarFalhaHistorico(); })
+      .catch((err) => console.warn('Erro ao consultar o histórico:', err));
 
     // Load initial config
     await refreshConfig();

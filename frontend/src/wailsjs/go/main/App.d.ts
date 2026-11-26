@@ -38,6 +38,8 @@ export function Greet(arg1:string):Promise<string>;
 
 export function Hide():Promise<void>;
 
+export function HistoricoFalhou():Promise<boolean>;
+
 export function InstalarAtualizacao():Promise<void>;
 
 export function IsQueuePaused():Promise<boolean>;

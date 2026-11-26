@@ -70,6 +70,10 @@ export function Hide() {
   return window['go']['main']['App']['Hide']();
 }
 
+export function HistoricoFalhou() {
+  return window['go']['main']['App']['HistoricoFalhou']();
+}
+
 export function InstalarAtualizacao() {
   return window['go']['main']['App']['InstalarAtualizacao']();
 }

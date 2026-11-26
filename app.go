@@ -95,8 +95,7 @@ type App struct {
 	// Histórico da fila (app_historico.go). historicoMu protege historico,
 	// historicoAdiado e historicoProtegido. historicoAdiado: processo novo da
 	// atualização ainda à espera do antigo (o gravador só nasce depois);
-	// historicoProtegido: o Protegido do gravador adiado. avisoHistorico
-	// limita o evento de falha a um por sessão.
+	// historicoProtegido: o Protegido do gravador adiado.
 	historicoMu        sync.Mutex
 	historico          *historico.Gravador
 	historicoAdiado    bool
@@ -104,7 +103,11 @@ type App struct {
 	// historicoFechadoTroca: o Fechar da troca de versão já rodou e o Reabrir
 	// ainda não; ligar o interruptor nesse meio-tempo não cria gravador.
 	historicoFechadoTroca bool
-	avisoHistorico        sync.Once
+	// historicoFalhou (sob falhaHistoricoMu): uma gravação do histórico já
+	// falhou nesta sessão. Limita o evento a um e fica para HistoricoFalhou,
+	// porque o evento pode sair antes de o frontend registrar o EventsOn.
+	falhaHistoricoMu sync.Mutex
+	historicoFalhou  bool
 }
 
 // eventoVisibilidade avisa o frontend que a janela sumiu na bandeja (false)

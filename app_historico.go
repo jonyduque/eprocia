@@ -32,11 +32,18 @@ func existeNoDisco(caminho string) bool {
 	return !errors.Is(err, fs.ErrNotExist)
 }
 
-// aoFalharHistorico é o AoFalhar do gravador. Roda com q.emitMu travado: não
-// chama a fila nem reagenda a gravação (com o disco falhando, viraria laço);
-// só emite o aviso, uma vez por sessão. O gravador já registrou o erro no log.
+// aoFalharHistorico é o AoFalhar do gravador. Pode rodar com q.emitMu travado
+// (GravarAgora, Fechar): não chama a fila nem reagenda a gravação (com o
+// disco falhando, viraria laço); só guarda a falha e emite o aviso, uma vez
+// por sessão. O gravador já registrou o erro no log.
 func (a *App) aoFalharHistorico(error) {
-	a.avisoHistorico.Do(func() { a.emitirEm(a.ctx, eventoHistoricoFalha) })
+	a.falhaHistoricoMu.Lock()
+	primeira := !a.historicoFalhou
+	a.historicoFalhou = true
+	a.falhaHistoricoMu.Unlock()
+	if primeira {
+		a.emitirEm(a.ctx, eventoHistoricoFalha)
+	}
 }
 
 // novoGravadorHistorico cria o gravador; NovoGravador apaga os temporários
@@ -205,4 +212,13 @@ func (h historicoAtualizacao) Reabrir() error {
 	}
 	h.a.queue.AgendarHistorico()
 	return nil
+}
+
+// HistoricoFalhou diz se alguma gravação do histórico falhou nesta sessão.
+// O frontend consulta no onMount, depois de registrar o EventsOn de
+// historico:falha: o evento pode ter saído antes e se perdido.
+func (a *App) HistoricoFalhou() bool {
+	a.falhaHistoricoMu.Lock()
+	defer a.falhaHistoricoMu.Unlock()
+	return a.historicoFalhou
 }

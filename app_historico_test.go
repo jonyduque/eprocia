@@ -665,3 +665,37 @@ func TestHistorico_TemporarioDoAntigoFicaAteEleSair(t *testing.T) {
 	close(m.f.liberaSair)
 	esperarAte(t, 3*time.Second, "o .tmp sumir depois de o antigo sair", func() bool { return !existe(tmp) })
 }
+
+// O evento de falha pode chegar antes de o frontend registrar o EventsOn (a
+// primeira gravação sai ~1 s depois de abrir): HistoricoFalhou guarda a falha
+// para o onMount consultar. Sem falha, false; o evento segue um só.
+func TestHistorico_FalhouConsultavel(t *testing.T) {
+	m := novoAppAtualizacao(t, cenario{})
+	ligarHistoricoNaConfig(m)
+	arquivo := arquivoHistoricoDe(m)
+	m.iniciar()
+	if m.app.HistoricoFalhou() {
+		t.Fatal("HistoricoFalhou = true sem falha")
+	}
+	if err := os.Mkdir(arquivo, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.app.AddFilesToQueue([]string{filepath.Join(t.TempDir(), "a.zip")}); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.app.queue.GravarHistoricoAgora(); err == nil {
+		t.Fatal("GravarHistoricoAgora devolveu nil com o rename falhando")
+	}
+	if !m.app.HistoricoFalhou() {
+		t.Fatal("HistoricoFalhou = false depois da falha")
+	}
+	if err := m.app.queue.GravarHistoricoAgora(); err == nil {
+		t.Fatal("segunda gravação devolveu nil")
+	}
+	if n := contarEvento(m, eventoHistoricoFalha); n != 1 {
+		t.Fatalf("%s emitido %d vezes; quer 1 por sessão", eventoHistoricoFalha, n)
+	}
+	if !m.app.HistoricoFalhou() {
+		t.Fatal("HistoricoFalhou voltou a false")
+	}
+}
