@@ -207,6 +207,31 @@ func TestAnonimizar_TxtComSufixoN(t *testing.T) {
 	}
 }
 
+func TestAnonimizar_SufixoNDeOutroPDF(t *testing.T) {
+	// processo_2.txt é o TXT de processo_2.pdf (zip-2), não o segundo TXT
+	// de processo.pdf (zip-1).
+	entrada := `{"msg":"x","zip":"processo.pdf"}` + "\n" +
+		`{"msg":"x","zip":"processo_2.pdf"}` + "\n" +
+		`{"msg":"y","a":"C:\\Users\\<usuario>\\processo_2.txt","b":"C:\\Users\\<usuario>\\processo_3.txt"}` + "\n"
+	linhas, _ := rodar(t, entrada)
+	if got := campo(t, linhas[2], "a"); got != `C:\Users\<usuario>\zip-2.txt` {
+		t.Errorf("a = %q, esperava ...\\zip-2.txt", got)
+	}
+	if got := campo(t, linhas[2], "b"); got != `C:\Users\<usuario>\zip-1_3.txt` {
+		t.Errorf("b = %q, esperava ...\\zip-1_3.txt", got)
+	}
+}
+
+func TestAnonimizar_SufixoNSoDelimitado(t *testing.T) {
+	entrada := `{"msg":"x","zip":"abc.pdf"}` + "\n" +
+		`{"msg":"y","a":"xabc_2.txt","b":"C:\\pasta\\abc_2.txt","c":"abc_2.txt","d":"ver (abc_2.txt)"}` + "\n"
+	linhas, _ := rodar(t, entrada)
+	want := `{"msg":"y","a":"xabc_2.txt","b":"C:\\pasta\\zip-1_2.txt","c":"zip-1_2.txt","d":"ver (zip-1_2.txt)"}`
+	if linhas[1] != want {
+		t.Errorf("linha 2:\n got %s\nwant %s", linhas[1], want)
+	}
+}
+
 // todasValidas falha se alguma linha não for JSON válido.
 func todasValidas(t *testing.T, linhas []string) {
 	t.Helper()

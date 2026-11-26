@@ -279,11 +279,14 @@ type trocador struct {
 	sufixos []par
 }
 
+// Replace troca primeiro os nomes inteiros: processo_2.txt, quando é o TXT
+// de processo_2.pdf, vira o rótulo desse item antes que o laço de sufixos o
+// leia como o segundo TXT de processo.pdf.
 func (t *trocador) Replace(linha string) string {
+	linha = t.nomes.Replace(linha)
 	for _, p := range t.sufixos {
 		linha = trocarSufixoN(linha, p.de, p.para)
 	}
-	linha = t.nomes.Replace(linha)
 	for _, p := range t.radicais {
 		linha = trocarDelimitado(linha, p.de, p.para)
 	}
@@ -341,7 +344,7 @@ func trocarDelimitado(linha, de, para string) string {
 }
 
 // trocarSufixoN troca de por para em cada <de>_N.txt com N de 2 a 999 sem
-// zero à esquerda, os nomes que internal/saida dá ao TXT quando <de>.txt
+// zero à esquerda e, antes de de, o início da linha ou um byte de delimAntes, os nomes que internal/saida dá ao TXT quando <de>.txt
 // está ocupado. A busca é à mão, como em trocarDelimitado: uma regex por
 // radical, compilada para cada item do log, custaria mais que a busca, e o
 // Replacer precisaria de 998 entradas por radical em cada grafia.
@@ -364,7 +367,10 @@ func trocarSufixoN(linha, de, para string) string {
 			n++
 		}
 		digitos := linha[k:n]
-		valido := len(digitos) >= 1 && len(digitos) <= 3 && digitos[0] != '0' &&
+		// Antes do radical, o início da linha ou um byte de delimAntes:
+		// abc_2.txt não é trocado dentro de xabc_2.txt.
+		valido := (j == 0 || strings.IndexByte(delimAntes, linha[j-1]) >= 0) &&
+			len(digitos) >= 1 && len(digitos) <= 3 && digitos[0] != '0' &&
 			digitos != "1" && strings.HasPrefix(linha[n:], ".txt")
 		if valido {
 			b.WriteString(linha[ini:j])
