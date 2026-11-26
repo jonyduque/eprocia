@@ -227,7 +227,8 @@ func (q *Queue) ConferirArquivos(existe func(caminho string) bool) {
 	q.mu.Lock()
 	for _, it := range q.items {
 		if m, ok := marcas[it.ID]; ok && it.Restaurado {
-			it.SourceMissing, it.OutputMissing = m.origem, m.saida
+			it.SourceMissing = it.SourceMissing || m.origem
+			it.OutputMissing = it.OutputMissing || m.saida
 		}
 	}
 	q.mu.Unlock()

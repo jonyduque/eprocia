@@ -556,6 +556,7 @@ func TestAddFiles_ReaproveitaInterrompido(t *testing.T) {
 	t.Run("pdf", func(t *testing.T) {
 		c := make(chan recebido, 1)
 		q, _ := novaFilaGravada(t, processarQueEntrega(c))
+		q.Reter()
 		pdf := dl + "a.pdf"
 		q.Restaurar([]historico.Item{{
 			Name: "a", Path: pdf, Paths: []string{pdf}, Kind: "pdf", Status: "interrupted",
@@ -565,9 +566,12 @@ func TestAddFiles_ReaproveitaInterrompido(t *testing.T) {
 		if n := q.AddFilesComOrigem([]string{pdf}, "monitorada"); n != 1 {
 			t.Fatalf("AddFilesComOrigem devolveu %d", n)
 		}
-		if itens := q.GetItems(); len(itens) != 1 || itens[0].ID != id {
+		itens := q.GetItems()
+		if len(itens) != 1 || itens[0].ID != id {
 			t.Fatalf("itens: %+v", itens)
 		}
+		conferirReaberto(t, itens[0])
+		q.Soltar()
 		if r := esperarRecebido(t, c); r.e.SaidaAnterior != dl+"a.txt" {
 			t.Errorf("SaidaAnterior = %q", r.e.SaidaAnterior)
 		}
@@ -624,6 +628,52 @@ func TestAddFiles_ReaproveitaSemCaixa(t *testing.T) {
 		}
 		conferirReaberto(t, itens[0])
 	})
+}
+
+func TestAddFiles_ReaproveitadaNaoDuplica(t *testing.T) {
+	t.Run("zip", func(t *testing.T) {
+		q, _ := novaFilaGravada(t, sucesso)
+		q.Reter()
+		q.Restaurar([]historico.Item{interrompidoZip(`c:\users\fulano\downloads\x.zip`)})
+		zip := `C:\Users\fulano\Downloads\x.zip`
+		if n := q.AddFiles([]string{zip}); n != 1 {
+			t.Fatalf("primeiro AddFiles devolveu %d", n)
+		}
+		if n := q.AddFiles([]string{zip}); n != 0 {
+			t.Errorf("segundo AddFiles devolveu %d, esperado 0", n)
+		}
+		if itens := q.GetItems(); len(itens) != 1 || itens[0].Status != "pending" {
+			t.Fatalf("itens: %d, %+v", len(itens), itens[0])
+		}
+	})
+	t.Run("pdf", func(t *testing.T) {
+		q, _ := novaFilaGravada(t, sucesso)
+		q.Reter()
+		pdf := `c:\users\fulano\downloads\a.pdf`
+		q.Restaurar([]historico.Item{{Name: "a", Path: pdf, Paths: []string{pdf}, Kind: "pdf", Status: "interrupted", Timestamp: 1, FinishedAt: 2}})
+		novo := `C:\Users\fulano\Downloads\.\A.pdf`
+		if n := q.AddFiles([]string{novo}); n != 1 {
+			t.Fatalf("primeiro AddFiles devolveu %d", n)
+		}
+		if n := q.AddFiles([]string{novo}); n != 0 {
+			t.Errorf("segundo AddFiles devolveu %d, esperado 0", n)
+		}
+		if itens := q.GetItems(); len(itens) != 1 || itens[0].Status != "pending" {
+			t.Fatalf("itens: %d, %+v", len(itens), itens[0])
+		}
+	})
+}
+
+func TestConferirArquivos_NaoDesligaMarca(t *testing.T) {
+	q, _ := novaFilaGravada(t, sucesso)
+	q.Restaurar([]historico.Item{{Name: "a.zip", Path: dl + "a.zip", Kind: "zip", Status: "success", OutputPath: dl + "a.txt"}})
+	q.mu.Lock()
+	q.items[0].SourceMissing, q.items[0].OutputMissing = true, true
+	q.mu.Unlock()
+	q.ConferirArquivos(func(string) bool { return true })
+	if it := q.GetItems()[0]; !it.SourceMissing || !it.OutputMissing {
+		t.Errorf("marca desligada: SourceMissing %v, OutputMissing %v", it.SourceMissing, it.OutputMissing)
+	}
 }
 
 func TestAddFiles_SoAInterrompida(t *testing.T) {

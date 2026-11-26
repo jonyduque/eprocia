@@ -298,7 +298,7 @@ func (q *Queue) AddFilesComOrigem(paths []string, origem string) int {
 		switch strings.ToLower(filepath.Ext(path)) {
 		case ".zip":
 		case ".pdf":
-			if slices.ContainsFunc(pdfs, func(p string) bool { return strings.EqualFold(p, path) }) {
+			if slices.ContainsFunc(pdfs, func(p string) bool { return caminhoIgual(p, path) }) {
 				continue
 			}
 			if q.pdfNaFilaLocked(path) {
@@ -314,7 +314,7 @@ func (q *Queue) AddFilesComOrigem(paths []string, origem string) int {
 		// Avoid duplicate files currently in queue (not processed yet or currently processing)
 		duplicated := false
 		for _, item := range q.items {
-			if item.Path == path && (item.Status == "pending" || item.Status == "processing") {
+			if caminhoIgual(item.Path, path) && (item.Status == "pending" || item.Status == "processing") {
 				duplicated = true
 				break
 			}
@@ -397,7 +397,7 @@ func (q *Queue) pdfNaFilaLocked(path string) bool {
 		if item.Status != "pending" && item.Status != "processing" {
 			continue
 		}
-		if slices.ContainsFunc(item.Paths, func(p string) bool { return strings.EqualFold(p, path) }) {
+		if slices.ContainsFunc(item.Paths, func(p string) bool { return caminhoIgual(p, path) }) {
 			return true
 		}
 	}
