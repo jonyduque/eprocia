@@ -13,7 +13,7 @@ const CONFIG = {
   watchdog_enabled: true,
 };
 
-// Versão do app (wails.json, a mesma do rodapé) e a nova, um minor acima (0.4.4 -> 0.5.0).
+// Versão do app (wails.json, a mesma do rodapé) e a nova, um minor acima (0.5.0 -> 0.6.0).
 export const VERSAO_ATUAL = JSON.parse(readFileSync(new URL('../../wails.json', import.meta.url), 'utf8')).info.productVersion;
 const VERSAO_NOVA = VERSAO_ATUAL.split('.').map((p, i) => (i === 1 ? Number(p) + 1 : i === 2 ? '0' : p)).join('.');
 const atualizacao = (extra) => ({ ativo: true, fase: '', versao: VERSAO_NOVA, progresso: 0, mensagem: '', modo: 'trocar', motivo: '', atual: VERSAO_ATUAL, ...extra });
