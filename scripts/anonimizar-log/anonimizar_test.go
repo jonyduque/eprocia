@@ -131,6 +131,82 @@ func TestAnonimizar_RadicalDoZip(t *testing.T) {
 	}
 }
 
+func TestAnonimizar_TxtDePDF(t *testing.T) {
+	entrada := `{"msg":"item na vez","zip":"5000000-00.2026.8.26.0001 - Evento 12 - SENT1.pdf"}` + "\n" +
+		`{"msg":"falha","etapa":"gravar","erro":"open C:\\Users\\<usuario>\\Downloads\\5000000-00.2026.8.26.0001 - Evento 12 - SENT1.txt: acesso negado","pasta":"C:\\Users\\<usuario>\\5000000-00.2026.8.26.0001 - Evento 12 - SENT1"}` + "\n"
+	linhas, sobras := rodar(t, entrada)
+	todasValidas(t, linhas)
+	if len(sobras) != 0 {
+		t.Errorf("sobras = %v", sobras)
+	}
+	if got := campo(t, linhas[0], "zip"); got != "zip-1" {
+		t.Errorf("zip = %q", got)
+	}
+	if got := campo(t, linhas[1], "erro"); got != `open C:\Users\<usuario>\Downloads\zip-1.txt: acesso negado` {
+		t.Errorf("erro = %q", got)
+	}
+	if got := campo(t, linhas[1], "pasta"); got != `C:\Users\<usuario>\zip-1` {
+		t.Errorf("pasta = %q", got)
+	}
+}
+
+func TestAnonimizar_PDFSemDiferencaDeCaixa(t *testing.T) {
+	entrada := `{"msg":"x","zip":"processo-exemplo.PDF"}` + "\n" +
+		`{"msg":"y","erro":"open C:\\Users\\<usuario>\\processo-exemplo.txt: acesso negado"}` + "\n"
+	linhas, _ := rodar(t, entrada)
+	if got := campo(t, linhas[1], "erro"); got != `open C:\Users\<usuario>\zip-1.txt: acesso negado` {
+		t.Errorf("erro = %q", got)
+	}
+}
+
+func TestAnonimizar_NomeDeItemComContagem(t *testing.T) {
+	entrada := `{"msg":"item na vez","zip":"5000000-00.2026.8.26.0001 (3 PDFs)"}` + "\n" +
+		`{"msg":"concluído 5000000-00.2026.8.26.0001 (3 PDFs)","saida":"C:\\Users\\<usuario>\\5000000-00.2026.8.26.0001.txt"}` + "\n" +
+		`{"msg":"falha","pasta":"C:\\Users\\<usuario>\\5000000-00.2026.8.26.0001"}` + "\n"
+	linhas, _ := rodar(t, entrada)
+	todasValidas(t, linhas)
+	saida := strings.Join(linhas, "\n")
+	if strings.Contains(saida, "5000000-00.2026.8.26.0001") || strings.Contains(saida, "PDFs") {
+		t.Errorf("sobrou o nome do item: %s", saida)
+	}
+	if got := campo(t, linhas[0], "zip"); got != "zip-1" {
+		t.Errorf("zip = %q", got)
+	}
+	if got := campo(t, linhas[1], "msg"); got != "concluído zip-1" {
+		t.Errorf("msg = %q", got)
+	}
+	if got := campo(t, linhas[1], "saida"); got != `C:\Users\<usuario>\zip-1.txt` {
+		t.Errorf("saida = %q", got)
+	}
+	if got := campo(t, linhas[2], "pasta"); got != `C:\Users\<usuario>\zip-1` {
+		t.Errorf("pasta = %q", got)
+	}
+}
+
+func TestAnonimizar_TxtComSufixoN(t *testing.T) {
+	for _, nome := range []string{"processo-exemplo.zip", "processo-exemplo.pdf"} {
+		entrada := `{"msg":"x","zip":"` + nome + `"}` + "\n" +
+			`{"msg":"y","a":"C:\\Users\\<usuario>\\processo-exemplo_2.txt","b":"C:\\Users\\<usuario>\\processo-exemplo_999.txt"}` + "\n"
+		linhas, _ := rodar(t, entrada)
+		if got := campo(t, linhas[1], "a"); got != `C:\Users\<usuario>\zip-1_2.txt` {
+			t.Errorf("%s: a = %q", nome, got)
+		}
+		if got := campo(t, linhas[1], "b"); got != `C:\Users\<usuario>\zip-1_999.txt` {
+			t.Errorf("%s: b = %q", nome, got)
+		}
+	}
+	// Os limites do sufixo valem para o radical curto, que só é trocado como
+	// nome de TXT (o radical de 4 ou mais caracteres é trocado também
+	// sozinho, onde aparece delimitado, e por isso nunca sobra).
+	entrada := `{"msg":"x","zip":"abc.pdf"}` + "\n" +
+		`{"msg":"y","a":"abc_2.txt","b":"abc_999.txt","c":"abc_1.txt","d":"abc_1000.txt","e":"abc_02.txt"}` + "\n"
+	linhas, _ := rodar(t, entrada)
+	want := `{"msg":"y","a":"zip-1_2.txt","b":"zip-1_999.txt","c":"abc_1.txt","d":"abc_1000.txt","e":"abc_02.txt"}`
+	if linhas[1] != want {
+		t.Errorf("linha 2:\n got %s\nwant %s", linhas[1], want)
+	}
+}
+
 // todasValidas falha se alguma linha não for JSON válido.
 func todasValidas(t *testing.T, linhas []string) {
 	t.Helper()
