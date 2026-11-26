@@ -36,3 +36,9 @@ scripts/bench/*.txt
 frontend/vite.config.js.timestamp-*.mjs
 
 build/windows/installer/tmp/
+
+# Log e telemetria locais (podem conter dados de processos reais)
+*.log
+*.jsonl
+# Entrada sintética do teste do anonimizador (Task 18)
+!scripts/anonimizar-log/testdata/*.jsonl

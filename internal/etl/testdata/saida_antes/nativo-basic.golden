@@ -1,0 +1,65 @@
+<contexto>
+PROCESSO JUDICIAL - ORDEM CRONOLÓGICA
+Total de Documentos: 2
+Documentos não lidos: 0
+Data de Consolidação: DATA
+Tokens estimados: 427
+
+<summary>
+- Evento 1 - DOC1: 3 páginas
+- Evento 2 - DOC2: 1 página
+</summary>
+</contexto>
+
+<evento num="1">
+<documento index="1" nome="Evento 1 - DOC1.pdf">
+<pag n="1">
+PODER JUDICIÁRIO
+linha um 0 do caso FULANO DE TAL
+linha um 1 do caso FULANO DE TAL
+linha um 2 do caso FULANO DE TAL
+linha um 3 do caso FULANO DE TAL
+linha um 4 do caso FULANO DE TAL
+linha um 5 do caso FULANO DE TAL
+linha um 6 do caso FULANO DE TAL
+linha um 7 do caso FULANO DE TAL
+linha um 8 do caso FULANO DE TAL
+linha um 9 do caso FULANO DE TAL
+Rua Fictícia, 100 - fl. 1
+</pag>
+<pag n="2">
+PODER JUDICIÁRIO
+linha dois 0 do caso FULANO DE TAL
+linha dois 1 do caso FULANO DE TAL
+linha dois 2 do caso FULANO DE TAL
+linha dois 3 do caso FULANO DE TAL
+linha dois 4 do caso FULANO DE TAL
+linha dois 5 do caso FULANO DE TAL
+linha dois 6 do caso FULANO DE TAL
+linha dois 7 do caso FULANO DE TAL
+linha dois 8 do caso FULANO DE TAL
+linha dois 9 do caso FULANO DE TAL
+Rua Fictícia, 100 - fl. 2
+</pag>
+<pag n="3">
+PODER JUDICIÁRIO
+linha tres 0 do caso FULANO DE TAL
+linha tres 1 do caso FULANO DE TAL
+linha tres 2 do caso FULANO DE TAL
+linha tres 3 do caso FULANO DE TAL
+linha tres 4 do caso FULANO DE TAL
+linha tres 5 do caso FULANO DE TAL
+linha tres 6 do caso FULANO DE TAL
+linha tres 7 do caso FULANO DE TAL
+linha tres 8 do caso FULANO DE TAL
+linha tres 9 do caso FULANO DE TAL
+Rua Fictícia, 100 - fl. 3
+</pag>
+</documento>
+</evento>
+<evento num="2">
+<documento index="1" nome="Evento 2 - DOC2.pdf">
+Página única do documento dois, de FULANO DE TAL.
+Página 1 de 1
+</documento>
+</evento>

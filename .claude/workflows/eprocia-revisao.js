@@ -85,12 +85,32 @@ const SINTESE = {
 // comPapel runs an agent with a project agent type; if the type is not
 // registered in this session (agents added after it started), it falls back to
 // the default agent told to follow the same definition file.
-async function comPapel(papel, prompt, opts) {
+function comPapel(papel, prompt, opts) {
+  return comVaga(async () => {
+    try {
+      return await agent(prompt, { ...opts, agentType: papel })
+    } catch (err) {
+      log(`agente ${papel} indisponível (${err.message}); usando o agente padrão com .claude/agents/${papel}.md`)
+      return agent(`Antes de tudo, leia e siga à risca .claude/agents/${papel}.md (seu papel).\n\n${prompt}`, opts)
+    }
+  })
+}
+
+// At most 3 agents at once: the workflow runtime allows about 10, which pins
+// this machine's CPU and skews what the skeptics measure. A released slot goes
+// straight to the next waiter.
+const MAX_AGENTES = 3
+let ativos = 0
+const espera = []
+async function comVaga(fn) {
+  if (ativos >= MAX_AGENTES) await new Promise((r) => espera.push(r))
+  else ativos++
   try {
-    return await agent(prompt, { ...opts, agentType: papel })
-  } catch (err) {
-    log(`agente ${papel} indisponível (${err.message}); usando o agente padrão com .claude/agents/${papel}.md`)
-    return agent(`Antes de tudo, leia e siga à risca .claude/agents/${papel}.md (seu papel).\n\n${prompt}`, opts)
+    return await fn()
+  } finally {
+    const proximo = espera.shift()
+    if (proximo) proximo()
+    else ativos--
   }
 }
 
@@ -98,7 +118,7 @@ async function comPapel(papel, prompt, opts) {
 let capturasPromise = Promise.resolve(null)
 if (camadas.includes('frontend')) {
   phase('Visual')
-  capturasPromise = agent(
+  capturasPromise = comPapel('auxiliar',
     `Use a skill eprocia-visual para capturar o frontend do eprocIA com dados fictícios.\n` +
       `Rode: node scripts/visual/capturar.mjs --saida ${pastaCapturas}\n` +
       `Não rode wails dev. Confirme que o Vite foi encerrado ao fim. ` +
@@ -182,7 +202,7 @@ log(`${mantidos.length} achados sobreviveram, ${derrubados.length} derrubados, $
 
 phase('Síntese')
 const capturas = await capturasPromise
-const sintese = await agent(
+const sintese = await comPapel('auxiliar',
   `Você é a síntese da revisão do eprocIA de ${data} (escopo: ${escopo}${filtroLentes ? `, lentes: ${[...filtroLentes].join(',')}` : ''}).\n\n` +
     `ACHADOS QUE SOBREVIVERAM (JSON):\n${JSON.stringify(mantidos, null, 1)}\n\n` +
     `DERRUBADOS (JSON):\n${JSON.stringify(derrubados, null, 1)}\n\n` +

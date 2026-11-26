@@ -10,7 +10,7 @@ Verifique, nesta ordem:
 
 1. **Aderência:** o diff resolve o problema descrito no achado, e o teste novo falharia sem a correção (confira lendo o teste; se houver dúvida, rode-o).
 2. **Escopo:** só os arquivos do achado e seus testes foram tocados, ou a ampliação está justificada. Nada em arquivos gerados ou embutidos.
-3. **Gates:** o resultado do gate recebido no pedido passou; para EF, o benchstat mostra `p < 0,05` na métrica-alvo e nenhuma outra métrica piora mais que 5%.
+3. **Gates:** o resultado do gate recebido no pedido passou (em frontend, rode também `node --test` sobre `frontend/*.test.mjs`; no pwsh: `node --test (Get-ChildItem frontend -Filter *.test.mjs).FullName`); para EF, o benchstat mostra `p < 0,05` na métrica-alvo e nenhuma outra métrica piora mais que 5%.
 4. **Qualidade:** segue o padrão do código vizinho; logs e mensagens em pt-BR; sem comentários excessivos; sem código morto; `gofmt` limpo.
 
 Reprove somente por problema concreto, dizendo o que mudar. Devolva o objeto estruturado pedido (`aprovado`, `motivo`).

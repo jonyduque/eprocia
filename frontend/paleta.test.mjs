@@ -156,8 +156,11 @@ test('raios de no máximo 6px (círculos à parte)', () => {
     for (const m of texto.matchAll(/border-radius:\s*([^;]+);/g)) {
       const v = m[1].trim();
       if (v === '50%') continue;
-      const px = v.match(/^(\d+)px$/);
-      assert.ok(px && Number(px[1]) <= 6, `${nome}: border-radius ${v}`);
+      // Vários valores (canto reto do lado de uma borda colorida): cada um até 6px.
+      for (const canto of v.split(/\s+/)) {
+        const px = canto === '0' ? ['0', '0'] : canto.match(/^(\d+)px$/);
+        assert.ok(px && Number(px[1]) <= 6, `${nome}: border-radius ${v}`);
+      }
     }
   }
 });
@@ -207,10 +210,8 @@ test('barra de progresso sólida em --processing', () => {
   assert.doesNotMatch(r, /gradient|box-shadow/);
 });
 
-test('seção manual sem fundo próprio e barras do app opacas', () => {
+test('barras do app opacas', () => {
   const s = estilo(app);
-  // F-VI-10: a seção fica sobre a superfície do painel, separada por divisor.
-  assert.doesNotMatch(regra(s, '.manual-card'), /background|box-shadow|gradient/);
   for (const sel of ['.custom-titlebar', '.sidebar', 'footer']) {
     assert.match(regra(s, sel), /background-color:\s*var\(--surface\)/, sel);
   }

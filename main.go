@@ -3,14 +3,17 @@ package main
 import (
 	"context"
 	"embed"
-	"log"
+	"log/slog"
 	"os"
+	"path/filepath"
 	"runtime"
 
+	"eprocia/internal/atualizacao"
 	"eprocia/internal/autostart"
 	"eprocia/internal/config"
+	"eprocia/internal/registro"
 
-	"github.com/getlantern/systray"
+	"github.com/energye/systray"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
@@ -20,11 +23,43 @@ import (
 var assets embed.FS
 
 func main() {
-	// Create an instance of the app structure
+	// Uma instância por executável: outra cópia do mesmo exe avisa e sai (na
+	// partida automática, sai calada). Se a trava falhar, o app abre assim
+	// mesmo. O handle fica aberto até o processo terminar. O registro só é
+	// iniciado depois da trava: a segunda cópia não mexe no log da primeira.
 	app := NewApp()
-	app.cfg = carregarConfig(config.Load)
+	app.pastaDados = pastaDadosApp()
+	app.apos, _ = atualizacao.AposAtualizar(os.Args)
+	app.limparAnterior = atualizacao.LimparAnteriorPedido(os.Args)
+	travar := func() (func(), bool, error) {
+		return travarInstancia(nomeTravaInstancia(caminhoExecutavel()))
+	}
+	// Aberto pela troca, o processo novo não sai por achar a trava ocupada
+	// pelo antigo, que a segura até sair: a trava é obtida depois
+	// (arranqueApos), antes de ligar o watcher.
+	if app.apos > 0 {
+		travar, app.travarDepois = travaAposAtualizar(travar)
+	}
+	sair, liberar := prepararInstancia(
+		travar,
+		func() {
+			app.guardarConfig(carregarConfig(config.Load))
+			iniciarRegistro(os.Getenv("EPROCIA_LOG"), app.pastaDados, app.configAtual())
+		},
+	)
+	if sair {
+		if !autostart.IniciarOculto(os.Args) {
+			avisarInstanciaAberta()
+		}
+		os.Exit(0)
+	}
+	defer liberar()
+
+	iniciarOculto := autostart.IniciarOculto(os.Args)
+	app.iniciarOculta(iniciarOculto)
 
 	go executarTray(func() {
+		prepararBandeja(bandejaSystray{}, acoesDoApp(app))
 		systray.Run(onReady(app), onExit)
 	})
 
@@ -39,14 +74,18 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour: corDeFundo(temaClaro(app.cfg.Theme, windowsUsaTemaClaro)),
+		BackgroundColour: corDeFundo(temaClaro(app.configAtual().Theme, windowsUsaTemaClaro)),
 		OnStartup:        app.startup,
+		OnDomReady:       app.domPronto,
 		OnShutdown: func(ctx context.Context) {
 			app.shutdown(ctx)
+			registro.Encerrar()
 			systray.Quit()
 		},
-		HideWindowOnClose: true,
-		StartHidden:       autostart.IniciarOculto(os.Args),
+		// Fechar a janela (X, Alt+F4, barra de tarefas) vai para a bandeja
+		// com animação; HideWindowOnClose ocultaria sem passar por aqui.
+		OnBeforeClose: app.antesDeFechar,
+		StartHidden:   iniciarOculto,
 		DragAndDrop: &options.DragAndDrop{
 			EnableFileDrop: true,
 		},
@@ -56,8 +95,20 @@ func main() {
 	})
 
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("falha ao executar a janela do app", "erro", err)
+		registro.Encerrar()
+		os.Exit(1)
 	}
+}
+
+// pastaDadosApp é %AppData%\eprocIA, onde ficam a config e os logs; vazia se
+// o Windows não informar a pasta (o log fica desligado).
+func pastaDadosApp() string {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(dir, "eprocIA")
 }
 
 // executarTray roda o laço do tray. A janela oculta do systray recebe as
@@ -70,39 +121,7 @@ func executarTray(run func()) {
 }
 
 func onReady(app *App) func() {
-	return func() {
-		systray.SetIcon(DefaultIcon)
-		systray.SetTitle("eprocIA")
-		systray.SetTooltip("eprocIA - ETL Judicial")
-
-		mShow := systray.AddMenuItem("Abrir", "Abrir o eprocIA")
-		mHide := systray.AddMenuItem("Ocultar", "Ocultar a janela")
-		mQuit := systray.AddMenuItem("Sair", "Sair do aplicativo")
-
-		go func() {
-			for {
-				select {
-				case _, ok := <-mShow.ClickedCh:
-					if !ok {
-						return
-					}
-					app.Show()
-				case _, ok := <-mHide.ClickedCh:
-					if !ok {
-						return
-					}
-					app.Hide()
-				case _, ok := <-mQuit.ClickedCh:
-					if !ok {
-						return
-					}
-					systray.Quit()
-					app.Quit()
-					return
-				}
-			}
-		}()
-	}
+	return func() { montarMenu(bandejaSystray{}, acoesDoApp(app)) }
 }
 
 // corDeFundo espelha o --bg-main de style.css para a janela nativa não

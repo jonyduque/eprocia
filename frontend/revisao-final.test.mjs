@@ -53,9 +53,9 @@ test('Settings fica montado com o painel recolhido', () => {
 test('cópia que falha avisa o usuário', () => {
   const copiar = funcao(lista, 'handleCopy');
   const captura = copiar.slice(copiar.indexOf('catch'));
-  assert.match(captura, /avisoCopia\.mostrar\(/);
+  assert.match(captura, /avisoAcao\.mostrar\(/);
   assert.match(captura, /err\?\.message \?\? err/);
-  assert.match(lista, /role="alert"/);
+  assert.match(lista, /<Aviso aviso=\{avisoAtual\}/);
 });
 
 // --- localStorage bloqueado -----------------------------------------------

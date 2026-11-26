@@ -2,20 +2,27 @@
   import Icone from './Icone.svelte';
   import Archive from 'lucide-svelte/icons/archive';
   import Check from 'lucide-svelte/icons/check';
+  import ChevronDown from 'lucide-svelte/icons/chevron-down';
   import CircleAlert from 'lucide-svelte/icons/circle-alert';
   import CircleCheck from 'lucide-svelte/icons/circle-check';
   import CirclePause from 'lucide-svelte/icons/circle-pause';
-  import CircleQuestionMark from 'lucide-svelte/icons/circle-question-mark';
   import CircleSlash from 'lucide-svelte/icons/circle-slash';
   import Clock from 'lucide-svelte/icons/clock';
+  import Coins from 'lucide-svelte/icons/coins';
   import Copy from 'lucide-svelte/icons/copy';
+  import FileText from 'lucide-svelte/icons/file-text';
+  import Files from 'lucide-svelte/icons/files';
   import FolderOpen from 'lucide-svelte/icons/folder-open';
+  import Info from 'lucide-svelte/icons/info';
   import List from 'lucide-svelte/icons/list';
   import ListX from 'lucide-svelte/icons/list-x';
   import LoaderCircle from 'lucide-svelte/icons/loader-circle';
   import Pause from 'lucide-svelte/icons/pause';
   import Play from 'lucide-svelte/icons/play';
+  import RotateCcw from 'lucide-svelte/icons/rotate-ccw';
+  import Search from 'lucide-svelte/icons/search';
   import Trash2 from 'lucide-svelte/icons/trash-2';
+  import Upload from 'lucide-svelte/icons/upload';
   import X from 'lucide-svelte/icons/x';
   import {
     OpenDirectory,
@@ -24,18 +31,59 @@
     RemoveQueueItem,
     PauseQueue,
     ResumeQueue,
-    ClearQueue
+    ClearQueue,
+    ClearFinishedQueue,
+    GetQueueActivity,
+    ReprocessQueueItem
   } from '../wailsjs/go/main/App.js';
+  import AtividadeItem from './AtividadeItem.svelte';
+  import RelatorioItem from './RelatorioItem.svelte';
+  import ReprocessarItem from './ReprocessarItem.svelte';
+  import Aviso from './Aviso.svelte';
   import { onDestroy, tick } from 'svelte';
-  import { fly, fade } from 'svelte/transition';
+  import { fly, fade, scale } from 'svelte/transition';
   import { flip } from 'svelte/animate';
   import { cubicOut } from 'svelte/easing';
+  import { criarAnunciador } from '../lib/regiaoViva.js';
   import { estadoItem, avisoFila } from '../lib/estado.js';
   import { criarAviso, duracaoMovimento, DUR_FAST, DUR_BASE } from '../lib/aviso.js';
-  import { formatarHora, filtrarItens, alvoFoco, escolherAcao, criarMovimentoFila } from '../lib/fila.js';
+  import { aplicarReprocessarComOCR, alvoAoFecharReprocessar, argumentosLerComOCR, limpezaInicialReprocessar } from '../lib/reprocessar.js';
+  import { resumoPaginas, avisosPaginas, mostrarLerComOCR } from '../lib/relatorio.js';
+  import { ATUALIZACAO, EXPLICACAO_OCR, ROTULO_LER_COM_OCR, DICA_LER_COM_OCR, DICA_ABRIR_RELATORIO, DICA_FECHAR_RELATORIO } from '../lib/textos.js';
+  import { dica } from '../lib/dica.js';
+  import { rotuloNaoLidos, avisoCopiaNaoLidos, tituloNaoLidos } from '../lib/naoLidos.js';
+  import { rolagem } from '../lib/rolagem.js';
+  import { marcosFila, anuncioCopia, anuncioPausa, anuncioFiltro } from '../lib/anuncios.js';
+  import {
+    formatarHora,
+    filtrarItens,
+    alvoFoco,
+    escolherAcao,
+    criarMovimentoFila,
+    contarConcluidos,
+    textoConfirmarLimpeza,
+    abreviarContagem,
+    nomeExibido,
+    dicaContadores,
+    rotuloAcao,
+    paradasItem,
+    proximaParada,
+    resolverParada,
+    acaoDelete,
+    copiavel
+  } from '../lib/fila.js';
 
   export let items = [];
   export let isPaused = false;
+  // Instantâneos de queue:atividade por id de item (App.svelte).
+  export let atividades = {};
+  // Config atual: valores iniciais do reprocessamento de itens antigos.
+  export let config = null;
+  // Abre a seleção de ZIPs do App: o vazio oferece a ação sem depender do painel.
+  export let aoSelecionarZip = () => {};
+  // Durante a troca de versão (aceitaEntrada falso) nada volta à fila:
+  // os botões que reprocessam o item ficam bloqueados, com a dica do motivo.
+  export let entradaBloqueada = false;
 
   let filterText = '';
 
@@ -50,30 +98,181 @@
 
   $: aviso = avisoFila(items, isPaused);
 
+  // Região viva única da lista: só marcos (fim do item, erros, pausa, filtro,
+  // cópia). Limpar antes de escrever faz o leitor repetir um texto igual.
+  let anuncio = '';
+  const anunciar = criarAnunciador((t) => (anuncio = t), tick);
+
+  let estadoMarcos = null;
+  function registrarMarcos(lista, ativ) {
+    const r = marcosFila(estadoMarcos, lista, ativ);
+    estadoMarcos = r.estado;
+    if (r.mensagens.length > 0) anunciar(r.mensagens.join('. '));
+  }
+  $: registrarMarcos(items, atividades);
+
+  let pausaAnterior;
+  function registrarPausa(pausada) {
+    anunciar(anuncioPausa(pausaAnterior, pausada, avisoFila(items, true)));
+    pausaAnterior = pausada;
+  }
+  $: registrarPausa(isPaused);
+
   $: filteredItems = filtrarItens(items, filterText);
+
+  let ultimoFiltro = '';
+  function registrarFiltro(texto, n) {
+    const msg = anuncioFiltro(texto, n);
+    if (msg !== ultimoFiltro) anunciar(msg);
+    ultimoFiltro = msg;
+  }
+  $: registrarFiltro(filterText, filteredItems.length);
 
   const mov = criarMovimentoFila();
   $: mov.atualizar(items, filterText);
-
-  const formatoTokens = new Intl.NumberFormat('pt-BR');
 
   let detalhesAbertos = {};
   function alternarDetalhes(id) {
     detalhesAbertos = { ...detalhesAbertos, [id]: !detalhesAbertos[id] };
   }
 
-  // Cancelar/Remover/Limpar Fila somem com a linha (ou trocam de botão) quando
+  // Painel de atividade: o item em processamento (ou já terminado, nesta
+  // sessão) mostra o que cada documento está fazendo.
+  let atividadeAberta = {};
+  let atividadesBuscadas = {};
+
+  function temAtividade(estado) {
+    return estado === 'processando' || estado === 'sucesso' || estado === 'erro' || estado === 'cancelado';
+  }
+
+  async function alternarAtividade(item) {
+    const abrir = !atividadeAberta[item.id];
+    atividadeAberta = { ...atividadeAberta, [item.id]: abrir };
+    if (!abrir || atividades[item.id]) return;
+    // O primeiro queue:atividade pode demorar até 200 ms; pede o estado atual.
+    try {
+      const inst = await GetQueueActivity(item.id);
+      atividadesBuscadas = { ...atividadesBuscadas, [item.id]: inst ?? 'nenhuma' };
+    } catch (err) {
+      console.error('Erro ao ler a atividade do item:', err);
+      atividadesBuscadas = { ...atividadesBuscadas, [item.id]: 'nenhuma' };
+    }
+  }
+
+  // 'nenhuma': item cancelado antes de começar, sem atividade registrada.
+  function atividadeDe(id, ativ, buscadas) {
+    return ativ[id] ?? buscadas[id] ?? null;
+  }
+
+  let reprocessarAberto = {};
+  // OCR sugerido ao abrir o painel pelo botão "Reprocessar com OCR" (vale só
+  // para esta abertura; a configuração global não muda).
+  let ocrSugerido = {};
+  // Muda a cada clique em "Reprocessar com OCR": remonta o formulário.
+  let geracaoReprocessar = {};
+  // Botão que abriu o formulário (o da linha ou o do painel de atividade):
+  // fica aqui, e não no formulário, para sobreviver à remontagem pelo {#key}.
+  let origemReprocessar = {};
+  function alternarReprocessar(id, evento) {
+    const abrir = !reprocessarAberto[id];
+    // Durante a troca só abrir é barrado; fechar pelo ícone continua.
+    if (entradaBloqueada && abrir) return;
+    reprocessarAberto = { ...reprocessarAberto, [id]: abrir };
+    const { [id]: _, ...resto } = ocrSugerido;
+    ocrSugerido = resto;
+    origemReprocessar = { ...origemReprocessar, [id]: abrir ? evento?.currentTarget ?? null : null };
+  }
+
+  function reprocessarComOCR(id, evento) {
+    const r = aplicarReprocessarComOCR({
+      aberto: !!reprocessarAberto[id],
+      ocr: ocrSugerido[id] ?? '',
+      geracao: geracaoReprocessar[id] ?? 0
+    });
+    ocrSugerido = { ...ocrSugerido, [id]: r.ocr };
+    geracaoReprocessar = { ...geracaoReprocessar, [id]: r.geracao };
+    reprocessarAberto = { ...reprocessarAberto, [id]: r.aberto };
+    origemReprocessar = { ...origemReprocessar, [id]: evento?.currentTarget ?? null };
+  }
+
+  function botaoReprocessarDa(id) {
+    return linhaDe(id)?.querySelector('.actions-col button[data-acao="reprocessar"]') ?? null;
+  }
+
+  // Cancelar e Esc: o formulário desmonta com o foco dentro; sem isto ele cai no body.
+  async function fecharReprocessar(id) {
+    const origem = origemReprocessar[id];
+    alternarReprocessar(id);
+    await tick();
+    (alvoAoFecharReprocessar(origem, botaoReprocessarDa(id)) ?? tituloEl)?.focus();
+  }
+
+  // Painel de detalhes do relatório (linha-resumo do item concluído).
+  let relatorioAberto = {};
+  // Envio do botão ROTULO_LER_COM_OCR em curso: trava o duplo clique até a fila responder.
+  let lendoOCR = {};
+  function alternarRelatorio(id) {
+    relatorioAberto = { ...relatorioAberto, [id]: !relatorioAberto[id] };
+  }
+
+  // Botão ROTULO_LER_COM_OCR: refaz o ZIP com o OCR ligado só nas páginas candidatas,
+  // sem Forçar OCR e com a limpeza do item (a config global não muda).
+  async function lerComOCR(item) {
+    if (lendoOCR[item.id]) return;
+    if (entradaBloqueada) return;
+    lendoOCR = { ...lendoOCR, [item.id]: true };
+    const a = argumentosLerComOCR(item, config);
+    try {
+      await ReprocessQueueItem(item.id, a.ocr, a.limpeza, a.forcar);
+      const botao = botaoReprocessarDa(item.id);
+      botao?.focus();
+      guardarFoco(item.id, { currentTarget: botao }, 'cancelar');
+      reprocessarAberto = { ...reprocessarAberto, [item.id]: false };
+      relatorioAberto = { ...relatorioAberto, [item.id]: false };
+      origemReprocessar = { ...origemReprocessar, [item.id]: null };
+      const { [item.id]: _, ...resto } = atividadesBuscadas;
+      atividadesBuscadas = resto;
+    } catch (err) {
+      console.error('Erro ao reprocessar com OCR:', err);
+      avisoAcao.mostrar('Erro ao reprocessar: ' + (err?.message ?? err), 'error');
+    } finally {
+      lendoOCR = { ...lendoOCR, [item.id]: false };
+    }
+  }
+
+  async function confirmarReprocessar(item, ocr, limpeza, forcar) {
+    try {
+      await ReprocessQueueItem(item.id, ocr, limpeza, !!forcar);
+      // O item volta para a fila e a linha troca Reprocessar por Cancelar quando
+      // o queue:update chegar: o foco espera no Reprocessar e depois vai ao Cancelar.
+      const botao = botaoReprocessarDa(item.id);
+      botao?.focus();
+      guardarFoco(item.id, { currentTarget: botao }, 'cancelar');
+      reprocessarAberto = { ...reprocessarAberto, [item.id]: false };
+      relatorioAberto = { ...relatorioAberto, [item.id]: false };
+      origemReprocessar = { ...origemReprocessar, [item.id]: null };
+      const { [item.id]: _, ...resto } = atividadesBuscadas;
+      atividadesBuscadas = resto;
+    } catch (err) {
+      console.error('Erro ao reprocessar:', err);
+      avisoAcao.mostrar('Erro ao reprocessar: ' + (err?.message ?? err), 'error');
+    }
+  }
+
+  // Cancelar/Remover/Limpar somem com a linha (ou trocam de botão) quando
   // o queue:update chega; sem isto o foco cai no body.
   let tituloEl;
   let listaEl;
+  let listaRolada = false;
+  const marcarLista = (e) => (listaRolada = e.acima);
   let focoPendente = null;
 
-  function guardarFoco(id, evento) {
+  function guardarFoco(id, evento, preferida) {
     const botao = evento?.currentTarget ?? null;
     focoPendente = {
       id,
       botao,
-      acao: botao?.dataset?.acao ?? null,
+      acao: preferida ?? botao?.dataset?.acao ?? null,
       idsAntes: filteredItems.map((i) => i.id),
     };
   }
@@ -118,19 +317,18 @@
       await OpenDirectory(path);
     } catch (err) {
       console.error('Erro ao abrir pasta:', err);
+      avisoAcao.mostrar('Erro ao abrir a pasta: ' + (err?.message ?? err), 'error');
     }
   }
 
   let copiadoId = null;
   let copiadoTimer;
-  let erroCopia = '';
-
-  const avisoCopia = criarAviso((a) => {
-    erroCopia = a ? a.texto : '';
-  });
+  // Falhas das ações da fila e o alerta de não lidos ao copiar.
+  let avisoAtual = null;
+  const avisoAcao = criarAviso((a) => { avisoAtual = a; });
 
   onDestroy(() => {
-    avisoCopia.limpar();
+    avisoAcao.limpar();
     clearTimeout(copiadoTimer);
   });
 
@@ -140,9 +338,12 @@
       copiadoId = item.id;
       clearTimeout(copiadoTimer);
       copiadoTimer = setTimeout(() => { copiadoId = null; }, 1500);
+      const alerta = avisoCopiaNaoLidos(item.unread_docs);
+      if (alerta) avisoAcao.mostrar(alerta, 'aviso');
+      anunciar(anuncioCopia(item.name, item.unread_docs));
     } catch (err) {
       console.error('Erro ao copiar o TXT:', err);
-      avisoCopia.mostrar('Erro ao copiar o TXT: ' + (err?.message ?? err), 'error');
+      avisoAcao.mostrar('Erro ao copiar o TXT: ' + (err?.message ?? err), 'error');
     }
   }
 
@@ -151,6 +352,7 @@
       await PauseQueue();
     } catch (err) {
       console.error('Erro ao pausar:', err);
+      avisoAcao.mostrar('Erro ao pausar a fila: ' + (err?.message ?? err), 'error');
     }
   }
 
@@ -159,6 +361,7 @@
       await ResumeQueue();
     } catch (err) {
       console.error('Erro ao retomar:', err);
+      avisoAcao.mostrar('Erro ao retomar a fila: ' + (err?.message ?? err), 'error');
     }
   }
 
@@ -169,6 +372,7 @@
     } catch (err) {
       focoPendente = null;
       console.error('Erro ao cancelar:', err);
+      avisoAcao.mostrar('Erro ao cancelar: ' + (err?.message ?? err), 'error');
     }
   }
 
@@ -179,34 +383,166 @@
     } catch (err) {
       focoPendente = null;
       console.error('Erro ao remover:', err);
+      avisoAcao.mostrar('Erro ao remover: ' + (err?.message ?? err), 'error');
     }
   }
 
+  $: concluidos = contarConcluidos(items);
+
+  // Foco itinerante (DESIGN.md §5.1): só a última parada focada tem tabindex 0.
+  // Ids como texto: é o que volta de data-id.
+  let filtroEl;
+  let paradaFocada = null;
+  $: grade = filteredItems.map((i) => ({
+    id: String(i.id),
+    paradas: paradasItem(i, temAtividade(estadoItem(i.status, isPaused)))
+  }));
+  $: paradaAtiva = resolverParada(grade, paradaFocada);
+
+  function tabParada(id, chave, ativa) {
+    return ativa && ativa.id === String(id) && ativa.chave === chave ? 0 : -1;
+  }
+
+  function paradaDe(alvo) {
+    const chave = alvo?.dataset?.parada;
+    const linha = chave ? alvo.closest('.item-row[data-id]') : null;
+    return linha ? { id: linha.dataset.id, chave } : null;
+  }
+
+  function focoNaLista(e) {
+    const p = paradaDe(e.target);
+    if (p) paradaFocada = p;
+  }
+
+  function teclaLista(e) {
+    // Teclas dentro dos painéis da linha (atividade, reprocessar) ficam com eles.
+    const atual = paradaDe(e.target);
+    if (!atual || e.altKey || e.metaKey) return;
+    const item = filteredItems.find((i) => String(i.id) === atual.id);
+    if (!item) return;
+    if (e.ctrlKey) {
+      if (e.key.toLowerCase() === 'c' && !e.shiftKey && copiavel(item)) {
+        e.preventDefault();
+        handleCopy(item);
+      }
+      return;
+    }
+    if (e.key === 'Delete') {
+      const acao = acaoDelete(item.status);
+      const botao = acao ? linhaDe(item.id)?.querySelector(`.actions-col button[data-acao="${acao}"]`) : null;
+      if (!botao) return;
+      e.preventDefault();
+      const ev = { currentTarget: botao };
+      if (acao === 'cancelar') handleCancel(item.id, ev);
+      else handleRemove(item.id, ev);
+      return;
+    }
+    if (e.shiftKey) return;
+    const prox = proximaParada(grade, atual, e.key);
+    if (!prox) return;
+    e.preventDefault();
+    linhaDe(prox.id)?.querySelector(`[data-parada="${prox.chave}"]`)?.focus();
+  }
+
+  function teclaJanela(e) {
+    if (e.ctrlKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'f' && filtroEl) {
+      e.preventDefault();
+      filtroEl.focus();
+      filtroEl.select();
+    }
+  }
+
+  function teclaFiltro(e) {
+    if (e.key === 'Escape' && filterText) {
+      e.preventDefault();
+      e.stopPropagation();
+      filterText = '';
+    }
+  }
+
+  async function handleLimparConcluidos(evento) {
+    guardarFoco(null, evento);
+    try {
+      await ClearFinishedQueue();
+    } catch (err) {
+      focoPendente = null;
+      console.error('Erro ao limpar concluídos:', err);
+      avisoAcao.mostrar('Erro ao limpar os concluídos: ' + (err?.message ?? err), 'error');
+    }
+  }
+
+  // "Limpar tudo" cancela o item em andamento: só age depois da confirmação em
+  // linha, que não expira (sem prazo, o usuário lê a contagem com calma).
+  let confirmandoLimpeza = false;
+  let limparTudoEl;
+  let cancelarLimpezaEl;
+
+  async function pedirLimpeza() {
+    if (confirmandoLimpeza) {
+      cancelarLimpeza();
+      return;
+    }
+    confirmandoLimpeza = true;
+    await tick();
+    cancelarLimpezaEl?.focus();
+  }
+
+  async function cancelarLimpeza() {
+    confirmandoLimpeza = false;
+    await tick();
+    limparTudoEl?.focus();
+  }
+
+  function teclaConfirmacao(e) {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      cancelarLimpeza();
+    }
+  }
+
+  // A fila esvaziou por outro caminho: não há mais o que confirmar.
+  $: if (items.length === 0) confirmandoLimpeza = false;
+
   async function handleClear(evento) {
+    confirmandoLimpeza = false;
     guardarFoco(null, evento);
     try {
       await ClearQueue();
     } catch (err) {
       focoPendente = null;
       console.error('Erro ao limpar fila:', err);
+      avisoAcao.mostrar('Erro ao limpar a fila: ' + (err?.message ?? err), 'error');
     }
   }
 </script>
 
+<svelte:window on:keydown={teclaJanela} />
+
 <div class="list-card">
-  <div class="list-header">
+  <div class="list-header" class:rolado={listaRolada}>
     <div class="header-left">
       <Icone icone={List} />
-      <h2 title="Fila de Processamento" tabindex="-1" bind:this={tituloEl}>Fila de Processamento</h2>
+      <h2 title="Fila" tabindex="-1" bind:this={tituloEl}>Fila</h2>
+      {#if aviso}
+        <span class="queue-chip" title={aviso} transition:fade={{ duration: duracaoMovimento(DUR_FAST) }}>
+          <Icone icone={CirclePause} tamanho={12} />
+          <span class="queue-chip-text">{aviso}</span>
+        </span>
+      {/if}
     </div>
     <div class="header-actions">
-      <input
-        type="search"
-        placeholder="Filtrar..."
-        aria-label="Filtrar fila por nome ou mensagem"
-        bind:value={filterText}
-        class="search-input"
-      />
+      <span class="busca">
+        <span class="busca-icone"><Icone icone={Search} tamanho={12} /></span>
+        <input
+          type="search"
+          placeholder="Filtrar..."
+          aria-label="Filtrar fila por nome ou mensagem"
+          bind:value={filterText}
+          bind:this={filtroEl}
+          on:keydown={teclaFiltro}
+          class="search-input"
+        />
+      </span>
       {#if items.length > 0}
         {#if isPaused}
           <button class="btn-pause resume" on:click={handleResume} title="Retomar processamento da fila" aria-label="Retomar">
@@ -219,79 +555,136 @@
             <span class="rotulo-acao">Pausar</span>
           </button>
         {/if}
-        <button class="btn-clear" on:click={handleClear} title="Limpar todos os itens da fila" aria-label="Limpar Fila">
-          <Icone icone={ListX} tamanho={12} />
-          <span class="rotulo-acao">Limpar Fila</span>
+        {#if concluidos > 0}
+          <button class="btn-clear" on:click={handleLimparConcluidos} title="Remover da lista os concluídos, com erro e cancelados" aria-label="Limpar concluídos">
+            <Icone icone={ListX} tamanho={12} />
+            <span class="rotulo-acao">Limpar concluídos</span>
+          </button>
+        {/if}
+        <button
+          class="btn-clear btn-clear-all"
+          bind:this={limparTudoEl}
+          on:click={pedirLimpeza}
+          title="Cancelar o que está em andamento e remover todos os itens"
+          aria-label="Limpar tudo"
+          aria-expanded={confirmandoLimpeza}
+          aria-controls="confirmar-limpeza"
+        >
+          <Icone icone={Trash2} tamanho={12} />
+          <span class="rotulo-acao">Limpar tudo</span>
         </button>
       {/if}
     </div>
   </div>
 
-  {#if aviso}
-    <div class="queue-notice">
-      <span class="queue-chip" role="status" title={aviso}>
-        <Icone icone={CirclePause} tamanho={12} />
-        <span class="queue-chip-text">{aviso}</span>
-      </span>
+  {#if confirmandoLimpeza}
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <div class="queue-notice confirmar-limpeza" id="confirmar-limpeza" role="group" aria-labelledby="confirmar-limpeza-texto" on:keydown={teclaConfirmacao} transition:fade={{ duration: duracaoMovimento(DUR_FAST) }}>
+      <span class="confirmar-texto" id="confirmar-limpeza-texto">{textoConfirmarLimpeza(items)}</span>
+      <button type="button" class="btn-confirmar" bind:this={cancelarLimpezaEl} on:click={cancelarLimpeza}>Cancelar</button>
+      <button type="button" class="btn-confirmar perigo" on:click={handleClear}>Limpar tudo</button>
     </div>
   {/if}
 
-  <div class="items-container">
+  <div class="items-container" use:rolagem={marcarLista}>
     {#if items.length > 0 && filteredItems.length === 0}
-      <div class="empty-state">
-        <p role="status">Nenhum item corresponde ao filtro</p>
+      <div class="empty-state" in:fade={{ duration: duracaoMovimento(DUR_FAST), delay: duracaoMovimento(DUR_FAST) }}>
+        <p>Nenhum item corresponde ao filtro</p>
       </div>
     {:else if filteredItems.length === 0}
-      <div class="empty-state">
+      <div class="empty-state" in:fade={{ duration: duracaoMovimento(DUR_FAST), delay: duracaoMovimento(DUR_FAST) }}>
         <Icone icone={Archive} tamanho={32} />
         <p>Nenhum processo no histórico.</p>
-        <p class="sub-text">Arraste arquivos ZIP em qualquer lugar ou clique em "Selecionar" no painel ao lado.</p>
+        <button type="button" class="manual-select-btn" on:click={aoSelecionarZip}>
+          <Icone icone={Upload} tamanho={14} />
+          <span>Selecionar arquivos ZIP...</span>
+        </button>
+        <p class="sub-text">ou arraste os ZIPs para a janela</p>
       </div>
     {:else}
-      <div class="items-list" bind:this={listaEl}>
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <div class="items-list" role="list" bind:this={listaEl} on:keydown={teclaLista} on:focusin={focoNaLista}>
         {#each filteredItems as item (item.id)}
           {@const estado = estadoItem(item.status, isPaused)}
+          {@const expansivel = temAtividade(estado)}
           <div
             class="item-row {item.status}"
+            role="listitem"
             class:has-progress={estado === 'processando'}
+            class:realce={mov.terminou(item.id)}
             data-id={item.id}
             in:fly|global={{ y: 8, duration: mov.novo(item.id) ? duracaoMovimento(DUR_BASE) : 0, easing: cubicOut }}
-            out:fade={{ duration: mov.removido(item.id) ? duracaoMovimento(DUR_FAST) : 0 }}
+            out:fade|global={{ duration: mov.removido(item.id) ? duracaoMovimento(DUR_FAST) : 0 }}
             animate:flip={{ duration: mov.porFiltro() ? 0 : duracaoMovimento(DUR_FAST), easing: cubicOut }}
           >
             <!-- Status Icon -->
             <div class="status-col">
-              {#if estado === 'processando'}
-                <span class="spinner-small" aria-hidden="true"><Icone icone={LoaderCircle} cor="var(--accent)" /></span>
-              {:else if estado === 'pausado'}
-                <Icone icone={CirclePause} cor="var(--warning)" />
-              {:else if estado === 'aguardando'}
-                <Icone icone={Clock} cor="var(--text-secondary)" />
-              {:else if estado === 'sucesso'}
-                <Icone icone={CircleCheck} cor="var(--success)" />
-              {:else if estado === 'erro'}
-                <Icone icone={CircleAlert} cor="var(--error)" />
-              {:else if estado === 'cancelado'}
-                <Icone icone={CircleSlash} cor="var(--text-secondary)" />
-              {/if}
+              {#key estado}
+                <span class="icone-estado" in:scale={{ start: 0.6, duration: duracaoMovimento(DUR_FAST), easing: cubicOut }}>
+                  {#if estado === 'processando'}
+                    <span class="spinner-small" aria-hidden="true"><Icone icone={LoaderCircle} cor="var(--accent)" /></span>
+                  {:else if estado === 'pausado'}
+                    <Icone icone={CirclePause} cor="var(--warning)" />
+                  {:else if estado === 'aguardando'}
+                    <Icone icone={Clock} cor="var(--text-secondary)" />
+                  {:else if estado === 'sucesso'}
+                    <Icone icone={CircleCheck} cor="var(--success)" />
+                  {:else if estado === 'erro'}
+                    <Icone icone={CircleAlert} cor="var(--error)" />
+                  {:else if estado === 'cancelado'}
+                    <Icone icone={CircleSlash} cor="var(--text-secondary)" />
+                  {/if}
+                </span>
+              {/key}
               <span class="sr-only">{ROTULO_ESTADO[estado] ?? ''}</span>
             </div>
 
-            <!-- Name and Info -->
-            <div class="info-col">
-              <span class="file-name" title={item.path}>{item.name}</span>
-              <div class="details-row">
+            <!-- Name and Info: vira botão quando há atividade para mostrar.
+                 Sem role: como button já é botão, e como div o clique não faz nada. -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <svelte:element
+              this={expansivel ? 'button' : 'div'}
+              type={expansivel ? 'button' : undefined}
+              class="info-col"
+              class:info-btn={expansivel}
+              data-parada={expansivel ? 'info' : undefined}
+              tabindex={expansivel ? tabParada(item.id, 'info', paradaAtiva) : undefined}
+              aria-expanded={expansivel ? !!atividadeAberta[item.id] : undefined}
+              aria-controls={expansivel ? `atividade-${item.id}` : undefined}
+              title={expansivel ? (atividadeAberta[item.id] ? 'Ocultar a atividade dos documentos' : 'Ver a atividade dos documentos') : undefined}
+              on:click={() => { if (expansivel) alternarAtividade(item); }}
+            >
+              <span class="file-name" title={item.path}>{nomeExibido(item.name)}</span>
+              <span class="details-row">
                 <span class="timestamp">{formatarHora(item.timestamp)}</span>
                 {#if estado === 'sucesso'}
-                  <span class="meta-badge success">
-                    {item.docs_count} docs | {item.pages_count} pág{#if item.estimated_tokens > 0}
-                      | <span title="Estimativa local: 1 token a cada 4 caracteres">~{formatoTokens.format(item.estimated_tokens)} tokens</span>{/if}
+                  {#if copiadoId === item.id}
+                    <span class="copiado-texto" in:fade={{ duration: duracaoMovimento(DUR_FAST) }}>Copiado</span>
+                  {:else}
+                  <span class="meta-badge success" title={dicaContadores(item)}>
+                    <span class="contador"><Icone icone={Files} tamanho={12} />{abreviarContagem(item.docs_count)}<span class="sr-only">documentos</span></span>
+                    <span class="contador"><Icone icone={FileText} tamanho={12} />{abreviarContagem(item.pages_count)}<span class="sr-only">páginas</span></span>
+                    {#if item.estimated_tokens > 0}
+                      <span class="contador tokens"><Icone icone={Coins} tamanho={12} />~{abreviarContagem(item.estimated_tokens)}<span class="sr-only">tokens estimados</span></span>
+                    {/if}
                   </span>
+                  {/if}
+                  {#if item.unread_docs > 0}
+                    <span class="nao-lidos" title={tituloNaoLidos(item.unread_docs)}>
+                      <Icone icone={CircleAlert} tamanho={12} cor="var(--warning)" />
+                      {rotuloNaoLidos(item.unread_docs)}
+                    </span>
+                  {/if}
                 {:else if estado === 'processando'}
-                  <span class="progress-message">{item.message || 'Processando...'}</span>
-                  <span class="meta-badge processing">
-                    Docs: {item.processed_docs || 0}/{item.total_docs || 0} | Págs: {item.processed_pages || 0}/{item.total_pages || 0}
-                  </span>
+                  <!-- A mensagem do pipeline repete os contadores: só vale antes deles. -->
+                  {#if !item.total_docs}
+                    <span class="progress-message">{item.message || 'Processando...'}</span>
+                  {:else}
+                    <span class="meta-badge processing" title={dicaContadores(item)}>
+                      <span class="contador"><Icone icone={Files} tamanho={12} />{abreviarContagem(item.processed_docs)}/{abreviarContagem(item.total_docs)}<span class="sr-only">documentos</span></span>
+                      <span class="contador"><Icone icone={FileText} tamanho={12} />{abreviarContagem(item.processed_pages)}/{abreviarContagem(item.total_pages)}<span class="sr-only">páginas</span></span>
+                    </span>
+                  {/if}
                 {:else if estado === 'pausado'}
                   <span class="paused-message">Pausado: começa quando a fila for retomada</span>
                 {:else if estado === 'aguardando'}
@@ -301,8 +694,13 @@
                 {:else if estado === 'erro'}
                   <span class="error-message truncate">{item.message || 'Erro no processamento'}</span>
                 {/if}
-              </div>
-            </div>
+              </span>
+              {#if expansivel}
+                <span class="chevron" class:aberto={atividadeAberta[item.id]} aria-hidden="true">
+                  <Icone icone={ChevronDown} tamanho={12} />
+                </span>
+              {/if}
+            </svelte:element>
 
             <!-- Inline Progress (only when processing) -->
             {#if estado === 'processando'}
@@ -313,8 +711,9 @@
                 aria-valuemax="100"
                 aria-valuenow={Math.round((item.progress || 0) * 100)}
                 aria-label="Progresso de {item.name}"
+                out:fade={{ duration: duracaoMovimento(DUR_BASE) }}
               >
-                <div class="progress-bar" style="width: {item.progress * 100}%"></div>
+                <div class="progress-bar" style:--p={item.progress || 0}></div>
               </div>
             {/if}
 
@@ -324,8 +723,11 @@
                 <button
                   class="btn-action btn-cancel"
                   data-acao="cancelar"
+                  data-parada="cancelar"
+                  tabindex={tabParada(item.id, 'cancelar', paradaAtiva)}
                   on:click={(e) => handleCancel(item.id, e)}
-                  title="Cancelar processamento ativo"
+                  use:dica={'Cancelar processamento ativo'}
+                  aria-label={rotuloAcao('Cancelar', item.name)}
                 >
                   <Icone icone={X} tamanho={14} />
                 </button>
@@ -333,8 +735,11 @@
                 <button
                   class="btn-action btn-cancel"
                   data-acao="cancelar"
+                  data-parada="cancelar"
+                  tabindex={tabParada(item.id, 'cancelar', paradaAtiva)}
                   on:click={(e) => handleCancel(item.id, e)}
-                  title="Remover da fila"
+                  use:dica={'Cancelar'}
+                  aria-label={rotuloAcao('Cancelar', item.name)}
                 >
                   <Icone icone={X} tamanho={14} />
                 </button>
@@ -342,30 +747,57 @@
                 <div class="success-actions">
                   <button
                     class="btn-action"
-                    data-acao="copiar"
-                    on:click={() => handleCopy(item)}
-                    title={copiadoId === item.id ? 'Copiado!' : 'Copiar o TXT para colar na IA'}
-                    aria-label="Copiar o TXT"
+                    data-acao="reprocessar"
+                    data-parada="reprocessar"
+                    tabindex={tabParada(item.id, 'reprocessar', paradaAtiva)}
+                    aria-disabled={entradaBloqueada}
+                    on:click={(e) => alternarReprocessar(item.id, e)}
+                    use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : 'Reprocessar com outras configurações'}
+                    aria-label={rotuloAcao('Reprocessar', item.name)}
+                    aria-expanded={!!reprocessarAberto[item.id]}
+                    aria-controls="reprocessar-{item.id}"
                   >
-                    {#if copiadoId === item.id}
-                      <Icone icone={Check} tamanho={14} />
-                    {:else}
-                      <Icone icone={Copy} tamanho={14} />
-                    {/if}
+                    <Icone icone={RotateCcw} tamanho={14} />
+                  </button>
+                  <button
+                    class="btn-action"
+                    data-acao="copiar"
+                    data-parada="copiar"
+                    tabindex={tabParada(item.id, 'copiar', paradaAtiva)}
+                    class:copiado={copiadoId === item.id}
+                    on:click={() => handleCopy(item)}
+                    use:dica={copiadoId === item.id ? 'Copiado!' : 'Copiar o TXT para colar na IA'}
+                    aria-label={rotuloAcao('Copiar o TXT', item.name)}
+                  >
+                    {#key copiadoId === item.id}
+                      <span class="icone-copiar" in:scale={{ start: 0.6, duration: duracaoMovimento(DUR_FAST), easing: cubicOut }}>
+                        {#if copiadoId === item.id}
+                          <Icone icone={Check} tamanho={14} />
+                        {:else}
+                          <Icone icone={Copy} tamanho={14} />
+                        {/if}
+                      </span>
+                    {/key}
                   </button>
                   <button
                     class="btn-action"
                     data-acao="abrir"
+                    data-parada="abrir"
+                    tabindex={tabParada(item.id, 'abrir', paradaAtiva)}
                     on:click={() => handleOpenDir(item.output_path)}
-                    title="Abrir pasta contendo o TXT"
+                    use:dica={'Abrir pasta contendo o TXT'}
+                    aria-label={rotuloAcao('Abrir pasta contendo o TXT', item.name)}
                   >
                     <Icone icone={FolderOpen} tamanho={14} />
                   </button>
                   <button
                     class="btn-action btn-remove"
                     data-acao="remover"
+                    data-parada="remover"
+                    tabindex={tabParada(item.id, 'remover', paradaAtiva)}
                     on:click={(e) => handleRemove(item.id, e)}
-                    title="Remover da lista"
+                    use:dica={'Remover da lista'}
+                    aria-label={rotuloAcao('Remover da lista', item.name)}
                   >
                     <Icone icone={Trash2} tamanho={14} />
                   </button>
@@ -378,20 +810,39 @@
                       type="button"
                       class="btn-action btn-detalhes"
                       data-acao="detalhes"
+                      data-parada="detalhes"
+                      tabindex={tabParada(item.id, 'detalhes', paradaAtiva)}
                       on:click={() => alternarDetalhes(item.id)}
-                      aria-label="Ver detalhes do erro"
+                      aria-label={rotuloAcao('Ver detalhes do erro', item.name)}
                       aria-expanded={!!detalhesAbertos[item.id]}
                       aria-controls="erro-detalhe-{item.id}"
-                      title={detalhesAbertos[item.id] ? 'Ocultar detalhes do erro' : 'Ver detalhes do erro'}
+                      use:dica={detalhesAbertos[item.id] ? 'Ocultar detalhes do erro' : 'Ver detalhes do erro'}
                     >
-                      <Icone icone={CircleQuestionMark} tamanho={14} />
+                      <Icone icone={Info} tamanho={14} />
                     </button>
                   {/if}
                   <button
+                    class="btn-action"
+                    data-acao="reprocessar"
+                    data-parada="reprocessar"
+                    tabindex={tabParada(item.id, 'reprocessar', paradaAtiva)}
+                    aria-disabled={entradaBloqueada}
+                    on:click={(e) => alternarReprocessar(item.id, e)}
+                    use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : 'Reprocessar com outras configurações'}
+                    aria-label={rotuloAcao('Reprocessar', item.name)}
+                    aria-expanded={!!reprocessarAberto[item.id]}
+                    aria-controls="reprocessar-{item.id}"
+                  >
+                    <Icone icone={RotateCcw} tamanho={14} />
+                  </button>
+                  <button
                     class="btn-action btn-remove"
                     data-acao="remover"
+                    data-parada="remover"
+                    tabindex={tabParada(item.id, 'remover', paradaAtiva)}
                     on:click={(e) => handleRemove(item.id, e)}
-                    title="Remover da lista"
+                    use:dica={'Remover da lista'}
+                    aria-label={rotuloAcao('Remover da lista', item.name)}
                   >
                     <Icone icone={Trash2} tamanho={14} />
                   </button>
@@ -403,11 +854,90 @@
               <div
                 class="erro-detalhe"
                 id="erro-detalhe-{item.id}"
-                in:fade={{ duration: duracaoMovimento(DUR_FAST) }}
+                in:fly={{ y: -4, duration: duracaoMovimento(DUR_FAST), easing: cubicOut }}
               >
                 <p class="erro-detalhe-texto">{item.message || 'Erro no processamento'}</p>
                 <p class="erro-detalhe-caminho">Arquivo: {item.path}</p>
               </div>
+            {/if}
+
+            {#if estado === 'sucesso' && item.relatorio}
+              {@const resumo = resumoPaginas(item.relatorio)}
+              {@const avisos = avisosPaginas(item.relatorio)}
+              {@const ler = mostrarLerComOCR(item.relatorio)}
+              {#if resumo || avisos.length > 0 || ler}
+                <div class="relatorio-linha">
+                  {#if resumo}
+                    <button
+                      type="button"
+                      class="resumo-relatorio"
+                      data-parada="relatorio"
+                      tabindex={tabParada(item.id, 'relatorio', paradaAtiva)}
+                      aria-expanded={!!relatorioAberto[item.id]}
+                      aria-controls="relatorio-{item.id}"
+                      title={relatorioAberto[item.id] ? DICA_FECHAR_RELATORIO : DICA_ABRIR_RELATORIO}
+                      on:click={() => alternarRelatorio(item.id)}
+                    >
+                      <span class="chevron" class:aberto={relatorioAberto[item.id]} aria-hidden="true">
+                        <Icone icone={ChevronDown} tamanho={12} />
+                      </span>
+                      <span class="resumo-texto">{resumo}</span>
+                    </button>
+                  {/if}
+                  {#if avisos.length > 0}
+                    <ul class="avisos-relatorio">
+                      {#each avisos as a (a.tipo)}
+                        <li class="aviso-relatorio">
+                          <Icone icone={CircleAlert} tamanho={12} cor="var(--warning)" />
+                          <span>{a.texto}</span>
+                        </li>
+                      {/each}
+                    </ul>
+                    <p class="explicacao-ocr">{EXPLICACAO_OCR}</p>
+                  {/if}
+                  {#if ler}
+                    <button
+                      type="button"
+                      class="btn-ler-ocr"
+                      data-parada="lerocr"
+                      tabindex={tabParada(item.id, 'lerocr', paradaAtiva)}
+                      aria-disabled={!!lendoOCR[item.id] || entradaBloqueada}
+                      title={entradaBloqueada ? undefined : DICA_LER_COM_OCR}
+                      use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : ''}
+                      on:click={() => lerComOCR(item)}
+                    >
+                      <Icone icone={RotateCcw} tamanho={12} />
+                      {ROTULO_LER_COM_OCR}
+                    </button>
+                  {/if}
+                </div>
+                {#if resumo && relatorioAberto[item.id]}
+                  <RelatorioItem id="relatorio-{item.id}" relatorio={item.relatorio} />
+                {/if}
+              {/if}
+            {/if}
+
+            {#if expansivel && atividadeAberta[item.id]}
+              <AtividadeItem
+                id="atividade-{item.id}"
+                atividade={atividadeDe(item.id, atividades, atividadesBuscadas)}
+                emAndamento={estado === 'processando'}
+                aoReprocessarComOCR={(e) => reprocessarComOCR(item.id, e)}
+              />
+            {/if}
+
+            {#if reprocessarAberto[item.id] && item.status !== 'pending' && item.status !== 'processing'}
+              {#key geracaoReprocessar[item.id] ?? 0}
+                <ReprocessarItem
+                  id="reprocessar-{item.id}"
+                  ocrInicial={ocrSugerido[item.id] || item.ocr_mode || config?.ocr_mode || 'normal'}
+                  limpezaInicial={limpezaInicialReprocessar(item, config)}
+                  forcarInicial={!!config?.forcar_ocr}
+                  aoConfirmar={(ocr, limpeza, forcar) => confirmarReprocessar(item, ocr, limpeza, forcar)}
+                  aoCancelar={() => fecharReprocessar(item.id)}
+                  {entradaBloqueada}
+                />
+              {/key}
             {/if}
           </div>
         {/each}
@@ -415,62 +945,25 @@
     {/if}
   </div>
 
-  <!-- Sempre montada: o leitor de tela só anuncia mudanças numa região que
-       já existia antes da mensagem. -->
-  <div class="aviso-regiao" role="alert" aria-atomic="true">
-    {#if erroCopia}
-      <div
-        class="aviso-erro"
-        in:fly={{ y: 8, duration: duracaoMovimento(DUR_BASE), easing: cubicOut }}
-        out:fade={{ duration: duracaoMovimento(DUR_FAST) }}
-      >
-        <span class="aviso-texto">{erroCopia}</span>
-        <button class="aviso-fechar" on:click={avisoCopia.fechar} aria-label="Fechar aviso" title="Fechar aviso">
-          <Icone icone={X} tamanho={12} />
-        </button>
-      </div>
-    {/if}
-  </div>
+  <Aviso aviso={avisoAtual} aoFechar={avisoAcao.fechar} />
+  <div class="sr-only" role="status" aria-live="polite">{anuncio}</div>
 </div>
 
 <style>
-  .aviso-erro {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 8px 12px;
-    font-size: var(--fs-meta);
-    font-weight: 500;
-    color: var(--error-strong);
-    background-color: var(--surface);
-    border-top: 1px solid currentColor;
-  }
-  .aviso-texto {
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-  .aviso-fechar {
+  .details-row > .nao-lidos {
+    order: -2;
     flex: none;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .nao-lidos {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    border: none;
-    border-radius: 4px;
-    background: transparent;
-    color: inherit;
-    cursor: pointer;
-    transition: background-color var(--dur-fast) var(--ease-out);
-  }
-  .aviso-fechar:hover {
-    background-color: var(--error-soft);
-  }
-  .aviso-fechar:focus-visible {
-    outline: 2px solid currentColor;
-    outline-offset: 1px;
+    gap: 4px;
+    color: var(--warning-strong);
+    font-size: var(--fs-meta);
+    font-weight: 500;
+    white-space: nowrap;
   }
   .list-card {
     background-color: var(--surface);
@@ -482,7 +975,6 @@
     overflow: hidden;
     container-type: inline-size;
     box-shadow: var(--shadow-sm);
-    transition: background-color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
   }
 
   .list-header {
@@ -493,6 +985,14 @@
     padding: 8px 12px;
     border-bottom: 1px solid var(--border);
     background-color: var(--surface);
+    /* Acima da área rolável, para a sombra cair sobre a lista. */
+    position: relative;
+    z-index: 1;
+    transition: box-shadow var(--dur-fast) var(--ease-out);
+  }
+
+  .list-header.rolado {
+    box-shadow: var(--shadow-sm);
   }
 
   .header-left {
@@ -514,6 +1014,7 @@
     min-width: 0;
   }
 
+  /* Na linha do cabeçalho: aparecer ou sumir não mexe na lista. Encolhe antes do título. */
   .queue-chip {
     display: inline-flex;
     align-items: center;
@@ -522,11 +1023,18 @@
     border-radius: 4px;
     font-size: var(--fs-meta);
     font-weight: 500;
-    color: var(--warning);
+    color: var(--warning-strong);
     background-color: var(--warning-soft);
     border: 1px solid var(--warning-line);
     white-space: nowrap;
-    min-width: 0;
+    /* Base 0 e crescimento até o próprio texto: o chip só ocupa a sobra, e o
+       título (flex: 0 1 auto) só encolhe com o chip já no mínimo. */
+    flex: 1 1 0;
+    max-width: max-content;
+    /* No mínimo, o ícone inteiro (12px + padding + borda): nunca um toco com o
+       ícone cortado; o texto some antes (título e DOM guardam o texto inteiro). */
+    min-width: calc(12px + 16px + 2px);
+    flex-shrink: 10;
     overflow: hidden;
   }
 
@@ -535,11 +1043,13 @@
   }
 
   .queue-chip-text {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .header-left h2 {
+    flex: 0 1 auto;
     font-size: var(--fs-title);
     font-weight: 600;
     margin: 0;
@@ -557,8 +1067,25 @@
     flex-shrink: 0;
   }
 
+  /* O campo continua quem encolhe; a lupa fica sobre o padding esquerdo. */
+  .busca {
+    position: relative;
+    display: flex;
+    min-width: 0;
+  }
+
+  .busca-icone {
+    position: absolute;
+    left: 7px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    color: var(--text-secondary);
+    pointer-events: none;
+  }
+
   .search-input {
-    padding: 4px 8px;
+    padding: 4px 8px 4px 24px;
     border: 1px solid var(--border-strong);
     border-radius: 4px;
     background-color: var(--surface);
@@ -594,6 +1121,53 @@
     border-color: var(--error);
   }
 
+  .btn-clear-all[aria-expanded='true'] {
+    color: var(--error);
+    border-color: var(--error);
+  }
+
+  /* Confirmação em linha de "Limpar tudo": sem prazo, Esc ou Cancelar fecham. */
+  .confirmar-limpeza {
+    align-items: center;
+    gap: 6px;
+    font-size: var(--fs-meta);
+    color: var(--text-primary);
+  }
+
+  .confirmar-texto {
+    flex: 1;
+    min-width: 0;
+    font-weight: 500;
+  }
+
+  .btn-confirmar {
+    flex-shrink: 0;
+    background-color: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: var(--fs-meta);
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .btn-confirmar:hover {
+    background-color: var(--surface-hover);
+    border-color: var(--border-strong);
+  }
+
+  .btn-confirmar.perigo {
+    color: var(--error-strong);
+    border-color: var(--error);
+  }
+
+  .btn-confirmar.perigo:hover {
+    background-color: var(--error-soft);
+    border-color: var(--error);
+  }
+
   .btn-pause {
     background-color: var(--surface-hover);
     border: 1px solid var(--border);
@@ -608,8 +1182,11 @@
     white-space: nowrap;
   }
 
-  /* Fila estreita: os botões ficam só com o ícone; o nome segue no aria-label. */
-  @container (max-width: 420px) {
+  /* Fila estreita: os botões ficam só com o ícone; o nome segue no aria-label.
+     Com Pausar, Limpar concluídos e Limpar tudo rotulados, o título inteiro só
+     cabe com 660px de card (caixa de conteúdo; medido em 2026-11-24, claro e
+     escuro). Abaixo disso os rótulos espremiam o título até sumir. */
+  @container (max-width: 660px) {
     .rotulo-acao {
       display: none;
     }
@@ -633,15 +1210,22 @@
   .items-container {
     flex: 1;
     overflow-y: auto;
+    /* Âncora do vazio, que entra por cima da lista enquanto ela sai com fade. */
+    position: relative;
     background-color: transparent;
   }
 
   .empty-state {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    min-height: 100%;
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100%;
     padding: 48px 12px;
     gap: 8px;
     color: var(--text-secondary);
@@ -656,7 +1240,30 @@
 
   .empty-state .sub-text {
     font-size: var(--fs-meta);
+    font-weight: 400;
     max-width: 250px;
+  }
+
+  /* Botão "Selecionar arquivos ZIP..." da fila vazia. */
+  .manual-select-btn {
+    background-color: var(--bg-main);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: var(--fs-base);
+    font-weight: 600;
+    padding: 10px 16px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+
+  .manual-select-btn:hover {
+    border-color: var(--accent);
+    background-color: var(--surface-hover);
   }
 
   .items-list {
@@ -679,11 +1286,61 @@
     background-color: var(--surface);
     transition: background-color var(--dur-fast) var(--ease-out),
                 border-color var(--dur-fast) var(--ease-out);
+    isolation: isolate;
+    /* O arrasto do divisor muda a largura a cada quadro: só as linhas visíveis
+       refazem o layout. A contenção de pintura recorta o que sai da linha. */
+    content-visibility: auto;
+    contain-intrinsic-size: auto 36px;
+  }
+
+  .item-row.has-progress {
+    border-color: var(--accent-line);
+  }
+
+  /* Realce único do fim (sucesso ou erro) nesta sessão: só opacidade, atrás do conteúdo. */
+  .item-row::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    /* Raio da linha (4px) menos a borda de 1px. */
+    border-radius: 3px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .item-row.realce::after {
+    animation: realce var(--dur-realce) var(--ease-out);
+  }
+
+  .item-row.realce.success::after {
+    background-color: var(--success-soft);
+  }
+
+  .item-row.realce.error::after {
+    background-color: var(--error-soft);
+  }
+
+  @keyframes realce {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .item-row.realce::after {
+      animation: none;
+    }
   }
 
   .item-row:hover {
     background-color: var(--surface-hover);
     border-color: var(--border-strong);
+  }
+
+  /* A falha se destaca pela borda; o único vermelho cheio é o ícone de estado. */
+  .item-row.error,
+  .item-row.error:hover {
+    border-color: var(--error-line);
   }
 
   .status-col {
@@ -692,6 +1349,10 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+  }
+
+  .icone-estado {
+    display: inline-flex;
   }
 
   .info-col {
@@ -703,8 +1364,44 @@
     min-width: 0;
   }
 
+  /* Nome e contadores viram um botão que abre a atividade dos documentos. */
+  .info-btn {
+    align-self: stretch;
+    margin: -4px 0;
+    padding: 4px 0;
+    border: none;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 3px;
+  }
+
+  /* Para dentro: a linha (content-visibility) recorta o que passa da borda. */
+  .info-btn:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -2px;
+  }
+
+  .chevron {
+    display: inline-flex;
+    flex-shrink: 0;
+    color: var(--text-secondary);
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+
+  .chevron.aberto {
+    transform: rotate(180deg);
+  }
+
+  .info-btn:hover .chevron {
+    color: var(--accent);
+  }
+
+  /* O nome (número do processo) tem prioridade: os detalhes encolhem antes. */
   .file-name {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-width: 96px;
     font-size: var(--fs-base);
     font-weight: 500;
@@ -715,12 +1412,21 @@
   }
 
   /* Mensagem e contadores à direita do nome, na mesma faixa. */
+  /* Base 0: os detalhes só ganham o que sobra depois do nome inteiro. O que não
+     cabe quebra para uma segunda linha recortada e some inteiro, em vez de
+     aparecer fatiado; row-reverse preenche da direita, então o horário
+     (order 9) sai primeiro e os contadores e o "não lidos" ficam por último. */
   .details-row {
-    flex: 0 1 auto;
+    flex: 1 1 0;
     display: flex;
+    flex-direction: row-reverse;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
+    align-content: flex-start;
+    justify-content: flex-start;
+    height: 18px;
+    line-height: 18px;
+    gap: 0 8px;
     font-size: var(--fs-meta);
     color: var(--text-secondary);
     min-width: 0;
@@ -737,6 +1443,35 @@
   .timestamp {
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
+    order: 9;
+  }
+
+  /* Primeiro item de toda linha: sem ele, um selo que não cabe ficaria
+     sozinho na linha visível, fatiado. A margem anula o gap que ele cria; a
+     altura impede que a primeira linha fique com 0px e a segunda apareça. */
+  .details-row::before {
+    content: '';
+    order: -10;
+    margin-left: -8px;
+    height: 18px;
+  }
+
+  .details-row > .meta-badge,
+  .details-row > .copiado-texto {
+    order: -1;
+    flex: none;
+  }
+
+  /* Mensagens cedem espaço antes dos contadores e truncam com reticências;
+     abaixo de 48px saem inteiras. O teto max-content mantém o horário junto. */
+  .details-row > .progress-message,
+  .details-row > .paused-message,
+  .details-row > .pending-message,
+  .details-row > .cancelled-message,
+  .details-row > .error-message {
+    flex: 1 1 0;
+    min-width: 48px;
+    max-width: max-content;
   }
 
   .meta-badge {
@@ -744,12 +1479,27 @@
     border-radius: 3px;
     font-size: var(--fs-meta);
     font-weight: 600;
-    flex: 0 1 auto;
+    /* 16px + borda de 1px: a mesma faixa de 18px da linha de detalhes. */
+    line-height: 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .contador {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .contador :global(svg) {
+    flex-shrink: 0;
   }
 
   .meta-badge.success {
-    background-color: var(--success-soft);
-    color: var(--success);
+    color: var(--success-strong);
+    border: 1px solid currentColor;
   }
 
   .meta-badge.processing {
@@ -759,14 +1509,19 @@
     font-weight: 500;
   }
 
-  /* A mensagem cede espaço antes dos contadores. */
   .progress-message {
-    flex: 0 100 auto;
-    color: var(--accent);
+    color: var(--accent-text);
   }
 
   @container (max-width: 480px) {
     .progress-message {
+      display: none;
+    }
+  }
+
+  /* Tokens saem antes de documentos e páginas; o valor segue na dica. */
+  @container (max-width: 560px) {
+    .contador.tokens {
       display: none;
     }
   }
@@ -784,12 +1539,11 @@
   }
 
   .paused-message {
-    color: var(--warning);
+    color: var(--warning-strong);
   }
 
   .pending-message {
     color: var(--text-secondary);
-    font-style: italic;
   }
 
   .cancelled-message {
@@ -797,7 +1551,7 @@
   }
 
   .error-message {
-    color: var(--error);
+    color: var(--error-strong);
   }
 
   .sr-only {
@@ -823,14 +1577,31 @@
   }
 
   .progress-bar {
+    /* scaleX em vez de width: o progresso muda até 10x/s e width refaz o layout a cada quadro. */
+    width: 100%;
     height: 100%;
     background-color: var(--processing);
-    transition: width var(--dur-base) var(--ease-out);
+    transform: scaleX(var(--p));
+    transform-origin: left center;
+    transition: transform var(--dur-base) var(--ease-out);
   }
 
-  /* Três botões de 22px (copiar, abrir, remover) sem invadir os contadores. */
+  /* Alto contraste do Windows: o fundo vira Canvas e a barra sumiria. */
+  @media (forced-colors: active) {
+    .progress-bar-container {
+      height: 3px;
+      border-top: 1px solid CanvasText;
+    }
+
+    .progress-bar {
+      forced-color-adjust: none;
+      background-color: Highlight;
+    }
+  }
+
+  /* Quatro botões de 22px (reprocessar, copiar, abrir, remover) sem invadir os contadores. */
   .actions-col {
-    width: 74px;
+    width: 100px;
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -854,12 +1625,34 @@
     justify-content: center;
     padding: 4px;
     border-radius: 4px;
-    transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
   }
 
-  .btn-action:hover {
+  .btn-action:hover:not([aria-disabled='true']) {
     color: var(--text-primary);
     background-color: var(--surface-hover);
+  }
+
+  /* Reprocessar durante a troca de versão (entradaBloqueada); a dica diz por quê.
+     aria-disabled, e não disabled: o botão segue no foco itinerante da linha. */
+  .btn-action[aria-disabled='true'] {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .btn-action.copiado,
+  .btn-action.copiado:hover {
+    color: var(--success);
+    background-color: var(--success-soft);
+  }
+
+  .icone-copiar {
+    display: inline-flex;
+  }
+
+  .copiado-texto {
+    color: var(--success-strong);
+    font-size: var(--fs-meta);
+    font-weight: 600;
   }
 
   .btn-cancel:hover {
@@ -872,11 +1665,10 @@
     background-color: var(--error-soft);
   }
 
-  .btn-detalhes {
+  /* Fechado, segue os outros botões da linha; vermelho só aberto. */
+  .btn-detalhes[aria-expanded='true'],
+  .btn-detalhes[aria-expanded='true']:hover {
     color: var(--error);
-  }
-
-  .btn-detalhes[aria-expanded='true'] {
     background-color: var(--error-soft);
   }
 
@@ -885,7 +1677,7 @@
     margin-left: 30px;
     padding: 6px 8px;
     border-left: 2px solid var(--error);
-    border-radius: 4px;
+    border-radius: 0 4px 4px 0;
     background-color: var(--error-soft);
     font-size: var(--fs-meta);
     color: var(--text-primary);
@@ -894,6 +1686,114 @@
     cursor: text;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+  }
+
+  /* Linha-resumo do relatório: largura inteira, abaixo da linha do item. */
+  .relatorio-linha {
+    flex-basis: 100%;
+    margin-left: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    min-width: 0;
+    font-size: var(--fs-meta);
+  }
+
+  .resumo-relatorio {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    min-height: 20px;
+    padding: 0 4px;
+    margin-left: -4px;
+    border: none;
+    border-radius: 3px;
+    background: transparent;
+    font: inherit;
+    color: var(--text-secondary);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .resumo-relatorio:hover .resumo-texto {
+    color: var(--text-primary);
+    text-decoration: underline;
+  }
+
+  .resumo-relatorio:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+
+  .resumo-texto {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .avisos-relatorio {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .aviso-relatorio {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    color: var(--warning-strong);
+    font-weight: 500;
+  }
+
+  .aviso-relatorio :global(svg) {
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .explicacao-ocr {
+    margin: 0;
+    color: var(--text-secondary);
+  }
+
+  .btn-ler-ocr {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 24px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--warning-line);
+    background-color: var(--warning-soft);
+    color: var(--warning-strong);
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  /* aria-disabled, e não disabled: num erro do envio o foco fica no botão em
+     vez de cair no body; a guarda de lerComOCR barra o segundo clique. */
+  .btn-ler-ocr[aria-disabled='true'] {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .btn-ler-ocr:hover:not([aria-disabled='true']) {
+    border-color: var(--warning);
+  }
+
+  .btn-ler-ocr:focus-visible {
+    outline: 2px solid var(--warning);
+    outline-offset: 1px;
+  }
+
+  @container (max-width: 420px) {
+    .relatorio-linha {
+      margin-left: 0;
+    }
   }
 
   .erro-detalhe p {
@@ -918,5 +1818,35 @@
 
   @keyframes spin {
     to { transform: rotate(360deg); }
+  }
+
+  /* Dica dos botões de ícone (src/lib/dica.js): popover na camada superior,
+     fora do overflow: hidden do cartão. Sem pointer-events para não roubar o hover. */
+  :global(.dica) {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    max-width: 280px;
+    padding: 3px 6px;
+    font-size: var(--fs-meta);
+    line-height: 1.3;
+    color: var(--text-primary);
+    background-color: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    box-shadow: var(--shadow-sm);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease-out);
+  }
+
+  :global(.dica.visivel) {
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :global(.dica) {
+      transition: none;
+    }
   }
 </style>

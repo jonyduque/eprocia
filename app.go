@@ -3,17 +3,22 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
+	"eprocia/internal/atualizacao"
 	"eprocia/internal/autostart"
 	"eprocia/internal/config"
 	"eprocia/internal/etl"
+	"eprocia/internal/janela"
 	"eprocia/internal/models"
+	"eprocia/internal/registro"
 	"eprocia/internal/watchdog"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -25,7 +30,17 @@ type App struct {
 	watcher  *watchdog.Watcher
 	pipeline *etl.Pipeline
 	queue    *etl.Queue
-	cfg      *models.Config
+	// cfg é lido por goroutines (arranque da atualização) enquanto o
+	// frontend grava: só por configAtual e guardarConfig. O objeto guardado
+	// nunca é alterado; quem muda grava uma cópia.
+	cfg atomic.Pointer[models.Config]
+	// gravarMu serializa SaveConfig e SetTheme (ler, mudar, guardar).
+	gravarMu sync.Mutex
+	// monitorMu serializa ligar e desligar o watcher pela config;
+	// monitorRetido fica verdadeiro no processo novo da atualização até o
+	// antigo sair e a trava de instância ser obtida (arranqueApos).
+	monitorMu     sync.Mutex
+	monitorRetido atomic.Bool
 	// autostart é trocado nos testes para não mexer no registro real.
 	autostart func(ativo bool) error
 	// clipboard é trocado nos testes; o padrão é runtime.ClipboardSetText.
@@ -34,14 +49,60 @@ type App struct {
 	notificar func(titulo, corpo string) error
 	// falhas guarda os ZIPs com erro para a varredura inicial não repeti-los.
 	falhas *watchdog.Falhas
+	// animador desvanece a janela ao ir para a bandeja; nil antes do startup.
+	animador atomic.Pointer[janela.Animador]
+	// saindo é marcado por Quit: daí em diante OnBeforeClose deixa sair e
+	// nada espera animação.
+	saindo atomic.Bool
+	// emitir é trocado nos testes; o padrão é runtime.EventsEmit.
+	emitir func(evento string, dados ...any)
+	// oculta acompanha a janela na bandeja para JanelaVisivel.
+	oculta atomic.Bool
+	// fecharTelemetria descarrega a telemetria no shutdown; nil com o log
+	// desligado.
+	fecharTelemetria func()
+
+	// Atualização pelo aplicativo (app_atualizacao.go).
+	atualizador *atualizacao.Atualizador
+	// abrirURL é trocado nos testes; o padrão é runtime.BrowserOpenURL.
+	abrirURL func(url string)
+	// apos é o PID do processo antigo (--apos-atualizar); 0 = abertura normal.
+	apos int
+	// limparAnterior: --limpar-anterior, apagar eprocia.anterior.exe depois
+	// de o antigo sair.
+	limparAnterior  bool
+	modo            atualizacao.Modo
+	pastaInstalacao string
+	// pastaDados é %AppData%\eprocIA (main); os testes passam t.TempDir().
+	pastaDados string
+	// travarDepois bloqueia até obter a trava de instância adiada; nil = já
+	// obtida.
+	travarDepois func() bool
+	// esperarSair, gravarVersao e apagarAnterior são trocados nos testes;
+	// apagarAnterior nil = atualizacao.LimparAnterior.
+	esperarSair    func(pid int, prazo time.Duration) bool
+	gravarVersao   func(string) error
+	apagarAnterior func(pasta string) error
+	sinalUmaVez    sync.Once
+	limpezaUmaVez  sync.Once
 }
+
+// eventoVisibilidade avisa o frontend que a janela sumiu na bandeja (false)
+// ou voltou (true). Oculta, a WebView2 segue renderizando: o frontend para as
+// animações e segura a fila até reabrir.
+const eventoVisibilidade = "janela:visivel"
 
 // NewApp creates a new App application struct
 func NewApp() *App {
-	app := &App{autostart: autostart.Aplicar, clipboard: runtime.ClipboardSetText}
+	app := &App{
+		autostart:    autostart.Aplicar,
+		clipboard:    runtime.ClipboardSetText,
+		esperarSair:  atualizacao.EsperarSair,
+		gravarVersao: autostart.GravarVersaoDesinstalacao,
+	}
 	app.watcher = watchdog.NewWatcher(func(filePath string) {
 		if app.queue != nil {
-			app.queue.AddFiles([]string{filePath})
+			app.queue.AddFilesComOrigem([]string{filePath}, "monitorada")
 		}
 	})
 	return app
@@ -51,43 +112,24 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	a.pipeline = etl.NewPipeline()
-	a.queue = etl.NewQueue(a.pipeline)
-	a.queue.SetContext(ctx)
+	a.animador.Store(janela.NovoAnimador(janela.Nativa(a.ocultarJanela)))
 	a.iniciarNotificacoes(ctx)
-	a.queue.SetOnFinished(a.aoTerminar)
-
-	// main já leu a config para escolher o fundo da janela.
-	cfg := a.cfg
-	if cfg == nil {
-		cfg = carregarConfig(config.Load)
-		a.cfg = cfg
-	}
-	a.queue.SetConfig(cfg)
-	if caminho, err := config.GetConfigPath(); err == nil {
-		a.falhas = watchdog.CarregarFalhas(filepath.Join(filepath.Dir(caminho), "falhas.json"))
-		a.watcher.SetFalhas(a.falhas)
-	}
-	a.sincronizarAutostart(cfg)
-	if cfg.WatchdogEnabled && cfg.MonitoredPath != "" {
-		if err := a.watcher.Start(cfg.MonitoredPath); err != nil {
-			log.Printf("Erro ao iniciar o monitoramento da pasta %q: %v", cfg.MonitoredPath, err)
-			runtime.EventsEmit(ctx, "watchdog:error", err.Error())
-		}
-	}
+	a.iniciarFila(ctx)
+	a.iniciarAtualizacao(a.opcoesAtualizacao())
+	a.sinalNoStartup()
 }
 
 // sincronizarAutostart alinha o registro à config no boot: a entrada pode ter
 // sido apagada por fora ou apontar para um executável que mudou de lugar.
 func (a *App) sincronizarAutostart(cfg *models.Config) {
 	if err := a.autostart(cfg.AutoStart); err != nil {
-		log.Printf("Erro ao sincronizar a inicialização com o Windows: %v", err)
+		slog.Warn("falha ao sincronizar a inicialização com o Windows", "erro", err)
 	}
 }
 
 func (a *App) iniciarNotificacoes(ctx context.Context) {
 	if err := runtime.InitializeNotifications(ctx); err != nil {
-		log.Printf("Aviso: notificações indisponíveis: %v", err)
+		slog.Warn("notificações indisponíveis", "erro", err)
 		return
 	}
 	if !runtime.IsNotificationAvailable(ctx) {
@@ -114,13 +156,21 @@ func (a *App) aoTerminar(item *etl.QueueItem) {
 	}
 	titulo, corpo := mensagemFim(item)
 	if err := a.notificar(titulo, corpo); err != nil {
-		log.Printf("Erro ao enviar notificação de %s: %v", item.Name, err)
+		slog.Warn("falha ao enviar a notificação", "item_id", item.ID, "zip", item.Name, "erro", err)
 	}
 }
 
 func mensagemFim(item *etl.QueueItem) (titulo, corpo string) {
 	if item.Status == "success" {
-		return "eprocIA", fmt.Sprintf("%s pronto (%d docs, %d págs)", filepath.Base(item.OutputPath), item.DocsCount, item.PagesCount)
+		nome := filepath.Base(item.OutputPath)
+		switch item.UnreadDocs {
+		case 0:
+			return "eprocIA", fmt.Sprintf("%s pronto (%d docs, %d págs)", nome, item.DocsCount, item.PagesCount)
+		case 1:
+			return "eprocIA", fmt.Sprintf("%s pronto, com 1 documento não lido (%d docs, %d págs)", nome, item.DocsCount, item.PagesCount)
+		default:
+			return "eprocIA", fmt.Sprintf("%s pronto, com %d documentos não lidos (%d docs, %d págs)", nome, item.UnreadDocs, item.DocsCount, item.PagesCount)
+		}
 	}
 	motivo := item.Error
 	if motivo == "" {
@@ -136,46 +186,111 @@ func carregarConfig(load func() (*models.Config, error)) *models.Config {
 	if err == nil && cfg != nil {
 		return cfg
 	}
-	log.Printf("Aviso: falha ao carregar a configuração (%v); usando a configuração padrão", err)
+	slog.Warn("falha ao carregar a configuração; usando a configuração padrão", "erro", err)
 	padrao, _ := config.DefaultConfig()
 	return padrao
 }
 
 // shutdown is called when the application closes
 func (a *App) shutdown(ctx context.Context) {
+	// Antes de parar watcher e fila: cancela um download e impede que uma
+	// troca comece durante a saída.
+	if a.atualizador != nil {
+		a.atualizador.Encerrar()
+	}
 	if a.watcher != nil {
 		a.watcher.Stop()
 	}
 	if a.queue != nil {
 		a.queue.Shutdown()
 	}
+	if a.fecharTelemetria != nil {
+		a.fecharTelemetria()
+	}
 }
 
-// Show shows the main window
+// Show mostra a janela no estado em que foi ocultada (maximizada continua
+// maximizada) e a traz para a frente; interrompe uma animação de ocultar.
 func (a *App) Show() {
+	if an := a.animador.Load(); an != nil {
+		an.Cancelar()
+	}
 	if a.ctx != nil {
 		runtime.WindowShow(a.ctx)
 	}
+	a.avisarVisibilidade(true)
 }
 
-// Hide hides the main window
-func (a *App) Hide() {
+// ocultarJanela é o ocultar de fato, no fim da animação ou sem ela.
+func (a *App) ocultarJanela() {
 	if a.ctx != nil {
 		runtime.WindowHide(a.ctx)
 	}
+	a.avisarVisibilidade(false)
 }
 
-// Quit terminates the application
+// iniciarOculta registra que a janela abre já na bandeja (--tray).
+func (a *App) iniciarOculta(oculta bool) { a.oculta.Store(oculta) }
+
+// JanelaVisivel diz ao frontend, ao montar, se a janela está à vista.
+func (a *App) JanelaVisivel() bool { return !a.oculta.Load() }
+
+func (a *App) avisarVisibilidade(visivel bool) {
+	a.oculta.Store(!visivel)
+	if a.emitir != nil {
+		a.emitir(eventoVisibilidade, visivel)
+	} else if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, eventoVisibilidade, visivel)
+	}
+}
+
+// Hide manda a janela para a bandeja com a animação de saída (botão X,
+// Alt+F4 e "Ocultar" da bandeja passam por aqui).
+func (a *App) Hide() {
+	if a.saindo.Load() {
+		return
+	}
+	if an := a.animador.Load(); an != nil {
+		an.Ocultar()
+	} else {
+		a.ocultarJanela()
+	}
+}
+
+// Quit encerra o app na hora, sem esperar animação.
 func (a *App) Quit() {
+	a.saindo.Store(true)
+	if an := a.animador.Load(); an != nil {
+		an.Cancelar()
+	}
+	// O que já foi registrado chega ao arquivo antes de a saída começar.
+	registro.Descarregar()
 	if a.ctx != nil {
 		runtime.Quit(a.ctx)
 	}
 }
 
+// antesDeFechar é o OnBeforeClose do Wails. Fechar a janela (Alt+F4, barra
+// de tarefas) chega aqui e vira ocultar para a bandeja; só a saída marcada
+// por Quit passa. Roda na thread da janela: a animação vai numa goroutine.
+func (a *App) antesDeFechar(_ context.Context) (impedir bool) {
+	if a.saindo.Load() {
+		return false
+	}
+	go a.Hide()
+	return true
+}
+
+// configAtual devolve a config em uso (nil antes de carregada). Não altere
+// o objeto devolvido: grave uma cópia com guardarConfig.
+func (a *App) configAtual() *models.Config { return a.cfg.Load() }
+
+func (a *App) guardarConfig(cfg *models.Config) { a.cfg.Store(cfg) }
+
 // GetConfig returns the current configuration settings.
 func (a *App) GetConfig() (*models.Config, error) {
-	if a.cfg != nil {
-		return a.cfg, nil
+	if cfg := a.configAtual(); cfg != nil {
+		return cfg, nil
 	}
 	return config.Load()
 }
@@ -183,9 +298,12 @@ func (a *App) GetConfig() (*models.Config, error) {
 // SaveConfig grava a configuração e reaplica o watchdog e a inicialização com
 // o Windows. O tema não vem do formulário: só SetTheme o altera.
 func (a *App) SaveConfig(cfg *models.Config) error {
-	autoAnterior := a.cfg != nil && a.cfg.AutoStart
-	if a.cfg != nil {
-		cfg.Theme = a.cfg.Theme
+	a.gravarMu.Lock()
+	defer a.gravarMu.Unlock()
+	atual := a.configAtual()
+	autoAnterior := atual != nil && atual.AutoStart
+	if atual != nil {
+		cfg.Theme = atual.Theme
 	}
 
 	// O registro vem antes da gravação: se ele recusar, o config.json guarda o
@@ -193,7 +311,7 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 	var errAuto error
 	if cfg.AutoStart != autoAnterior {
 		if err := a.autostart(cfg.AutoStart); err != nil {
-			log.Printf("Erro ao alterar a inicialização com o Windows: %v", err)
+			slog.Warn("falha ao alterar a inicialização com o Windows", "erro", err)
 			cfg.AutoStart = autoAnterior
 			errAuto = fmt.Errorf("configurações salvas, mas não foi possível alterar a inicialização com o Windows: %w", err)
 		}
@@ -202,29 +320,42 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 	if err := config.Save(cfg); err != nil {
 		if errAuto == nil && cfg.AutoStart != autoAnterior {
 			if errVolta := a.autostart(autoAnterior); errVolta != nil {
-				log.Printf("Erro ao desfazer a inicialização com o Windows: %v", errVolta)
+				slog.Warn("falha ao desfazer a inicialização com o Windows", "erro", errVolta)
 			}
 		}
 		return err
 	}
 
-	a.cfg = cfg
+	a.guardarConfig(cfg)
 	if a.queue != nil {
 		a.queue.SetConfig(cfg)
 	}
+	if err := a.aplicarMonitor(cfg); err != nil {
+		return err
+	}
+	return errAuto
+}
 
+// aplicarMonitor reaplica o watcher à config salva. Com o monitor retido
+// (processo novo da atualização à espera do antigo e da trava), só
+// desliga: quem liga é o arranqueApos, que lê a config guardada.
+func (a *App) aplicarMonitor(cfg *models.Config) error {
+	a.monitorMu.Lock()
+	defer a.monitorMu.Unlock()
 	// Start é no-op se a pasta já está sendo monitorada; chamá-lo sempre permite
 	// tentar de novo depois de uma falha mesmo sem mudar o caminho.
 	if cfg.WatchdogEnabled && cfg.MonitoredPath != "" {
+		if a.monitorRetido.Load() {
+			return nil
+		}
 		if err := a.watcher.Start(cfg.MonitoredPath); err != nil {
-			log.Printf("Erro ao iniciar o monitoramento da pasta %q: %v", cfg.MonitoredPath, err)
+			slog.Warn("falha ao iniciar o monitoramento da pasta", "pasta", cfg.MonitoredPath, "erro", err)
 			return fmt.Errorf("configurações salvas, mas não foi possível monitorar a pasta %q: %w", cfg.MonitoredPath, err)
 		}
 	} else {
 		a.watcher.Stop()
 	}
-
-	return errAuto
+	return nil
 }
 
 // SetTheme grava o tema escolhido ("system", "light" ou "dark"), que main.go lê
@@ -233,27 +364,29 @@ func (a *App) SetTheme(tema string) error {
 	if !config.TemaValido(tema) {
 		return fmt.Errorf("tema inválido: %q", tema)
 	}
-	cfg := a.cfg
+	a.gravarMu.Lock()
+	defer a.gravarMu.Unlock()
+	cfg := a.configAtual()
 	if cfg == nil {
 		cfg = carregarConfig(config.Load)
 	}
+	// Cópia: o objeto guardado é lido por outras goroutines e pela fila.
 	novo := *cfg
 	novo.Theme = tema
 	if err := config.Save(&novo); err != nil {
 		return fmt.Errorf("não foi possível salvar o tema: %w", err)
 	}
-	if a.cfg != nil {
-		a.cfg.Theme = tema
-	} else {
-		a.cfg = &novo
+	a.guardarConfig(&novo)
+	if a.queue != nil {
+		a.queue.SetConfig(&novo)
 	}
 	return nil
 }
 
 // ProcessFile adds a file to the processing queue for backward compatibility.
 func (a *App) ProcessFile(filePath string) (string, error) {
-	a.AddFilesToQueue([]string{filePath})
-	return "", nil
+	_, err := a.AddFilesToQueue([]string{filePath})
+	return "", err
 }
 
 // OpenDirectory opens the native Windows Explorer selecting the file, or opens the directory.
@@ -343,11 +476,30 @@ func (a *App) SelectZipFiles() ([]string, error) {
 	})
 }
 
-// AddFilesToQueue adds files manually to the processing queue.
-func (a *App) AddFilesToQueue(filePaths []string) {
-	if a.queue != nil {
-		a.queue.AddFiles(filePaths)
+// AddFilesToQueue adds files manually to the processing queue and returns how
+// many actually entered (a path already pending or processing is dropped).
+// Durante o reinício da atualização nada entra (recusaEntrada).
+func (a *App) AddFilesToQueue(filePaths []string) (int, error) {
+	if err := a.recusaEntrada(); err != nil {
+		return 0, err
 	}
+	if a.queue != nil {
+		return a.queue.AddFiles(filePaths), nil
+	}
+	return 0, nil
+}
+
+// AddDroppedFiles põe na fila os ZIPs arrastados para a janela (origem
+// "arrastada") e devolve quantos entraram; durante o reinício da
+// atualização, nenhum (recusaEntrada).
+func (a *App) AddDroppedFiles(filePaths []string) (int, error) {
+	if err := a.recusaEntrada(); err != nil {
+		return 0, err
+	}
+	if a.queue != nil {
+		return a.queue.AddFilesComOrigem(filePaths, "arrastada"), nil
+	}
+	return 0, nil
 }
 
 // GetQueue returns the current list of items in the queue.
@@ -394,10 +546,41 @@ func (a *App) RemoveQueueItem(id string) {
 	}
 }
 
+// ReprocessQueueItem devolve à fila um item concluído, com erro ou cancelado,
+// usando o OCR, a higienização e o Forçar OCR informados só para ele. O
+// Forçar OCR é sempre explícito: a tela decide o valor (a caixa nasce da
+// config global; "Ler com OCR" manda false).
+func (a *App) ReprocessQueueItem(id, ocrMode, cleaningLevel string, forcarOCR bool) error {
+	if a.queue == nil {
+		return fmt.Errorf("fila não inicializada")
+	}
+	if err := a.recusaEntrada(); err != nil {
+		return err
+	}
+	return a.queue.Reprocessar(id, ocrMode, cleaningLevel, &forcarOCR)
+}
+
+// GetQueueActivity devolve o estado de cada documento do item (o que está em
+// paralelo, em OCR, concluído ou com erro), ou nil se ele ainda não rodou.
+func (a *App) GetQueueActivity(id string) *etl.InstantaneoAtividade {
+	if a.queue == nil {
+		return nil
+	}
+	return a.queue.GetAtividade(id)
+}
+
 // ClearQueue cancels all processes and clears the queue list.
 func (a *App) ClearQueue() {
 	if a.queue != nil {
 		a.queue.Clear()
+	}
+}
+
+// ClearFinishedQueue remove da lista os itens concluídos, com erro ou
+// cancelados, sem tocar no que está em andamento ou aguardando.
+func (a *App) ClearFinishedQueue() {
+	if a.queue != nil {
+		a.queue.LimparConcluidos()
 	}
 }
 

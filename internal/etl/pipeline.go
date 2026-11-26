@@ -5,19 +5,24 @@ import (
 	"bytes"
 	"compress/flate"
 	"context"
+	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"maps"
 	"os"
 	"path/filepath"
 	stdRuntime "runtime"
+	"runtime/debug"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"eprocia/internal/models"
 	"eprocia/internal/ocr"
+	"eprocia/internal/registro"
 
 	"github.com/dslipak/pdf"
 )
@@ -181,6 +186,24 @@ func (f *fontePDF) liberarBuffer(reusar bool) {
 	f.leitor = nil
 }
 
+// manterSoDisco devolve a memória de um PDF já gravado em disco e fica só com o
+// temporário, que liberar remove depois. Serve ao PDF aberto pelo Poppler, que
+// só o lê do disco: guardá-lo assim entre a pré-contagem e o worker não pesa
+// no teto de memória nem grava o temporário duas vezes.
+func (f *fontePDF) manterSoDisco() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.reservado > 0 {
+		f.mem.disponivel.Add(f.reservado)
+		f.reservado = 0
+	}
+	if f.dados != nil {
+		f.mem.devolver(f.dados)
+	}
+	f.dados = nil
+	f.leitor = nil
+}
+
 // extrairPDF lê a entrada do ZIP para memória, se couber no orçamento, ou para
 // um temporário em disco mantido aberto.
 func extrairPDF(f models.ProcessFile, mem *memoriaPDF) (*fontePDF, error) {
@@ -227,6 +250,15 @@ func extrairPDF(f models.ProcessFile, mem *memoriaPDF) (*fontePDF, error) {
 	return &fontePDF{arq: tmp, caminho: tmp.Name(), tamanho: n, mem: mem}, nil
 }
 
+// tipoOmitido devolve o tipo do documento quando ele está em cfg.OmitirTipos,
+// ou "" quando o documento é lido.
+func tipoOmitido(cfg *models.Config, docName string) string {
+	if tipo := tipoDocumento(docName); tipo != "" && slices.Contains(cfg.OmitirTipos, tipo) {
+		return tipo
+	}
+	return ""
+}
+
 // contarPaginas abre o leitor do PDF uma vez; ele é reaproveitado por
 // ParsePages. A biblioteca pode entrar em panic com arquivo malformado.
 func (f *fontePDF) contarPaginas() (n int, err error) {
@@ -243,6 +275,23 @@ func (f *fontePDF) contarPaginas() (n int, err error) {
 	return n, nil
 }
 
+// executarOCR e executarOCRPaginas são o OCR real; os testes os trocam para
+// simular falhas sem rodar o tesseract.
+var (
+	executarOCR        = ocr.RunOCR
+	executarOCRPaginas = ocr.RunOCRPaginas
+)
+
+// forcarOCREfetivo diz se o Forçar OCR vale neste ZIP: com ocr_mode "none" o
+// valor salvo é preservado, mas não tem efeito.
+func forcarOCREfetivo(cfg *models.Config) bool {
+	return cfg.ForcarOCR && cfg.OcrMode != "none"
+}
+
+// gerarSaida monta o .txt a partir do mapa de eventos; os testes a trocam para
+// ver o mapa que o pipeline montou.
+var gerarSaida = GerarSaida
+
 // Pipeline orchestrates the entire extraction process. It emits no Wails
 // events: progress reaches the frontend through the Queue.
 type Pipeline struct{}
@@ -255,17 +304,69 @@ func NewPipeline() *Pipeline {
 // ProcessZip extracts, parses, OCRs (if needed), sorts, and formats a ZIP file.
 // It returns the output path, document and page counts and the estimated tokens.
 func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int)) (string, int, int, int, error) {
+	return p.ProcessZipComAtividade(ctx, zipPath, cfg, onProgress, nil)
+}
+
+// ProcessZipComAtividade é ProcessZip registrando em atv o estado de cada
+// documento e dos processos de OCR. atv pode ser nil.
+func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int), atv *Atividade) (string, int, int, int, error) {
+	// O logger do ctx já traz o item_id (Queue.processItem); as linhas de ZIP
+	// e de documento são INFO, as por página ficam em Debug.
+	lg := registro.Logger(ctx)
+	inicio := time.Now()
+	var bytesTxt int
+	var rel *models.RelatorioZip
+	saida, docs, paginas, tokens, err := p.processarZip(ctx, lg, zipPath, cfg, onProgress, atv, &bytesTxt, &rel)
+	duracao := time.Since(inicio)
+	attrs := []any{"zip", filepath.Base(zipPath), "duracao_ms", duracao.Milliseconds(),
+		"bytes_txt", bytesTxt, "tokens", tokens}
+	switch {
+	case err == nil:
+		if rel != nil {
+			rel.Tempo.TotalMs = duracao.Milliseconds()
+			atv.definirRelatorio(rel)
+			attrs = append(attrs, slog.Any("relatorio", rel))
+		}
+		lg.Info("zip concluído", attrs...)
+	case ctx.Err() != nil && errors.Is(err, ctx.Err()):
+		lg.Info("zip cancelado", attrs...)
+	default:
+		lg.Warn("zip com erro", append(attrs, atributosErro(err)...)...)
+	}
+	return saida, docs, paginas, tokens, err
+}
+
+func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath string, cfg *models.Config, onProgress func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int), atv *Atividade, bytesTxt *int, rel **models.RelatorioZip) (string, int, int, int, error) {
+	var fases fasesZip
 	// 1. Read ZIP files
+	inicioFase := time.Now()
 	files, rc, err := ReadZipFiles(zipPath)
+	fases.abrir = time.Since(inicioFase)
 	if err != nil {
-		return "", 0, 0, 0, err
+		return "", 0, 0, 0, comEtapa(EtapaAbrirZip, err)
 	}
 	defer rc.Close()
 
 	if len(files) == 0 {
 		errNoFiles := fmt.Errorf("no PDF or HTML documents found in ZIP")
-		return "", 0, 0, 0, errNoFiles
+		return "", 0, 0, 0, comEtapa(EtapaAbrirZip, errNoFiles)
 	}
+
+	var bytesZip int64
+	if st, errStat := os.Stat(zipPath); errStat == nil {
+		bytesZip = st.Size()
+	}
+	nPDF, nHTML := 0, 0
+	for _, f := range files {
+		if f.Extension == ".pdf" {
+			nPDF++
+		} else {
+			nHTML++
+		}
+	}
+	lg.Info("zip iniciado", "zip", filepath.Base(zipPath), "bytes", bytesZip, "pdf", nPDF, "html", nHTML,
+		slog.Group("config", "ocr_mode", cfg.OcrMode, "cleaning_level", cfg.CleaningLevel,
+			"forcar_ocr", forcarOCREfetivo(cfg), "forcar_ocr_pedido", cfg.ForcarOCR))
 
 	// 2. Sort documents chronologically and naturally
 	SortProcessFiles(files)
@@ -281,6 +382,9 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 	fontes := make([]*fontePDF, totalFiles)
 	contagens := make([]int, totalFiles)
 	contados := make([]bool, totalFiles)
+	// Preenchidas só aqui, em thread única; os workers só as leem.
+	viaPoppler := make([]bool, totalFiles)
+	errosAbertura := make([]error, totalFiles)
 	// Listas livres pequenas: reaproveitam buffers e descompressores entre as
 	// duas extrações de cada PDF sem segurar memória de todos os workers.
 	mem := &memoriaPDF{bufs: make(chan []byte, 2)}
@@ -295,6 +399,15 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 		}
 	}()
 
+	// O tipo omitido (H10) é decidido antes da pré-contagem: o documento
+	// omitido só tem as páginas contadas pela biblioteca, como antes do segundo
+	// leitor, e nunca vai ao Poppler.
+	tiposOmitidos := make([]string, totalFiles)
+	for i, f := range files {
+		tiposOmitidos[i] = tipoOmitido(cfg, f.DocName)
+	}
+
+	inicioFase = time.Now()
 	for i, f := range files {
 		contagens[i] = 1
 		if f.Extension != ".pdf" {
@@ -304,52 +417,78 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 			break
 		}
 		fonte, err := extrairPDF(f, mem)
-		if err == nil {
+		if err == nil && tiposOmitidos[i] != "" {
 			var n int
 			if n, err = fonte.contarPaginas(); err == nil {
 				contagens[i], contados[i] = n, true
 			}
-			// O temporário em disco (PDF acima do teto) fica aberto para não
-			// ser gravado duas vezes.
-			if err == nil && fonte.arq != nil {
+			// O worker do omitido não lê a fonte: nem o temporário em disco
+			// (PDF acima do teto) fica aberto até o fim do ZIP.
+			fonte.liberar()
+		} else if err == nil {
+			var ab aberturaPDF
+			// As linhas da abertura (segundo leitor) levam o documento.
+			ctxAb := registro.ComLogger(ctx, lg.With("doc_id", i, "doc", f.DocName))
+			if ab, err = abrirPDF(ctxAb, fonte); err == nil {
+				contagens[i], contados[i], viaPoppler[i] = ab.paginas, true, ab.poppler
+			} else if ctx.Err() == nil {
+				// Os dois leitores falharam (ou senha): decidido aqui, o worker
+				// não tenta de novo.
+				errosAbertura[i] = err
+			}
+			switch {
+			case err == nil && fonte.arq != nil:
+				// O temporário em disco (PDF acima do teto) fica aberto para não
+				// ser gravado duas vezes.
 				fontes[i] = fonte
-			} else {
+			case err == nil && ab.poppler:
+				// O Poppler só lê do disco: fica o temporário, sai a memória.
+				fonte.manterSoDisco()
+				fontes[i] = fonte
+			default:
 				fonte.liberar()
 			}
 		}
-		if err != nil {
-			log.Printf("[Pipeline] Erro ao pré-calcular páginas para %s: %v", f.DocName, err)
+		// O erro de abertura volta na linha "documento concluído"; aqui só sai
+		// em Warn o que ela não traz (contagem do omitido, extração do ZIP).
+		if err != nil && ctx.Err() == nil && errosAbertura[i] == nil {
+			lg.Warn("falha na pré-contagem de páginas", append([]any{"doc_id", i, "doc", f.DocName}, atributosErro(err)...)...)
 		}
 	}
+	fases.preContagem = time.Since(inicioFase)
 	if aoFimDaPreContagem != nil {
 		aoFimDaPreContagem(mem)
 	}
 	if err := ctx.Err(); err != nil {
-		log.Printf("[Pipeline] Processamento cancelado durante o pré-cálculo de páginas")
+		lg.Debug("cancelado durante a pré-contagem de páginas")
 		return "", 0, 0, 0, err
 	}
 
 	totalPagesAll := 0
-	docPageCounts := make(map[string]int, totalFiles)
-	for i, f := range files {
-		docPageCounts[f.Name] = contagens[i]
+	for i := range files {
 		totalPagesAll += contagens[i]
 	}
-	log.Printf("[Pipeline] Pré-cálculo concluído: %d documentos, %d páginas no total", totalFiles, totalPagesAll)
+	lg.Debug("pré-contagem concluída", "documentos", totalFiles, "paginas", totalPagesAll)
 
 	eventos := make(map[string]any)
 
 	// Group files by EventNum to pre-populate map
-	eventsMap := make(map[int][]models.ProcessFile)
+	eventsMap := make(map[int][]int)
 	var eventNums []int
-	for _, f := range files {
+	for i, f := range files {
 		if _, exists := eventsMap[f.EventNum]; !exists {
 			eventNums = append(eventNums, f.EventNum)
 		}
-		eventsMap[f.EventNum] = append(eventsMap[f.EventNum], f)
+		eventsMap[f.EventNum] = append(eventsMap[f.EventNum], i)
 	}
 
-	// Initialize the events map structure
+	// Initialize the events map structure. Cada goroutine recebe o mapa de
+	// páginas do seu documento por índice: a chave do documento leva o índice
+	// porque o ZIP aceita duas entradas com o mesmo caminho, e elas não podem
+	// dividir o mesmo mapa.
+	paginasDoc := make([]map[string]any, totalFiles)
+	docsMap := make([]map[string]any, totalFiles)
+	omitidos := make([]bool, totalFiles)
 	for _, eventNum := range eventNums {
 		eventKey := fmt.Sprintf("%d", eventNum)
 		documentosMap := make(map[string]any)
@@ -358,50 +497,51 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 			"documentos": documentosMap,
 		}
 
-		eventFiles := eventsMap[eventNum]
-		for index, f := range eventFiles {
-			docKey := f.Name
-			paginasMap := make(map[string]any)
-			documentosMap[docKey] = map[string]any{
+		for index, i := range eventsMap[eventNum] {
+			paginasDoc[i] = make(map[string]any)
+			doc := map[string]any{
 				"index":   index + 1,
-				"nome":    f.DocName,
-				"paginas": paginasMap,
+				"nome":    files[i].DocName,
+				"paginas": paginasDoc[i],
 			}
+			// As chaves novas entram só aqui, antes das goroutines.
+			if tipo := tiposOmitidos[i]; tipo != "" {
+				doc["omitido"] = tipo
+				doc["total_paginas"] = contagens[i]
+				omitidos[i] = true
+			}
+			docsMap[i] = doc
+			documentosMap[fmt.Sprintf("%d:%s", i, files[i].Name)] = doc
 		}
 	}
 
-	// OCR Runner wrapper using the internal ocr module with global semaphore to limit concurrent execs
-	sem := make(chan struct{}, numWorkers)
-	ocrRunner := func(ctx context.Context, pdfPath string, pageNum int) (string, error) {
-		select {
-		case sem <- struct{}{}:
-		case <-ctx.Done():
-			return "", ctx.Err()
-		}
-		defer func() { <-sem }()
-		return ocr.RunOCR(ctx, pdfPath, pageNum, cfg.OcrMode)
+	docsAtv := make([]AtividadeDoc, totalFiles)
+	for i, f := range files {
+		docsAtv[i] = AtividadeDoc{Nome: f.DocName, Evento: f.EventNum, Estado: DocAguardando, Paginas: contagens[i]}
 	}
-	ocrEmLote := func(ctx context.Context, pdfPath string, paginas []int, aoConcluir func(int)) ([]string, error) {
-		select {
-		case sem <- struct{}{}:
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		}
-		defer func() { <-sem }()
-		return ocr.RunOCRPaginas(ctx, pdfPath, paginas, cfg.OcrMode, aoConcluir)
-	}
+	atv.iniciar(docsAtv, numWorkers, numWorkers)
+
+	// O OCR de todo o ZIP divide um semáforo de numWorkers vagas. Cada documento
+	// recebe os seus executores, que marcam na atividade as páginas em OCR só
+	// depois de conseguir a vaga.
+	medidas := &medidasOCR{}
+	ocrZip := &ocrDoZip{sem: make(chan struct{}, numWorkers), atv: atv, modo: cfg.OcrMode, medidas: medidas}
+	// Cada documento escreve só o seu estatDoc; a soma vem depois de wg.Wait().
+	estats := make([]estatDoc, totalFiles)
 
 	var processedDocsVal atomic.Int32
 	var processedPagesVal atomic.Int32
 
-	// Progress reporting helper
+	// Progress reporting helper. Os contadores são lidos fora de qualquer trava,
+	// então dois documentos podem entregar valores fora de ordem: a fila só
+	// aceita avanço (ver Queue.processItem).
 	reportProgress := func(msg string) {
 		pDocs := int(processedDocsVal.Load())
 		pPages := int(processedPagesVal.Load())
 
 		progress := 0.0
 		if totalPagesAll > 0 {
-			progress = float64(pPages) / float64(totalPagesAll)
+			progress = min(float64(pPages)/float64(totalPagesAll), 1)
 		}
 
 		if onProgress != nil {
@@ -416,8 +556,113 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 
 	docSem := make(chan struct{}, numWorkers)
 
+	inicioFase = time.Now()
 	for i, f := range files {
 		wg.Go(func() {
+			paginasMap, docMap := paginasDoc[i], docsMap[i]
+			// O logger do documento leva doc_id (o índice no ZIP, que distingue
+			// entradas de mesmo nome) e vai no ctx para o leitor de PDF.
+			lgDoc := lg.With("doc_id", i)
+			ctxDoc := registro.ComLogger(ctx, lgDoc)
+			inicioDoc := time.Now()
+			// inicioVaga: quando o documento conseguiu a vaga em docSem.
+			var inicioVaga time.Time
+			// Leitura, detalhe e erro do documento, para a linha final.
+			var leituraDoc Leitura
+			var detalheDoc string
+			var errDoc error
+			// Páginas deste documento já contadas no progresso. O OCR em lote
+			// avisa páginas de outras goroutines, por isso o contador é atômico.
+			var feitas atomic.Int32
+			contarPagina := func() {
+				feitas.Add(1)
+				processedPagesVal.Add(1)
+				atv.docPagina(i)
+			}
+			// encerrar fecha o documento em qualquer saída que não seja
+			// cancelamento: conta o documento e completa as páginas que a
+			// pré-contagem previa e não foram avisadas (um PDF que falhou ao
+			// abrir), para os contadores chegarem ao total.
+			var encerrado bool
+			encerrar := func(msgErro, msgProgresso string) {
+				if encerrado {
+					return
+				}
+				encerrado = true
+				attrs := []any{"doc", f.DocName, "evento", f.EventNum, "extensao", f.Extension,
+					"bytes", int64(f.ZipFileRef.UncompressedSize64), "paginas", contagens[i]}
+				leitura := string(leituraDoc)
+				switch {
+				case omitidos[i]:
+					// Omitido por tipo: o arquivo nem é aberto, não há leitor.
+					leitura = "omitido"
+					attrs = append(attrs, "omitido", tiposOmitidos[i])
+				case f.Extension == ".pdf":
+					leitor := "biblioteca"
+					if viaPoppler[i] {
+						leitor = "poppler"
+					}
+					attrs = append(attrs, "leitor", leitor)
+				}
+				estado := DocConcluido
+				if msgErro != "" {
+					estado = DocErro
+				}
+				var est estatDoc
+				switch {
+				case omitidos[i]:
+					est.estado = estatOmitido
+				case leituraDoc.NaoLido():
+					est.estado, est.leitura = estatNaoLido, leituraDoc
+					est.paginas = len(paginasMap)
+				default:
+					est = estatDeLido(paginasMap)
+					est.leitura = leituraDoc
+				}
+				if !inicioVaga.IsZero() {
+					est.duracao = time.Since(inicioVaga)
+				}
+				estats[i] = est
+				attrs = append(attrs, "estado", estado, "leitura", leitura, "detalhe", detalheDoc,
+					"duracao_ms", time.Since(inicioDoc).Milliseconds())
+				if est.estado == estatLido {
+					attrs = append(attrs, "categorias", est.categorias)
+				}
+				// Com erro, WARN; concluído, não lido sem erro e omitido, INFO.
+				nivel := slog.LevelInfo
+				if errDoc != nil {
+					nivel = slog.LevelWarn
+				}
+				lgDoc.Log(ctxDoc, nivel, "documento concluído", append(attrs, atributosErro(errDoc)...)...)
+				if falta := contagens[i] - int(feitas.Load()); falta > 0 {
+					processedPagesVal.Add(int32(falta))
+				}
+				processedDocsVal.Add(1)
+				atv.docFim(i, msgErro)
+				reportProgress(msgProgresso)
+			}
+			marcarErro := func(conteudo string) {
+				for k := range paginasMap {
+					delete(paginasMap, k)
+				}
+				paginasMap["1"] = map[string]any{
+					"index":   1,
+					"ocr":     false,
+					"content": conteudo,
+				}
+			}
+			// naoLido encerra um documento sem texto: o marcador (se houver)
+			// continua no .txt, o painel recebe a frase e o texto técnico fica
+			// no detalhe. Sem marcador, as páginas já lidas ficam como estão.
+			naoLido := func(l Leitura, marcador, detalhe, msgProgresso string) {
+				if marcador != "" {
+					marcarErro(marcador)
+				}
+				docMap["nao_lido"] = l.Frase()
+				leituraDoc, detalheDoc = l, detalhe
+				atv.docLeitura(i, l, detalhe)
+				encerrar(l.Frase(), msgProgresso)
+			}
 
 			// Um panic não recuperado neste goroutine derruba o app inteiro; o
 			// documento é marcado com erro e os demais seguem.
@@ -427,21 +672,20 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 				if r == nil {
 					return
 				}
-				log.Printf("[Pipeline] Panic ao processar %s: %v", f.DocName, r)
+				lgDoc.Error("pânico ao processar o documento", "doc", f.DocName, "erro", fmt.Sprint(r),
+					"pilha", string(debug.Stack()))
+				// Um panic depois de encerrar (no onProgress, por exemplo) não
+				// reescreve um documento que já terminou.
+				if encerrado {
+					return
+				}
 				if fonteDoc != nil {
 					fonteDoc.liberarBuffer(false)
 				}
-				docData := eventos[fmt.Sprintf("%d", f.EventNum)].(map[string]any)["documentos"].(map[string]any)[f.Name].(map[string]any)
-				paginasMap := docData["paginas"].(map[string]any)
-				for k := range paginasMap {
-					delete(paginasMap, k)
-				}
-				paginasMap["1"] = map[string]any{
-					"index":   1,
-					"ocr":     false,
-					"content": fmt.Sprintf("[ERRO ao processar documento: %v]", r),
-				}
-				reportProgress(fmt.Sprintf("Erro ao processar %s", f.DocName))
+				errDoc = fmt.Errorf("panic: %v", r)
+				texto := textoErroSaida(fmt.Errorf("%v", r))
+				naoLido(LeituraIlegivel, fmt.Sprintf("[ERRO ao processar documento: %s]", texto),
+					texto, fmt.Sprintf("Erro ao processar %s", f.DocName))
 			}()
 
 			// Acquire slot for document processing
@@ -451,55 +695,69 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 				return
 			}
 			defer func() { <-docSem }()
+			inicioVaga = time.Now()
 
 			// Check for context cancellation before starting
 			if err := ctx.Err(); err != nil {
 				return
 			}
-
-			// Retrieve docData and its paginas map
-			eventKey := fmt.Sprintf("%d", f.EventNum)
-			eventData := eventos[eventKey].(map[string]any)
-			documentosMap := eventData["documentos"].(map[string]any)
-			docData := documentosMap[f.Name].(map[string]any)
-			paginasMap := docData["paginas"].(map[string]any)
+			// Tipo omitido: o arquivo não é aberto nem passa por OCR; encerrar
+			// completa as páginas pré-contadas.
+			if omitidos[i] {
+				atv.mudar(i, func(d *AtividadeDoc) { d.Feitas = d.Paginas })
+				encerrar("", fmt.Sprintf("Omitido %d/%d: %s", int(processedDocsVal.Load())+1, totalFiles, f.DocName))
+				return
+			}
+			atv.docLendo(i)
 
 			if f.Extension == ".pdf" {
+				if e := errosAbertura[i]; e != nil {
+					// abrirPDF já monta o erro com o resumo da biblioteca e a
+					// frase fixa do segundo leitor; vetarCaminho é a rede de
+					// segurança. A linha "documento concluído" leva o erro
+					// inteiro, para o "detalhe no log" valer quando ela dispara.
+					errDoc = comEtapa(EtapaLerPDF, e)
+					texto := vetarCaminho(e.Error())
+					naoLido(classificarErro(e), fmt.Sprintf("[ERRO ao analisar PDF: %s]", texto),
+						texto, fmt.Sprintf("Erro ao analisar %s", f.DocName))
+					return
+				}
 				fonte := fontes[i]
 				if fonte == nil {
 					var err error
 					fonte, err = extrairPDF(f, mem)
 					if err != nil {
-						paginasMap["1"] = map[string]any{
-							"index":   1,
-							"ocr":     false,
-							"content": fmt.Sprintf("[ERRO ao extrair PDF do ZIP: %s]", err.Error()),
-						}
-						processedPagesVal.Add(1)
-						reportProgress(fmt.Sprintf("Erro ao abrir %s", f.DocName))
+						errDoc = comEtapa(EtapaLerPDF, err)
+						texto := textoErroSaida(err)
+						naoLido(classificarErro(err), fmt.Sprintf("[ERRO ao extrair PDF do ZIP: %s]", texto),
+							texto, fmt.Sprintf("Erro ao abrir %s", f.DocName))
 						return
 					}
 					fontes[i] = fonte
 				}
 				fonteDoc = fonte
 
+				ocrRunner, ocrEmLote := ocrZip.doDoc(i)
 				parser := NewPDFParserDeLeitor(fonte.readerAt(), fonte.tamanho, f.DocName, fonte.materializar).
-					comOCREmLote(ocrEmLote, numWorkers)
-				if fonte.leitor != nil {
+					comOCREmLote(ocrEmLote, numWorkers).comMedidas(medidas).
+					comForcarOCR(forcarOCREfetivo(cfg))
+				if viaPoppler[i] {
+					parser.comPoppler(contagens[i])
+				} else if fonte.leitor != nil {
 					parser.comLeitor(fonte.leitor, fonte.paginas)
 				} else if contados[i] {
 					parser.comPaginas(contagens[i])
 				}
-				pdfPages, errParse := parser.ParsePages(ctx, cfg.OcrMode != "none", ocrRunner, func(pageNum int) {
-					processedPagesVal.Add(1)
+				pdfPages, errParse := parser.ParsePages(ctxDoc, cfg.OcrMode != "none", ocrRunner, func(pageNum int) {
+					contarPagina()
 					pDocs := int(processedDocsVal.Load())
-					reportProgress(fmt.Sprintf("Processando %s (pág. %d/%d) [Docs: %d/%d]", f.DocName, pageNum, docPageCounts[f.Name], pDocs, totalFiles))
+					reportProgress(fmt.Sprintf("Processando %s (pág. %d/%d) [Docs: %d/%d]", f.DocName, pageNum, contagens[i], pDocs, totalFiles))
 				})
 				fonte.liberar()
 
 				if errParse != nil {
 					if ctx.Err() != nil {
-						log.Printf("[Pipeline] Processamento cancelado durante a análise do PDF: %s", f.DocName)
+						lgDoc.Debug("cancelado durante a leitura do PDF")
 						errMu.Lock()
 						if errParseFirst == nil {
 							errParseFirst = ctx.Err()
@@ -507,11 +765,10 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 						errMu.Unlock()
 						return
 					}
-					paginasMap["1"] = map[string]any{
-						"index":   1,
-						"ocr":     false,
-						"content": fmt.Sprintf("[ERRO ao analisar PDF: %s]", errParse.Error()),
-					}
+					errDoc = comEtapa(EtapaLerPDF, errParse)
+					texto := textoErroSaida(errParse)
+					naoLido(classificarErro(errParse), fmt.Sprintf("[ERRO ao analisar PDF: %s]", texto),
+						texto, fmt.Sprintf("Erro ao analisar %s", f.DocName))
 					return
 				}
 
@@ -520,26 +777,20 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 			} else if f.Extension == ".html" || f.Extension == ".htm" {
 				zipReader, err := f.ZipFileRef.Open()
 				if err != nil {
-					paginasMap["1"] = map[string]any{
-						"index":   1,
-						"ocr":     false,
-						"content": fmt.Sprintf("[ERRO ao abrir arquivo no ZIP: %s]", err.Error()),
-					}
-					processedPagesVal.Add(1)
-					reportProgress(fmt.Sprintf("Erro ao abrir %s", f.DocName))
+					errDoc = comEtapa(EtapaHTML, err)
+					texto := textoErroSaida(err)
+					naoLido(classificarErro(err), fmt.Sprintf("[ERRO ao abrir arquivo no ZIP: %s]", texto),
+						texto, fmt.Sprintf("Erro ao abrir %s", f.DocName))
 					return
 				}
 
 				htmlText, errParse := ExtractTextFromHTML(zipReader)
 				zipReader.Close()
 				if errParse != nil {
-					paginasMap["1"] = map[string]any{
-						"index":   1,
-						"ocr":     false,
-						"content": fmt.Sprintf("[ERRO ao analisar HTML: %s]", errParse.Error()),
-					}
-					processedPagesVal.Add(1)
-					reportProgress(fmt.Sprintf("Erro ao analisar HTML %s", f.DocName))
+					errDoc = comEtapa(EtapaHTML, errParse)
+					texto := textoErroSaida(errParse)
+					naoLido(classificarErro(errParse), fmt.Sprintf("[ERRO ao analisar HTML: %s]", texto),
+						texto, fmt.Sprintf("Erro ao analisar HTML %s", f.DocName))
 					return
 				}
 				paginasMap["1"] = map[string]any{
@@ -547,18 +798,23 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 					"ocr":     false,
 					"content": htmlText,
 				}
-				processedPagesVal.Add(1)
-				pDocs := int(processedDocsVal.Load())
-				reportProgress(fmt.Sprintf("Processando %s (HTML concluído) [Docs: %d/%d]", f.DocName, pDocs, totalFiles))
+				contarPagina()
 			}
 
-			log.Printf("[Pipeline] Documento %s finalizado com %d páginas", f.DocName, len(paginasMap))
-			pDocs := int(processedDocsVal.Add(1))
-			reportProgress(fmt.Sprintf("Concluído %d/%d: %s", pDocs, totalFiles, f.DocName))
+			l := classificarPaginas(paginasMap, viaPoppler[i])
+			if l.NaoLido() {
+				naoLido(l, "", "", fmt.Sprintf("Concluído %d/%d: %s", int(processedDocsVal.Load())+1, totalFiles, f.DocName))
+				return
+			}
+			leituraDoc = l
+			classificarCategorias(ctxDoc, lgDoc.With("doc", f.DocName), paginasMap)
+			atv.docLeitura(i, l, "")
+			encerrar("", fmt.Sprintf("Concluído %d/%d: %s", int(processedDocsVal.Load())+1, totalFiles, f.DocName))
 		})
 	}
 
 	wg.Wait()
+	fases.leituraParede = time.Since(inicioFase)
 
 	if errParseFirst != nil {
 		return "", 0, 0, 0, errParseFirst
@@ -566,27 +822,36 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 
 	// Double check for context cancellation before generating/writing the file
 	if err := ctx.Err(); err != nil {
-		log.Printf("[Pipeline] Processamento cancelado antes de salvar o arquivo de saída")
+		lg.Debug("cancelado antes de gravar o arquivo de saída")
 		return "", 0, 0, 0, err
 	}
 
 	// 4. Format consolidated output into XML
-	outputText, tokens := GenerateConsolidatedOutput(eventos, cfg.CleaningLevel)
+	// O N do cabeçalho conta só as páginas sem_ocr dos documentos lidos: o
+	// documento inteiro sem OCR já está em "Documentos não lidos".
+	inicioFase = time.Now()
+	s := gerarSaida(eventos, cfg.CleaningLevel, semOCRDosLidos(estats))
+	fases.formatacao = time.Since(inicioFase)
+	outputText, tokens := s.Texto, s.Tokens
 
 	// 5. Save consolidated output to the same directory
 	outputPath := strings.TrimSuffix(zipPath, filepath.Ext(zipPath)) + ".txt"
 	// WriteString não copia o texto para um []byte, como os.WriteFile exigiria.
+	inicioFase = time.Now()
 	out, err := os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		return "", 0, 0, 0, err
+		return "", 0, 0, 0, comEtapa(EtapaGravar, err)
 	}
 	_, err = out.WriteString(outputText)
 	if errClose := out.Close(); err == nil {
 		err = errClose
 	}
 	if err != nil {
-		return "", 0, 0, 0, err
+		return "", 0, 0, 0, comEtapa(EtapaGravar, err)
 	}
+	*bytesTxt = len(outputText)
+	fases.gravacao = time.Since(inicioFase)
+	*rel = montarRelatorio(files, contagens, tiposOmitidos, estats, s, medidas, fases)
 
 	// Count total pages
 	totalPages := 0
@@ -596,6 +861,11 @@ func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.C
 		for _, dVal := range documentosMap {
 			dData := dVal.(map[string]any)
 			paginasMap := dData["paginas"].(map[string]any)
+			if _, omitido := dData["omitido"].(string); omitido {
+				// Igual ao resumo do <contexto>: conta as páginas da origem.
+				totalPages += dData["total_paginas"].(int)
+				continue
+			}
 			totalPages += len(paginasMap)
 		}
 	}

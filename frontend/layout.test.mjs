@@ -49,6 +49,15 @@ test('na largura mínima da janela a fila mantém a largura mínima', () => {
   assert.ok(minJanela - larguraMaxPainel(minJanela) >= LARGURA_MIN_FILA);
 });
 
+// P6. Medido em 2026-11-22 (Chromium, stubs, janela 800x600, ZIP
+// 5000000-00.2026.4.00.0001.zip, rótulo "12 não lidos"): o rótulo só fica
+// dentro de .details-row (sem recorte) com a fila em 453 px ou mais; a 451 px
+// já é recortado. 453 + 8 px de margem para o gap = 461.
+test('a fila mínima mantém visível o rótulo "N não lidos"', () => {
+  assert.ok(LARGURA_MIN_FILA >= 461);
+  assert.ok(800 - larguraMaxPainel(800) >= 461);
+});
+
 test('limitarPainel prende a largura entre o mínimo e o máximo da janela', () => {
   assert.equal(limitarPainel(200, 1024), 280);
   assert.equal(limitarPainel(350, 1024), 350);
@@ -87,6 +96,22 @@ test('título da fila trunca em uma linha', () => {
   assert.match(regra(css, '.header-actions'), /flex-shrink:\s*0/);
 });
 
+// DESIGN.md §5.1: o chip "Fila pausada" encolhe antes do título. Com base 0 e
+// crescimento até o próprio texto, o chip só ocupa o que sobra; o título fica
+// com a largura do texto e só encolhe quando o chip já está no mínimo.
+test('chip da fila pausada encolhe antes do título', () => {
+  const css = estilo(lista);
+  const chip = regra(css, '.queue-chip');
+  assert.match(chip, /flex:\s*1 1 0(px)?\s*;/);
+  assert.match(chip, /max-width:\s*max-content/);
+  // O mínimo é o ícone inteiro (movimento.test.mjs); o texto some antes.
+  assert.match(regra(css, '.queue-chip-text'), /min-width:\s*0/);
+  // Texto inteiro sempre acessível: no title e no DOM, mesmo cortado na tela.
+  assert.match(lista, /<span class="queue-chip" title=\{aviso\}[^>]*>[\s\S]*?<span class="queue-chip-text">\{aviso\}<\/span>/);
+  const h2 = regra(css, '.header-left h2');
+  assert.match(h2, /flex:\s*0 1 auto/);
+});
+
 test('campo Filtrar não cresce no foco', () => {
   const css = estilo(lista);
   const campo = regra(css, '.search-input');
@@ -98,10 +123,32 @@ test('campo Filtrar não cresce no foco', () => {
 test('em contêiner estreito os botões ficam só com ícone e mantêm nome acessível', () => {
   const css = estilo(lista);
   assert.match(regra(css, '.list-card'), /container-type:\s*inline-size/);
-  assert.match(css, /@container[^{]*\(max-width:\s*420px\)\s*\{[^}]*\.rotulo-acao\s*\{[^}]*display:\s*none/);
-  for (const nome of ['Retomar', 'Pausar', 'Limpar Fila']) {
+  // Medido em 2026-11-24 (Task 19, rodada 1; Chromium, estado relatorio, claro e
+  // escuro, caixa de conteúdo do card de 480 a 700 px): com Pausar, Limpar
+  // concluídos e Limpar tudo rotulados, o título inteiro só cabe a partir de 660 px.
+  assert.match(css, /@container[^{]*\(max-width:\s*660px\)\s*\{[^}]*\.rotulo-acao\s*\{[^}]*display:\s*none/);
+  for (const nome of ['Retomar', 'Pausar', 'Limpar concluídos', 'Limpar tudo']) {
     assert.match(lista, new RegExp(`aria-label="${nome}"`), `${nome} sem aria-label`);
     assert.match(lista, new RegExp(`<span class="rotulo-acao">${nome}</span>`), `${nome} sem rótulo ocultável`);
   }
   assert.match(lista, /class="btn-clear"[^>]*>\s*<Icone icone=\{ListX\}/);
+});
+
+// P6. Medido em 2026-11-22 (Chromium, stubs nao-lidos e fila, claro e escuro,
+// painel 280, card de 440 a 536 px): o cabeçalho com rótulos e o ícone do
+// título só cabe sem corte com card >= 484 px (480 corta). Breakpoint = 484 + 8.
+test('o breakpoint dos rótulos do cabeçalho cobre a largura medida de 484px', () => {
+  const m = lista.match(/@container\s*\(max-width:\s*(\d+)px\)\s*\{\s*\.rotulo-acao/);
+  assert.ok(m, 'regra de .rotulo-acao não encontrada');
+  assert.ok(Number(m[1]) >= 484 + 8);
+});
+
+// --- F-VI-01 ---------------------------------------------------------------
+
+test('seções do painel não encolhem: a rolagem fica na área do painel', () => {
+  const settings = ler('src', 'components', 'Settings.svelte');
+  const cfg = regra(estilo(settings), '.settings-card');
+  assert.match(cfg, /flex:\s*none/, 'Configurações encolhe e corta os controles a 600px de altura');
+  assert.doesNotMatch(cfg, /overflow:\s*hidden/);
+  assert.match(regra(estilo(app), '.sidebar-content'), /overflow-y:\s*auto/);
 });

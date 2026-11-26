@@ -121,7 +121,7 @@ const lenteDe = (id) => id.split('-')[1]
 
 // ---------------------------------------------------------------- Preparação
 phase('Preparação')
-const prep = await agent(
+const prep = await comPapel('auxiliar',
   `Prepare a correção de achados do eprocIA.\n` +
     `1. Rode git status --porcelain. Se houver arquivos rastreados modificados, pare com ok=false e motivo (não descarte nada do usuário).\n` +
     `2. Garanta a branch ${branch}: se existir, git switch ${branch}; senão, git switch -c ${branch} a partir do HEAD atual. Nunca trabalhe na main. Nunca faça push.\n` +
@@ -157,9 +157,10 @@ async function executarTarefa({ chaves, rotulo, pedido, gate, mensagem, faseProg
     if (!impl) { feedback = 'o implementador não devolveu resultado'; continue }
     impl.arquivos.forEach((a) => tocados.add(a))
 
-    const g = await agent(
+    const g = await comPapel('auxiliar',
       `Gate da tarefa ${rotulo} do eprocIA (não edite código; só rode e relate).\n${gate}\n` +
         `Arquivos alterados segundo o implementador: ${impl.arquivos.join(', ')}.\n` +
+        (impl.observacoes ? `Observações do implementador (métrica-alvo e benchmark declarados): ${impl.observacoes}\n` : '') +
         `Devolva passou=true só se todas as etapas passarem; em resumo, a última linha decisiva de cada etapa.`,
       { label: `gate:${rotulo}#${tentativa}`, phase: faseProgresso, schema: GATE },
     )
@@ -173,7 +174,7 @@ async function executarTarefa({ chaves, rotulo, pedido, gate, mensagem, faseProg
     )
     if (!rev?.aprovado) { feedback = `revisor reprovou: ${rev?.motivo ?? 'sem resposta'}`; continue }
 
-    const c = await agent(
+    const c = await comPapel('auxiliar',
       `Faça o commit da tarefa ${rotulo} do eprocIA na branch ${branch} (nunca push).\n` +
         `Adicione pelo nome só os arquivos da tarefa (git status mostra quais; inclua go.mod e frontend/src/wailsjs se o build os regenerou). ` +
         `Nunca adicione docs/revisao/estado.json nem os caminhos ${protegidos}. Nunca use git add -A ou git add .\n` +
@@ -185,7 +186,7 @@ async function executarTarefa({ chaves, rotulo, pedido, gate, mensagem, faseProg
     feedback = `commit falhou: ${c?.erro ?? 'sem resposta'}`
   }
 
-  const d = await agent(
+  const d = await comPapel('auxiliar',
     `A tarefa ${rotulo} do eprocIA falhou ${TENTATIVAS} vezes. Descarte só as mudanças dela, nesta ordem:\n` +
       `1. Arquivos rastreados da tarefa: para cada um destes que git ls-files conhece, rode git restore --staged --worktree -- <arquivo>: ${JSON.stringify([...tocados])}. Não restaure nenhum outro arquivo.\n` +
       `2. Não rastreados novos: liste exatamente com\n` +
@@ -206,8 +207,10 @@ function arvoreSuja(r) {
 
 const GATE_BUILD = 'Rode pwsh scripts/build/gate.ps1 (skill eprocia-build). Se eprocia.exe estiver aberto e o script pedir para fechá-lo, devolva passou=false com esse motivo; não encerre processos que você não iniciou.'
 const gateVisual = (pasta) =>
-  `Rode também o gate visual da skill eprocia-visual: capturas em ${config.visual.saida}/${data}/${pasta} (só os estados afetados, com --estados), cd frontend && npx svelte-check sem erros e npm run build sem warnings novos. Liste os PNGs em capturas.`
-const GATE_BENCH = 'Rode o benchmark da skill eprocia-bench: compare o commit base (git stash não; use git worktree add em diretório temporário para o HEAD) com a árvore atual, -count=10, e cole a tabela do go tool benchstat em benchstat. Aceite só com p < 0,05 na métrica-alvo e nenhuma outra métrica pior que 5%; remova o worktree temporário.'
+  `Rode também o gate visual da skill eprocia-visual: capturas em ${config.visual.saida}/${data}/${pasta} (só os estados afetados, com --estados), cd frontend && npx svelte-check sem erros, npm run build sem warnings novos e os testes do frontend (na raiz, node --test sobre frontend/*.test.mjs; no pwsh: node --test (Get-ChildItem frontend -Filter *.test.mjs).FullName), reprovando em qualquer falha. Liste os PNGs em capturas.`
+const GATE_BENCH =
+  'Rode o benchmark da skill eprocia-bench: compare o commit base (git stash não; use git worktree add em diretório temporário para o HEAD) com a árvore atual, -count=10, e cole a tabela do go tool benchstat em benchstat. Aceite só com p < 0,05 na métrica-alvo e nenhuma outra métrica pior que 5%; remova o worktree temporário. ' +
+  'A métrica-alvo e o benchmark da tarefa vêm nas observações do implementador, no fim deste pedido; a métrica-alvo decide com p < 0,05. Não conte o pico-mem-B do modo com OCR no critério dos 5%: ele oscila de uma rodada para outra.'
 // Regression check for ES/TE/GM fixes. OCR mode is left out on purpose: its peak
 // memory swings run to run (Tesseract, GC timing) and rejected sound fixes as noise.
 // Wall time on this machine swings ±70% while other agents run, so time alone
@@ -322,14 +325,14 @@ for (const membros of tarefas) {
 
 // ---------------------------------------------------------------- Final
 phase('Final')
-const revisaoFinal = await agent(
+const revisaoFinal = await comPapel('auxiliar',
   `Revise a branch ${branch} inteira do eprocIA: git log --oneline ${prep.base}..HEAD e git diff ${prep.base}..HEAD. Read-only.\n` +
     `Procure: interação ruim entre correções, regressão, código morto deixado para trás, mensagens fora do pt-BR, arquivos sensíveis commitados (zip, pdf, saídas .txt). ` +
     `Rode go vet ./... e go test ./... -count=1. Devolva achados em texto curto, um por linha, com arquivo:linha; ou "nenhum problema".`,
   { label: 'revisao-final', phase: 'Final' },
 )
 
-await agent(
+await comPapel('auxiliar',
   `Atualize ${relatorio} com o resultado da correção de ${data} e faça um commit só dele.\n` +
     `Status por id (troque a linha "Status: pendente" de cada seção): ${JSON.stringify(status)}.\n` +
     `Detalhes por id (sha, benchstat, capturas, motivo de bloqueio): ${JSON.stringify(detalhes)}.\n` +

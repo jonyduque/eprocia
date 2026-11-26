@@ -1,0 +1,39 @@
+<contexto>
+PROCESSO JUDICIAL - ORDEM CRONOLÓGICA
+Total de Documentos: 3
+Documentos não lidos: 0
+Data de Consolidação: DATA
+Tokens estimados: 362
+
+<summary>
+- Evento 1 - DOC1: 2 páginas
+- Evento 2 - DOC2: 2 páginas
+- Evento 3 - DOC3: 2 páginas
+</summary>
+</contexto>
+
+<evento num="1">
+<documento index="1" nome="Evento 1 - DOC1.pdf">
+<pag n="1">
+Texto sintético a do caso FULANO DE TAL. Texto sintético a do caso FULANO DE TAL. Texto sintético a do caso FULANO DE TAL. Texto sintético a do caso FULANO DE TAL. Texto sintético a do caso FULANO DE TAL. Texto sintético a do caso FULANO DE TAL.
+</pag>
+<pag n="2">
+Texto sintético b do caso FULANO DE TAL. Texto sintético b do caso FULANO DE TAL. Texto sintético b do caso FULANO DE TAL. Texto sintético b do caso FULANO DE TAL. Texto sintético b do caso FULANO DE TAL. Texto sintético b do caso FULANO DE TAL.
+</pag>
+</documento>
+</evento>
+<evento num="2">
+<documento index="1" nome="Evento 2 - DOC2.pdf">
+[documento idêntico a: evento 1, DOC1]
+</documento>
+</evento>
+<evento num="3">
+<documento index="1" nome="Evento 3 - DOC3.pdf">
+<pag n="1">
+Texto sintético c do caso FULANO DE TAL. Texto sintético c do caso FULANO DE TAL. Texto sintético c do caso FULANO DE TAL. Texto sintético c do caso FULANO DE TAL. Texto sintético c do caso FULANO DE TAL. Texto sintético c do caso FULANO DE TAL.
+</pag>
+<pag n="2">
+[conteúdo idêntico a: evento 1, DOC1, pág. 1]
+</pag>
+</documento>
+</evento>

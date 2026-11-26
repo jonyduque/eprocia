@@ -98,3 +98,21 @@ func TestAoTerminar_NotificaSoQuandoDisponivel(t *testing.T) {
 		t.Fatalf("notificações: %v", recebidas)
 	}
 }
+
+func TestMensagemFim_NaoLidos(t *testing.T) {
+	item := &etl.QueueItem{Name: "saida.zip", Status: "success", OutputPath: "saida.txt", DocsCount: 10, PagesCount: 40}
+	casos := []struct {
+		naoLidos int
+		esperado string
+	}{
+		{2, "saida.txt pronto, com 2 documentos não lidos (10 docs, 40 págs)"},
+		{1, "saida.txt pronto, com 1 documento não lido (10 docs, 40 págs)"},
+		{0, "saida.txt pronto (10 docs, 40 págs)"},
+	}
+	for _, c := range casos {
+		item.UnreadDocs = c.naoLidos
+		if _, corpo := mensagemFim(item); corpo != c.esperado {
+			t.Errorf("não lidos %d: %q, esperava %q", c.naoLidos, corpo, c.esperado)
+		}
+	}
+}

@@ -122,18 +122,49 @@ function rotuloSecao(r, nome) {
   assert.match(r, /color:\s*var\(--text-secondary\)/, nome);
 }
 
-test('Configurações e Importação Manual viram seções com rótulo pequeno', () => {
-  rotuloSecao(regra(estilo(settings), '.card-header h2'), 'Configurações');
-  rotuloSecao(regra(estilo(app), '.manual-card h3'), 'Importação Manual');
+test('Configurações vira seção com rótulo pequeno, sem Importação Manual', () => {
+  // F-VI-07: "Configurações" vai para a faixa do botão de recolher.
+  const ini = app.indexOf('<div class="sidebar-header-toggle">');
+  const cab = app.slice(ini, app.indexOf('</div>', app.indexOf('</h2>', ini)));
+  assert.match(cab, /<h2[^>]*>Configurações<\/h2>/);
+  rotuloSecao(regra(estilo(app), '.painel-titulo h2'), 'Configurações');
+  assert.doesNotMatch(app, /manual-card|Importação Manual/);
 });
 
-test('seções do painel sem moldura de cartão, separadas por divisor de 1px', () => {
+test('Configurações em quatro blocos rotulados: Monitoramento, Processamento, Sistema, Atualizações', () => {
+  // O rótulo é o texto do botão que recolhe a categoria (depois do chevron).
+  const blocos = [...settings.matchAll(/<h3 class="rotulo-grupo">[\s\S]*?<\/span>\s*([^<\s][^<]*?)\s*<\/button>\s*<\/h3>/g)].map((m) => m[1]);
+  assert.deepEqual(blocos, ['Monitoramento', 'Processamento', 'Sistema', 'Atualizações']);
+  rotuloSecao(regra(estilo(settings), '.rotulo-grupo'), 'blocos');
+  const ordem = ['Monitoramento', 'id="watchdog-toggle"', 'id="monitored-path"', 'Processamento',
+    'id="ocr-mode"', 'id="cleaning-level"', 'id="omitir-tipos"', 'Sistema', 'id="autostart-toggle"', 'data-bloco="atualizacoes"'];
+  const pos = ordem.map((o) => settings.indexOf(o));
+  for (let i = 1; i < pos.length; i++) assert.ok(pos[i] > pos[i - 1], `${ordem[i]} fora de ordem`);
+});
+
+test('painel com a guia de 12px das barras, 16px entre seções e 12px entre grupos', () => {
+  const s = estilo(app);
+  const conteudo = regra(s, '.sidebar-content');
+  assert.equal(px(conteudo, 'padding'), '12px');
+  assert.equal(px(conteudo, 'gap'), '16px');
+  assert.match(px(regra(s, '.sidebar-header-toggle'), 'padding'), /^\d+px 12px$/);
+  const st = estilo(settings);
+  assert.equal(px(regra(st, '.settings-card'), 'gap'), '16px');
+  assert.equal(px(regra(st, '.grupo'), 'gap'), '12px');
+});
+
+test('DESIGN.md: título do painel na faixa de recolher e guia de 12px', () => {
+  const s53 = design.slice(design.indexOf('### 5.3'), design.indexOf('### 5.4'));
+  assert.doesNotMatch(s53, /Sem título geral/);
+  assert.match(s53, /Monitoramento, Processamento e Sistema/);
+  const s6 = design.slice(design.indexOf('## 6.'), design.indexOf('## 7.'));
+  assert.match(s6, /painel[^.]*12px/i);
+});
+
+test('seção do painel sem moldura de cartão', () => {
   const cfg = regra(estilo(settings), '.settings-card');
   assert.doesNotMatch(cfg, /box-shadow/);
   assert.doesNotMatch(cfg, /(?:^|[\s;])border:\s*1px/);
-  const manual = regra(estilo(app), '.manual-card');
-  assert.doesNotMatch(manual, /(?:^|[\s;])border:\s*1px/);
-  assert.match(manual, /border-top:\s*1px solid var\(--border\)/);
 });
 
 test('painel sem o cabeçalho "Painel de Controle"', () => {

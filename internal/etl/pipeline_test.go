@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"eprocia/internal/models"
+	"eprocia/internal/registro"
 
 	"github.com/dslipak/pdf"
 )
@@ -43,16 +44,10 @@ func TestProcessZip_CanceladoNaoPreCalculaPaginas(t *testing.T) {
 		t.Fatalf("falha ao gravar zip: %v", err)
 	}
 
+	// O logger do ctx em Debug pega também a linha de pré-contagem concluída.
 	var logBuf bytes.Buffer
-	prevOut, prevFlags := log.Writer(), log.Flags()
-	log.SetOutput(&logBuf)
-	log.SetFlags(0)
-	t.Cleanup(func() {
-		log.SetOutput(prevOut)
-		log.SetFlags(prevFlags)
-	})
-
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(registro.ComLogger(context.Background(),
+		slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelDebug}))))
 	cancel()
 
 	p := NewPipeline()
@@ -62,8 +57,11 @@ func TestProcessZip_CanceladoNaoPreCalculaPaginas(t *testing.T) {
 		t.Fatalf("esperava context.Canceled, obtive %v", err)
 	}
 
+	// Se a pré-contagem rodasse, o PDF fictício passaria por abrirPDF e o
+	// segundo leitor falso (TestMain) falharia em Warn. "falha na pré-contagem"
+	// não serve de sinal: ela só sai com o contexto vivo.
 	saida := logBuf.String()
-	if strings.Contains(saida, "pré-calcular") || strings.Contains(saida, "Pré-cálculo concluído") {
+	if strings.Contains(saida, "segundo leitor falhou") || strings.Contains(saida, "pré-contagem concluída") {
 		t.Errorf("pré-cálculo rodou mesmo com o contexto cancelado:\n%s", saida)
 	}
 
@@ -190,5 +188,49 @@ func TestProcessZip_NaoEmiteEventosWails(t *testing.T) {
 	cmd.Env = append(os.Environ(), "EPROCIA_SUBPROCESSO_EVENTOS=1")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("ProcessZip tentou emitir evento Wails: %v\n%s", err, out)
+	}
+}
+
+// O formato ZIP aceita duas entradas com o mesmo caminho. Cada uma é um
+// documento: nenhuma pode sumir da saída nem dividir o mapa de páginas com a
+// outra (duas goroutines escrevendo no mesmo mapa).
+func TestProcessZip_EntradasComMesmoNomeSaoDocumentosDistintos(t *testing.T) {
+	zipPath := filepath.Join(t.TempDir(), "processo.zip")
+	buf := new(bytes.Buffer)
+	zw := zip.NewWriter(buf)
+	const n = 8
+	for i := range n {
+		w, err := zw.Create("Evento 1 - DOC1.html")
+		if err != nil {
+			t.Fatalf("falha ao criar entrada: %v", err)
+		}
+		_, _ = fmt.Fprintf(w, "<html><body><p>conteudo-%d</p></body></html>", i)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatalf("falha ao fechar zip: %v", err)
+	}
+	if err := os.WriteFile(zipPath, buf.Bytes(), 0644); err != nil {
+		t.Fatalf("falha ao gravar zip: %v", err)
+	}
+
+	cfg := &models.Config{CleaningLevel: "none", OcrMode: "none"}
+	outPath, docs, _, _, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfg, nil)
+	if err != nil {
+		t.Fatalf("ProcessZip falhou: %v", err)
+	}
+	saida, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("falha ao ler saída: %v", err)
+	}
+	if docs != n {
+		t.Errorf("docs = %d, esperava %d", docs, n)
+	}
+	for i := range n {
+		if !strings.Contains(string(saida), fmt.Sprintf("conteudo-%d", i)) {
+			t.Errorf("documento %d sumiu da saída", i)
+		}
+	}
+	if !strings.Contains(string(saida), fmt.Sprintf("Total de Documentos: %d", n)) {
+		t.Errorf("total de documentos errado na saída:\n%s", saida)
 	}
 }

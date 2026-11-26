@@ -3,18 +3,17 @@ package etl
 import (
 	"archive/zip"
 	"fmt"
-	"log"
 	"strings"
 
 	"eprocia/internal/models"
 )
 
-// ReadZipFiles lists and parses all relevant files from a ZIP archive.
+// ReadZipFiles lists and parses all relevant files from a ZIP archive. Não
+// registra nada: a linha "zip iniciado" (ou "zip com erro") do pipeline já
+// leva as contagens e o erro.
 func ReadZipFiles(zipPath string) ([]models.ProcessFile, *zip.ReadCloser, error) {
-	log.Printf("[ZipReader] Lendo arquivo ZIP: %s", zipPath)
 	rc, err := zip.OpenReader(zipPath)
 	if err != nil {
-		log.Printf("[ZipReader] Erro ao abrir arquivo ZIP: %v", err)
 		return nil, nil, fmt.Errorf("failed to open zip file: %w", err)
 	}
 
@@ -37,6 +36,5 @@ func ReadZipFiles(zipPath string) ([]models.ProcessFile, *zip.ReadCloser, error)
 		files = append(files, ParseFileInfo(f))
 	}
 
-	log.Printf("[ZipReader] ZIP %s contém %d arquivos válidos para processamento", zipPath, len(files))
 	return files, rc, nil
 }

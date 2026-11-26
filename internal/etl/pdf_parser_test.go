@@ -187,11 +187,16 @@ func TestPDFParser_ParsePages_OcrFailureMarksPage(t *testing.T) {
 		t.Errorf("a página não deveria ter o campo image: %v", page["image"])
 	}
 	content := page["content"].(string)
-	if !strings.HasPrefix(content, "[ERRO de OCR:") || !strings.Contains(content, "tesseract ausente") {
-		t.Errorf("expected OCR error marker in content, got %q", content)
+	// O erro cru fica só no log: a página leva a frase fixa (ver erro_saida_test.go).
+	if content != marcadorOCRFalha {
+		t.Errorf("expected the fixed OCR error marker in content, got %q", content)
 	}
-	if page["ocr_erro"] != "tesseract ausente" {
-		t.Errorf("expected ocr_erro to carry the failure, got %v", page["ocr_erro"])
+	if page["ocr_erro"] != frasePaginaOCRFalha {
+		t.Errorf("expected ocr_erro to carry the fixed phrase, got %v", page["ocr_erro"])
+	}
+	// Sem texto de reserva o marcador já é o conteúdo: não há aviso a pôr antes.
+	if _, tem := page["ocr_aviso"]; tem {
+		t.Errorf("ocr_aviso presente numa página sem texto de reserva: %v", page)
 	}
 	if completed != 1 {
 		t.Errorf("expected onPageComplete once, got %d", completed)
@@ -370,6 +375,87 @@ func TestPDFParser_ParsePages_XrefInconsistenteEmHasImagesNaoEntraEmPanic(t *tes
 	}
 	if _, ok := pages["1"].(map[string]any); !ok {
 		t.Errorf("esperava a página 1 no resultado, obtive %+v", pages)
+	}
+}
+
+// objetosImagemComXrefTorta monta uma página de texto curto cujo /XObject (5 0 R,
+// íntegro) aponta para /Im1 6 0 R, mas o 6º objeto da lista está escrito como
+// "9 0 obj": 6 0 R panica com "found 9 0" em obj.Key("Subtype"), dentro de HasImages.
+// (O teste acima, com o item 5 torto, panica antes, em xobject.Keys().)
+func objetosImagemComXrefTorta() []string {
+	return []string{
+		"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
+		"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj",
+		"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /XObject 5 0 R >> /Contents 4 0 R >>\nendobj",
+		"4 0 obj\n<< /Length 38 >>\nstream\nBT\n/F1 12 Tf\n72 712 Td\n(Oi) Tj\nET\nendstream\nendobj",
+		"5 0 obj\n<< /Im1 6 0 R >>\nendobj",
+		"9 0 obj\n<< /Type /XObject /Subtype /Image /Width 500 /Height 500 >>\nendobj",
+	}
+}
+
+func TestHasImages_PanicContaComoComImagens(t *testing.T) {
+	dados := buildPDF(objetosImagemComXrefTorta())
+	r, err := pdf.NewReader(bytes.NewReader(dados), int64(len(dados)))
+	if err != nil {
+		t.Fatalf("pdf.NewReader: %v", err)
+	}
+	page := r.Page(1)
+	defer func() {
+		if rec := recover(); rec != nil {
+			t.Fatalf("HasImages entrou em panic: %v", rec)
+		}
+	}()
+	if !HasImages(page) {
+		t.Errorf("esperava HasImages == true quando o exame da página panica")
+	}
+}
+
+func TestPDFParser_ParsePages_PanicEmHasImagesVaiAoOCR(t *testing.T) {
+	chamadas := 0
+	ocrRunner := func(ctx context.Context, path string, pageNum int) (string, error) {
+		chamadas++
+		return "OCR Extracted Text", nil
+	}
+	pages, err := parsePagesSemPanic(t, objetosImagemComXrefTorta(), ocrRunner)
+	if err != nil {
+		t.Fatalf("ParsePages falhou: %v", err)
+	}
+	p1, ok := pages["1"].(map[string]any)
+	if !ok {
+		t.Fatalf("esperava a página 1, obtive %+v", pages)
+	}
+	c, _ := p1["content"].(string)
+	if !strings.Contains(c, "OCR Extracted Text") || strings.Contains(c, "[ERRO") {
+		t.Errorf("esperava conteúdo do OCR sem [ERRO, obtive %+v", p1)
+	}
+	if chamadas != 1 {
+		t.Errorf("esperava 1 chamada ao OCR, obtive %d", chamadas)
+	}
+}
+
+func TestPDFParser_ParsePages_PanicEmHasImagesSemOCRMarcaNaoLida(t *testing.T) {
+	pdfPath := filepath.Join(t.TempDir(), "test.pdf")
+	if err := os.WriteFile(pdfPath, buildPDF(objetosImagemComXrefTorta()), 0644); err != nil {
+		t.Fatalf("falha ao gravar pdf de teste: %v", err)
+	}
+	defer func() {
+		if rec := recover(); rec != nil {
+			t.Fatalf("ParsePages entrou em panic: %v", rec)
+		}
+	}()
+	pages, err := parserDeArquivo(t, pdfPath).ParsePages(context.Background(), false, nil, nil)
+	if err != nil {
+		t.Fatalf("ParsePages falhou: %v", err)
+	}
+	p1, ok := pages["1"].(map[string]any)
+	if !ok {
+		t.Fatalf("esperava a página 1, obtive %+v", pages)
+	}
+	if s, _ := p1["sem_ocr"].(bool); !s {
+		t.Errorf("esperava sem_ocr=true, obtive %+v", p1)
+	}
+	if c, _ := p1["content"].(string); strings.Contains(c, "[ERRO") {
+		t.Errorf("não esperava [ERRO de leitura, obtive %q", c)
 	}
 }
 

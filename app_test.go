@@ -4,8 +4,10 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"testing"
+	"time"
 
 	"eprocia/internal/config"
 	"eprocia/internal/etl"
@@ -46,7 +48,7 @@ func TestCarregarConfig_JSONInvalidoCaiParaPadrao(t *testing.T) {
 		t.Fatal("carregarConfig devolveu nil com JSON inválido")
 	}
 	padrao, _ := config.DefaultConfig()
-	if *cfg != *padrao {
+	if !reflect.DeepEqual(*cfg, *padrao) {
 		t.Fatalf("config = %+v, esperado padrão %+v", *cfg, *padrao)
 	}
 }
@@ -125,7 +127,7 @@ func TestSaveConfig_AutostartFalhoNaoFicaGravado(t *testing.T) {
 	if gravada.OcrMode != "fast" {
 		t.Fatalf("demais campos não foram gravados: ocr_mode=%q", gravada.OcrMode)
 	}
-	if app.cfg.AutoStart {
+	if app.configAtual().AutoStart {
 		t.Fatal("AutoStart=true mantido em memória apesar da falha no registro")
 	}
 
@@ -207,5 +209,61 @@ func TestAoTerminar_RegistraFalhaEEsqueceSucesso(t *testing.T) {
 	app.aoTerminar(&etl.QueueItem{Path: zip, Status: "success"})
 	if app.falhas.Ignorar(zip, info.ModTime()) {
 		t.Fatal("ZIP processado com sucesso continua registrado como falha")
+	}
+}
+
+func TestAoTerminar_NaoLidosNaoVaoParaFalhas(t *testing.T) {
+	dir := t.TempDir()
+	zip := filepath.Join(dir, "proc.zip")
+	if err := os.WriteFile(zip, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	info, _ := os.Stat(zip)
+	app := NewApp()
+	app.falhas = watchdog.CarregarFalhas(filepath.Join(dir, "falhas.json"))
+	app.falhas.Registrar(zip)
+
+	app.aoTerminar(&etl.QueueItem{Path: zip, Status: "success", UnreadDocs: 3})
+	if app.falhas.Ignorar(zip, info.ModTime()) {
+		t.Fatal("item de sucesso com não lidos continua registrado como falha")
+	}
+}
+
+// esperarItemFim espera o único item da fila sair de pending/processing.
+func esperarItemFim(t *testing.T, q *etl.Queue) *etl.QueueItem {
+	t.Helper()
+	limite := time.Now().Add(10 * time.Second)
+	for time.Now().Before(limite) {
+		itens := q.GetItems()
+		if len(itens) == 1 && itens[0].Status != "pending" && itens[0].Status != "processing" {
+			return itens[0]
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatal("o item não terminou")
+	return nil
+}
+
+// O botão "Ler com OCR" manda forcarOCR=false: com a global true, o
+// reprocessamento não força (o valor é sempre explícito, nunca "usa a global").
+func TestReprocessQueueItem_PassaForcarExplicito(t *testing.T) {
+	q := etl.NewQueue(etl.NewPipeline())
+	t.Cleanup(q.Shutdown)
+	q.SetConfig(&models.Config{OcrMode: "normal", CleaningLevel: "standard", OmitirTipos: []string{}, ForcarOCR: true})
+	app := &App{queue: q}
+
+	// O ZIP não existe: a execução termina em erro, mas registra o Forçar OCR efetivo.
+	zip := filepath.Join(t.TempDir(), "5000000-00.2026.8.26.0001.zip")
+	q.AddFiles([]string{zip})
+	if it := esperarItemFim(t, q); !it.ForcarOCR {
+		t.Fatalf("primeira execução com a global true não forçou: %+v", it)
+	}
+	id := q.GetItems()[0].ID
+
+	if err := app.ReprocessQueueItem(id, "normal", "standard", false); err != nil {
+		t.Fatalf("ReprocessQueueItem: %v", err)
+	}
+	if it := esperarItemFim(t, q); it.ForcarOCR {
+		t.Errorf("ReprocessQueueItem(..., false) forçou o OCR com a global true: %+v", it)
 	}
 }

@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { criarAviso, duracaoMovimento, DUR_FAST, DUR_BASE } from './src/lib/aviso.js';
 
 const raiz = dirname(fileURLToPath(import.meta.url));
+const aviso = readFileSync(join(raiz, 'src', 'components', 'Aviso.svelte'), 'utf8');
 const settings = readFileSync(join(raiz, 'src', 'components', 'Settings.svelte'), 'utf8');
 
 function relogio() {
@@ -61,9 +62,9 @@ test('durações seguem os tokens e zeram com reduced-motion', () => {
   assert.equal(duracaoMovimento(DUR_FAST, {}), 150);
 });
 
-test('Settings usa fly na entrada, fade na saída e limpa o timer no desmonte', () => {
-  assert.match(settings, /in:fly=\{\{[^}]*y:\s*8[^}]*\}\}/);
-  assert.match(settings, /out:fade=\{\{[^}]*\}\}/);
+test('Aviso usa fly na entrada e fade na saída; Settings limpa o timer no desmonte', () => {
+  assert.match(aviso, /in:fly=\{\{[^}]*y:\s*8[^}]*\}\}/);
+  assert.match(aviso, /out:fade=\{\{[^}]*\}\}/);
   assert.match(settings, /onDestroy\(/);
   assert.doesNotMatch(settings, /setTimeout\(/);
   assert.doesNotMatch(settings, /slideUp/);

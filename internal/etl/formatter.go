@@ -2,6 +2,7 @@ package etl
 
 import (
 	"cmp"
+	"crypto/sha256"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -9,6 +10,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"eprocia/internal/models"
 )
 
 // pageMarkerRegex matches a line that is *only* a page marker, such as
@@ -16,27 +19,10 @@ import (
 // legitimate sentences that merely mention the word "página" intact.
 var pageMarkerRegex = regexp.MustCompile(`(?i)^p[áa]g(ina|\.)?\s*\d+(\s*(de|/)\s*\d+)?$`)
 
-// signaturePrefixes are boilerplate openers of digital-signature footers.
-// Only lines that *start* with them are dropped, never prose that mentions them.
-var signaturePrefixes = []string{
-	"documento assinado",
-	"assinatura eletrônica",
-	"assinatura eletronica",
-}
-
-// isBoilerplateLine reports whether a trimmed line is a page marker or a
-// digital-signature footer (aggressive cleaning only).
-func isBoilerplateLine(trimmed string) bool {
-	if pageMarkerRegex.MatchString(trimmed) {
-		return true
-	}
-	lower := strings.ToLower(trimmed)
-	for _, prefix := range signaturePrefixes {
-		if strings.HasPrefix(lower, prefix) {
-			return true
-		}
-	}
-	return false
+// marcadorPagina é pageMarkerRegex com pré-filtro: sob (?i), o p só casa com
+// p ou P, então a linha que não começa por um deles nem passa pela regex.
+func marcadorPagina(l string) bool {
+	return len(l) > 0 && (l[0] == 'p' || l[0] == 'P') && pageMarkerRegex.MatchString(l)
 }
 
 // escapeAttr escapes a value for safe use inside a double-quoted XML attribute.
@@ -56,6 +42,19 @@ func summaryDocName(nome string) string {
 	return eventPrefixRegex.ReplaceAllString(base, "")
 }
 
+// digitosFinaisRegex pega os dígitos no fim do código do documento (EXTR2).
+var digitosFinaisRegex = regexp.MustCompile(`\d+$`)
+
+// tipoDocumento extrai o código de tipo do nome do arquivo: tira o prefixo
+// "Evento N - ", a extensão e os dígitos finais, em maiúsculas
+// ("Evento 3 - EXTR2.pdf" vira "EXTR").
+func tipoDocumento(docName string) string {
+	base := strings.TrimSuffix(docName, filepath.Ext(docName))
+	base = eventPrefixRegex.ReplaceAllString(base, "")
+	base = digitosFinaisRegex.ReplaceAllString(strings.TrimSpace(base), "")
+	return strings.ToUpper(strings.TrimRight(base, " -_."))
+}
+
 // pageCountLabel renders "1 página" / "N páginas".
 func pageCountLabel(n int) string {
 	if n == 1 {
@@ -66,11 +65,42 @@ func pageCountLabel(n int) string {
 
 // edgeLineCount is how many non-empty lines at the top and at the bottom of a
 // page are candidates for repeated header/footer detection.
-const edgeLineCount = 3
+const edgeLineCount = 5
+
+// temValorEdge acha linhas com valor monetário ou percentual: nelas os
+// dígitos importam, então a chave é a linha exata. Equivale à regex
+// `R\$|US\$|\d+,\d{2}|%` (um "$" sem R ou US antes não conta), feita à mão
+// porque roda em toda linha de borda.
+func temValorEdge(l string) bool {
+	for i := 0; i < len(l); i++ {
+		switch l[i] {
+		case '%':
+			return true
+		case '$':
+			if i >= 1 && l[i-1] == 'R' || i >= 2 && l[i-2] == 'U' && l[i-1] == 'S' {
+				return true
+			}
+		case ',':
+			if i >= 1 && digitoASCII(l[i-1]) && i+2 < len(l) && digitoASCII(l[i+1]) && digitoASCII(l[i+2]) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func digitoASCII(b byte) bool { return b >= '0' && b <= '9' }
+
+// paginaCurta informa se a página, com n linhas não vazias, é toda borda: com
+// até 2*edgeLineCount linhas não sobra miolo, então fica fora da detecção.
+func paginaCurta(n int) bool { return n <= 2*edgeLineCount }
 
 // normalizeEdgeLine maps lines that differ only by numbers (página, folha, data)
 // to the same key, so "fl. 1" and "fl. 2" count as the same footer.
 func normalizeEdgeLine(trimmed string) string {
+	if temValorEdge(trimmed) {
+		return trimmed
+	}
 	return strings.Map(func(r rune) rune {
 		if r >= '0' && r <= '9' {
 			return '#'
@@ -80,15 +110,13 @@ func normalizeEdgeLine(trimmed string) string {
 }
 
 // edgeLines returns the normalized first and last edgeLineCount non-empty
-// lines of a page, without duplicates.
-func edgeLines(page string) map[string]bool {
-	var nonEmpty []string
-	for line := range strings.SplitSeq(page, "\n") {
-		if trimmed := strings.TrimSpace(line); trimmed != "" {
-			nonEmpty = append(nonEmpty, trimmed)
-		}
-	}
+// lines of a page (as given by linhasBasicas), without duplicates.
+func edgeLines(nonEmpty []string) map[string]bool {
+	// Mesmas posições que cleanPage usa ao consultar o conjunto.
 	edges := make(map[string]bool)
+	if paginaCurta(len(nonEmpty)) {
+		return edges
+	}
 	for i, line := range nonEmpty {
 		if i < edgeLineCount || i >= len(nonEmpty)-edgeLineCount {
 			edges[normalizeEdgeLine(line)] = true
@@ -97,10 +125,11 @@ func edgeLines(page string) map[string]bool {
 	return edges
 }
 
-// repeatedEdgeLines finds the normalized header/footer lines that appear at the
-// edges of at least 60% of a document's pages (documents with 3+ pages only).
-func repeatedEdgeLines(pages []string) map[string]bool {
-	if len(pages) < 3 {
+// repeatedEdgeLinesDe acha as linhas de borda normalizadas (cabeçalho/rodapé) que
+// aparecem em pelo menos 60% das páginas de um documento (só com 2+ páginas),
+// sobre as linhas básicas já prontas.
+func repeatedEdgeLinesDe(pages [][]string) map[string]bool {
+	if len(pages) < 2 {
 		return nil
 	}
 	counts := make(map[string]int)
@@ -121,53 +150,278 @@ func repeatedEdgeLines(pages []string) map[string]bool {
 	return repeated
 }
 
-// cleanPage cleans one page according to the cleaning level (none, basic,
-// aggressive). In aggressive mode it also drops the edge lines listed in
-// repeated (see repeatedEdgeLines); only edge positions are checked, so the
-// same sentence in the middle of a page survives.
-func cleanPage(text string, level string, repeated map[string]bool) string {
-	if level == "none" {
+// cleanPage limpa uma página conforme o nível (none, basic, standard,
+// aggressive). Níveis desconhecidos valem como basic. Em standard e aggressive
+// tira marcadores de página e linhas só de símbolos e as bordas listadas em
+// ctx.repetidas (ver repeatedEdgeLinesDe): só as posições de borda contam, então a
+// mesma frase no meio da página sobrevive. O timbre fica na primeira página em
+// que aparece (ctx.jaVistas). As chancelas de assinatura nas bordas viram
+// "[assinado: ...]" (resumirChancelas) antes das bordas repetidas, e o marcador
+// nunca passa por elas. Só aggressive troca a página de certificado de
+// plataforma pelo marcador (antes de tudo, sem tocar no estado do documento:
+// o timbre fica para a próxima página de conteúdo), tira as letras soltas
+// (H3b) e reflui os parágrafos (H9).
+func cleanPage(text string, level string, ctx *ctxDocumento) string {
+	if level == NivelNenhum {
 		return text
 	}
+	return cleanLinhas(linhasBasicas(text), level, ctx)
+}
 
-	lines := strings.Split(text, "\n")
+// cleanLinhas é cleanPage, fora do nível none, sobre as linhas básicas da
+// página já prontas.
+func cleanLinhas(lines []string, level string, ctx *ctxDocumento) string {
+	if level != NivelPadrao && level != NivelMaximo {
+		return strings.Join(lines, "\n")
+	}
+	if level == NivelMaximo && paginaCertificado(lines) {
+		return marcadorCertificado
+	}
+
+	var repeated map[string]bool
+	html := false
+	if ctx != nil {
+		repeated = ctx.repetidas
+		html = ctx.html
+		if ctx.jaVistas == nil {
+			ctx.jaVistas = map[string]bool{}
+		}
+	}
+	// As posições continuam as de lines, as mesmas que edgeLines usa.
+	saem, marcadores, caudas := planoChancelas(lines, html)
+	var vistasNaPagina []string
 	var cleanedLines []string
+	for pos, line := range lines {
+		if saem[pos] {
+			if m, ok := marcadores[pos]; ok && !(ctx != nil && ctx.assinados[m]) {
+				if ctx != nil {
+					if ctx.assinados == nil {
+						ctx.assinados = map[string]bool{}
+					}
+					ctx.assinados[m] = true
+				}
+				cleanedLines = append(cleanedLines, m)
+			}
+			if c, ok := caudas[pos]; ok {
+				cleanedLines = append(cleanedLines, c)
+			}
+			continue
+		}
+		if marcadorPagina(line) || linhaSoSimbolos(line) || (level == NivelMaximo && linhaLetraSolta(line)) {
+			continue
+		}
+		if len(repeated) > 0 && !paginaCurta(len(lines)) && (pos < edgeLineCount || pos >= len(lines)-edgeLineCount) {
+			if chave := normalizeEdgeLine(line); repeated[chave] {
+				vistasNaPagina = append(vistasNaPagina, chave)
+				if ctx.jaVistas[chave] {
+					continue
+				}
+			}
+		}
+		cleanedLines = append(cleanedLines, line)
+	}
+	for _, chave := range vistasNaPagina {
+		ctx.jaVistas[chave] = true
+	}
+	if level == NivelPadrao {
+		return strings.Join(cleanedLines, "\n")
+	}
+	return strings.Join(refluir(cleanedLines), "\n")
+}
 
-	dropRepeated := level == "aggressive" && len(repeated) > 0
-	nonEmptyTotal := 0
-	if dropRepeated {
-		for _, line := range lines {
-			if strings.TrimSpace(line) != "" {
-				nonEmptyTotal++
+// duplicadaMinRunas é o tamanho mínimo (em runas, após linhasBasicas) de uma
+// página para entrar na detecção de duplicatas (H7).
+const duplicadaMinRunas = 200
+
+// chaveDoc identifica um documento pelo evento e pelo índice (o nome pode repetir).
+type chaveDoc struct{ evento, doc int }
+
+// origemPagina identifica a primeira ocorrência de um conteúdo; nome é o nome
+// curto do documento (summaryDocName), usado só no texto da referência.
+type origemPagina struct {
+	chaveDoc
+	nome string
+	pag  int
+}
+
+// chavePagina localiza uma página na saída: evento, índice do documento e da página.
+type chavePagina struct{ evento, doc, pag int }
+
+// refPagina e refDocumento são os marcadores que H7 deixa no lugar do texto.
+func (o origemPagina) refPagina() string {
+	return fmt.Sprintf("[conteúdo idêntico a: evento %d, %s, pág. %d]", o.evento, o.nome, o.pag)
+}
+
+func refDocumento(evento int, nome string) string {
+	return fmt.Sprintf("[documento idêntico a: evento %d, %s]", evento, nome)
+}
+
+// ehHTML informa se o nome do arquivo tem extensão de HTML.
+func ehHTML(nome string) bool {
+	ext := strings.ToLower(filepath.Ext(nome))
+	return ext == ".html" || ext == ".htm"
+}
+
+// paginaOrdenada e docOrdenado guardam a ordem de saída: documentos por index
+// dentro do evento e páginas por index dentro do documento.
+type paginaOrdenada struct {
+	index   int
+	content string
+	// linhas são as linhas básicas de content, calculadas uma vez por
+	// prepararLinhas para H7, bordas repetidas e limpeza.
+	linhas []string
+	// semOCR marca a página digitalizada que ficou sem OCR: o conteúdo é o
+	// marcador, que sai como está.
+	semOCR bool
+	// avisoOCR marca a página cujo OCR falhou e que ficou com o texto nativo
+	// de reserva: avisoOCRComReserva sai antes do texto. erroOCR é a frase
+	// fixa da falha do OCR ("" se não houve, ou se a página conta como lida).
+	avisoOCR bool
+	erroOCR  string
+}
+
+// marcadorDoNaoLido devolve a linha técnica que acompanha a linha do documento
+// não lido: o marcador de erro que é o conteúdo da primeira página ou, sem
+// ele, o marcador da primeira página cujo OCR falhou. "" quando não há nenhum.
+func marcadorDoNaoLido(paginas []paginaOrdenada) string {
+	if len(paginas) > 0 && strings.HasPrefix(paginas[0].content, "[ERRO") {
+		return paginas[0].content
+	}
+	for _, p := range paginas {
+		if p.erroOCR != "" {
+			return marcadorErroOCR(p.erroOCR)
+		}
+	}
+	return ""
+}
+
+type docOrdenado struct {
+	nome    string
+	index   int
+	paginas []paginaOrdenada
+	// omitido é o tipo do documento que o usuário mandou omitir ("" se não);
+	// totalPaginas é o total de páginas dele, contado na origem.
+	omitido      string
+	totalPaginas int
+	// naoLido é a frase do motivo de o documento não ter sido lido ("" se foi).
+	naoLido string
+}
+
+// documentosOrdenados devolve os documentos de um evento, e as páginas de cada
+// um, na ordem de saída. É a única fonte dessa ordem.
+func documentosOrdenados(evData map[string]any) []docOrdenado {
+	var docs []docOrdenado
+	for _, val := range evData["documentos"].(map[string]any) {
+		dData := val.(map[string]any)
+		d := docOrdenado{nome: dData["nome"].(string), index: dData["index"].(int)}
+		d.omitido, _ = dData["omitido"].(string)
+		d.totalPaginas, _ = dData["total_paginas"].(int)
+		d.naoLido, _ = dData["nao_lido"].(string)
+		for _, pv := range dData["paginas"].(map[string]any) {
+			pData := pv.(map[string]any)
+			// Campos ausentes são tolerados.
+			c, _ := pData["content"].(string)
+			so, _ := pData["sem_ocr"].(bool)
+			av, _ := pData["ocr_aviso"].(bool)
+			eo, _ := pData["ocr_erro"].(string)
+			d.paginas = append(d.paginas, paginaOrdenada{index: pData["index"].(int), content: c, semOCR: so, avisoOCR: av, erroOCR: eo})
+		}
+		slices.SortFunc(d.paginas, func(a, b paginaOrdenada) int { return cmp.Compare(a.index, b.index) })
+		docs = append(docs, d)
+	}
+	slices.SortFunc(docs, func(a, b docOrdenado) int { return cmp.Compare(a.index, b.index) })
+	return docs
+}
+
+// prepararLinhas calcula as linhas básicas de cada página que H7, as bordas
+// repetidas ou a limpeza vão ler: fora ficam omitidos, não lidos e as páginas
+// sem OCR, que nenhuma das três etapas limpa.
+func prepararLinhas(docs []docOrdenado) {
+	for _, d := range docs {
+		if d.omitido != "" || d.naoLido != "" {
+			continue
+		}
+		for i := range d.paginas {
+			if !d.paginas[i].semOCR {
+				d.paginas[i].linhas = linhasBasicas(d.paginas[i].content)
 			}
 		}
 	}
-	pos := -1
+}
 
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
-			continue
-		}
-		pos++
+// duplicadasH7 é o resultado da pré-passada: páginas repetidas e documentos
+// idênticos, por inteiro, a um documento anterior.
+type duplicadasH7 struct {
+	paginas    map[chavePagina]origemPagina
+	documentos map[chaveDoc]origemPagina // origemPagina.pag não é usado
+}
 
-		// Aggressive cleaning: drop whole-line headers/footers/signatures only.
-		if level == "aggressive" && isBoilerplateLine(trimmed) {
-			continue
-		}
-		if dropRepeated && (pos < edgeLineCount || pos >= nonEmptyTotal-edgeLineCount) &&
-			repeated[normalizeEdgeLine(trimmed)] {
-			continue
-		}
-
-		cleanedLines = append(cleanedLines, trimmed)
+// chaveConteudo é o sha256 das linhas básicas unidas por espaço; "" quando a
+// página tem menos de duplicadaMinRunas runas.
+func chaveConteudo(linhas []string) string {
+	juntas := strings.Join(linhas, " ")
+	if utf8.RuneCountInString(juntas) < duplicadaMinRunas {
+		return ""
 	}
+	soma := sha256.Sum256([]byte(juntas))
+	return string(soma[:])
+}
 
-	if level == "aggressive" {
-		// Compress to a single line or space-separated to maximize token savings
-		return strings.Join(cleanedLines, " ")
+// duplicadasPorConteudo percorre eventos, documentos e páginas na ordem de saída
+// e devolve, para cada página repetida, a origem da primeira ocorrência. Um
+// documento só é idêntico a outro se tem o mesmo número de páginas e a página i
+// de um tem a mesma chave da página i do outro, para todo i (e todas longas).
+func duplicadasPorConteudo(porEvento map[int][]docOrdenado, eventNums []int) duplicadasH7 {
+	primeiras := map[string]origemPagina{}
+	chavesDoc := map[chaveDoc][]string{}
+	nomes := map[chaveDoc]string{}
+	res := duplicadasH7{
+		paginas:    map[chavePagina]origemPagina{},
+		documentos: map[chaveDoc]origemPagina{},
 	}
-	return strings.Join(cleanedLines, "\n")
+	for _, num := range eventNums {
+		for _, d := range porEvento[num] {
+			if d.omitido != "" || d.naoLido != "" {
+				// Omitido e não lido ficam fora da detecção e ninguém os referencia:
+				// dois erros iguais não são "o mesmo documento".
+				continue
+			}
+			cd := chaveDoc{num, d.index}
+			nomeCurto := summaryDocName(d.nome)
+			nomes[cd] = nomeCurto
+			chaves := make([]string, len(d.paginas))
+			todasDup := len(d.paginas) > 0
+			for i, p := range d.paginas {
+				// O marcador de página sem OCR nunca é duplicata. A página cujo
+				// OCR falhou também não, nem serve de origem: o texto dela pode
+				// estar incompleto e o aviso tem de sair.
+				chave := ""
+				if !p.semOCR && !p.avisoOCR {
+					chave = chaveConteudo(p.linhas)
+				}
+				chaves[i] = chave
+				if chave == "" {
+					todasDup = false
+					continue
+				}
+				if o, ok := primeiras[chave]; ok {
+					res.paginas[chavePagina{num, d.index, p.index}] = o
+				} else {
+					primeiras[chave] = origemPagina{cd, nomeCurto, p.index}
+					todasDup = false
+				}
+			}
+			chavesDoc[cd] = chaves
+			if !todasDup {
+				continue
+			}
+			origem := res.paginas[chavePagina{num, d.index, d.paginas[0].index}].chaveDoc
+			if slices.Equal(chavesDoc[origem], chaves) {
+				res.documentos[cd] = origemPagina{chaveDoc: origem, nome: nomes[origem]}
+			}
+		}
+	}
+	return res
 }
 
 // EstimateTokens approximates the LLM token count of text as one token per four
@@ -178,14 +432,37 @@ func EstimateTokens(text string) int {
 
 // tokensLine renders the <contexto> line that carries the token estimate.
 func tokensLine(n int) string {
-	return fmt.Sprintf("    Tokens estimados: %d\n", n)
+	return fmt.Sprintf("Tokens estimados: %d\n", n)
+}
+
+// SaidaConsolidada é o .txt montado e o que a montagem mediu.
+type SaidaConsolidada struct {
+	Texto             string
+	Tokens            int
+	Limpeza           models.LimpezaRelatorio
+	DocsDuplicados    int
+	PaginasDuplicadas int
 }
 
 // GenerateConsolidatedOutput formats all extracted process data into structured
 // XML tags and returns it with the token estimate written in <contexto>, which
 // equals EstimateTokens of the returned text.
 func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (string, int) {
+	s := GerarSaida(eventos, cleaningLevel, 0)
+	return s.Texto, s.Tokens
+}
+
+// GerarSaida monta o .txt consolidado e mede a limpeza. paginasSemOCR > 0 põe
+// no cabeçalho a linha das páginas que precisavam de OCR e ficaram sem.
+// Limpeza soma, por página de documento lido, o conteúdo original (antes) e o
+// texto limpo sem o aviso de OCR (depois). Páginas sem OCR, omitidos e não
+// lidos ficam fora; as páginas trocadas por referência de H7 (todas as do
+// documento idêntico inteiro também) vão só para BytesDuplicatas. Os tokens
+// seguem a regra de EstimateTokens sobre os mesmos textos.
+func GerarSaida(eventos map[string]any, cleaningLevel string, paginasSemOCR int) SaidaConsolidada {
 	var sb strings.Builder
+	res := SaidaConsolidada{Limpeza: models.LimpezaRelatorio{Nivel: cleaningLevel}}
+	var runasAntes, runasDepois int
 
 	// 1. Sort event numbers chronologically
 	var eventNums []int
@@ -196,20 +473,29 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 	slices.Sort(eventNums)
 
 	// Count total documents
-	totalDocs := 0
+	totalDocs, naoLidos := 0, 0
 	for _, val := range eventos {
 		evData := val.(map[string]any)
 		documentosMap := evData["documentos"].(map[string]any)
 		totalDocs += len(documentosMap)
+		for _, dv := range documentosMap {
+			if nl, _ := dv.(map[string]any)["nao_lido"].(string); nl != "" {
+				naoLidos++
+			}
+		}
 	}
 
 	// Header/Context info block
 	sb.WriteString("<contexto>\n")
-	sb.WriteString("    PROCESSO JUDICIAL - ORDEM CRONOLÓGICA\n")
-	sb.WriteString(fmt.Sprintf("    Total de Documentos: %d\n", totalDocs))
-	sb.WriteString(fmt.Sprintf("    Data de Consolidação: %s\n", time.Now().Format("02/01/2006 15:04:05")))
+	sb.WriteString("PROCESSO JUDICIAL - ORDEM CRONOLÓGICA\n")
+	sb.WriteString(fmt.Sprintf("Total de Documentos: %d\n", totalDocs))
+	sb.WriteString(fmt.Sprintf("Documentos não lidos: %d\n", naoLidos))
+	if paginasSemOCR > 0 {
+		sb.WriteString(fmt.Sprintf("Páginas que precisavam de OCR e ficaram sem: %d\n", paginasSemOCR))
+	}
+	sb.WriteString(fmt.Sprintf("Data de Consolidação: %s\n", time.Now().Format("02/01/2006 15:04:05")))
 	tokensAt := sb.Len()
-	sb.WriteString("\n    <summary>\n")
+	sb.WriteString("\n<summary>\n")
 
 	// Sort events and documents to build the summary block
 	for _, num := range eventNums {
@@ -218,18 +504,25 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 		documentosMap := evData["documentos"].(map[string]any)
 
 		type docSummaryEntry struct {
-			nome  string
-			index int
-			pages int
+			nome    string
+			index   int
+			pages   int
+			naoLido bool
 		}
 		var docs []docSummaryEntry
 		for _, val := range documentosMap {
 			dData := val.(map[string]any)
 			paginasMap := dData["paginas"].(map[string]any)
+			paginas := len(paginasMap)
+			if _, omitido := dData["omitido"].(string); omitido {
+				paginas, _ = dData["total_paginas"].(int)
+			}
+			nl, _ := dData["nao_lido"].(string)
 			docs = append(docs, docSummaryEntry{
-				nome:  dData["nome"].(string),
-				index: dData["index"].(int),
-				pages: len(paginasMap),
+				naoLido: nl != "",
+				nome:    dData["nome"].(string),
+				index:   dData["index"].(int),
+				pages:   paginas,
 			})
 		}
 		slices.SortFunc(docs, func(a, b docSummaryEntry) int {
@@ -237,79 +530,148 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 		})
 
 		for _, d := range docs {
-			sb.WriteString(fmt.Sprintf("    - Evento %d - %s: %s\n", num, summaryDocName(d.nome), pageCountLabel(d.pages)))
+			rotulo := pageCountLabel(d.pages)
+			if d.naoLido {
+				rotulo = "NÃO LIDO"
+			}
+			sb.WriteString(fmt.Sprintf("- Evento %d - %s: %s\n", num, summaryDocName(d.nome), rotulo))
 		}
 	}
-	sb.WriteString("    </summary>\n")
+	sb.WriteString("</summary>\n")
 	sb.WriteString("</contexto>\n\n")
 	header := sb.String()
 	sb.Reset()
 
+	// H7: na Padrão e na Máxima, páginas de 200+ runas com o mesmo conteúdo
+	// (após linhasBasicas) viram referência à primeira ocorrência, e o documento
+	// idêntico a outro, página a página, vira uma referência só.
+	completa := cleaningLevel == NivelPadrao || cleaningLevel == NivelMaximo
+	porEvento := make(map[int][]docOrdenado, len(eventNums))
+	for _, num := range eventNums {
+		docs := documentosOrdenados(eventos[fmt.Sprintf("%d", num)].(map[string]any))
+		if completa {
+			prepararLinhas(docs)
+		}
+		porEvento[num] = docs
+	}
+	var h7 duplicadasH7
+	if completa {
+		h7 = duplicadasPorConteudo(porEvento, eventNums)
+	}
+
 	// Loop over each Event chronologically
 	for _, num := range eventNums {
-		eventKey := fmt.Sprintf("%d", num)
-		evData := eventos[eventKey].(map[string]any)
 		sb.WriteString(fmt.Sprintf("<evento num=\"%d\">\n", num))
 
-		documentosMap := evData["documentos"].(map[string]any)
-		type docEntry struct {
-			nome    string
-			index   int
-			paginas map[string]any
-		}
-		var docs []docEntry
-		for _, val := range documentosMap {
-			dData := val.(map[string]any)
-			docs = append(docs, docEntry{
-				nome:    dData["nome"].(string),
-				index:   dData["index"].(int),
-				paginas: dData["paginas"].(map[string]any),
-			})
-		}
-		slices.SortFunc(docs, func(a, b docEntry) int {
-			return cmp.Compare(a.index, b.index)
-		})
+		for _, d := range porEvento[num] {
+			sb.WriteString(fmt.Sprintf("<documento index=\"%d\" nome=\"%s\">\n", d.index, escapeAttr(d.nome)))
 
-		for _, d := range docs {
-			sb.WriteString(fmt.Sprintf("    <documento index=\"%d\" nome=\"%s\">\n", d.index, escapeAttr(d.nome)))
-
-			// Sort pages of this document numerically
-			type pageEntry struct {
-				index   int
-				content string
+			if d.omitido != "" {
+				sb.WriteString(fmt.Sprintf("[documento omitido: %s, %s]\n</documento>\n", d.omitido, pageCountLabel(d.totalPaginas)))
+				continue
 			}
-			var pages []pageEntry
-			for _, val := range d.paginas {
-				pData := val.(map[string]any)
 
-				// Handle potential missing fields gracefully
-				contentVal, _ := pData["content"].(string)
-
-				pages = append(pages, pageEntry{
-					index:   pData["index"].(int),
-					content: contentVal,
-				})
-			}
-			slices.SortFunc(pages, func(a, b pageEntry) int {
-				return cmp.Compare(a.index, b.index)
-			})
-
-			var repeated map[string]bool
-			if cleaningLevel == "aggressive" {
-				contents := make([]string, len(pages))
-				for i, p := range pages {
-					contents[i] = p.content
+			if d.naoLido != "" {
+				original := "PDF"
+				if ehHTML(d.nome) {
+					original = "arquivo"
 				}
-				repeated = repeatedEdgeLines(contents)
+				sb.WriteString(fmt.Sprintf("[documento não lido: %s; consulte o %s original]\n", d.naoLido, original))
+				if m := marcadorDoNaoLido(d.paginas); m != "" {
+					sb.WriteString(m)
+					sb.WriteString("\n")
+				}
+				sb.WriteString("</documento>\n")
+				continue
 			}
 
-			for _, p := range pages {
-				cleanedText := cleanPage(p.content, cleaningLevel, repeated)
-				sb.WriteString(fmt.Sprintf("        <pag num=\"%d\">\n", p.index))
-				sb.WriteString(cleanedText)
-				sb.WriteString("\n        </pag>\n")
+			if o, ok := h7.documentos[chaveDoc{num, d.index}]; ok {
+				res.DocsDuplicados++
+				for _, p := range d.paginas {
+					res.PaginasDuplicadas++
+					res.Limpeza.BytesDuplicatas += int64(len(p.content))
+				}
+				sb.WriteString(refDocumento(o.evento, o.nome))
+				sb.WriteString("\n</documento>\n")
+				continue
 			}
-			sb.WriteString("    </documento>\n")
+
+			ctx := &ctxDocumento{jaVistas: map[string]bool{}, html: ehHTML(d.nome)}
+			if completa {
+				// A página sem OCR não tem linhas: o marcador não conta como
+				// linha de borda repetida.
+				linhas := make([][]string, len(d.paginas))
+				for i, p := range d.paginas {
+					linhas[i] = p.linhas
+				}
+				ctx.repetidas = repeatedEdgeLinesDe(linhas)
+			}
+
+			// Limpa todas as páginas na ordem; só as que têm conteúdo saem.
+			var saem []paginaOrdenada
+			for _, p := range d.paginas {
+				if p.semOCR {
+					// Marcador de página sem OCR: sai como está, sem limpeza, e só
+					// se não for vazio.
+					if strings.TrimSpace(p.content) != "" {
+						saem = append(saem, paginaOrdenada{index: p.index, content: p.content})
+					}
+					continue
+				}
+				// cleanPage roda também nas duplicadas, e o resultado é descartado,
+				// de propósito: o estado do documento (timbre em jaVistas, marcadores
+				// em assinados) tem de avançar como se a página tivesse saído, porque
+				// o texto já apareceu na origem.
+				var cleanedText string
+				if completa {
+					cleanedText = cleanLinhas(p.linhas, cleaningLevel, ctx)
+				} else {
+					cleanedText = cleanPage(p.content, cleaningLevel, ctx)
+				}
+				if o, ok := h7.paginas[chavePagina{num, d.index, p.index}]; ok {
+					cleanedText = o.refPagina()
+					res.PaginasDuplicadas++
+					res.Limpeza.BytesDuplicatas += int64(len(p.content))
+				} else {
+					// A página que a limpeza esvaziou (ou deixou só com espaços,
+					// e por isso não sai) conta no antes com depois 0.
+					res.Limpeza.BytesAntes += int64(len(p.content))
+					runasAntes += utf8.RuneCountInString(p.content)
+					if strings.TrimSpace(cleanedText) != "" {
+						res.Limpeza.BytesDepois += int64(len(cleanedText))
+						runasDepois += utf8.RuneCountInString(cleanedText)
+					}
+				}
+				if p.avisoOCR {
+					// O aviso entra depois da limpeza, que nunca o vê, e sai
+					// mesmo que a limpeza não deixe texto na página.
+					if strings.TrimSpace(cleanedText) == "" {
+						cleanedText = avisoOCRComReserva
+					} else {
+						cleanedText = avisoOCRComReserva + "\n" + cleanedText
+					}
+				}
+				if strings.TrimSpace(cleanedText) == "" {
+					continue
+				}
+				saem = append(saem, paginaOrdenada{index: p.index, content: cleanedText})
+			}
+			switch {
+			case len(saem) == 0:
+			case len(d.paginas) == 1:
+				// Documento de uma página na origem: o conteúdo vai direto, sem
+				// <pag>. Com 2+ páginas na origem o n original é mantido, porque
+				// a peça é citada por página.
+				sb.WriteString(saem[0].content)
+				sb.WriteString("\n")
+			default:
+				for _, p := range saem {
+					sb.WriteString(fmt.Sprintf("<pag n=\"%d\">\n", p.index))
+					sb.WriteString(p.content)
+					sb.WriteString("\n</pag>\n")
+				}
+			}
+			sb.WriteString("</documento>\n")
 		}
 		sb.WriteString("</evento>\n")
 	}
@@ -336,5 +698,7 @@ func GenerateConsolidatedOutput(eventos map[string]any, cleaningLevel string) (s
 	out.WriteString(line)
 	out.WriteString(header[tokensAt:])
 	out.WriteString(body)
-	return out.String(), tokens
+	res.Texto, res.Tokens = out.String(), tokens
+	res.Limpeza.TokensAntes, res.Limpeza.TokensDepois = runasAntes/4, runasDepois/4
+	return res
 }

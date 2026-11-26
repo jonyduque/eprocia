@@ -38,3 +38,43 @@ export function criarAviso(definir, duracao = 3000, relogio = globalThis) {
     limpar: cancelar,
   };
 }
+
+// Confirmação curta ao lado do controle salvo. O n muda a cada chamada para
+// que salvar de novo o mesmo campo, com o sinal ainda na tela, o refaça.
+export function criarConfirmacao(definir, duracao = 1500, relogio = globalThis) {
+  let id = null;
+  let n = 0;
+
+  function cancelar() {
+    if (id !== null) {
+      relogio.clearTimeout(id);
+      id = null;
+    }
+  }
+
+  return {
+    mostrar(campo) {
+      cancelar();
+      definir({ campo, n: ++n });
+      id = relogio.setTimeout(() => {
+        id = null;
+        definir(null);
+      }, duracao);
+    },
+    limpar: cancelar,
+  };
+}
+
+export function separarZips(caminhos) {
+  const lista = caminhos || [];
+  const zips = lista.filter((c) => c.toLowerCase().endsWith('.zip'));
+  return { zips, ignorados: lista.length - zips.length };
+}
+
+// Nada aceito é erro; parte aceita é só atenção, porque os ZIPs seguiram.
+export function avisoSoltura(zips, ignorados) {
+  if (!ignorados) return null;
+  if (!zips) return { texto: `Só arquivos ZIP do eproc são aceitos. Ignorados: ${ignorados}`, tipo: 'error' };
+  const qtd = ignorados === 1 ? '1 arquivo ignorado' : `${ignorados} arquivos ignorados`;
+  return { texto: `${qtd}: só arquivos ZIP do eproc são aceitos.`, tipo: 'aviso' };
+}

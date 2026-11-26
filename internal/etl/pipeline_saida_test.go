@@ -134,7 +134,7 @@ func TestProcessZip_SaidaOrdenadaEContagens(t *testing.T) {
 	if want := EstimateTokens(saida); tokens != want || tokens == 0 {
 		t.Errorf("tokens estimados = %d, esperava %d (estimativa do .txt gravado)", tokens, want)
 	}
-	if want := "Tokens estimados: " + strconv.Itoa(tokens) + "\n"; !strings.Contains(saida, want) {
+	if want := "\nTokens estimados: " + strconv.Itoa(tokens) + "\n"; !strings.Contains(saida, want) {
 		t.Errorf("o .txt gravado deveria trazer %q, o mesmo número devolvido:\n%s", want, saida)
 	}
 
@@ -145,17 +145,16 @@ func TestProcessZip_SaidaOrdenadaEContagens(t *testing.T) {
 		t.Errorf("entrada .txt não deveria entrar na saída:\n%s", saida)
 	}
 
-	tags := regexp.MustCompile(`<evento num="\d+">|<documento index="\d+" nome="[^"]*">|<pag num="\d+">`).FindAllString(saida, -1)
+	// Documentos de uma página só não levam <pag>.
+	tags := regexp.MustCompile(`<evento num="\d+">|<documento index="\d+" nome="[^"]*">|<pag n="\d+">`).FindAllString(saida, -1)
 	esperado := []string{
 		`<evento num="2">`,
 		`<documento index="1" nome="Evento 2 - INIC1.pdf">`,
-		`<pag num="1">`,
-		`<pag num="2">`,
+		`<pag n="1">`,
+		`<pag n="2">`,
 		`<documento index="2" nome="Evento 2 - PET2.html">`,
-		`<pag num="1">`,
 		`<evento num="10">`,
 		`<documento index="1" nome="Evento 10 - DESPADEC1.pdf">`,
-		`<pag num="1">`,
 	}
 	if strings.Join(tags, "\n") != strings.Join(esperado, "\n") {
 		t.Errorf("tags fora da ordem esperada:\nobtido:\n%s\nesperado:\n%s", strings.Join(tags, "\n"), strings.Join(esperado, "\n"))
@@ -205,8 +204,14 @@ func TestProcessZip_FixtureMistoContagensBatemComSaida(t *testing.T) {
 	if n := strings.Count(saida, "<documento "); n != docs {
 		t.Errorf("%d tags <documento> na saída, ProcessZip devolveu %d", n, docs)
 	}
-	if n := strings.Count(saida, "<pag "); n != pages {
-		t.Errorf("%d tags <pag> na saída, ProcessZip devolveu %d", n, pages)
+	// Um documento de uma página não leva <pag>: conta uma página por documento sem tag.
+	emitidas := 0
+	for _, doc := range strings.Split(saida, "<documento ")[1:] {
+		doc, _, _ = strings.Cut(doc, "</documento>")
+		emitidas += max(strings.Count(doc, "<pag n="), 1)
+	}
+	if emitidas != pages {
+		t.Errorf("%d páginas na saída, ProcessZip devolveu %d", emitidas, pages)
 	}
 	if n := strings.Count(saida, "<evento "); n != 25 {
 		t.Errorf("%d tags <evento> na saída, esperava 25", n)
@@ -342,4 +347,100 @@ func TestProcessZip_FalhaAoGravarSaidaDevolveErro(t *testing.T) {
 		t.Errorf("retorno com erro deveria ser vazio, obtive %q %d %d", outPath, docs, pages)
 	}
 	semTemporarios(t, tmp)
+}
+
+func TestTipoDocumento(t *testing.T) {
+	casos := map[string]string{
+		"Evento 3 - EXTR2.pdf":   "EXTR",
+		"Evento 10 - comp1.html": "COMP",
+		"Evento 1 - INIC1.pdf":   "INIC",
+		"Evento 5 - OUT10.pdf":   "OUT",
+		"EXTR.pdf":               "EXTR",
+		"Evento 1 - 123.pdf":     "",
+		"evento 2 - PET2.HTM":    "PET",
+		"Evento 3 - EXTR-2.pdf":  "EXTR",
+		"Evento 3 - EXTR 2.pdf":  "EXTR",
+		"Evento 3 - EXTR_2.pdf":  "EXTR",
+	}
+	for nome, quer := range casos {
+		if got := tipoDocumento(nome); got != quer {
+			t.Errorf("tipoDocumento(%q) = %q, esperado %q", nome, got, quer)
+		}
+	}
+}
+
+func TestProcessZip_OmiteTipoSemLer(t *testing.T) {
+	isolarTemp(t)
+	zipPath := gravarZip(t, []entradaZip{
+		{"Evento 1 - INIC1.pdf", pdfComTexto("Texto da inicial ficticia")},
+		{"Evento 2 - EXTR1.pdf", pdfComTexto("TEXTO-DO-EXTRATO-FICTICIO")},
+	})
+	cfg := cfgSemOCR()
+	cfg.OmitirTipos = []string{"EXTR"}
+	atv := NovaAtividade("x")
+	var ultimo float64
+	var mu sync.Mutex
+	outPath, docs, pages, _, err := NewPipeline().ProcessZipComAtividade(context.Background(), zipPath, cfg,
+		func(p float64, _ string, _, _, _, _ int) {
+			mu.Lock()
+			ultimo = max(ultimo, p)
+			mu.Unlock()
+		}, atv)
+	if err != nil {
+		t.Fatalf("ProcessZip falhou: %v", err)
+	}
+	b, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	saida := string(b)
+	if !strings.Contains(saida, "[documento omitido: EXTR, 1 página]") {
+		t.Errorf("aviso de omissão ausente:\n%s", saida)
+	}
+	if strings.Contains(saida, "TEXTO-DO-EXTRATO-FICTICIO") {
+		t.Errorf("texto do extrato não deveria sair:\n%s", saida)
+	}
+	if !strings.Contains(saida, "Texto da inicial ficticia") {
+		t.Errorf("documento comum sumiu:\n%s", saida)
+	}
+	if !strings.Contains(saida, "- Evento 2 - EXTR1: 1 página") {
+		t.Errorf("resumo deveria listar o documento omitido:\n%s", saida)
+	}
+	if docs != 2 || pages != 2 || ultimo != 1 {
+		t.Errorf("docs=%d págs=%d progresso=%v; esperava 2, 2 e 1", docs, pages, ultimo)
+	}
+	inst := atv.Instantaneo()
+	for _, d := range inst.Docs {
+		if d.Estado != DocConcluido || d.OCR != 0 || d.Feitas != d.Paginas {
+			t.Errorf("atividade de %s = %+v", d.Nome, d)
+		}
+	}
+	if inst.OCRAtivos != 0 {
+		t.Errorf("OCRAtivos = %d, esperava 0", inst.OCRAtivos)
+	}
+}
+
+// O documento omitido nunca é lido: um PDF ilegível que seria erro vira só o aviso.
+func TestProcessZip_OmitidoNaoAbreOArquivo(t *testing.T) {
+	isolarTemp(t)
+	zipPath := gravarZip(t, []entradaZip{
+		{"Evento 1 - EXTR1.pdf", pdfComTexto("pagina um", "pagina dois", "pagina tres")},
+		{"Evento 2 - COMP1.html", []byte("<html><body><p>TEXTO-COMPROVANTE</p></body></html>")},
+	})
+	cfg := cfgSemOCR()
+	cfg.OmitirTipos = []string{"EXTR", "COMP"}
+	outPath, _, _, _, err := NewPipeline().ProcessZip(context.Background(), zipPath, cfg, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(outPath)
+	saida := string(b)
+	for _, quer := range []string{"[documento omitido: EXTR, 3 páginas]", "[documento omitido: COMP, 1 página]"} {
+		if !strings.Contains(saida, quer) {
+			t.Errorf("faltou %q:\n%s", quer, saida)
+		}
+	}
+	if strings.Contains(saida, "TEXTO-COMPROVANTE") || strings.Contains(saida, "<pag") {
+		t.Errorf("omitido deixou conteúdo ou <pag>:\n%s", saida)
+	}
 }

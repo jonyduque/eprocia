@@ -5,17 +5,24 @@
 //
 // Starts only the Vite dev server (no Go backend, so no real data can show up),
 // stubs the Wails bindings, and saves one PNG per size × theme × state, plus the
-// inner divider dragged to its minimum and maximum and the collapsed sidebar.
+// inner divider dragged to its minimum and maximum and the collapsed sidebar,
+// the processing report panel, the log block and the queue button breakpoint.
+// The states in visual.alto_contraste of .claude/review.json are also captured once with forced colors on
+// (Windows high contrast), at 1024x768, with the activity panel open.
 import { execFileSync, execSync, spawn } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ESTADOS, instalarStubs } from './estados.mjs';
+import { ESTADOS, VERSAO_ATUAL, instalarStubs, listaAltoContraste } from './estados.mjs';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PLAYWRIGHT = '1.63.0';
 const PORTA = 5199;
+// @container (max-width) que tira o rótulo dos botões da fila (ProcessList.svelte);
+// estados.test.mjs confere que é o mesmo número.
+const LIMITE_BOTOES = 660;
+const ALTO_CONTRASTE = listaAltoContraste(JSON.parse(readFileSync(path.join(RAIZ, '.claude', 'review.json'), 'utf8')));
 
 function opcoes(argv) {
   const o = { saida: null, rapido: false, estados: null };
@@ -123,7 +130,7 @@ async function main() {
         for (const nome of estados) {
           const ctx = await navegador.newContext({ viewport: { width: w, height: h }, reducedMotion: 'reduce' });
           const page = await ctx.newPage();
-          await page.addInitScript(instalarStubs, { estado: ESTADOS[nome], tema });
+          await page.addInitScript(instalarStubs, { estado: ESTADOS[nome], tema, versao: VERSAO_ATUAL });
           await page.goto(vite.url);
           await page.waitForLoadState('networkidle');
           await page.waitForTimeout(300);
@@ -133,9 +140,147 @@ async function main() {
             await page.screenshot({ path: arquivo });
             gerados.push(arquivo);
           };
+          if (nome.startsWith('atualizacao-')) {
+            // O bloco Atualizações pode vir recolhido (eprocia.categorias): expande
+            // a categoria e só então rola o bloco até a vista.
+            const cab = page.locator('[aria-controls="grupo-atualizacoes"]');
+            if ((await cab.getAttribute('aria-expanded')) === 'false') {
+              await cab.click();
+              await page.locator('#grupo-atualizacoes').waitFor({ state: 'visible' });
+              await page.waitForTimeout(300);
+            }
+            await page.evaluate(() => document.querySelector('[data-bloco="atualizacoes"]')?.scrollIntoView({ block: 'center' }));
+            await page.waitForTimeout(200);
+          }
           await salvar('');
 
+          // Painéis que abrem dentro da linha: a atividade dos documentos do item
+          // em processamento e o formulário de reprocessar de um item concluído.
+          if (nome === 'processando') {
+            const linha = await page.$('.item-row.processing .info-btn');
+            if (linha) {
+              await linha.click();
+              await page.waitForTimeout(300);
+              await salvar('-atividade');
+              await linha.click();
+            }
+          }
+          if (nome === 'nao-lidos') {
+            // Primeiro o painel (sem aviso na tela), depois fecha-o e copia para o aviso.
+            const linha = await page.$('.item-row.success .info-btn');
+            if (linha) {
+              await linha.click();
+              await page.waitForTimeout(300);
+              await salvar('-atividade');
+              await linha.click();
+              await page.waitForTimeout(300);
+            }
+            const copiar = await page.$('.item-row.success button[data-acao="copiar"]');
+            if (copiar) {
+              await copiar.click();
+              await page.waitForTimeout(300);
+              await salvar('-copiado');
+            }
+          }
+          if (nome === 'fila') {
+            const botao = await page.$('.item-row.success button[data-acao="reprocessar"]');
+            if (botao) {
+              await botao.click();
+              await page.waitForTimeout(300);
+              await salvar('-reprocessar');
+            }
+          }
+
+          if (nome === 'relatorio') {
+            // Item com avisos: o painel de detalhes aberto, depois fechado e o
+            // foco (de teclado) no "Ler com OCR".
+            const comAviso = ESTADOS.relatorio.fila.find((i) => i.relatorio?.atencao?.length > 0);
+            const linhaAviso = `.item-row[data-id="${comAviso.id}"]`;
+            const resumo = await page.$(`${linhaAviso} .resumo-relatorio`);
+            // O mouse sai de cima da linha para não sublinhar o resumo (hover).
+            const tirarMouse = () => page.mouse.move(w - 30, h - 60);
+            if (resumo) {
+              await resumo.click();
+              await tirarMouse();
+              await page.waitForTimeout(300);
+              await salvar('-relatorio');
+              // O fim do painel (documentos para conferir) fica abaixo da dobra.
+              await page.evaluate(() => document.querySelector('.painel-relatorio')?.scrollIntoView({ block: 'end' }));
+              await page.waitForTimeout(200);
+              await salvar('-relatorio-fim');
+              await resumo.click();
+              await page.waitForTimeout(300);
+            }
+            if (await page.$(`${linhaAviso} .btn-ler-ocr`)) {
+              // Uma tecla antes do foco faz o Chromium tratá-lo como de teclado
+              // (:focus-visible); sem ela, o clique anterior esconde o anel.
+              await tirarMouse();
+              await page.keyboard.press('Shift');
+              await page.focus(`${linhaAviso} .btn-ler-ocr`);
+              await page.waitForTimeout(200);
+              await salvar('-ler-ocr');
+              await page.evaluate(() => document.activeElement?.blur());
+            }
+            // Fila nos dois lados do limite em que os botões perdem o rótulo
+            // (@container max-width: LIMITE_BOTOES em ProcessList.svelte): o card
+            // no limite (só ícones) e 1 px acima (com rótulo), quando o divisor
+            // alcança (com 660, só a 1024 px); a largura medida vai para o log. O
+            // arrasto com o mouse não acerta o pixel: a largura do painel vai
+            // direto para a chave que o app lê ao abrir (lib/painel.js) e a
+            // página recarrega.
+            // A consulta @container mede a caixa de conteúdo do .list-card (sem
+            // a borda), não a largura total.
+            const medir = () => page.evaluate(() => {
+              const c = document.querySelector('.list-card');
+              const p = document.querySelector('.sidebar')?.getBoundingClientRect();
+              if (!c || !p) return null;
+              const s = getComputedStyle(c);
+              const conteudo = c.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight);
+              return { card: Math.round(conteudo), painel: Math.round(p.width) };
+            });
+            const base = await medir();
+            for (const alvo of base ? [LIMITE_BOTOES, LIMITE_BOTOES + 1] : []) {
+              const largura = base.painel + base.card - alvo;
+              await page.evaluate((l) => localStorage.setItem('eprocia.sidebar', JSON.stringify({ largura: l, recolhido: false })), largura);
+              await page.reload();
+              await page.waitForLoadState('networkidle');
+              await page.waitForTimeout(300);
+              const m = await medir();
+              console.log(`[visual] ${w}x${h} ${tema}: .list-card alvo ${alvo} -> ${m?.card} px (painel ${m?.painel})`);
+              if (m?.card === alvo) await salvar(`-fila-${alvo}`);
+            }
+          }
+          if (nome === 'configuracoes-log') {
+            // O bloco do log fica no fim do painel: rola até ele, na largura
+            // padrão e com o painel no mínimo (280 px).
+            const medirLog = async (rotulo) => {
+              const m = await page.evaluate(() => {
+                const b = document.querySelector('.btn-log');
+                if (!b) return null;
+                b.scrollIntoView({ block: 'center' });
+                const r = b.getBoundingClientRect();
+                const pai = b.parentElement.getBoundingClientRect();
+                return { btn: Math.round(r.width), pai: Math.round(pai.width), cortado: b.scrollWidth > b.clientWidth };
+              });
+              console.log(`[visual] ${w}x${h} ${tema} ${rotulo}: .btn-log ${JSON.stringify(m)}`);
+              return m;
+            };
+            if (await medirLog('padrão')) {
+              await page.waitForTimeout(200);
+              await salvar('-log');
+              if (await arrastarDivisor(page, 20)) {
+                await page.waitForTimeout(300);
+                await medirLog('280');
+                await page.waitForTimeout(200);
+                await salvar('-log-280');
+              }
+            }
+          }
+
           // The divider and collapsed sidebar only vary with the layout, so one state is enough.
+          // O nao-lidos também ganha o divisor no máximo, para conferir o rótulo
+          // "N não lidos" numa linha estreita.
+          if (nome === 'nao-lidos' && (await arrastarDivisor(page, w - 20))) await salvar('-divisor-maximo');
           if (nome === 'processando') {
             if (await arrastarDivisor(page, 20)) await salvar('-divisor-minimo');
             if (await arrastarDivisor(page, w - 20)) await salvar('-divisor-maximo');
@@ -149,6 +294,24 @@ async function main() {
           await ctx.close();
         }
       }
+    }
+
+    for (const nome of estados.filter((e) => ALTO_CONTRASTE.includes(e))) {
+      const ctx = await navegador.newContext({ viewport: { width: 1024, height: 768 }, reducedMotion: 'reduce', forcedColors: 'active' });
+      const page = await ctx.newPage();
+      await page.addInitScript(instalarStubs, { estado: ESTADOS[nome], tema: 'escuro', versao: VERSAO_ATUAL });
+      await page.goto(vite.url);
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(300);
+      const linha = await page.$('.item-row.processing .info-btn');
+      if (linha) {
+        await linha.click();
+        await page.waitForTimeout(300);
+      }
+      const arquivo = path.join(saida, `1024x768-alto-contraste-${nome}.png`);
+      await page.screenshot({ path: arquivo });
+      gerados.push(arquivo);
+      await ctx.close();
     }
   } finally {
     await navegador?.close();

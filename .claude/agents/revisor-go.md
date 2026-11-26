@@ -17,7 +17,7 @@ Você revisa o backend Go do eprocIA (Wails v2, Go 1.27) por **uma única lente*
 ## Armadilhas já conhecidas (não reporte como novidade, mas reporte regressões)
 
 - `github.com/dslipak/pdf` entra em loop com `/Contents` em array, ausente ou corrompido, e dá `panic` em filtros não suportados; `checkContentStream` e `recover` em `internal/etl/pdf_parser.go` contornam isso.
-- `getlantern/systray` no Windows exige ICO (`icon.go` embute `build/windows/icon.ico`).
+- `energye/systray` no Windows exige ICO (`icon.go` embute `build/windows/icon.ico`).
 - `tesseract.exe`/`pdftoppm.exe` precisam de `CREATE_NO_WINDOW` (`internal/ocr/proc_windows.go`).
 - Páginas de texto vetorial vão ao OCR via `HasDrawnContent`.
 - O Wails CLI v2.12.0 com `x/tools v0.30.0` falha com Go 1.27.

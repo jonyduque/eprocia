@@ -4,11 +4,29 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
+	"sync"
 
 	"eprocia/internal/models"
 )
+
+// NormalizarTipos apara cada código de tipo de documento, passa para maiúsculas
+// (como etl.tipoDocumento compara) e descarta os vazios e os repetidos. Nunca
+// devolve nil.
+func NormalizarTipos(tipos []string) []string {
+	out := []string{}
+	for _, t := range tipos {
+		t = strings.ToUpper(strings.TrimSpace(t))
+		if t != "" && !slices.Contains(out, t) {
+			out = append(out, t)
+		}
+	}
+	return out
+}
 
 // DefaultConfig returns a Config struct initialized with default values.
 func DefaultConfig() (*models.Config, error) {
@@ -23,16 +41,28 @@ func DefaultConfig() (*models.Config, error) {
 	return &models.Config{
 		MonitoredPath:   monitoredPath,
 		OcrMode:         "normal",
-		CleaningLevel:   "basic",
+		CleaningLevel:   "standard",
 		AutoStart:       false,
 		WatchdogEnabled: true,
 		Theme:           "system",
+		OmitirTipos:     []string{},
+		ForcarOCR:       false,
 	}, nil
 }
 
 // TemaValido diz se t é um dos temas que o frontend sabe aplicar.
 func TemaValido(t string) bool {
 	return t == "system" || t == "light" || t == "dark"
+}
+
+// ModoOCRValido diz se m é um dos modos de OCR que o pipeline conhece.
+func ModoOCRValido(m string) bool {
+	return m == "none" || m == "fast" || m == "normal" || m == "best"
+}
+
+// LimpezaValida diz se l é um dos níveis de higienização do formatter.
+func LimpezaValida(l string) bool {
+	return l == "none" || l == "basic" || l == "standard" || l == "aggressive"
 }
 
 // GetConfigPath returns the default path to the config.json file.
@@ -60,12 +90,14 @@ func Load() (*models.Config, error) {
 // would otherwise silently zero out any bool field (e.g. WatchdogEnabled)
 // that defaults to true but is missing from an older config.json.
 type configOverlay struct {
-	MonitoredPath   *string `json:"monitored_path"`
-	OcrMode         *string `json:"ocr_mode"`
-	CleaningLevel   *string `json:"cleaning_level"`
-	AutoStart       *bool   `json:"auto_start"`
-	WatchdogEnabled *bool   `json:"watchdog_enabled"`
-	Theme           *string `json:"theme"`
+	MonitoredPath   *string  `json:"monitored_path"`
+	OcrMode         *string  `json:"ocr_mode"`
+	CleaningLevel   *string  `json:"cleaning_level"`
+	AutoStart       *bool    `json:"auto_start"`
+	WatchdogEnabled *bool    `json:"watchdog_enabled"`
+	Theme           *string  `json:"theme"`
+	OmitirTipos     []string `json:"omitir_tipos"`
+	ForcarOCR       *bool    `json:"forcar_ocr"`
 }
 
 // LoadFromFile loads the configuration from a specific file path.
@@ -109,6 +141,13 @@ func LoadFromFile(path string) (*models.Config, error) {
 	if overlay.Theme != nil && TemaValido(*overlay.Theme) {
 		cfg.Theme = *overlay.Theme
 	}
+	if overlay.OmitirTipos != nil {
+		cfg.OmitirTipos = NormalizarTipos(overlay.OmitirTipos)
+	}
+	// Preservado mesmo com ocr_mode "none": lá ele só não tem efeito.
+	if overlay.ForcarOCR != nil {
+		cfg.ForcarOCR = *overlay.ForcarOCR
+	}
 
 	return cfg, nil
 }
@@ -122,15 +161,46 @@ func Save(cfg *models.Config) error {
 	return SaveToFile(path, cfg)
 }
 
+// salvarMu serializa ler-sobrepor-gravar: duas gravações concorrentes perderiam chaves.
+var salvarMu sync.Mutex
+
 // SaveToFile saves the configuration to a specific file path.
 // It ensures that the parent directory exists.
 func SaveToFile(path string, cfg *models.Config) error {
+	salvarMu.Lock()
+	defer salvarMu.Unlock()
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
 
-	data, err := json.MarshalIndent(cfg, "", "  ")
+	// Lista ausente vira [] no arquivo, para o frontend nunca receber null.
+	if cfg.OmitirTipos == nil {
+		copia := *cfg
+		copia.OmitirTipos = []string{}
+		cfg = &copia
+	}
+
+	conhecidos, err := json.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	var novos map[string]json.RawMessage
+	if err := json.Unmarshal(conhecidos, &novos); err != nil {
+		return err
+	}
+
+	// Chaves que esta versão não conhece (gravadas por uma mais nova) ficam como
+	// estão. Arquivo ausente, ilegível ou que não seja objeto = mapa vazio.
+	mapa := map[string]json.RawMessage{}
+	if antigo, err := os.ReadFile(path); err == nil {
+		if json.Unmarshal(antigo, &mapa) != nil || mapa == nil {
+			mapa = map[string]json.RawMessage{}
+		}
+	}
+	maps.Copy(mapa, novos)
+
+	data, err := json.MarshalIndent(mapa, "", "  ")
 	if err != nil {
 		return err
 	}
