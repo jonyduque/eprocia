@@ -198,3 +198,29 @@ func TestCopiarSaida_ErroDaAreaDeTransferenciaSemDetalhe(t *testing.T) {
 		t.Fatalf("mensagem: %q", err.Error())
 	}
 }
+
+func TestLerSaidaParaCopiar_RecusaSemCaminho(t *testing.T) {
+	dir := t.TempDir()
+	saida := filepath.Join(dir, "processo.txt")
+	escreverTxt(t, saida, "texto")
+	itens := []*etl.QueueItem{{Status: "success", Kind: "zip", Path: filepath.Join(dir, "processo.zip"), OutputPath: saida}}
+
+	casos := []struct {
+		nome, caminho, arquivo, esperado string
+	}{
+		{"não .txt", filepath.Join(dir, "processo.zip"), "processo.zip", "o arquivo pedido não é um TXT de saída"},
+		{"fora da fila", filepath.Join(dir, "nao-listado.txt"), "nao-listado.txt", "este TXT não corresponde a nenhum processamento concluído"},
+	}
+	for _, c := range casos {
+		_, err := lerSaidaParaCopiar(c.caminho, itens)
+		if err == nil {
+			t.Fatalf("%s: aceitou %q", c.nome, c.caminho)
+		}
+		if strings.Contains(err.Error(), dir) || strings.Contains(err.Error(), c.arquivo) {
+			t.Errorf("%s: mensagem leva o caminho: %q", c.nome, err.Error())
+		}
+		if err.Error() != c.esperado {
+			t.Errorf("%s: mensagem: %q", c.nome, err.Error())
+		}
+	}
+}

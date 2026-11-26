@@ -447,7 +447,8 @@ func (a *App) copiarSaida(path string, itens []*etl.QueueItem) error {
 // nem erro cru; o detalhe fica no log.
 func lerSaidaParaCopiar(path string, itens []*etl.QueueItem) (string, error) {
 	if path == "" || !strings.EqualFold(filepath.Ext(path), ".txt") {
-		return "", fmt.Errorf("arquivo %q não é uma saída .txt", path)
+		slog.Warn("cópia recusada: o arquivo pedido não é um TXT", "caminho", path)
+		return "", errors.New("o arquivo pedido não é um TXT de saída")
 	}
 	limpo := filepath.Clean(path)
 	for _, it := range itens {
@@ -461,7 +462,8 @@ func lerSaidaParaCopiar(path string, itens []*etl.QueueItem) (string, error) {
 			return string(dados), nil
 		}
 	}
-	return "", fmt.Errorf("arquivo %q não corresponde a nenhum processamento concluído", path)
+	slog.Warn("cópia recusada: o TXT não é saída de item concluído", "caminho", path)
+	return "", errors.New("este TXT não corresponde a nenhum processamento concluído")
 }
 
 // SelectDirectory opens a native open directory dialog and returns the selected path.
@@ -519,7 +521,7 @@ func filtrosSelecao() []runtime.FileFilter {
 // devolve os caminhos escolhidos.
 func (a *App) SelectFiles() ([]string, error) {
 	if a.ctx == nil {
-		return nil, fmt.Errorf("context not initialized")
+		return nil, fmt.Errorf("contexto não inicializado")
 	}
 	return runtime.OpenMultipleFilesDialog(a.ctx, runtime.OpenDialogOptions{
 		Title:   "Selecionar arquivos ZIP do Eproc ou PDF",
