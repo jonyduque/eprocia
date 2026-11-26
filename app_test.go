@@ -38,6 +38,99 @@ func TestSaveConfig_DevolveErroQuandoPastaNaoPodeSerMonitorada(t *testing.T) {
 	}
 }
 
+// A mensagem que vai à interface é fixa: t.TempDir() contém o perfil do
+// usuário, e nem a pasta nem o erro cru podem aparecer nela.
+func TestSaveConfig_ErroDoMonitorSemCaminho(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	app := NewApp()
+	defer app.watcher.Stop()
+
+	cfg := &models.Config{MonitoredPath: filepath.Join(t.TempDir(), "nao-existe"), WatchdogEnabled: true, OcrMode: "normal", CleaningLevel: "basic"}
+	err := app.SaveConfig(cfg)
+	if err == nil {
+		t.Fatal("SaveConfig devolveu nil com pasta monitorada inexistente")
+	}
+	if want := "configurações salvas, mas não foi possível monitorar a pasta escolhida"; err.Error() != want {
+		t.Fatalf("erro = %q, esperado %q", err.Error(), want)
+	}
+}
+
+func TestSaveConfig_ErroDoAutostartSemDetalhe(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	app := NewApp()
+	defer app.watcher.Stop()
+	app.autostart = func(bool) error { return errors.New(`acesso negado em C:\Users\fulano\x`) }
+
+	err := app.SaveConfig(&models.Config{AutoStart: true, OcrMode: "normal", CleaningLevel: "basic"})
+	if err == nil {
+		t.Fatal("SaveConfig devolveu nil com falha ao gravar a inicialização")
+	}
+	if err.Error() != msgAutostartFalhou {
+		t.Fatalf("erro = %q, esperado %q", err.Error(), msgAutostartFalhou)
+	}
+}
+
+// bloquearPastaDeDados troca APPDATA por uma pasta onde "eprocIA" é um
+// arquivo, para o MkdirAll de config.SaveToFile falhar.
+func bloquearPastaDeDados(t *testing.T) {
+	t.Helper()
+	dados := t.TempDir()
+	t.Setenv("APPDATA", dados)
+	if err := os.WriteFile(filepath.Join(dados, "eprocIA"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSaveConfig_ErroDeGravacaoSemCaminho(t *testing.T) {
+	bloquearPastaDeDados(t)
+	app := NewApp()
+	defer app.watcher.Stop()
+
+	err := app.SaveConfig(&models.Config{OcrMode: "normal", CleaningLevel: "basic"})
+	if err == nil {
+		t.Fatal("SaveConfig devolveu nil sem poder gravar o config.json")
+	}
+	if want := "o arquivo de configuração não pôde ser gravado"; err.Error() != want {
+		t.Fatalf("erro = %q, esperado %q", err.Error(), want)
+	}
+}
+
+func TestSetTheme_ErroDeGravacaoSemCaminho(t *testing.T) {
+	bloquearPastaDeDados(t)
+	app := NewApp()
+	defer app.watcher.Stop()
+
+	err := app.SetTheme("dark")
+	if err == nil {
+		t.Fatal("SetTheme devolveu nil sem poder gravar o config.json")
+	}
+	if want := "não foi possível salvar o tema"; err.Error() != want {
+		t.Fatalf("erro = %q, esperado %q", err.Error(), want)
+	}
+}
+
+func TestLigarMonitor_ErroComTextoFixo(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	app := NewApp()
+	defer app.watcher.Stop()
+	type evento struct {
+		nome  string
+		dados []any
+	}
+	var eventos []evento
+	app.emitir = func(nome string, dados ...any) { eventos = append(eventos, evento{nome, dados}) }
+
+	app.guardarConfig(&models.Config{MonitoredPath: filepath.Join(t.TempDir(), "nao-existe"), WatchdogEnabled: true, OcrMode: "normal", CleaningLevel: "basic"})
+	app.ligarMonitor(nil)
+
+	if len(eventos) != 1 || eventos[0].nome != "watchdog:error" {
+		t.Fatalf("eventos = %+v, esperado um único watchdog:error", eventos)
+	}
+	if want := []any{"não foi possível monitorar a pasta escolhida"}; !reflect.DeepEqual(eventos[0].dados, want) {
+		t.Fatalf("dados = %#v, esperado %#v", eventos[0].dados, want)
+	}
+}
+
 func TestCarregarConfig_JSONInvalidoCaiParaPadrao(t *testing.T) {
 	caminho := filepath.Join(t.TempDir(), "config.json")
 	if err := os.WriteFile(caminho, []byte("{corrompido"), 0o644); err != nil {

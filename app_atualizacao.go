@@ -142,7 +142,7 @@ func (a *App) ligarMonitor(ctx context.Context) {
 	}
 	if err := a.watcher.Start(cfg.MonitoredPath); err != nil {
 		slog.Warn("falha ao iniciar o monitoramento da pasta", "pasta", cfg.MonitoredPath, "erro", err)
-		a.emitirEm(ctx, "watchdog:error", err.Error())
+		a.emitirEm(ctx, "watchdog:error", msgMonitorFalhou)
 	}
 }
 
