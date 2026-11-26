@@ -96,6 +96,26 @@ func ultimoUpdate(t *testing.T, g *gravadorEventos) []*QueueItem {
 	return evs[len(evs)-1].dados[0].([]*QueueItem)
 }
 
+// esperarUpdateFinal espera o último queue:update trazer o item id já
+// terminado: o broadcast sai depois do Unlock, então o estado final aparece
+// em GetItems antes de aparecer no registrador.
+func esperarUpdateFinal(t *testing.T, g *gravadorEventos, id string) *QueueItem {
+	t.Helper()
+	limite := time.Now().Add(5 * time.Second)
+	for time.Now().Before(limite) {
+		if evs := g.doTipo("queue:update"); len(evs) > 0 {
+			for _, it := range evs[len(evs)-1].dados[0].([]*QueueItem) {
+				if it.ID == id && it.Status != "pending" && it.Status != "processing" {
+					return it
+				}
+			}
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatalf("o último queue:update não trouxe o item %s terminado", id)
+	return nil
+}
+
 func TestNomeItemPDF(t *testing.T) {
 	if got := nomeItemPDF("processo", 1); got != "processo" {
 		t.Errorf("nomeItemPDF(processo, 1) = %q", got)
@@ -297,10 +317,8 @@ func TestProcessItem_NomeTrocadoPeloTXT(t *testing.T) {
 		if fim.Name != c.nome {
 			t.Errorf("Name final = %q, esperava %q", fim.Name, c.nome)
 		}
-		for _, it := range ultimoUpdate(t, g) {
-			if it.ID == id && it.Name != c.nome {
-				t.Errorf("último queue:update traz Name %q, esperava %q", it.Name, c.nome)
-			}
+		if it := esperarUpdateFinal(t, g, id); it.Name != c.nome {
+			t.Errorf("último queue:update traz Name %q, esperava %q", it.Name, c.nome)
 		}
 	}
 }
@@ -522,5 +540,25 @@ func TestReprocessarMonitorado_DevolveFalso(t *testing.T) {
 		if depois := q.GetItems(); !reflect.DeepEqual(antes, depois) {
 			t.Errorf("%s: a fila mudou", c)
 		}
+	}
+}
+
+// O item reaberto por ReprocessarMonitorado vai para a telemetria como
+// reprocesso (q1), embora rode sem ajuste.
+func TestReprocessarMonitorado_TelemetriaReprocesso(t *testing.T) {
+	q, _ := novaFilaGravada(t, (&procEntradas{}).processar)
+	ch := make(chan models.ExecucaoZip, 4)
+	q.SetAoTerminarZip(func(e models.ExecucaoZip) { ch <- e })
+	pdf := pdfSintetico(t, "processo.pdf")
+	q.AddFiles([]string{pdf})
+	if e := esperarExecucao(t, ch); e.Reprocesso || e.Status != "success" {
+		t.Fatalf("primeira execução = %+v, esperava success sem reprocesso", e)
+	}
+	esperarOcioso(t, q)
+	if !q.ReprocessarMonitorado(pdf) {
+		t.Fatal("ReprocessarMonitorado devolveu false")
+	}
+	if e := esperarExecucao(t, ch); !e.Reprocesso {
+		t.Errorf("execução do monitorado = %+v, esperava Reprocesso true", e)
 	}
 }

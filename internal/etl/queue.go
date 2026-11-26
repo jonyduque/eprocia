@@ -70,6 +70,9 @@ type QueueItem struct {
 	// reabrir o item (Reprocessar, ReprocessarMonitorado; Restaurar no
 	// histórico), para a próxima gravar por cima dele. Zerada só no sucesso.
 	saidaAnterior string
+	// reaberto marca o item que ReprocessarMonitorado devolveu à fila: sem
+	// ajuste, mas a execução conta como reprocesso na telemetria.
+	reaberto bool
 
 	ultimoEnvio  time.Time   // último queue:item deste item
 	envioPend    *time.Timer // queue:item agendado pelo limitador
@@ -541,6 +544,8 @@ func (q *Queue) ReprocessarMonitorado(path string) bool {
 	// Sem ajuste: OcrMode, CleaningLevel e ForcarOCR são corrigidos pela
 	// config global no processItem.
 	item.ajuste = nil
+	// Para a telemetria, ainda é um reprocessamento (q1).
+	item.reaberto = true
 	attrs := []any{"item_id", item.ID, "zip", rotuloLog(item)}
 	q.mu.Unlock()
 
@@ -827,7 +832,7 @@ func (q *Queue) processItem(item *QueueItem) {
 	item.atividade = atv
 	cfg := q.cfg
 	ajuste := item.ajuste
-	reprocesso = ajuste != nil
+	reprocesso = ajuste != nil || item.reaberto
 	origem := item.origem
 	// A Entrada é montada sob q.mu; saidaAnterior só é zerada no sucesso.
 	entrada := Entrada{Kind: item.Kind, Caminhos: slices.Clone(item.Paths), SaidaAnterior: item.saidaAnterior}

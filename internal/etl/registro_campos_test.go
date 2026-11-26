@@ -396,3 +396,66 @@ func (e *escritorTravado) Write(p []byte) (int, error) {
 	defer e.mu.Unlock()
 	return e.w.Write(p)
 }
+
+// O atributo zip das linhas da fila num item de PDF é o nome do PDF (item de
+// um PDF) ou o Name com " (N PDFs)" (item de vários): a Task 10 (anonimizador)
+// depende desse formato. Sem t.Parallel: troca slog.Default().
+func TestRegistro_ZipDeItemPDF(t *testing.T) {
+	padrao, saida, flags := slog.Default(), log.Writer(), log.Flags()
+	t.Cleanup(func() {
+		slog.SetDefault(padrao)
+		log.SetOutput(saida)
+		log.SetFlags(flags)
+	})
+	var mu sync.Mutex
+	var buf bytes.Buffer
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&escritorTravado{mu: &mu, w: &buf}, nil)))
+
+	q, _ := novaFilaGravada(t, func(_ context.Context, e Entrada, _ *models.Config, _ func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+		return strings.TrimSuffix(e.Caminhos[0], ".pdf") + ".txt", 1, 1, 1, nil
+	})
+	dir := t.TempDir()
+	cnj := "5000000-00.2026.8.26.0001"
+	casos := []struct {
+		paths []string
+		zip   string
+	}{
+		{[]string{filepath.Join(dir, "x.pdf")}, "x.pdf"},
+		{[]string{
+			filepath.Join(dir, cnj+" - Evento 3 - INIC1.pdf"),
+			filepath.Join(dir, cnj+" - Evento 7 - LAUDO1.pdf"),
+			filepath.Join(dir, cnj+" - Evento 12 - SENT1.pdf"),
+		}, cnj + " (3 PDFs)"},
+	}
+	for _, c := range casos {
+		q.AddFiles(c.paths)
+		var id string
+		for _, it := range q.GetItems() {
+			if it.Path == c.paths[0] {
+				id = it.ID
+			}
+		}
+		esperarTerminoID(t, q, id)
+
+		mu.Lock()
+		out := buf.String()
+		mu.Unlock()
+		vistas := map[string]bool{}
+		for _, l := range linhasJSON(t, out) {
+			if l["item_id"] != id && !(l["msg"] == "PDF adicionado à fila" && l["zip"] == c.zip) {
+				continue
+			}
+			if z, ok := l["zip"]; ok {
+				if z != c.zip {
+					t.Errorf("%v: zip = %v, quero %q", l["msg"], z, c.zip)
+				}
+				vistas[l["msg"].(string)] = true
+			}
+		}
+		for _, msg := range []string{"PDF adicionado à fila", "item na vez"} {
+			if !vistas[msg] {
+				t.Errorf("sem linha %q com zip %q:\n%s", msg, c.zip, out)
+			}
+		}
+	}
+}
