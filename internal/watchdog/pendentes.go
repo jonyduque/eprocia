@@ -48,10 +48,11 @@ func normalizarExtensoes(extensoes []string) []string {
 // aceito diz se o arquivo tem uma das extensões (já normalizadas) e não é
 // um temporário do pipeline.
 func aceito(nome string, extensoes []string) bool {
-	if !slices.Contains(extensoes, strings.ToLower(filepath.Ext(nome))) {
+	ext := strings.ToLower(filepath.Ext(nome))
+	if !slices.Contains(extensoes, ext) {
 		return false
 	}
-	return !temporario(nome)
+	return !(ext == ".pdf" && temporario(nome))
 }
 
 // temporario diz se o nome é de um PDF temporário do pipeline.

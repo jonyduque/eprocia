@@ -289,3 +289,23 @@ func TestWatcher_StartMesmasExtensoes(t *testing.T) {
 		t.Fatalf("segunda varredura entregou %q, esperado %q", l[1], zip)
 	}
 }
+
+// O prefixo eprocia_pdf_ só marca PDF temporário: um ZIP com esse nome
+// continua sendo entrada, com a opção de PDF ligada ou desligada.
+func TestPendingZips_ZipComPrefixoTemporarioAceito(t *testing.T) {
+	dir := t.TempDir()
+	zip := filepath.Join(dir, "eprocia_pdf_x.zip")
+	criarComData(t, zip, time.Now().Add(-time.Hour))
+	for _, ext := range [][]string{Extensoes(false), Extensoes(true)} {
+		got, err := pendingZips(dir, time.Now().Add(-24*time.Hour), ext, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := []string{zip}; !reflect.DeepEqual(got, want) {
+			t.Fatalf("extensões %v: %v, esperado %v", ext, got, want)
+		}
+	}
+	if !aceito(zip, normalizarExtensoes(nil)) {
+		t.Fatal("aceito recusou eprocia_pdf_x.zip")
+	}
+}
