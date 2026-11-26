@@ -17,6 +17,7 @@ func TestQueue_RelatorioZeradoAoReprocessarECancelar(t *testing.T) {
 	q := NewQueue(NewPipeline())
 	defer q.Shutdown()
 	q.cfg = cfgSemOCR()
+	q.existe = func(string) bool { return true } // caminhos fictícios
 	q.SetContext(context.Background())
 	q.emitir = func(_ context.Context, nome string, dados ...any) {
 		if nome != "queue:item" && nome != "queue:update" {

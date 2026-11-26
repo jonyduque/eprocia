@@ -87,6 +87,7 @@ func statusDe(t *testing.T, q *Queue, nome string) string {
 func TestQueue_RetidaAceitaMasNaoInicia(t *testing.T) {
 	g := novoGravadorChamadas(true)
 	q, _ := novaFilaGravada(t, g.processar)
+	q.existe = func(string) bool { return true } // caminhos fictícios
 	q.items = append(q.items, &QueueItem{ID: "feito", Name: "feito.zip", Path: `C:\x\feito.zip`, Status: "success"})
 
 	q.Reter()

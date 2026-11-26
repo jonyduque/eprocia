@@ -27,7 +27,7 @@ type QueueItem struct {
 	ID              string  `json:"id"`
 	Name            string  `json:"name"`
 	Path            string  `json:"path"`
-	Status          string  `json:"status"` // "pending", "processing", "paused", "cancelled", "success", "error"
+	Status          string  `json:"status"` // "pending", "processing", "paused", "cancelled", "interrupted", "success", "error"
 	Progress        float64 `json:"progress"`
 	Message         string  `json:"message"`
 	OutputPath      string  `json:"output_path"`
@@ -50,6 +50,15 @@ type QueueItem struct {
 	Relatorio *models.RelatorioZip `json:"relatorio,omitempty"`
 	Error     string               `json:"error,omitempty"`
 	Timestamp int64                `json:"timestamp"`
+	// FinishedAt é a hora (ms) em que a execução terminou, em qualquer fim
+	// (sucesso, erro, cancelamento, interrupção); 0 enquanto aguarda ou processa.
+	FinishedAt int64 `json:"finished_at"`
+	// OutputMissing e SourceMissing marcam, num item restaurado do histórico,
+	// o TXT e a origem que não estão mais no disco.
+	OutputMissing bool `json:"output_missing"`
+	SourceMissing bool `json:"source_missing"`
+	// Restaurado marca o item que veio do histórico da sessão anterior.
+	Restaurado bool `json:"restaurado"`
 	// OcrMode e CleaningLevel são os da última execução do item (ou os que a
 	// próxima vai usar, num item reprocessado que ainda aguarda).
 	OcrMode       string `json:"ocr_mode,omitempty"`
@@ -130,6 +139,10 @@ type Queue struct {
 	// aoFicarOciosa é avisado, numa goroutine e fora de q.mu, quando um
 	// caminho termina sem iniciar item e a fila está ociosa.
 	aoFicarOciosa func()
+
+	// existe diz se um caminho de origem está no disco (nil = os.Stat sem
+	// erro); trocado nos testes.
+	existe func(caminho string) bool
 }
 
 // prazoShutdown limita quanto o encerramento do app espera o item em curso.
@@ -420,14 +433,18 @@ func copiarItem(item *QueueItem) *QueueItem {
 		OcrMode:       item.OcrMode,
 		CleaningLevel: item.CleaningLevel,
 		ForcarOCR:     item.ForcarOCR,
+		FinishedAt:    item.FinishedAt,
+		OutputMissing: item.OutputMissing,
+		SourceMissing: item.SourceMissing,
+		Restaurado:    item.Restaurado,
 	}
 }
 
 // Reprocessar devolve à fila um item que já terminou, com OCR e higienização
 // próprios e, se forcarOCR não for nil, com Forçar OCR próprio (nil usa o da
 // config global; com ocrMode "none" ele não tem efeito). A config global não
-// muda; o .txt anterior é sobrescrito. Num item de PDF, todos os Paths
-// precisam existir: senão a fila não muda.
+// muda; o .txt anterior é sobrescrito. A origem (o Path do ZIP, ou todos os
+// Paths do PDF) precisa existir: senão a fila não muda.
 func (q *Queue) Reprocessar(id, ocrMode, cleaningLevel string, forcarOCR *bool) error {
 	if !config.ModoOCRValido(ocrMode) {
 		return fmt.Errorf("modo de OCR inválido: %q", ocrMode)
@@ -441,15 +458,22 @@ func (q *Queue) Reprocessar(id, ocrMode, cleaningLevel string, forcarOCR *bool) 
 		q.mu.Unlock()
 		return err
 	}
-	var conferir []string
+	conferir := []string{q.items[idx].Path}
 	if q.items[idx].Kind == "pdf" {
 		conferir = slices.Clone(q.items[idx].Paths)
 	}
+	existe := q.existe
 	q.mu.Unlock()
 
 	// O disco é lido fora da trava; o item é procurado de novo depois.
+	if existe == nil {
+		existe = func(c string) bool {
+			_, err := os.Stat(c)
+			return err == nil
+		}
+	}
 	for _, p := range conferir {
-		if _, err := os.Stat(p); err != nil {
+		if !existe(p) {
 			return fmt.Errorf("arquivo de origem não encontrado: %s", filepath.Base(p))
 		}
 	}
@@ -521,6 +545,8 @@ func reabrirLocked(item *QueueItem) {
 	item.ProcessedDocs, item.TotalDocs, item.ProcessedPages, item.TotalPages = 0, 0, 0, 0
 	item.UnreadDocs = 0
 	item.Relatorio = nil
+	item.FinishedAt = 0
+	item.OutputMissing, item.SourceMissing = false, false
 	item.Timestamp = time.Now().UnixMilli()
 }
 
@@ -680,6 +706,7 @@ func (q *Queue) CancelItem(id string) {
 		} else if target.Status == "pending" {
 			target.Status = "cancelled"
 			target.Message = "Cancelado"
+			target.FinishedAt = time.Now().UnixMilli()
 		}
 	}
 	aviso := q.avisoSeOciosaLocked()
@@ -729,14 +756,14 @@ func (q *Queue) Clear() {
 	}
 }
 
-// LimparConcluidos tira da lista os itens com sucesso, erro ou cancelados; o
-// item em processamento e os que aguardam continuam como estão.
+// LimparConcluidos tira da lista os itens com sucesso, erro, cancelados ou
+// interrompidos; o item em processamento e os que aguardam continuam como estão.
 func (q *Queue) LimparConcluidos() {
 	q.mu.Lock()
 	restantes := q.items[:0:0]
 	for _, item := range q.items {
 		switch item.Status {
-		case "success", "error", "cancelled":
+		case "success", "error", "cancelled", "interrupted":
 		default:
 			restantes = append(restantes, item)
 		}
@@ -805,6 +832,7 @@ func (q *Queue) processItem(item *QueueItem) {
 			item.Status = "error"
 			item.Message = fmt.Sprintf("Erro crítico (panic): %v", r)
 			item.Error = fmt.Sprintf("Panic: %v", r)
+			item.FinishedAt = time.Now().UnixMilli()
 			q.isWorking = false
 			avisar := q.avisarFimLocked(item)
 			telemetria := q.execucaoLocked(item, reprocesso, cfgExec, bytesZip, "panico", "")
@@ -886,6 +914,7 @@ func (q *Queue) processItem(item *QueueItem) {
 			item.Status = "error"
 			item.Message = "Erro ao carregar configurações"
 			item.Error = err.Error()
+			item.FinishedAt = time.Now().UnixMilli()
 			q.isWorking = false
 			avisar := q.avisarFimLocked(item)
 			telemetria := q.execucaoLocked(item, reprocesso, nil, bytesZip, "config", "")
@@ -926,12 +955,20 @@ func (q *Queue) processItem(item *QueueItem) {
 	item.cancel = nil
 	q.isWorking = false
 	pararEnvioPendente(item)
+	item.FinishedAt = time.Now().UnixMilli()
 
 	classeErro, etapaErro := "", ""
 	if err != nil {
 		if ctx.Err() == context.Canceled {
-			item.Status = "cancelled"
-			item.Message = "Cancelado"
+			// Com a fila encerrada (Shutdown), o item não foi cancelado pelo
+			// usuário: fica interrompido, para o histórico oferecer de novo.
+			if q.encerrada {
+				item.Status = "interrupted"
+				item.Message = "Interrompido"
+			} else {
+				item.Status = "cancelled"
+				item.Message = "Cancelado"
+			}
 			item.Progress = 0.0
 		} else {
 			item.Status = "error"
@@ -964,6 +1001,7 @@ func (q *Queue) processItem(item *QueueItem) {
 		item.TotalPages = pagesCount
 		item.UnreadDocs = atv.NaoLidos()
 		item.Relatorio = atv.Relatorio()
+		item.OutputMissing, item.SourceMissing = false, false
 		// O novo OutputPath assume o papel da saída anterior.
 		item.saidaAnterior = ""
 		if entrada.Kind == "pdf" {

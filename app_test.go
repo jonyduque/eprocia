@@ -252,8 +252,12 @@ func TestReprocessQueueItem_PassaForcarExplicito(t *testing.T) {
 	q.SetConfig(&models.Config{OcrMode: "normal", CleaningLevel: "standard", OmitirTipos: []string{}, ForcarOCR: true})
 	app := &App{queue: q}
 
-	// O ZIP não existe: a execução termina em erro, mas registra o Forçar OCR efetivo.
+	// O ZIP existe (o Reprocessar confere a origem), mas não é um ZIP: a
+	// execução termina em erro, e registra o Forçar OCR efetivo.
 	zip := filepath.Join(t.TempDir(), "5000000-00.2026.8.26.0001.zip")
+	if err := os.WriteFile(zip, []byte("nao e zip"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	q.AddFiles([]string{zip})
 	if it := esperarItemFim(t, q); !it.ForcarOCR {
 		t.Fatalf("primeira execução com a global true não forçou: %+v", it)

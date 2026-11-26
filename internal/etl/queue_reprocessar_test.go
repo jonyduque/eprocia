@@ -24,6 +24,7 @@ func TestReprocessar_UsaAjusteEVoltaParaFila(t *testing.T) {
 		return "saida.txt", 1, 3, 0, nil
 	})
 	q.cfg = &models.Config{CleaningLevel: "basic", OcrMode: "normal", MonitoredPath: `C:\pasta`}
+	q.existe = func(string) bool { return true } // caminhos fictícios
 	q.AddFiles([]string{`C:\x\a.zip`})
 	esperarFim(t, q, "a.zip")
 	id := q.GetItems()[0].ID
@@ -106,6 +107,7 @@ func filaCapturandoCfg(t *testing.T) (*Queue, func() []models.Config) {
 		mu.Unlock()
 		return "saida.txt", 1, 1, 0, nil
 	})
+	q.existe = func(string) bool { return true } // caminhos fictícios
 	return q, func() []models.Config {
 		mu.Lock()
 		defer mu.Unlock()

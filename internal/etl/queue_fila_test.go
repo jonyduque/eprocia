@@ -270,6 +270,8 @@ func TestFila_ErroDoProcessadorViraErroEFilaSegue(t *testing.T) {
 	esperarFim(t, q, "b.zip")
 }
 
+// O Shutdown interrompe o item em curso: "interrupted", não "cancelled" (o
+// cancelamento é só o pedido pelo usuário).
 func TestFila_ShutdownCancelaItemEmCurso(t *testing.T) {
 	p := novoProcFalso()
 	q, _ := novaFilaGravada(t, p.processar)
@@ -280,7 +282,7 @@ func TestFila_ShutdownCancelaItemEmCurso(t *testing.T) {
 	if !q.shutdownComPrazo(2 * time.Second) {
 		t.Fatal("Shutdown estourou o prazo")
 	}
-	if it := itemPorNome(t, q, "a.zip"); it.Status != "cancelled" {
+	if it := itemPorNome(t, q, "a.zip"); it.Status != "interrupted" {
 		t.Fatalf("item em curso após Shutdown: status %q", it.Status)
 	}
 	if it := itemPorNome(t, q, "b.zip"); it.Status != "pending" {
