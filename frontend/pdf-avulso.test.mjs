@@ -21,9 +21,13 @@ test('textos do PDF avulso', () => {
 });
 
 test('linha da fila: ícone por tipo antes do nome, com o tipo em sr-only', () => {
-  assert.match(lista, /import File from 'lucide-svelte\/icons\/file'/);
+  // FileIcon, e não File, para não esconder o construtor global File.
+  assert.match(lista, /import FileIcon from 'lucide-svelte\/icons\/file'/);
   assert.match(lista, /import FileArchive from 'lucide-svelte\/icons\/file-archive'/);
-  assert.match(lista, /const ICONE_TIPO = \{ zip: FileArchive, pdf: File \}/);
+  assert.match(lista, /const ICONE_TIPO = \{ zip: FileArchive, pdf: FileIcon \}/);
+  // Depois do último import do script.
+  const script = lista.slice(0, lista.indexOf('</script>'));
+  assert.ok(script.indexOf('const ICONE_TIPO') > script.lastIndexOf('import '), 'ICONE_TIPO antes de um import');
   assert.match(lista, /\{@const tipo = item\.kind === 'pdf' \? 'pdf' : 'zip'\}/);
   assert.match(lista, /import \{[^}]*\bTIPO_ENTRADA\b[^}]*\} from '\.\.\/lib\/textos\.js'/);
   const i = lista.indexOf('class="info-col"');
@@ -34,6 +38,17 @@ test('linha da fila: ícone por tipo antes do nome, com o tipo em sr-only', () =
   const trecho = lista.slice(icone, nome);
   assert.match(trecho, /cor="var\(--text-secondary\)"/);
   assert.match(trecho, /<span class="sr-only">\{TIPO_ENTRADA\[tipo\]\}<\/span>/);
+});
+
+test('faixas abaixo da linha recuam até o nome (46px, depois do ícone de tipo)', () => {
+  const relatorio = ler('src', 'components', 'RelatorioItem.svelte');
+  const regra = (f, sel) => f.match(new RegExp(`\\n  \\${sel} \\{[^}]*\\}`))?.[0] ?? '';
+  for (const [f, sel] of [[lista, '.relatorio-linha'], [lista, '.erro-detalhe'], [relatorio, '.painel-relatorio']]) {
+    assert.match(regra(f, sel), /margin-left: 46px;/, sel);
+  }
+  // Abaixo de 420px o resumo e o painel continuam sem recuo.
+  assert.match(lista, /@container \(max-width: 420px\) \{\s*\.relatorio-linha \{\s*margin-left: 0;/);
+  assert.match(relatorio, /@container \(max-width: 420px\) \{\s*\.painel-relatorio \{\s*margin-left: 0;/);
 });
 
 test('nome de item de vários PDFs volta igual', () => {

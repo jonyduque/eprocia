@@ -26,7 +26,7 @@ const CATEGORIAS = ['lida_nativa', 'lida_ocr', 'vazia', 'sem_ocr', 'com_erro'];
 const ATUALIZACAO = ['atualizacao-em-dia', 'atualizacao-disponivel', 'atualizacao-instalador', 'atualizacao-so-avisar',
   'atualizacao-incompleta', 'atualizacao-baixando', 'atualizacao-instalada', 'atualizacao-aguardando-fila', 'atualizacao-erro',
   'atualizacao-reiniciando'];
-const NOVOS = ['relatorio', 'fila-pdf','configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida', ...ATUALIZACAO];
+const NOVOS = ['relatorio', 'fila-pdf', 'configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida', ...ATUALIZACAO];
 
 describe('estados visuais', () => {
   it('cobre os estados da review.json', () => {
@@ -136,6 +136,7 @@ describe('estados visuais', () => {
       }
       for (const i of ESTADOS[nome].fila) {
         assert.match(i.name, /^5000000-00\.2026\.4\.00\.\d{4}(\.zip| \(\d+ PDFs\))?$/, `nome fora de processo(n): ${i.name}`);
+        if (i.kind === 'zip') assert.match(i.name, /\.zip$/, `ZIP sem .zip no nome: ${i.name}`);
         for (const p of i.paths ?? []) assert.ok(p.startsWith('C:\\Usuarios\\exemplo'), `caminho fora do exemplo: ${p}`);
       }
     });

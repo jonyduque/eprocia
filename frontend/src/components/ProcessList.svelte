@@ -10,7 +10,7 @@
   import Clock from 'lucide-svelte/icons/clock';
   import Coins from 'lucide-svelte/icons/coins';
   import Copy from 'lucide-svelte/icons/copy';
-  import File from 'lucide-svelte/icons/file';
+  import FileIcon from 'lucide-svelte/icons/file';
   import FileArchive from 'lucide-svelte/icons/file-archive';
   import FileText from 'lucide-svelte/icons/file-text';
   import Files from 'lucide-svelte/icons/files';
@@ -52,9 +52,6 @@
   import { aplicarReprocessarComOCR, alvoAoFecharReprocessar, argumentosLerComOCR, limpezaInicialReprocessar } from '../lib/reprocessar.js';
   import { resumoPaginas, avisosPaginas, mostrarLerComOCR } from '../lib/relatorio.js';
   import { ATUALIZACAO, EXPLICACAO_OCR, ROTULO_LER_COM_OCR, DICA_LER_COM_OCR, DICA_ABRIR_RELATORIO, DICA_FECHAR_RELATORIO, TIPO_ENTRADA } from '../lib/textos.js';
-
-  // Ícone do tipo da entrada, antes do nome (DESIGN §4 e §5.1).
-  const ICONE_TIPO = { zip: FileArchive, pdf: File };
   import { dica } from '../lib/dica.js';
   import { rotuloNaoLidos, avisoCopiaNaoLidos, tituloNaoLidos } from '../lib/naoLidos.js';
   import { rolagem } from '../lib/rolagem.js';
@@ -78,13 +75,16 @@
     copiavel
   } from '../lib/fila.js';
 
+  // Ícone do tipo da entrada, antes do nome (DESIGN §4 e §5.1).
+  const ICONE_TIPO = { zip: FileArchive, pdf: FileIcon };
+
   export let items = [];
   export let isPaused = false;
   // Instantâneos de queue:atividade por id de item (App.svelte).
   export let atividades = {};
   // Config atual: valores iniciais do reprocessamento de itens antigos.
   export let config = null;
-  // Abre a seleção de ZIPs do App: o vazio oferece a ação sem depender do painel.
+  // Abre a seleção de ZIPs e PDFs do App: o vazio oferece a ação sem depender do painel.
   export let aoSelecionarZip = () => {};
   // Durante a troca de versão (aceitaEntrada falso) nada volta à fila:
   // os botões que reprocessam o item ficam bloqueados, com a dica do motivo.
@@ -1252,7 +1252,7 @@
     max-width: 250px;
   }
 
-  /* Botão "Selecionar arquivos ZIP..." da fila vazia. */
+  /* Botão "Selecionar arquivos..." (ZIP ou PDF) da fila vazia. */
   .manual-select-btn {
     background-color: var(--bg-main);
     border: 1px solid var(--border);
@@ -1689,7 +1689,7 @@
 
   .erro-detalhe {
     flex-basis: 100%;
-    margin-left: 30px;
+    margin-left: 46px;
     padding: 6px 8px;
     border-left: 2px solid var(--error);
     border-radius: 0 4px 4px 0;
@@ -1706,7 +1706,7 @@
   /* Linha-resumo do relatório: largura inteira, abaixo da linha do item. */
   .relatorio-linha {
     flex-basis: 100%;
-    margin-left: 30px;
+    margin-left: 46px;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
