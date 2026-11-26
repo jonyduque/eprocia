@@ -60,7 +60,7 @@ describe('estados visuais', () => {
     assert.ok(ESTADOS['nao-lidos'].fila[0].relatorio.documentos.por_leitura.sem_ocr > 0);
   });
 
-  it('atualização: versão atual do wails.json e a nova um minor acima (0.5.0)', () => {
+  it('atualização: versão atual do wails.json e a nova um minor acima', () => {
     const atual = JSON.parse(readFileSync(new URL('../../wails.json', import.meta.url), 'utf8')).info.productVersion;
     const [ma, mi] = atual.split('.').map(Number);
     for (const nome of ['configuracoes', 'configuracoes-recolhida', 'atualizacao-disponivel', 'atualizacao-baixando']) {
@@ -74,7 +74,7 @@ describe('estados visuais', () => {
   it('atualizacao-*: ativo, sem a chave anterior, e cada um com a fase e o modo do brief', () => {
     const esperado = {
       'atualizacao-em-dia': { fase: 'em_dia' },
-      'atualizacao-disponivel': { fase: 'disponivel', modo: 'trocar', versao: '0.5.0' },
+      'atualizacao-disponivel': { fase: 'disponivel', modo: 'trocar' },
       'atualizacao-instalador': { fase: 'disponivel', modo: 'instalador' },
       'atualizacao-so-avisar': { fase: 'disponivel', modo: 'so_avisar' },
       'atualizacao-incompleta': { fase: 'incompleta' },
