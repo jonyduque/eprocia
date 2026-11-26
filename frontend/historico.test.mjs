@@ -83,6 +83,23 @@ test('ProcessList: TXT ausente na linha e no Copiar', () => {
   assert.match(b, /on:click=\{\(\) => \{ if \(copiavel\(item\)\) handleCopy\(item\); \}\}/);
 });
 
+// Com flex: none o aviso (~110px) quebrava para a segunda linha recortada e
+// levava a data junto: sumia inteiro. Ele encolhe como as mensagens, com
+// reticências, e fica à frente dos contadores no row-reverse.
+test('ProcessList: TXT ausente trunca em vez de sumir', () => {
+  const css = lista.slice(lista.indexOf('<style>'));
+  const sel = css.match(/((?:\s*\.details-row > \.[\w-]+,?)+)\s*\{\s*flex: 1 1 0;\s*min-width: 48px;\s*max-width: max-content;/);
+  assert.ok(sel, 'regra das mensagens não encontrada');
+  assert.match(sel[1], /\.details-row > \.txt-ausente\b/);
+  // Todo bloco cujo seletor cita o aviso: nenhum com flex: none, um com order: -1.
+  const blocos = [...css.matchAll(/([^{}]*)\{([^}]*)\}/g)]
+    .filter((m) => /\.txt-ausente\b/.test(m[1]))
+    .map((m) => m[2]);
+  assert.ok(blocos.length > 0, 'regra do aviso não encontrada');
+  for (const b of blocos) assert.doesNotMatch(b, /flex:\s*none/);
+  assert.ok(blocos.some((b) => /order:\s*-1;/.test(b)), 'aviso sem order: -1');
+});
+
 test('ProcessList: data, Limpar concluídos, painel e restaurado', () => {
   assert.match(ml, /\{formatarQuando\(item, agora\)\}/);
   assert.doesNotMatch(lista, /formatarHora/);

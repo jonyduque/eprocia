@@ -1541,7 +1541,8 @@
   .details-row > .pending-message,
   .details-row > .cancelled-message,
   .details-row > .interrupted-message,
-  .details-row > .error-message {
+  .details-row > .error-message,
+  .details-row > .txt-ausente {
     flex: 1 1 0;
     min-width: 48px;
     max-width: max-content;
@@ -1627,8 +1628,10 @@
     color: var(--warning-strong);
   }
 
+  /* Encolhe como as mensagens (regra acima); à frente dos contadores, cede
+     depois deles e do horário. */
   .details-row > .txt-ausente {
-    flex: none;
+    order: -1;
     color: var(--warning-strong);
     font-size: var(--fs-meta);
     font-weight: 500;
