@@ -92,6 +92,22 @@ type App struct {
 // animações e segura a fila até reabrir.
 const eventoVisibilidade = "janela:visivel"
 
+// filaMonitorada é a parte da fila que o callback do watcher usa.
+type filaMonitorada interface {
+	ReprocessarMonitorado(string) bool
+	AddFilesComOrigem([]string, string) int
+}
+
+// encaminharMonitorado leva um arquivo da pasta monitorada à fila: um PDF
+// editado depois de convertido reaproveita o item concluído (q1); senão vira
+// item novo.
+func encaminharMonitorado(f filaMonitorada, caminho string) {
+	if f.ReprocessarMonitorado(caminho) {
+		return
+	}
+	f.AddFilesComOrigem([]string{caminho}, "monitorada")
+}
+
 // NewApp creates a new App application struct
 func NewApp() *App {
 	app := &App{
@@ -102,7 +118,7 @@ func NewApp() *App {
 	}
 	app.watcher = watchdog.NewWatcher(func(filePath string) {
 		if app.queue != nil {
-			app.queue.AddFilesComOrigem([]string{filePath}, "monitorada")
+			encaminharMonitorado(app.queue, filePath)
 		}
 	})
 	return app
@@ -348,7 +364,7 @@ func (a *App) aplicarMonitor(cfg *models.Config) error {
 		if a.monitorRetido.Load() {
 			return nil
 		}
-		if err := a.watcher.Start(cfg.MonitoredPath); err != nil {
+		if err := a.watcher.Start(cfg.MonitoredPath, watchdog.Extensoes(cfg.MonitorarPDF)); err != nil {
 			slog.Warn("falha ao iniciar o monitoramento da pasta", "pasta", cfg.MonitoredPath, "erro", err)
 			return fmt.Errorf("configurações salvas, mas não foi possível monitorar a pasta %q: %w", cfg.MonitoredPath, err)
 		}

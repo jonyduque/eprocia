@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -14,11 +15,12 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
-// Watcher manages directory monitoring for ZIP files.
+// Watcher manages directory monitoring for ZIP files (and PDFs, when asked).
 type Watcher struct {
 	mu          sync.Mutex
 	watcher     *fsnotify.Watcher
 	currentPath string
+	extensoes   []string
 	onFileAdded func(string)
 	falhas      *Falhas
 	done        chan struct{}
@@ -39,13 +41,15 @@ func (w *Watcher) SetFalhas(f *Falhas) {
 	w.falhas = f
 }
 
-// Start starts monitoring the specified path.
-func (w *Watcher) Start(path string) error {
+// Start starts monitoring the specified path for the given extensions
+// (Extensoes; nil or empty means [".zip"]). It is a no-op only when the same
+// path is already watched with the same set of extensions.
+func (w *Watcher) Start(path string, extensoes []string) error {
+	extensoes = normalizarExtensoes(extensoes)
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	// If already watching the same path, do nothing
-	if w.watcher != nil && w.currentPath == path {
+	if w.watcher != nil && w.currentPath == path && slices.Equal(w.extensoes, extensoes) {
 		return nil
 	}
 
@@ -72,6 +76,7 @@ func (w *Watcher) Start(path string) error {
 
 	w.watcher = watcher
 	w.currentPath = path
+	w.extensoes = extensoes
 	w.done = make(chan struct{})
 
 	err = w.watcher.Add(path)
@@ -85,15 +90,15 @@ func (w *Watcher) Start(path string) error {
 	// Cópias locais: o closure não pode ler w.watcher/w.done depois que um
 	// novo Start os reatribuir.
 	watcherAtual, done := w.watcher, w.done
-	w.wg.Go(func() { w.watchLoop(watcherAtual, done) })
+	w.wg.Go(func() { w.watchLoop(watcherAtual, done, extensoes) })
 
-	// ZIPs baixados enquanto o app estava fechado não geram evento do fsnotify.
-	pendentes, err := pendingZips(path, time.Now().Add(-janelaPendentes), w.falhas.Ignorar)
+	// Arquivos baixados enquanto o app estava fechado não geram evento do fsnotify.
+	pendentes, err := pendingZips(path, time.Now().Add(-janelaPendentes), extensoes, w.falhas.Ignorar)
 	if err != nil {
-		slog.Warn("watchdog: falha ao procurar ZIPs pendentes", "pasta", path, "erro", err)
+		slog.Warn("watchdog: falha ao procurar arquivos pendentes", "pasta", path, "erro", err)
 	}
 	if len(pendentes) > 0 {
-		slog.Info("watchdog: ZIPs pendentes encontrados", "pasta", path, "quantidade", len(pendentes))
+		slog.Info("watchdog: arquivos pendentes encontrados", "pasta", path, "quantidade", len(pendentes))
 		w.wg.Go(func() {
 			// Em série, para a fila receber na ordem de download.
 			for _, p := range pendentes {
@@ -130,6 +135,7 @@ func (w *Watcher) stopLocked() {
 	slog.Info("watchdog: monitoramento encerrado", "pasta", w.currentPath)
 	w.watcher = nil
 	w.currentPath = ""
+	w.extensoes = nil
 }
 
 // GetCurrentPath returns the currently monitored path.
@@ -140,9 +146,9 @@ func (w *Watcher) GetCurrentPath() string {
 }
 
 // watchLoop runs the background event listening.
-// Recebe watcher e done por argumento: Start os reatribui sob w.mu, e um
-// goroutine da pasta anterior não pode enxergar os da nova.
-func (w *Watcher) watchLoop(watcher *fsnotify.Watcher, done chan struct{}) {
+// Recebe watcher, done e extensoes por argumento: Start os reatribui sob
+// w.mu, e um goroutine da pasta anterior não pode enxergar os da nova.
+func (w *Watcher) watchLoop(watcher *fsnotify.Watcher, done chan struct{}, extensoes []string) {
 	for {
 		select {
 		case event, ok := <-watcher.Events:
@@ -152,7 +158,7 @@ func (w *Watcher) watchLoop(watcher *fsnotify.Watcher, done chan struct{}) {
 
 			// We monitor for file creation, write or rename (browser download completions)
 			if event.Has(fsnotify.Create) || event.Has(fsnotify.Write) || event.Has(fsnotify.Rename) {
-				if strings.ToLower(filepath.Ext(event.Name)) == ".zip" {
+				if aceito(event.Name, extensoes) {
 					// Launch a goroutine to wait for the file to be completely written/unlocked
 					// wg.Go aqui é seguro: watchLoop ainda conta no wg, então
 					// o contador não está em zero enquanto stopLocked espera.
@@ -196,6 +202,7 @@ func (w *Watcher) handleNewFile(filePath string, done <-chan struct{}) {
 			}
 
 			currentSize := info.Size()
+			mod := info.ModTime()
 			// If size is stable (greater than 0, and hasn't changed since last check)
 			if currentSize > 0 && currentSize == lastSize {
 				// Verify if we can open it for reading
@@ -207,6 +214,12 @@ func (w *Watcher) handleNewFile(filePath string, done <-chan struct{}) {
 						return
 					default:
 					}
+					// Evento atrasado (Write do navegador ou do antivírus)
+					// de um PDF já convertido geraria outro <nome>_N.txt.
+					if strings.EqualFold(filepath.Ext(filePath), ".pdf") && jaConvertido(filePath, mod) {
+						slog.Debug("watchdog: PDF já convertido, ignorado", "zip", filepath.Base(filePath))
+						return
+					}
 					w.onFileAdded(filePath)
 					return
 				}
@@ -215,5 +228,5 @@ func (w *Watcher) handleNewFile(filePath string, done <-chan struct{}) {
 		}
 	}
 
-	slog.Warn("watchdog: ZIP não estabilizou ou não abriu", "zip", filepath.Base(filePath))
+	slog.Warn("watchdog: arquivo não estabilizou ou não abriu", "zip", filepath.Base(filePath))
 }

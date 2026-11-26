@@ -47,6 +47,7 @@ func DefaultConfig() (*models.Config, error) {
 		Theme:           "system",
 		OmitirTipos:     []string{},
 		ForcarOCR:       false,
+		MonitorarPDF:    false,
 	}, nil
 }
 
@@ -98,6 +99,7 @@ type configOverlay struct {
 	Theme           *string  `json:"theme"`
 	OmitirTipos     []string `json:"omitir_tipos"`
 	ForcarOCR       *bool    `json:"forcar_ocr"`
+	MonitorarPDF    *bool    `json:"monitorar_pdf"`
 }
 
 // LoadFromFile loads the configuration from a specific file path.
@@ -147,6 +149,9 @@ func LoadFromFile(path string) (*models.Config, error) {
 	// Preservado mesmo com ocr_mode "none": lá ele só não tem efeito.
 	if overlay.ForcarOCR != nil {
 		cfg.ForcarOCR = *overlay.ForcarOCR
+	}
+	if overlay.MonitorarPDF != nil {
+		cfg.MonitorarPDF = *overlay.MonitorarPDF
 	}
 
 	return cfg, nil

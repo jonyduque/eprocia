@@ -70,7 +70,7 @@ func TestPendingZips_PulaZipQueJaFalhou(t *testing.T) {
 	f := CarregarFalhas(filepath.Join(t.TempDir(), "falhas.json"))
 	f.Registrar(falhou)
 
-	got, err := pendingZips(dir, agora.Add(-janelaPendentes), f.Ignorar)
+	got, err := pendingZips(dir, agora.Add(-janelaPendentes), []string{".zip"}, f.Ignorar)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +80,7 @@ func TestPendingZips_PulaZipQueJaFalhou(t *testing.T) {
 
 	// Re-download: o navegador grava um arquivo novo, com outro mtime.
 	criarComData(t, falhou, agora.Add(-time.Minute))
-	got, _ = pendingZips(dir, agora.Add(-janelaPendentes), f.Ignorar)
+	got, _ = pendingZips(dir, agora.Add(-janelaPendentes), []string{".zip"}, f.Ignorar)
 	if want := []string{novo, falhou}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("depois do re-download: %v, esperado %v", got, want)
 	}
@@ -96,7 +96,7 @@ func TestWatcher_StartNaoReenfileiraZipQueFalhou(t *testing.T) {
 	detectados := make(chan string, 1)
 	w := NewWatcher(func(p string) { detectados <- p })
 	w.SetFalhas(f)
-	if err := w.Start(dir); err != nil {
+	if err := w.Start(dir, nil); err != nil {
 		t.Fatal(err)
 	}
 	defer w.Stop()

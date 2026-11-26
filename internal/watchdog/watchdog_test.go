@@ -24,7 +24,7 @@ func TestWatcher_StartAndStop(t *testing.T) {
 		detectedFiles = append(detectedFiles, path)
 	})
 
-	err = w.Start(tmpDir)
+	err = w.Start(tmpDir, nil)
 	if err != nil {
 		t.Fatalf("failed to start watcher: %v", err)
 	}
@@ -53,7 +53,7 @@ func TestWatcher_DetectZipFile(t *testing.T) {
 		detectedChan <- path
 	})
 
-	err = w.Start(tmpDir)
+	err = w.Start(tmpDir, nil)
 	if err != nil {
 		t.Fatalf("failed to start watcher: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestWatcher_IgnoreNonZipFile(t *testing.T) {
 		detectedChan <- path
 	})
 
-	err = w.Start(tmpDir)
+	err = w.Start(tmpDir, nil)
 	if err != nil {
 		t.Fatalf("failed to start watcher: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestWatcher_StopDescartaVerificacaoPendenteDaPastaAntiga(t *testing.T) {
 	disparos := make(chan string, 4)
 	w := NewWatcher(func(path string) { disparos <- path })
 
-	if err := w.Start(antiga); err != nil {
+	if err := w.Start(antiga, nil); err != nil {
 		t.Fatalf("Start(antiga): %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(antiga, "processo.zip"), []byte("conteudo"), 0o644); err != nil {
@@ -142,7 +142,7 @@ func TestWatcher_StopDescartaVerificacaoPendenteDaPastaAntiga(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	w.Stop()
-	if err := w.Start(nova); err != nil {
+	if err := w.Start(nova, nil); err != nil {
 		t.Fatalf("Start(nova): %v", err)
 	}
 	defer w.Stop()

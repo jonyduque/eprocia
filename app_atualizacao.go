@@ -96,7 +96,7 @@ func (a *App) ligarMonitor(ctx context.Context) {
 	if cfg == nil || !cfg.WatchdogEnabled || cfg.MonitoredPath == "" {
 		return
 	}
-	if err := a.watcher.Start(cfg.MonitoredPath); err != nil {
+	if err := a.watcher.Start(cfg.MonitoredPath, watchdog.Extensoes(cfg.MonitorarPDF)); err != nil {
 		slog.Warn("falha ao iniciar o monitoramento da pasta", "pasta", cfg.MonitoredPath, "erro", err)
 		a.emitirEm(ctx, "watchdog:error", err.Error())
 	}

@@ -22,6 +22,9 @@ type Config struct {
 	// de texto nativo legível. Sem efeito com OcrMode "none" (o valor salvo é
 	// preservado).
 	ForcarOCR bool `json:"forcar_ocr"`
+	// MonitorarPDF faz a pasta monitorada converter também os PDFs novos,
+	// cada um no seu item e no seu TXT. Desligado por padrão.
+	MonitorarPDF bool `json:"monitorar_pdf"`
 }
 
 // ProcessFile represents a single judicial process file, inside a ZIP archive
