@@ -7,8 +7,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { formatarHora, filtrarItens, alvoFoco, escolherAcao, textoConfirmarLimpeza, contarConcluidos, rotuloAcao, paradasItem, proximaParada, resolverParada, acaoDelete, copiavel } from './src/lib/fila.js';
+import { formatarQuando, filtrarItens, alvoFoco, escolherAcao, textoConfirmarLimpeza, contarConcluidos, rotuloAcao, paradasItem, proximaParada, resolverParada, acaoDelete, copiavel } from './src/lib/fila.js';
 import { alvoAoFecharReprocessar } from './src/lib/reprocessar.js';
+import { HISTORICO } from './src/lib/textos.js';
 
 const raiz = dirname(fileURLToPath(import.meta.url));
 const ler = (...p) => readFileSync(join(raiz, 'src', ...p), 'utf8').replace(/\r\n/g, '\n');
@@ -35,19 +36,63 @@ function regra(css, seletor) {
 
 // --- F-DF-03 ---------------------------------------------------------------
 
-test('formatarHora usa pt-BR com segundos e tolera vazio/inválido', () => {
-  const ts = new Date(2026, 9, 23, 9, 5, 7).getTime();
-  assert.equal(formatarHora(ts), '09:05:07');
-  assert.equal(formatarHora(0), '');
-  assert.equal(formatarHora(undefined), '');
-  assert.equal(formatarHora('não é data'), '');
+const quando = (ano, mes, dia, h, m) => new Date(ano, mes - 1, dia, h, m).getTime();
+
+test('formatarQuando: hoje, ontem, outro dia do ano e outro ano', () => {
+  const agora = quando(2026, 11, 26, 14, 40);
+  assert.equal(formatarQuando({ timestamp: quando(2026, 11, 26, 14, 32) }, agora), '14:32');
+  assert.equal(formatarQuando({ timestamp: quando(2026, 11, 25, 14, 32) }, agora), 'ontem 14:32');
+  assert.equal(formatarQuando({ timestamp: quando(2026, 11, 12, 14, 32) }, agora), '12/11 14:32');
+  assert.equal(formatarQuando({ timestamp: quando(2025, 11, 12, 14, 32) }, agora), '12/11/2025 14:32');
 });
 
-test('formatarHora reaproveita um Intl.DateTimeFormat criado no módulo', () => {
+test('formatarQuando: ontem é o dia de calendário anterior, não 24 h', () => {
+  assert.equal(formatarQuando({ timestamp: quando(2026, 11, 25, 23, 55) }, quando(2026, 11, 26, 0, 5)), 'ontem 23:55');
+  assert.equal(formatarQuando({ timestamp: quando(2025, 12, 31, 23, 50) }, quando(2026, 1, 1, 0, 10)), 'ontem 23:50');
+});
+
+test('formatarQuando: finished_at tem prioridade; ausente ou inválido dá vazio', () => {
+  const agora = quando(2026, 11, 26, 14, 40);
+  const ts = quando(2026, 11, 26, 9, 0);
+  assert.equal(formatarQuando({ timestamp: ts, finished_at: quando(2026, 11, 26, 9, 7) }, agora), '09:07');
+  assert.equal(formatarQuando({ timestamp: ts, finished_at: 0 }, agora), '09:00');
+  assert.equal(formatarQuando({ timestamp: undefined }, agora), '');
+  assert.equal(formatarQuando({ timestamp: NaN }, agora), '');
+  assert.equal(formatarQuando({ timestamp: 'x' }, agora), '');
+  assert.equal(formatarQuando({}, agora), '');
+});
+
+test('formatarQuando reaproveita os Intl.DateTimeFormat criados no módulo', () => {
   const fonte = ler('lib', 'fila.js');
-  const corpo = fonte.slice(fonte.indexOf('export function formatarHora'));
+  const corpo = fonte.slice(fonte.indexOf('export function formatarQuando'));
   assert.doesNotMatch(corpo.slice(0, corpo.indexOf('\n}')), /DateTimeFormat|toLocale/);
   assert.match(fonte, /^const \w+ = new Intl\.DateTimeFormat\('pt-BR'/m);
+  assert.doesNotMatch(fonte, /formatarHora/);
+});
+
+test('item interrompido conta como concluído, sai com Delete e reprocessa', () => {
+  assert.equal(contarConcluidos([{ status: 'interrupted' }, { status: 'interrupted' }]), 2);
+  assert.equal(acaoDelete('interrupted'), 'remover');
+  assert.deepEqual(paradasItem({ status: 'interrupted' }, false), ['reprocessar', 'remover']);
+});
+
+test('TXT ausente não é copiável', () => {
+  assert.equal(copiavel({ status: 'success', output_path: 'C:\\x.txt', output_missing: true }), false);
+  assert.equal(copiavel({ status: 'success', output_path: 'C:\\x.txt', output_missing: false }), true);
+});
+
+test('textos do histórico', () => {
+  assert.deepEqual(HISTORICO, {
+    interrompido: 'Interrompido',
+    processarDeNovo: 'Processar de novo',
+    txtAusente: 'TXT não encontrado',
+    origemAusente: 'O arquivo de origem não foi encontrado; ele pode ter sido movido ou apagado',
+    semDetalhes: 'Detalhes por documento só ficam disponíveis durante a sessão em que o item foi processado',
+    interruptor: 'Guardar a lista da última sessão',
+    fraseInterruptor: 'Ao reabrir, a lista mostra os processos da última sessão. Os nomes dos arquivos ficam guardados neste computador até a sessão seguinte em que algo for processado.',
+    falhaGravar: 'Não foi possível guardar o histórico',
+    tituloLimparConcluidos: 'Remover da lista os concluídos, com erro, cancelados e interrompidos',
+  });
 });
 
 test('filtrarItens devolve a mesma lista com filtro vazio', () => {
@@ -73,8 +118,10 @@ test('filtrarItens converte o filtro para minúsculas uma vez só', () => {
   assert.equal(chamadas, 1);
 });
 
-test('ProcessList usa formatarHora e filtrarItens', () => {
-  assert.match(lista, /\{formatarHora\(item\.timestamp\)\}/);
+test('ProcessList usa formatarQuando e filtrarItens', () => {
+  assert.match(lista, /\{formatarQuando\(item, agora\)\}/);
+  assert.match(lista, /\$: agora = \(items, Date\.now\(\)\)/);
+  assert.doesNotMatch(lista, /formatarHora/);
   assert.match(lista, /\$: filteredItems = filtrarItens\(items, filterText\)/);
   assert.doesNotMatch(lista, /toLocaleTimeString|function formatTime/);
 });

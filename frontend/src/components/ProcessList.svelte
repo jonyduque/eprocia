@@ -57,7 +57,7 @@
   import { rolagem } from '../lib/rolagem.js';
   import { marcosFila, anuncioCopia, anuncioPausa, anuncioFiltro } from '../lib/anuncios.js';
   import {
-    formatarHora,
+    formatarQuando,
     filtrarItens,
     alvoFoco,
     escolherAcao,
@@ -124,6 +124,8 @@
   $: registrarPausa(isPaused);
 
   $: filteredItems = filtrarItens(items, filterText);
+  // Referência de "hoje" e "ontem" da data da linha: recalculada a cada mudança da lista, sem timer.
+  $: agora = (items, Date.now());
 
   let ultimoFiltro = '';
   function registrarFiltro(texto, n) {
@@ -664,7 +666,7 @@
               <span class="sr-only">{TIPO_ENTRADA[tipo]}</span>
               <span class="file-name" title={item.path}>{nomeExibido(item.name)}</span>
               <span class="details-row">
-                <span class="timestamp">{formatarHora(item.timestamp)}</span>
+                <span class="timestamp">{formatarQuando(item, agora)}</span>
                 {#if estado === 'sucesso'}
                   {#if copiadoId === item.id}
                     <span class="copiado-texto" in:fade={{ duration: duracaoMovimento(DUR_FAST) }}>Copiado</span>

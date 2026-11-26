@@ -136,3 +136,17 @@ export const ROTULO_MONITORAR_PDF = 'Também converter PDFs novos nesta pasta';
 export const AJUDA_MONITORAR_PDF =
   'Cada PDF novo na pasta ganha um TXT ao lado, inclusive boletos e outros PDFs que não são de processo. Ao ligar e a cada abertura, os PDFs das últimas 24 h ainda sem TXT também são convertidos';
 export const TIPO_ENTRADA = { zip: 'ZIP', pdf: 'PDF' };
+
+// Histórico da fila ao reabrir (lista da última sessão).
+export const HISTORICO = {
+  interrompido: 'Interrompido',
+  processarDeNovo: 'Processar de novo',
+  txtAusente: 'TXT não encontrado',
+  origemAusente: 'O arquivo de origem não foi encontrado; ele pode ter sido movido ou apagado',
+  semDetalhes: 'Detalhes por documento só ficam disponíveis durante a sessão em que o item foi processado',
+  interruptor: 'Guardar a lista da última sessão',
+  fraseInterruptor:
+    'Ao reabrir, a lista mostra os processos da última sessão. Os nomes dos arquivos ficam guardados neste computador até a sessão seguinte em que algo for processado.',
+  falhaGravar: 'Não foi possível guardar o histórico',
+  tituloLimparConcluidos: 'Remover da lista os concluídos, com erro, cancelados e interrompidos',
+};

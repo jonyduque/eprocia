@@ -13,6 +13,8 @@ export function estadoItem(status, isPaused) {
       return 'erro';
     case 'cancelled':
       return 'cancelado';
+    case 'interrupted':
+      return 'interrompido';
     default:
       return 'aguardando';
   }
