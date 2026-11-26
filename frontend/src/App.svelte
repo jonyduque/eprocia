@@ -55,7 +55,7 @@
   import { rolagem } from './lib/rolagem.js';
   import { ROTULO_MONITORAMENTO, estadoMonitoramento, textoMonitoramento } from './lib/monitoramento.js';
   import { criarSoltura, textoAceitos, textoJaNaFila } from './lib/soltura.js';
-  import { aceitaEntrada } from './lib/atualizacao.js';
+  import { aceitaEntrada, avisoErroEntrada } from './lib/atualizacao.js';
   import { ATUALIZACAO } from './lib/textos.js';
   import {
     CONSULTA_ESCURO,
@@ -228,7 +228,8 @@
           }).catch((err) => {
             soltura.recebido(0);
             console.error('Erro ao adicionar à fila:', err);
-            aviso.mostrar('Erro ao adicionar à fila: ' + (err?.message ?? err), 'error');
+            const r = avisoErroEntrada(err, 'Erro ao adicionar à fila: ');
+            aviso.mostrar(r.texto, r.tipo);
           });
         }
         const r = avisoSoltura(zips.length, ignorados);
@@ -420,7 +421,8 @@
       }
     } catch (err) {
       console.error('Erro ao selecionar arquivos:', err);
-      avisarPainel('Erro ao selecionar arquivos: ' + (err?.message ?? err), 'error');
+      const r = avisoErroEntrada(err, 'Erro ao selecionar arquivos: ');
+      avisarPainel(r.texto, r.tipo);
     }
   }
 

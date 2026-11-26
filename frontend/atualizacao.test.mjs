@@ -4,7 +4,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ATUALIZACAO as T } from './src/lib/textos.js';
-import { textoFase, acoes, mostraProgresso, fraseModo, aceitaEntrada } from './src/lib/atualizacao.js';
+import { textoFase, acoes, mostraProgresso, fraseModo, aceitaEntrada, avisoErroEntrada } from './src/lib/atualizacao.js';
 
 const e = (o) => ({ ativo: true, fase: '', versao: '', progresso: 0, mensagem: '', modo: '', motivo: '', atual: '0.4.4', ...o });
 const nenhuma = { procurar: false, atualizar: null, reiniciar: null, cancelar: false, novidades: false, paginaVersoes: false };
@@ -179,6 +179,17 @@ describe('atualizacao', () => {
       'instalada', 'aguardando_fila', 'erro']) {
       assert.equal(aceitaEntrada(f), true, f);
     }
+  });
+});
+
+describe('avisoErroEntrada', () => {
+  it('recusa da atualização sai sem prefixo e como aviso', () => {
+    assert.deepEqual(avisoErroEntrada(T.soltarDepois, 'Erro ao adicionar à fila: '), { texto: T.soltarDepois, tipo: 'aviso' });
+    assert.deepEqual(avisoErroEntrada(new Error(T.soltarDepois), 'Erro ao reprocessar: '), { texto: T.soltarDepois, tipo: 'aviso' });
+  });
+  it('outro erro mantém o prefixo e o tipo error', () => {
+    assert.deepEqual(avisoErroEntrada('fila não inicializada', 'Erro ao reprocessar: '), { texto: 'Erro ao reprocessar: fila não inicializada', tipo: 'error' });
+    assert.deepEqual(avisoErroEntrada(new Error('x'), 'Erro ao selecionar arquivos: '), { texto: 'Erro ao selecionar arquivos: x', tipo: 'error' });
   });
 });
 
@@ -395,5 +406,22 @@ describe('interface da atualização', () => {
     assert.match(resto, /<div class="conteudo-grupo" class:animar=\{animar\.atualizacoes\} id="grupo-atualizacoes" hidden=\{recolhidas\.atualizacoes\}>\s*<Atualizacoes\b/);
     assert.match(settings, /export let estadoAtualizacao\b/);
     assert.match(settings, /export let filaOcupada\b/);
+  });
+
+  it('App: erros de pôr na fila passam por avisoErroEntrada', () => {
+    const ini = app.indexOf('OnFileDrop(');
+    const cb = app.slice(ini, app.indexOf('}, false)', ini));
+    assert.match(cb, /avisoErroEntrada\(err, 'Erro ao adicionar à fila: '\)/);
+    assert.doesNotMatch(cb, /'Erro ao adicionar à fila: ' \+/);
+    const f = corpoFuncao(app, 'async function triggerManualSelect');
+    assert.match(f, /avisoErroEntrada\(err, 'Erro ao selecionar arquivos: '\)/);
+    assert.doesNotMatch(f, /'Erro ao selecionar arquivos: ' \+/);
+  });
+  it('ProcessList: erros de reprocessar passam por avisoErroEntrada', () => {
+    for (const nome of ['async function lerComOCR', 'async function confirmarReprocessar']) {
+      const f = corpoFuncao(lista, nome);
+      assert.match(f, /avisoErroEntrada\(err, 'Erro ao reprocessar: '\)/, nome);
+      assert.doesNotMatch(f, /'Erro ao reprocessar: ' \+/, nome);
+    }
   });
 });

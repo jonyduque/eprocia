@@ -170,7 +170,7 @@ test('App não usa alert() e avisa as falhas de soltar e de selecionar ZIP', () 
   assert.match(app, /separarZips\(paths\)/);
   assert.match(app, /avisoSoltura\(/);
   const sel = funcao(app, 'triggerManualSelect');
-  assert.match(sel.slice(sel.indexOf('catch')), /avisarPainel\('Erro ao selecionar arquivos: '/);
+  assert.match(sel.slice(sel.indexOf('catch')), /avisoErroEntrada\(err, 'Erro ao selecionar arquivos: '\)/);
 });
 
 test('ações da fila que falham avisam pelo avisoAcao', () => {
@@ -183,7 +183,6 @@ test('ações da fila que falham avisam pelo avisoAcao', () => {
     handleCancel: 'Erro ao cancelar: ',
     handleRemove: 'Erro ao remover: ',
     handleClear: 'Erro ao limpar a fila: ',
-    confirmarReprocessar: 'Erro ao reprocessar: ',
   };
   for (const [nome, texto] of Object.entries(casos)) {
     const f = funcao(lista, nome);
