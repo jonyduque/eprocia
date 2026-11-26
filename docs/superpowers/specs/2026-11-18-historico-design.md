@@ -119,6 +119,8 @@ Nenhum método novo é obrigatório. `QueueItem` ganha campos e `Config` ganha `
 
 Um item de vários PDFs (spec do PDF avulso, p3) leva também `"kind": "pdf"` e `"paths": [...]`. Não se grava o `id` (gerado de novo ao restaurar), `restaurado`, progresso, contadores parciais, atividade por documento nem o ajuste de reprocessamento de um item que ainda aguardava.
 
+_Nota da revisão final (2026-11-26):_ grava-se também `"saida_anterior"` (omitido quando vazio), o `saidaAnterior` do item. Sem ele, um PDF reprocessado que ainda aguardava ou processava ao fechar voltava interrompido sem saída, e "Processar de novo" gravava `<nome>_2.txt`. Na carga ele passa pela mesma regra do `output_path` (`saida.SaidaDoItem`); inválido, só o campo é descartado, não o item. Ao restaurar, `saidaAnterior` vem dele e, sem ele, do `output_path`.
+
 ### 3.3 Retenção
 
 Só a última sessão (h2), pela regra da lista gravada (seção 2.1 e e6). Não há prazo em dias. Fica um teto de 500 itens, para uma sessão muito longa (o programa pode ficar dias aberto na bandeja) não gerar um arquivo sem limite; acima dele, saem os mais antigos. Com 500 itens o arquivo fica em torno de 300 KB, lido uma vez na abertura.

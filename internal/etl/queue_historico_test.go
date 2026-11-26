@@ -853,3 +853,57 @@ func TestMarcarSaidaAusente(t *testing.T) {
 		}
 	}
 }
+
+// Um PDF reprocessado que ainda aguardava (OutputPath vazio, saidaAnterior
+// preenchida) passa pelo arquivo e volta com a mesma saidaAnterior; o
+// "Processar de novo" grava por cima do TXT, sem criar <nome>_2.txt.
+func TestHistorico_SaidaAnteriorIdaEVolta(t *testing.T) {
+	dir := t.TempDir()
+	pdf := filepath.Join(dir, "peticao.pdf")
+	txt := filepath.Join(dir, "peticao.txt")
+	for _, f := range []string{pdf, txt} {
+		if err := os.WriteFile(f, []byte("antigo"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	item := &QueueItem{
+		ID: "i", Name: "peticao", Path: pdf, Paths: []string{pdf}, Kind: "pdf",
+		Status: "pending", Message: "Na fila...", saidaAnterior: txt,
+	}
+	arquivo := filepath.Join(t.TempDir(), "historico.json")
+	g := historico.NovoGravador(arquivo, historico.Opcoes{})
+	if err := g.Fechar([]historico.Item{paraHistorico(item)}); err != nil {
+		t.Fatal(err)
+	}
+	carregados, err := historico.Carregar(arquivo)
+	if err != nil || len(carregados) != 1 {
+		t.Fatalf("Carregar: %+v, %v", carregados, err)
+	}
+
+	q, _ := novaFilaGravada(t, func(_ context.Context, e Entrada, _ *models.Config, _ func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+		saidaTXT, err := gravarSaidaEntrada(e, false, "novo")
+		return saidaTXT, 1, 1, 0, err
+	})
+	q.Restaurar(carregados)
+	it := q.GetItems()[0]
+	q.mu.RLock()
+	anterior := q.items[0].saidaAnterior
+	q.mu.RUnlock()
+	if it.Status != "interrupted" || it.OutputPath != "" || anterior != txt {
+		t.Fatalf("restaurado: status %q, OutputPath %q, saidaAnterior %q; want interrupted, vazio, %q", it.Status, it.OutputPath, anterior, txt)
+	}
+
+	if err := q.Reprocessar(it.ID, "none", "none", nil); err != nil {
+		t.Fatal(err)
+	}
+	fim := esperarTerminoID(t, q, it.ID)
+	if fim.Status != "success" || fim.OutputPath != txt {
+		t.Fatalf("fim: status %q, OutputPath %q; want success, %q", fim.Status, fim.OutputPath, txt)
+	}
+	if b, _ := os.ReadFile(txt); string(b) != "novo" {
+		t.Errorf("TXT não sobrescrito: %q", b)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "peticao_2.txt")); err == nil {
+		t.Error("criou peticao_2.txt")
+	}
+}

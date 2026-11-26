@@ -46,6 +46,10 @@ type Item struct {
 	CleaningLevel   string   `json:"cleaning_level"`
 	Kind            string   `json:"kind"`
 	Paths           []string `json:"paths,omitempty"`
+	// SaidaAnterior é o TXT que um reprocesso ainda em curso vai sobrescrever
+	// (QueueItem.saidaAnterior): sem ele, um PDF interrompido no meio de um
+	// reprocesso voltaria sem saída e gravaria <nome>_2.txt.
+	SaidaAnterior string `json:"saida_anterior,omitempty"`
 }
 
 // arquivoHistorico é o conteúdo de historico.json.
@@ -92,6 +96,10 @@ func Carregar(arquivo string) ([]Item, error) {
 			it.Kind = kindDoCaminho(it.Path)
 		}
 		if itemValido(it) {
+			// Saída anterior que não é do item só perde o campo: o item vale.
+			if it.SaidaAnterior != "" && !saida.SaidaDoItem(it.Kind, it.Path, it.Paths, it.SaidaAnterior) {
+				it.SaidaAnterior = ""
+			}
 			itens = append(itens, it)
 		}
 	}

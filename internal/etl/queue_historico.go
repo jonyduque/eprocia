@@ -45,6 +45,7 @@ func paraHistorico(item *QueueItem) historico.Item {
 		OcrMode:         item.OcrMode,
 		CleaningLevel:   item.CleaningLevel,
 		Kind:            kind,
+		SaidaAnterior:   item.saidaAnterior,
 	}
 	if kind == "pdf" {
 		h.Paths = slices.Clone(item.Paths)
@@ -53,7 +54,8 @@ func paraHistorico(item *QueueItem) historico.Item {
 }
 
 // deHistorico monta o QueueItem de uma linha restaurada: ID novo, Restaurado,
-// pending e processing viram interrupted, e o TXT gravado vira saidaAnterior.
+// pending e processing viram interrupted, e a saida_anterior gravada (ou, sem
+// ela, o TXT gravado) vira saidaAnterior.
 func deHistorico(h historico.Item) *QueueItem {
 	kind := h.Kind
 	if kind == "" {
@@ -87,7 +89,10 @@ func deHistorico(h historico.Item) *QueueItem {
 			item.Paths = []string{h.Path}
 		}
 	}
-	if h.OutputPath != "" {
+	switch {
+	case h.SaidaAnterior != "":
+		item.saidaAnterior = h.SaidaAnterior
+	case h.OutputPath != "":
 		item.saidaAnterior = h.OutputPath
 	}
 	switch item.Status {

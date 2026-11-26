@@ -245,3 +245,45 @@ func TestCarregar_KindPreenchidoNaoTroca(t *testing.T) {
 		t.Fatalf("got %+v, %v; want kind pdf", got, err)
 	}
 }
+
+func TestCarregar_SaidaAnterior(t *testing.T) {
+	// saida_anterior passa pela mesma regra do output_path (SaidaDoItem), mas
+	// um valor inválido só some: o item fica.
+	pdf := em("peticao.pdf")
+	itens := []string{
+		`{"name":"a","path":` + js(pdf) + `,"status":"interrupted","kind":"pdf","saida_anterior":` + js(em("peticao_2.txt")) + `}`,
+		`{"name":"b","path":` + js(pdf) + `,"status":"interrupted","kind":"pdf","saida_anterior":` + js(`C:\Users\fulano\Documents\outro.txt`) + `}`,
+		`{"name":"c","path":` + js(pdf) + `,"status":"interrupted","kind":"pdf","saida_anterior":"relativo.txt"}`,
+	}
+	arq := filepath.Join(t.TempDir(), "historico.json")
+	escreverArquivo(t, arq, []byte(`{"versao":1,"itens":[`+strings.Join(itens, ",")+`]}`))
+	got, err := Carregar(arq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 3 {
+		t.Fatalf("ficaram %d itens: %+v; want 3", len(got), got)
+	}
+	if got[0].SaidaAnterior != em("peticao_2.txt") {
+		t.Errorf("válida: SaidaAnterior = %q", got[0].SaidaAnterior)
+	}
+	for _, it := range got[1:] {
+		if it.SaidaAnterior != "" {
+			t.Errorf("%s: SaidaAnterior inválida mantida: %q", it.Name, it.SaidaAnterior)
+		}
+	}
+}
+
+func TestItem_SaidaAnteriorOmitidaVazia(t *testing.T) {
+	b, err := json.Marshal(Item{Name: "a", Path: em("a.zip"), Status: "success", Kind: "zip"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(b, []byte("saida_anterior")) {
+		t.Errorf("saida_anterior vazia gravada: %s", b)
+	}
+	b, _ = json.Marshal(Item{SaidaAnterior: em("a.txt")})
+	if !bytes.Contains(b, []byte(`"saida_anterior":`)) {
+		t.Errorf("saida_anterior não gravada: %s", b)
+	}
+}
