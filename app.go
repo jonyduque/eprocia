@@ -66,6 +66,8 @@ type App struct {
 	atualizador *atualizacao.Atualizador
 	// abrirURL é trocado nos testes; o padrão é runtime.BrowserOpenURL.
 	abrirURL func(url string)
+	// arranque é o que a main leu sobre a troca (lerArranque).
+	arranque arranque
 	// apos é o PID do processo antigo (--apos-atualizar); 0 = abertura normal.
 	apos int
 	// limparAnterior: --limpar-anterior, apagar eprocia.anterior.exe depois

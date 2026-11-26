@@ -1075,3 +1075,77 @@ func TestMsgSoltarDepois_IgualAoFrontend(t *testing.T) {
 		t.Errorf("textos.js sem %q", quer)
 	}
 }
+
+func TestLerArranque(t *testing.T) {
+	comLimpar := []string{"eprocia.exe", "--apos-atualizar=4242", "--limpar-anterior"}
+	casos := []struct {
+		nome    string
+		args    []string
+		ppid    int
+		exe     string
+		errPai  error
+		quer    arranque
+		chamado int
+	}{
+		{"pai é o antigo renomeado", comLimpar, 4242, "eprocia.anterior.exe", nil,
+			arranque{apos: 4242, limparAnterior: true, pidFlag: 4242, paiPID: 4242, paiExe: "eprocia.anterior.exe"}, 1},
+		{"pid não é o pai", comLimpar, 9999, "pwsh.exe", nil,
+			arranque{pidFlag: 4242, recusa: "o pid informado não é o processo pai", paiPID: 9999, paiExe: "pwsh.exe"}, 1},
+		{"pai não é eprocIA", comLimpar, 4242, "pwsh.exe", nil,
+			arranque{pidFlag: 4242, recusa: "o processo pai não é o eprocIA", paiPID: 4242, paiExe: "pwsh.exe"}, 1},
+		{"erro do pai", comLimpar, 0, "", errors.New("snapshot"),
+			arranque{apos: 4242, limparAnterior: true, pidFlag: 4242}, 1},
+		{"sem limpar", []string{"eprocia.exe", "--apos-atualizar=4242"}, 4242, "eprocia.exe", nil,
+			arranque{apos: 4242, pidFlag: 4242, paiPID: 4242, paiExe: "eprocia.exe"}, 1},
+		{"só limpar", []string{"eprocia.exe", "--limpar-anterior"}, 4242, "eprocia.exe", nil, arranque{}, 0},
+		{"sem flag", []string{"eprocia.exe"}, 4242, "eprocia.exe", nil, arranque{}, 0},
+	}
+	for _, c := range casos {
+		t.Run(c.nome, func(t *testing.T) {
+			chamadas := 0
+			pai := func() (int, string, error) {
+				chamadas++
+				return c.ppid, c.exe, c.errPai
+			}
+			got := lerArranque(c.args, pai)
+			if got != c.quer {
+				t.Errorf("lerArranque(%q) = %+v, quer %+v", c.args, got, c.quer)
+			}
+			if chamadas != c.chamado {
+				t.Errorf("pai chamado %d vezes, quer %d", chamadas, c.chamado)
+			}
+		})
+	}
+}
+
+func TestLogarRecusaApos(t *testing.T) {
+	antigo, saida, flags := slog.Default(), log.Writer(), log.Flags()
+	t.Cleanup(func() {
+		slog.SetDefault(antigo)
+		log.SetOutput(saida)
+		log.SetFlags(flags)
+	})
+	var buf bytes.Buffer
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+
+	app := &App{arranque: arranque{pidFlag: 4242, recusa: atualizacao.MotivoPaiNaoEprocia, paiPID: 4242, paiExe: "pwsh.exe"}}
+	app.logarRecusaApos()
+	linha := buf.String()
+	if strings.Count(linha, "\n") != 1 {
+		t.Fatalf("quer uma linha, veio %q", linha)
+	}
+	for _, quer := range []string{"level=WARN", "--apos-atualizar ignorado", `motivo="o processo pai não é o eprocIA"`, "pid_flag=4242", "ppid=4242", "pai_exe=pwsh.exe"} {
+		if !strings.Contains(linha, quer) {
+			t.Errorf("log %q sem %q", linha, quer)
+		}
+	}
+
+	for _, a := range []arranque{{}, {apos: 4242, pidFlag: 4242, paiPID: 4242, paiExe: "eprocia.exe"}} {
+		buf.Reset()
+		app := &App{arranque: a}
+		app.logarRecusaApos()
+		if buf.Len() != 0 {
+			t.Errorf("arranque %+v logou %q", a, buf.String())
+		}
+	}
+}

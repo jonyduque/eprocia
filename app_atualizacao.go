@@ -31,6 +31,50 @@ var intervaloTravaAdiada = 500 * time.Millisecond
 // chamado, depois de o antigo sair (ou do prazo de esperá-lo).
 var prazoTravaAdiada = atualizacao.PrazoAntigoSair
 
+// arranque é o que a main leu da linha de comando sobre a troca.
+type arranque struct {
+	apos           int // pid do antigo aceito; 0 = partida normal
+	limparAnterior bool
+	pidFlag        int    // pid pedido na flag, mesmo recusado
+	recusa         string // motivo fixo da recusa; "" = aceito ou sem flag
+	paiPID         int
+	paiExe         string // só o nome da imagem do pai
+}
+
+// lerArranque lê --apos-atualizar e --limpar-anterior e confere a origem da
+// flag: o processo novo da troca é filho do antigo (troca.go, exec.Command),
+// e o nome da imagem no instantâneo é o da criação, por isso
+// eprocia.anterior.exe (o antigo já renomeado) também vale. Recusada, a
+// partida é normal: trava imediata, sem sinal de vida nem --limpar-anterior.
+// pai só é chamado quando a flag existe.
+func lerArranque(args []string, pai func() (int, string, error)) arranque {
+	pid, ok := atualizacao.AposAtualizar(args)
+	if !ok {
+		return arranque{}
+	}
+	ppid, exe, err := pai()
+	r := arranque{pidFlag: pid, paiPID: ppid, paiExe: exe}
+	aceito, motivo := atualizacao.ConfirmarAposAtualizar(pid, ppid, exe, err)
+	if !aceito {
+		r.recusa = motivo
+		return r
+	}
+	r.apos = pid
+	r.limparAnterior = atualizacao.LimparAnteriorPedido(args)
+	return r
+}
+
+// logarRecusaApos registra por que o --apos-atualizar foi ignorado; roda
+// depois de iniciar o registro.
+func (a *App) logarRecusaApos() {
+	r := a.arranque
+	if r.recusa == "" {
+		return
+	}
+	slog.Warn("atualização: --apos-atualizar ignorado; partida normal",
+		"motivo", r.recusa, "pid_flag", r.pidFlag, "ppid", r.paiPID, "pai_exe", r.paiExe)
+}
+
 // travaAposAtualizar adia a trava de instância do processo aberto pela troca
 // (--apos-atualizar): o antigo a segura até sair, e o novo não pode sair por
 // achá-la ocupada. A envolvida devolve ok com a trava ocupada; depois tenta de
