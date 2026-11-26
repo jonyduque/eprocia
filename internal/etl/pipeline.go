@@ -211,6 +211,21 @@ func (f *fontePDF) manterSoDisco() {
 // arquivo trocado.
 var errAvulsoNaoConferido = &fs.PathError{Op: "read", Err: errors.New("PDF avulso não passou na conferência de LerEntrada")}
 
+// errArquivoMudou é a leitura de um PDF avulso cujo tamanho não é mais o
+// conferido por LerEntrada (maior, menor ou zerado): o arquivo foi trocado
+// entre a conferência e a leitura. É a única linha a trocar se a frase mudar.
+var errArquivoMudou = errors.New("o arquivo mudou durante a leitura")
+
+// errAvulsoMudou escolhe o erro de um PDF avulso lido com tamanho diferente
+// do declarado: sem conferência (Tamanho 0), falha de disco; senão, arquivo
+// trocado.
+func errAvulsoMudou(tamanho int64) error {
+	if tamanho == 0 {
+		return errAvulsoNaoConferido
+	}
+	return errArquivoMudou
+}
+
 // extrairPDF lê o documento (entrada do ZIP ou PDF avulso, por f.Abrir) para
 // memória, se couber no orçamento, ou para um temporário próprio em disco
 // mantido aberto. O caminho de um PDF avulso nunca vira fontePDF.caminho: só o
@@ -231,13 +246,16 @@ func extrairPDF(f models.ProcessFile, mem *memoriaPDF) (*fontePDF, error) {
 				// Lê até o EOF para o archive/zip conferir o CRC e para não
 				// truncar calado uma entrada maior que o tamanho declarado.
 				var extra [1]byte
-				if n, errEOF := zr.Read(extra[:]); n > 0 && f.Avulso && tamanho == 0 {
-					err = errAvulsoNaoConferido
+				if n, errEOF := zr.Read(extra[:]); n > 0 && f.Avulso {
+					err = errAvulsoMudou(tamanho)
 				} else if n > 0 {
 					err = fmt.Errorf("entrada do ZIP maior que o tamanho declarado")
 				} else if errEOF != io.EOF {
 					err = errEOF
 				}
+			} else if f.Avulso && (errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF)) {
+				// O PDF encolheu (ou zerou) depois da conferência.
+				err = errAvulsoMudou(tamanho)
 			}
 			if err != nil {
 				mem.disponivel.Add(tamanho)
@@ -253,6 +271,9 @@ func extrairPDF(f models.ProcessFile, mem *memoriaPDF) (*fontePDF, error) {
 		return nil, err
 	}
 	n, err := io.Copy(tmp, zr)
+	if err == nil && f.Avulso && n != tamanho {
+		err = errAvulsoMudou(tamanho)
+	}
 	if err != nil {
 		tmp.Close()
 		os.Remove(tmp.Name())
