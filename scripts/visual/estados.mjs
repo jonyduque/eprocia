@@ -3,7 +3,7 @@
 
 import { readFileSync } from 'node:fs';
 
-const BASE_TS = 1767322800000; // 2026-01-02 03:00 UTC, fixed so captures are stable
+export const BASE_TS = 1767322800000; // 2026-01-02 03:00 UTC, fixed so captures are stable
 
 const CONFIG = {
   monitored_path: 'C:\\Usuarios\\exemplo\\Downloads\\Processos',
@@ -216,6 +216,35 @@ const FILA_PDF = [
   },
 ];
 
+// Fila do estado `historico`: um item processado nesta sessão e três restaurados
+// da sessão anterior, de ontem (o relógio da captura fica em BASE_TS + 2 h, 02:00
+// de 02/01/2026 em São Paulo; capturar.mjs). Restaurado não traz relatorio.
+const ONTEM_1432 = BASE_TS - (9 * 60 + 28) * 60000; // 01/01/2026 14:32 em São Paulo
+const restaurado = (n, status, extra) => item(n, status, {
+  timestamp: ONTEM_1432 - 20 * 60000,
+  finished_at: 0,
+  restaurado: true,
+  source_missing: false,
+  output_missing: false,
+  ocr_mode: 'normal',
+  cleaning_level: 'standard',
+  ...extra,
+});
+const concluidoAntes = (n, fim, extra = {}) => restaurado(n, 'success', {
+  progress: 100,
+  message: 'Concluído',
+  output_path: `${CONFIG.monitored_path}\\${processo(n)}.txt`,
+  docs_count: 57, pages_count: 142, estimated_tokens: 98450, processed_docs: 57, total_docs: 57, processed_pages: 142, total_pages: 142,
+  finished_at: fim,
+  ...extra,
+});
+const FILA_HISTORICO = [
+  { ...sucesso(31), finished_at: BASE_TS + 95 * 60000, relatorio: REL_NATIVO },
+  restaurado(32, 'interrupted', { timestamp: ONTEM_1432 + 3 * 60000 }),
+  concluidoAntes(33, ONTEM_1432),
+  concluidoAntes(34, ONTEM_1432 - 12 * 60000, { output_missing: true, unread_docs: 2 }),
+];
+
 // listaAltoContraste: states captured with forced colors, from review.json
 // (visual.alto_contraste). A missing list or key is an empty list.
 export function listaAltoContraste(config) {
@@ -237,6 +266,9 @@ export const ESTADOS = {
     pausado: false,
   },
   'fila-pdf': { config: CONFIG, fila: FILA_PDF, pausado: false },
+  // Histórico ligado: a fila da sessão anterior restaurada, com data, TXT
+  // ausente e o estado Interrompido.
+  historico: { config: { ...CONFIG, guardar_historico: true }, fila: FILA_HISTORICO, pausado: false },
   processando: {
     config: CONFIG,
     fila: [sucesso(1), processando(2, 42), item(3, 'pending'), item(4, 'pending')],

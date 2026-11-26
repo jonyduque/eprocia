@@ -6,7 +6,7 @@ import { ESTADOS, instalarStubs, listaAltoContraste } from './estados.mjs';
 // Fields of etl.QueueItem (internal/etl/queue.go) the UI reads.
 const CAMPOS = ['id', 'name', 'path', 'status', 'progress', 'message', 'output_path', 'docs_count', 'pages_count', 'estimated_tokens',
   'processed_docs', 'total_docs', 'processed_pages', 'total_pages', 'timestamp', 'unread_docs', 'kind'];
-const STATUS = new Set(['pending', 'processing', 'paused', 'cancelled', 'success', 'error']);
+const STATUS = new Set(['pending', 'processing', 'paused', 'cancelled', 'success', 'error', 'interrupted']);
 
 // Chaves de models.RelatorioZip (internal/models, frontend/src/wailsjs/go/models.ts),
 // sem as opcionais (omitempty).
@@ -26,12 +26,12 @@ const CATEGORIAS = ['lida_nativa', 'lida_ocr', 'vazia', 'sem_ocr', 'com_erro'];
 const ATUALIZACAO = ['atualizacao-em-dia', 'atualizacao-disponivel', 'atualizacao-instalador', 'atualizacao-so-avisar',
   'atualizacao-incompleta', 'atualizacao-baixando', 'atualizacao-instalada', 'atualizacao-aguardando-fila', 'atualizacao-erro',
   'atualizacao-reiniciando'];
-const NOVOS = ['relatorio', 'fila-pdf', 'configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida', ...ATUALIZACAO];
+const NOVOS = ['historico', 'relatorio', 'fila-pdf', 'configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida', ...ATUALIZACAO];
 
 describe('estados visuais', () => {
   it('cobre os estados da review.json', () => {
     assert.deepEqual(Object.keys(ESTADOS).sort(),
-      ['configuracoes', 'configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida', 'erro', 'fila', 'fila-pdf', 'nao-lidos', 'processando', 'relatorio', 'vazio', ...ATUALIZACAO].sort());
+      ['configuracoes', 'configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida', 'erro', 'fila', 'fila-pdf', 'historico', 'nao-lidos', 'processando', 'relatorio', 'vazio', ...ATUALIZACAO].sort());
   });
 
   it('relatorio: três concluídos, um só nativo, um com OCR e em branco, um com os três avisos e atencao', () => {
@@ -47,6 +47,22 @@ describe('estados visuais', () => {
     assert.equal(comOCR.sem_ocr + comOCR.com_erro + comOCR.ocr_falhou_com_reserva, 0);
     assert.ok(avisos.sem_ocr > 0 && avisos.com_erro > 0 && avisos.ocr_falhou_com_reserva > 0);
     assert.ok(fila[2].relatorio.atencao?.length > 0, 'atencao vazia');
+  });
+
+  it('historico: um item de hoje e três da sessão anterior em outro dia (concluído, TXT ausente, interrompido)', () => {
+    const fila = ESTADOS.historico.fila;
+    assert.equal(fila.length, 4);
+    const dia = (ms) => new Date(ms).toISOString().slice(0, 10);
+    const quando = (i) => i.finished_at || i.timestamp;
+    const [hoje, ...anteriores] = fila;
+    for (const i of anteriores) assert.notEqual(dia(quando(i)), dia(quando(hoje)), `${i.name}: mesmo dia de hoje`);
+    const concluido = anteriores.find((i) => i.status === 'success' && !i.output_missing);
+    const ausente = anteriores.find((i) => i.status === 'success' && i.output_missing === true);
+    const interrompido = anteriores.find((i) => i.status === 'interrupted');
+    assert.ok(concluido && concluido.finished_at > 0, 'concluído com finished_at');
+    assert.ok(ausente, 'concluído com output_missing');
+    assert.ok(interrompido, 'interrompido');
+    for (const i of fila) assert.match(i.name, /^5000000-00\.2026\.4\.00\.\d{4}(\.zip)?$/);
   });
 
   it('fila-pdf: um ZIP, um PDF avulso e um item de três PDFs, todos concluídos', () => {
@@ -234,6 +250,13 @@ describe('lista de alto contraste', () => {
     for (const s of ["'-relatorio'", "'-relatorio-fim'", "'-ler-ocr'", '.btn-ler-ocr', '.resumo-relatorio', '.btn-log', '[LIMITE_BOTOES, LIMITE_BOTOES + 1]', '`-fila-${alvo}`']) {
       assert.ok(src.includes(s), `capturar.mjs sem ${s}`);
     }
+  });
+
+  it('capturar.mjs fixa o relógio e o fuso, e o historico ganha a lista estreita', () => {
+    const src = readFileSync(new URL('./capturar.mjs', import.meta.url), 'utf8');
+    assert.match(src, /page\.clock\.setFixedTime\(BASE_TS \+ 2 \* 60 \* 60000\)/);
+    assert.equal(src.match(/timezoneId: 'America\/Sao_Paulo'/g)?.length, 2, 'fuso nos dois newContext');
+    assert.match(src, /\['relatorio', 'historico'\]\.includes\(nome\)/);
   });
 
   it('capturar.mjs usa o mesmo limite dos botões da fila que o ProcessList.svelte', () => {

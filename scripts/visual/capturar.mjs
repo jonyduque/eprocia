@@ -14,7 +14,7 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ESTADOS, VERSAO_ATUAL, instalarStubs, listaAltoContraste } from './estados.mjs';
+import { BASE_TS, ESTADOS, VERSAO_ATUAL, instalarStubs, listaAltoContraste } from './estados.mjs';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PLAYWRIGHT = '1.63.0';
@@ -22,6 +22,11 @@ const PORTA = 5199;
 // @container (max-width) que tira o rótulo dos botões da fila (ProcessList.svelte);
 // estados.test.mjs confere que é o mesmo número.
 const LIMITE_BOTOES = 660;
+// Relógio e fuso fixos em todas as capturas: a data da linha ("14:32", "ontem
+// 14:32", "12/11 14:32") depende do dia de agora no fuso local.
+async function fixarRelogio(page) {
+  await page.clock.setFixedTime(BASE_TS + 2 * 60 * 60000);
+}
 const ALTO_CONTRASTE = listaAltoContraste(JSON.parse(readFileSync(path.join(RAIZ, '.claude', 'review.json'), 'utf8')));
 
 function opcoes(argv) {
@@ -128,8 +133,9 @@ async function main() {
     for (const [w, h] of tamanhos) {
       for (const tema of temas) {
         for (const nome of estados) {
-          const ctx = await navegador.newContext({ viewport: { width: w, height: h }, reducedMotion: 'reduce' });
+          const ctx = await navegador.newContext({ viewport: { width: w, height: h }, reducedMotion: 'reduce', timezoneId: 'America/Sao_Paulo' });
           const page = await ctx.newPage();
+          await fixarRelogio(page);
           await page.addInitScript(instalarStubs, { estado: ESTADOS[nome], tema, versao: VERSAO_ATUAL });
           await page.goto(vite.url);
           await page.waitForLoadState('networkidle');
@@ -221,6 +227,8 @@ async function main() {
               await salvar('-ler-ocr');
               await page.evaluate(() => document.activeElement?.blur());
             }
+          }
+          if (['relatorio', 'historico'].includes(nome)) {
             // Fila nos dois lados do limite em que os botões perdem o rótulo
             // (@container max-width: LIMITE_BOTOES em ProcessList.svelte): o card
             // no limite (só ícones) e 1 px acima (com rótulo), quando o divisor
@@ -297,8 +305,9 @@ async function main() {
     }
 
     for (const nome of estados.filter((e) => ALTO_CONTRASTE.includes(e))) {
-      const ctx = await navegador.newContext({ viewport: { width: 1024, height: 768 }, reducedMotion: 'reduce', forcedColors: 'active' });
+      const ctx = await navegador.newContext({ viewport: { width: 1024, height: 768 }, reducedMotion: 'reduce', forcedColors: 'active', timezoneId: 'America/Sao_Paulo' });
       const page = await ctx.newPage();
+      await fixarRelogio(page);
       await page.addInitScript(instalarStubs, { estado: ESTADOS[nome], tema: 'escuro', versao: VERSAO_ATUAL });
       await page.goto(vite.url);
       await page.waitForLoadState('networkidle');

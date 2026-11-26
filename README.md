@@ -222,7 +222,7 @@ Com opções:
 | `-NoStart` | Não abre o app ao terminar. |
 | `-DryRun` | Mostra o que faria e pergunta se deve fazer. |
 | `-Uninstall` | Remove app, atalhos e entrada de desinstalação; mantém as configurações. |
-| `-Uninstall -Purge` | Remove também configurações, dados do WebView2 e cache do OCR. |
+| `-Uninstall -Purge` | Remove também configurações, histórico da fila, dados do WebView2 e cache do OCR. |
 
 ## ⚙️ Configurações
 
@@ -235,6 +235,7 @@ Com opções:
 | 👀 **Monitoramento ativo** | liga/desliga | Vigia ou não a pasta escolhida. Arrastar ZIPs ou PDFs para a janela funciona sempre. |
 | 📄 **Também converter PDFs novos nesta pasta** | liga/desliga (**desligado**) | A pasta monitorada passa a converter cada PDF que aparecer nela, inclusive boletos e outros PDFs que não são de processo, num TXT ao lado. Ao ligar a opção e a cada abertura do eprocIA, a varredura da pasta também converte os PDFs das últimas 24 h que ainda não têm TXT. Um PDF que já tem TXT mais novo não é convertido de novo. |
 | 🚀 **Iniciar com o Windows** | liga/desliga | Abre oculto na bandeja no logon. |
+| 🕘 **Guardar a lista da última sessão** | liga/desliga (**desligado**) | Ao reabrir, a fila mostra os processos da última sessão em que algo foi processado (até 500), com data e hora na linha e as ações de antes. O que estava processando ou aguardando ao fechar aparece como **Interrompido**, com **Processar de novo**; com o monitoramento ligado, um ZIP das últimas 24 h sem TXT volta a processar sozinho na mesma linha. Se o TXT sumiu, a linha diz **TXT não encontrado**. Veja [Privacidade](#-privacidade). |
 
 As configurações ficam em `%APPDATA%\eprocIA\config.json`.
 
@@ -299,6 +300,8 @@ go run ./scripts/anonimizar-log eprocia.log eprocia.1.log
 ## 🔒 Privacidade
 
 Nada sai da sua máquina. O eprocIA só usa a rede quando você clica em "Procurar atualização" (veja acima); fora isso, não faz nenhuma chamada: o OCR, as fontes e a interface vêm embutidos no executável. O texto só vai para uma IA quando **você** cola. O log e a telemetria, quando ligados por `EPROCIA_LOG`, ficam só no computador.
+
+Com **Guardar a lista da última sessão** ligado (vem desligado), o eprocIA grava em `%APPDATA%\eprocIA\historico.json` os nomes dos arquivos da fila (no Eproc, números de processo) e as pastas deles, que trazem o nome do seu usuário do Windows; nenhum texto de documento. Fica só a última sessão com processamento, até 500 itens, e o arquivo nunca sai da máquina. Em computador compartilhado com o mesmo login, outra pessoa vê esses processos ao abrir o programa. Para limpar: o **X** da linha apaga o item, **Limpar tudo** apaga a lista inteira, desligar a opção apaga o arquivo, e `install.ps1 -Uninstall -Purge` apaga todos os dados do eprocIA.
 
 ## 🛠️ Desenvolvimento
 
