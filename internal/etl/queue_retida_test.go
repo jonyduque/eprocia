@@ -17,9 +17,9 @@ type gravadorChamadas struct {
 	liberar  chan struct{}
 }
 
-func (g *gravadorChamadas) processar(ctx context.Context, zipPath string, _ *models.Config, _ func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+func (g *gravadorChamadas) processar(ctx context.Context, e Entrada, _ *models.Config, _ func(float64, string, int, int, int, int)) (string, int, int, int, error) {
 	g.mu.Lock()
-	g.caminhos = append(g.caminhos, zipPath)
+	g.caminhos = append(g.caminhos, e.Caminhos[0])
 	g.mu.Unlock()
 	select {
 	case <-g.liberar:
@@ -240,7 +240,7 @@ func TestQueue_NaoOciosaComItemEmCurso(t *testing.T) {
 		t.Run(caso.nome, func(t *testing.T) {
 			liberar := make(chan struct{})
 			chamou := make(chan struct{})
-			q, _ := novaFilaGravada(t, func(context.Context, string, *models.Config, func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+			q, _ := novaFilaGravada(t, func(context.Context, Entrada, *models.Config, func(float64, string, int, int, int, int)) (string, int, int, int, error) {
 				close(chamou)
 				<-liberar // ignora o cancelamento: simula o item que demora a voltar
 				return "saida.txt", 1, 1, 0, nil

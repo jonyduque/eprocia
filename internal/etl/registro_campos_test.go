@@ -358,7 +358,7 @@ func TestRegistro_PanicDaFilaComPilha(t *testing.T) {
 	var buf bytes.Buffer
 	slog.SetDefault(slog.New(slog.NewJSONHandler(&escritorTravado{mu: &mu, w: &buf}, nil)))
 
-	q, _ := novaFilaGravada(t, func(context.Context, string, *models.Config, func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+	q, _ := novaFilaGravada(t, func(context.Context, Entrada, *models.Config, func(float64, string, int, int, int, int)) (string, int, int, int, error) {
 		panic("panic sintetico da fila")
 	})
 	q.AddFiles([]string{"5000000-00.2026.8.26.0001.zip"})

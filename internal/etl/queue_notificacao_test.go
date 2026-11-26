@@ -39,8 +39,8 @@ func (f *finalizados) esperar(t *testing.T, n int) []*QueueItem {
 }
 
 func TestFila_AvisaFimComSucessoEErro(t *testing.T) {
-	q, _ := novaFilaGravada(t, func(_ context.Context, path string, _ *models.Config, _ func(float64, string, int, int, int, int)) (string, int, int, int, error) {
-		if path == "ruim.zip" {
+	q, _ := novaFilaGravada(t, func(_ context.Context, e Entrada, _ *models.Config, _ func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+		if e.Caminhos[0] == "ruim.zip" {
 			return "", 0, 0, 0, errors.New("ZIP corrompido")
 		}
 		return "C:\\saida\\bom.txt", 3, 12, 5000, nil

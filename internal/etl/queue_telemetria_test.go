@@ -50,7 +50,7 @@ func TestQueue_AoTerminarZipEtapaErro(t *testing.T) {
 		t.Errorf("falha ao abrir: status %q, etapa_erro %q; quer error e %q", e.Status, e.EtapaErro, EtapaAbrirZip)
 	}
 
-	q.processar = func(context.Context, string, *models.Config, func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+	q.processar = func(context.Context, Entrada, *models.Config, func(float64, string, int, int, int, int)) (string, int, int, int, error) {
 		return "saida.txt", 1, 1, 1, nil
 	}
 	q.AddFiles([]string{filepath.Join(dir, "ok.zip")})
@@ -67,8 +67,8 @@ func TestQueue_AoTerminarZip(t *testing.T) {
 		t.Fatal(err)
 	}
 	modo := map[string]string{} // nome -> "ok" ou "erro"
-	q, _ := novaFilaGravada(t, func(_ context.Context, zipPath string, _ *models.Config, _ func(float64, string, int, int, int, int)) (string, int, int, int, error) {
-		if modo[filepath.Base(zipPath)] == "erro" {
+	q, _ := novaFilaGravada(t, func(_ context.Context, e Entrada, _ *models.Config, _ func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+		if modo[filepath.Base(e.Caminhos[0])] == "erro" {
 			return "", 0, 0, 0, errors.New("falha fictícia")
 		}
 		return "saida.txt", 1, 1, 1, nil
@@ -119,10 +119,10 @@ func TestQueue_AoTerminarZip(t *testing.T) {
 	}
 
 	// cancelled: o processar falso cancela o próprio item.
-	q.processar = func(ctx context.Context, zipPath string, _ *models.Config, _ func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+	q.processar = func(ctx context.Context, e Entrada, _ *models.Config, _ func(float64, string, int, int, int, int)) (string, int, int, int, error) {
 		q.mu.Lock()
 		for _, it := range q.items {
-			if it.Path == zipPath && it.cancel != nil {
+			if it.Path == e.Caminhos[0] && it.cancel != nil {
 				it.cancel()
 			}
 		}

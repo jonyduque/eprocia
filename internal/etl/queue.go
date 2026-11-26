@@ -9,12 +9,14 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
 	"eprocia/internal/config"
 	"eprocia/internal/models"
 	"eprocia/internal/registro"
+	"eprocia/internal/saida"
 
 	"github.com/google/uuid"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -36,6 +38,10 @@ type QueueItem struct {
 	TotalDocs       int     `json:"total_docs"`
 	ProcessedPages  int     `json:"processed_pages"`
 	TotalPages      int     `json:"total_pages"`
+	// Kind é "zip" ou "pdf". Paths são os PDFs do item, na ordem por evento
+	// (vazio para ZIP); Path do item de PDF é Paths[0].
+	Kind  string   `json:"kind"`
+	Paths []string `json:"paths,omitempty"`
 	// UnreadDocs conta os documentos que ficaram sem texto aproveitável; o item
 	// continua "success".
 	UnreadDocs int `json:"unread_docs"`
@@ -60,6 +66,10 @@ type QueueItem struct {
 	origem string
 	// atividade guarda o estado por documento da execução atual ou da última.
 	atividade *Atividade
+	// saidaAnterior é o TXT da última execução com sucesso, guardado ao
+	// reabrir o item (Reprocessar, ReprocessarMonitorado; Restaurar no
+	// histórico), para a próxima gravar por cima dele. Zerada só no sucesso.
+	saidaAnterior string
 
 	ultimoEnvio  time.Time   // último queue:item deste item
 	envioPend    *time.Timer // queue:item agendado pelo limitador
@@ -96,8 +106,8 @@ type Queue struct {
 	// emitir substitui runtime.EventsEmit nos testes.
 	emitir func(ctx context.Context, nome string, dados ...any)
 
-	// processar substitui pipeline.ProcessZip nos testes.
-	processar func(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error)
+	// processar substitui pipeline.ProcessarEntrada nos testes.
+	processar func(ctx context.Context, e Entrada, cfg *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error)
 
 	// carregarConfig substitui config.Load nos testes.
 	carregarConfig func() (*models.Config, error)
@@ -234,19 +244,40 @@ func (q *Queue) execucaoLocked(item *QueueItem, reprocesso bool, cfg *models.Con
 	}
 }
 
-// AddFiles adds multiple zip files to the queue and returns how many actually
+// AddFiles adds ZIP and PDF files to the queue and returns how many actually
 // entered (duplicates of pending/processing items are dropped). Origem manual.
 func (q *Queue) AddFiles(paths []string) int {
 	return q.AddFilesComOrigem(paths, "manual")
 }
 
 // AddFilesComOrigem é AddFiles com a origem do ZIP ("monitorada",
-// "arrastada" ou "manual"), que vai para o log e a telemetria.
+// "arrastada" ou "manual"), que vai para o log e a telemetria. Só .zip e
+// .pdf entram (sem diferença de caixa): cada ZIP vira um item, e todos os
+// PDFs da chamada, sem repetidos e sem os que já estão num item pendente ou
+// em processamento, viram um item só, que entra depois dos ZIPs. Devolve o
+// número de arquivos que entraram.
 func (q *Queue) AddFilesComOrigem(paths []string, origem string) int {
 	q.mu.Lock()
 	hasPending := false
 	adicionados := 0
+	var pdfs []string
 	for _, path := range paths {
+		switch strings.ToLower(filepath.Ext(path)) {
+		case ".zip":
+		case ".pdf":
+			if slices.ContainsFunc(pdfs, func(p string) bool { return strings.EqualFold(p, path) }) {
+				continue
+			}
+			if q.pdfNaFilaLocked(path) {
+				slog.Info("PDF duplicado ignorado", "arquivo", filepath.Base(path))
+				continue
+			}
+			pdfs = append(pdfs, path)
+			continue
+		default:
+			slog.Info("arquivo recusado: extensão não aceita", "arquivo", filepath.Base(path))
+			continue
+		}
 		// Avoid duplicate files currently in queue (not processed yet or currently processing)
 		duplicated := false
 		for _, item := range q.items {
@@ -265,6 +296,7 @@ func (q *Queue) AddFilesComOrigem(paths []string, origem string) int {
 			ID:        uuid.NewString(),
 			Name:      name,
 			Path:      path,
+			Kind:      "zip",
 			Status:    "pending",
 			Progress:  0.0,
 			Message:   "Na fila...",
@@ -277,6 +309,25 @@ func (q *Queue) AddFilesComOrigem(paths []string, origem string) int {
 		adicionados++
 		slog.Info("ZIP adicionado à fila", "item_id", item.ID, "zip", item.Name, "origem", origem)
 	}
+	if len(pdfs) > 0 {
+		ordem := ordenarPorEvento(pdfs)
+		item := &QueueItem{
+			ID:        uuid.NewString(),
+			Name:      nomeItemPDF(radicalDe(saida.NomeLote(ordem)), len(ordem)),
+			Path:      ordem[0],
+			Kind:      "pdf",
+			Paths:     ordem,
+			Status:    "pending",
+			Progress:  0.0,
+			Message:   "Na fila...",
+			Timestamp: time.Now().UnixMilli(),
+			origem:    origem,
+		}
+		q.items = append([]*QueueItem{item}, q.items...)
+		hasPending = true
+		adicionados += len(ordem)
+		slog.Info("PDF adicionado à fila", "item_id", item.ID, "zip", rotuloLog(item), "pdfs", len(ordem), "origem", origem)
+	}
 	q.mu.Unlock()
 
 	q.broadcast()
@@ -285,6 +336,43 @@ func (q *Queue) AddFilesComOrigem(paths []string, origem string) int {
 		q.startProcessing()
 	}
 	return adicionados
+}
+
+// pdfNaFilaLocked diz se path (sem diferença de caixa) já está em Paths de um
+// item pendente ou em processamento. Exige q.mu travado.
+func (q *Queue) pdfNaFilaLocked(path string) bool {
+	for _, item := range q.items {
+		if item.Status != "pending" && item.Status != "processing" {
+			continue
+		}
+		if slices.ContainsFunc(item.Paths, func(p string) bool { return strings.EqualFold(p, path) }) {
+			return true
+		}
+	}
+	return false
+}
+
+// nomeItemPDF é o Name de um item de PDF: base, mais " (N PDFs)" quando n > 1.
+func nomeItemPDF(base string, n int) string {
+	if n > 1 {
+		return fmt.Sprintf("%s (%d PDFs)", base, n)
+	}
+	return base
+}
+
+// radicalDe devolve o nome do arquivo sem pasta e sem a última extensão.
+func radicalDe(caminho string) string {
+	nome := filepath.Base(caminho)
+	return strings.TrimSuffix(nome, filepath.Ext(nome))
+}
+
+// rotuloLog é o valor do atributo zip nas linhas da fila: o nome do PDF num
+// item de um PDF só, senão o Name do item.
+func rotuloLog(item *QueueItem) string {
+	if item.Kind == "pdf" && len(item.Paths) == 1 {
+		return filepath.Base(item.Path)
+	}
+	return item.Name
 }
 
 // GetItems returns a copy of all queue items.
@@ -308,6 +396,8 @@ func copiarItem(item *QueueItem) *QueueItem {
 		ID:              item.ID,
 		Name:            item.Name,
 		Path:            item.Path,
+		Kind:            item.Kind,
+		Paths:           slices.Clone(item.Paths),
 		Status:          item.Status,
 		Progress:        item.Progress,
 		Message:         item.Message,
@@ -333,7 +423,8 @@ func copiarItem(item *QueueItem) *QueueItem {
 // Reprocessar devolve à fila um item que já terminou, com OCR e higienização
 // próprios e, se forcarOCR não for nil, com Forçar OCR próprio (nil usa o da
 // config global; com ocrMode "none" ele não tem efeito). A config global não
-// muda; o .txt anterior é sobrescrito.
+// muda; o .txt anterior é sobrescrito. Num item de PDF, todos os Paths
+// precisam existir: senão a fila não muda.
 func (q *Queue) Reprocessar(id, ocrMode, cleaningLevel string, forcarOCR *bool) error {
 	if !config.ModoOCRValido(ocrMode) {
 		return fmt.Errorf("modo de OCR inválido: %q", ocrMode)
@@ -342,17 +433,32 @@ func (q *Queue) Reprocessar(id, ocrMode, cleaningLevel string, forcarOCR *bool) 
 		return fmt.Errorf("nível de higienização inválido: %q", cleaningLevel)
 	}
 	q.mu.Lock()
-	idx := slices.IndexFunc(q.items, func(it *QueueItem) bool { return it.ID == id })
-	if idx < 0 {
+	idx, err := q.reprocessavelLocked(id)
+	if err != nil {
 		q.mu.Unlock()
-		return fmt.Errorf("item não encontrado na fila")
+		return err
+	}
+	var conferir []string
+	if q.items[idx].Kind == "pdf" {
+		conferir = slices.Clone(q.items[idx].Paths)
+	}
+	q.mu.Unlock()
+
+	// O disco é lido fora da trava; o item é procurado de novo depois.
+	for _, p := range conferir {
+		if _, err := os.Stat(p); err != nil {
+			return fmt.Errorf("arquivo de origem não encontrado: %s", filepath.Base(p))
+		}
+	}
+
+	q.mu.Lock()
+	idx, err = q.reprocessavelLocked(id)
+	if err != nil {
+		q.mu.Unlock()
+		return err
 	}
 	item := q.items[idx]
-	if item.Status == "pending" || item.Status == "processing" {
-		q.mu.Unlock()
-		return fmt.Errorf("o item ainda está na fila ou em processamento")
-	}
-	pararEnvioPendente(item)
+	reabrirLocked(item)
 	// item.ForcarOCR mostra já o efetivo da próxima execução; com nil vale o da
 	// global (sem q.cfg, a config só é lida no processItem, que o corrige).
 	var forcar *bool
@@ -365,6 +471,44 @@ func (q *Queue) Reprocessar(id, ocrMode, cleaningLevel string, forcarOCR *bool) 
 	}
 	item.ajuste = &ajusteConfig{ocrMode: ocrMode, cleaningLevel: cleaningLevel, forcarOCR: forcar}
 	item.OcrMode, item.CleaningLevel = ocrMode, cleaningLevel
+	// Vai para o topo, como um arquivo novo: a fila processa de baixo para cima.
+	q.items = slices.Delete(q.items, idx, idx+1)
+	q.items = append([]*QueueItem{item}, q.items...)
+	attrs := []any{"item_id", item.ID, "zip", rotuloLog(item), "ocr_mode", ocrMode, "cleaning_level", cleaningLevel}
+	q.mu.Unlock()
+
+	if forcar != nil {
+		attrs = append(attrs, "forcar_ocr", *forcar)
+	}
+	slog.Info("reprocessar", attrs...)
+	q.broadcast()
+	q.startProcessing()
+	return nil
+}
+
+// reprocessavelLocked acha o item id e confere que ele já terminou. Exige
+// q.mu travado.
+func (q *Queue) reprocessavelLocked(id string) (int, error) {
+	idx := slices.IndexFunc(q.items, func(it *QueueItem) bool { return it.ID == id })
+	if idx < 0 {
+		return -1, fmt.Errorf("item não encontrado na fila")
+	}
+	if st := q.items[idx].Status; st == "pending" || st == "processing" {
+		return -1, fmt.Errorf("o item ainda está na fila ou em processamento")
+	}
+	return idx, nil
+}
+
+// reabrirLocked põe um item terminado de volta em "pending", com os números
+// da execução anterior zerados. O OutputPath, se houver, passa a
+// saidaAnterior, para a próxima execução gravar por cima dele; um item
+// cancelado ou com erro (OutputPath vazio) mantém a saidaAnterior que já
+// tinha. Exige q.mu travado.
+func reabrirLocked(item *QueueItem) {
+	pararEnvioPendente(item)
+	if item.OutputPath != "" {
+		item.saidaAnterior = item.OutputPath
+	}
 	item.Status = "pending"
 	item.Message = "Na fila..."
 	item.Progress = 0
@@ -375,19 +519,35 @@ func (q *Queue) Reprocessar(id, ocrMode, cleaningLevel string, forcarOCR *bool) 
 	item.UnreadDocs = 0
 	item.Relatorio = nil
 	item.Timestamp = time.Now().UnixMilli()
-	// Vai para o topo, como um arquivo novo: a fila processa de baixo para cima.
-	q.items = slices.Delete(q.items, idx, idx+1)
-	q.items = append([]*QueueItem{item}, q.items...)
+}
+
+// ReprocessarMonitorado trata um PDF da pasta monitorada que mudou depois de
+// convertido (q1): se a fila tem um item "success" de um PDF só com esse
+// caminho (sem diferença de caixa), o item volta a "pending" na mesma
+// posição, com a config global, e a próxima execução grava por cima do TXT
+// dele. Devolve false, sem mexer na fila, em qualquer outro caso (o chamador
+// segue para AddFiles).
+func (q *Queue) ReprocessarMonitorado(path string) bool {
+	q.mu.Lock()
+	idx := slices.IndexFunc(q.items, func(it *QueueItem) bool {
+		return it.Status == "success" && it.Kind == "pdf" && len(it.Paths) == 1 && strings.EqualFold(it.Paths[0], path)
+	})
+	if idx < 0 {
+		q.mu.Unlock()
+		return false
+	}
+	item := q.items[idx]
+	reabrirLocked(item)
+	// Sem ajuste: OcrMode, CleaningLevel e ForcarOCR são corrigidos pela
+	// config global no processItem.
+	item.ajuste = nil
+	attrs := []any{"item_id", item.ID, "zip", rotuloLog(item)}
 	q.mu.Unlock()
 
-	attrs := []any{"item_id", item.ID, "zip", item.Name, "ocr_mode", ocrMode, "cleaning_level", cleaningLevel}
-	if forcar != nil {
-		attrs = append(attrs, "forcar_ocr", *forcar)
-	}
-	slog.Info("reprocessar", attrs...)
+	slog.Info("reprocessar PDF monitorado", attrs...)
 	q.broadcast()
 	q.startProcessing()
-	return nil
+	return true
 }
 
 // GetAtividade devolve o estado por documento da execução atual ou da última
@@ -509,7 +669,7 @@ func (q *Queue) CancelItem(id string) {
 	}
 
 	if target != nil {
-		slog.Info("cancelamento pedido", "item_id", target.ID, "zip", target.Name, "status", target.Status)
+		slog.Info("cancelamento pedido", "item_id", target.ID, "zip", rotuloLog(target), "status", target.Status)
 		if target.Status == "processing" && target.cancel != nil {
 			target.cancel()
 		} else if target.Status == "pending" {
@@ -632,7 +792,7 @@ func (q *Queue) processItem(item *QueueItem) {
 	)
 	defer func() {
 		if r := recover(); r != nil {
-			slog.Default().With("item_id", item.ID).Error("pânico no processador da fila", "zip", item.Name,
+			slog.Default().With("item_id", item.ID).Error("pânico no processador da fila", "zip", rotuloLog(item),
 				"erro", fmt.Sprint(r), "pilha", string(debug.Stack()))
 			q.mu.Lock()
 			item.cancel = nil
@@ -669,17 +829,28 @@ func (q *Queue) processItem(item *QueueItem) {
 	ajuste := item.ajuste
 	reprocesso = ajuste != nil
 	origem := item.origem
+	// A Entrada é montada sob q.mu; saidaAnterior só é zerada no sucesso.
+	entrada := Entrada{Kind: item.Kind, Caminhos: slices.Clone(item.Paths), SaidaAnterior: item.saidaAnterior}
+	if entrada.Kind == "" {
+		entrada.Kind = "zip"
+	}
+	if len(entrada.Caminhos) == 0 {
+		entrada.Caminhos = []string{item.Path}
+	}
+	rotulo := rotuloLog(item)
 	q.mu.Unlock()
 
 	q.broadcast()
 
 	lg := registro.Logger(ctx)
-	if info, err := os.Stat(item.Path); err == nil {
-		bytesZip = info.Size()
+	for _, c := range entrada.Caminhos {
+		if info, err := os.Stat(c); err == nil {
+			bytesZip += info.Size()
+		}
 	}
-	lg.Info("item na vez", "zip", item.Name, "origem", origem, "reprocesso", reprocesso, "bytes_zip", bytesZip)
+	lg.Info("item na vez", "zip", rotulo, "origem", origem, "reprocesso", reprocesso, "bytes_zip", bytesZip)
 	onProgress := func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int) {
-		lg.Debug("progresso", "zip", item.Name, "progresso", progress, "mensagem", message,
+		lg.Debug("progresso", "zip", rotulo, "progresso", progress, "mensagem", message,
 			"docs", processedDocs, "total_docs", totalDocs, "paginas", processedPages, "total_paginas", totalPages)
 		q.mu.Lock()
 		if item.Status == "processing" {
@@ -705,7 +876,7 @@ func (q *Queue) processItem(item *QueueItem) {
 		var err error
 		cfg, err = carregar()
 		if err != nil {
-			lg.Error("falha ao carregar a configuração do item", "zip", item.Name, "erro", err)
+			lg.Error("falha ao carregar a configuração do item", "zip", rotulo, "erro", err)
 			q.mu.Lock()
 			item.Status = "error"
 			item.Message = "Erro ao carregar configurações"
@@ -738,12 +909,12 @@ func (q *Queue) processItem(item *QueueItem) {
 
 	processar := q.processar
 	if processar == nil {
-		processar = func(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error) {
-			return q.pipeline.ProcessZipComAtividade(ctx, zipPath, cfg, onProgress, atv)
+		processar = func(ctx context.Context, e Entrada, cfg *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+			return q.pipeline.ProcessarEntrada(ctx, e, cfg, onProgress, atv)
 		}
 	}
 	pararAtividade := q.enviarAtividade(atv)
-	outputPath, docsCount, pagesCount, tokens, err := processar(ctx, item.Path, cfg, onProgress)
+	outputPath, docsCount, pagesCount, tokens, err := processar(ctx, entrada, cfg, onProgress)
 	pararAtividade()
 
 	q.mu.Lock()
@@ -780,6 +951,12 @@ func (q *Queue) processItem(item *QueueItem) {
 		item.TotalPages = pagesCount
 		item.UnreadDocs = atv.NaoLidos()
 		item.Relatorio = atv.Relatorio()
+		// O novo OutputPath assume o papel da saída anterior.
+		item.saidaAnterior = ""
+		if entrada.Kind == "pdf" {
+			// O _N só se decide na gravação: o nome segue o TXT gravado.
+			item.Name = nomeItemPDF(radicalDe(outputPath), len(entrada.Caminhos))
+		}
 	}
 	avisar := q.avisarFimLocked(item)
 	telemetria := q.execucaoLocked(item, reprocesso, cfg, bytesZip, classeErro, etapaErro)

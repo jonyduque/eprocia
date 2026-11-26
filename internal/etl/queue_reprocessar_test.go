@@ -16,7 +16,7 @@ import (
 func TestReprocessar_UsaAjusteEVoltaParaFila(t *testing.T) {
 	var mu sync.Mutex
 	var cfgs []models.Config
-	q, _ := novaFilaGravada(t, func(_ context.Context, _ string, cfg *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+	q, _ := novaFilaGravada(t, func(_ context.Context, _ Entrada, cfg *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error) {
 		mu.Lock()
 		cfgs = append(cfgs, *cfg)
 		mu.Unlock()
@@ -58,7 +58,7 @@ func TestReprocessar_UsaAjusteEVoltaParaFila(t *testing.T) {
 
 func TestReprocessar_Recusa(t *testing.T) {
 	liberar := make(chan struct{})
-	q, _ := novaFilaGravada(t, func(context.Context, string, *models.Config, func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+	q, _ := novaFilaGravada(t, func(context.Context, Entrada, *models.Config, func(float64, string, int, int, int, int)) (string, int, int, int, error) {
 		<-liberar
 		return "saida.txt", 1, 1, 0, nil
 	})
@@ -80,7 +80,7 @@ func TestReprocessar_Recusa(t *testing.T) {
 }
 
 func TestAtividade_DisponivelPorItem(t *testing.T) {
-	q, _ := novaFilaGravada(t, func(context.Context, string, *models.Config, func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+	q, _ := novaFilaGravada(t, func(context.Context, Entrada, *models.Config, func(float64, string, int, int, int, int)) (string, int, int, int, error) {
 		return "saida.txt", 1, 1, 0, nil
 	})
 	q.AddFiles([]string{`C:\x\a.zip`})
@@ -100,7 +100,7 @@ func filaCapturandoCfg(t *testing.T) (*Queue, func() []models.Config) {
 	t.Helper()
 	var mu sync.Mutex
 	var cfgs []models.Config
-	q, _ := novaFilaGravada(t, func(_ context.Context, _ string, cfg *models.Config, _ func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+	q, _ := novaFilaGravada(t, func(_ context.Context, _ Entrada, cfg *models.Config, _ func(float64, string, int, int, int, int)) (string, int, int, int, error) {
 		mu.Lock()
 		cfgs = append(cfgs, *cfg)
 		mu.Unlock()
