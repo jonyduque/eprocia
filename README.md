@@ -54,7 +54,7 @@ O eprocIA faz tudo isso sozinho. Ele fica na bandeja do Windows, vigia a pasta d
 | 🛟 | **Segundo leitor de PDF** | O PDF que a biblioteca de leitura recusa (versão 2.0, envelope de assinatura PKCS#7, cifra AES, tabela de referências inconsistente) é lido pelo Poppler, também embutido. |
 | ⚠️ | **Avisa o que não leu** | Documento protegido por senha, ilegível, sem nenhum texto ou digitalizado com o OCR desligado conta como não lido: o item da fila mostra "N não lidos", a notificação e o botão de copiar avisam, e o `.txt` traz a contagem e o motivo. |
 | 🧹 | **Higieniza o texto** | Quatro níveis. O Padrão remove cabeçalhos, rodapés e timbres que se repetem, resume as chancelas de assinatura numa linha e troca páginas e documentos repetidos por uma referência ao original. O Máxima também tira ruído de OCR e junta parágrafos quebrados. |
-| 🚫 | **Omite tipos de documento** | Informe os códigos (por exemplo `EXTR, COMP`) e esses documentos de um ZIP não são lidos nem passam por OCR: viram um aviso de uma linha no texto. O PDF avulso é sempre lido. |
+| 🚫 | **Omite tipos de documento** | Informe os códigos (por exemplo `EXTR, COMP`) e esses documentos de um ZIP não são lidos nem passam por OCR: viram um aviso de uma linha no texto. Isso não vale para o PDF avulso, que não é pulado por tipo. |
 | 📊 | **Mostra o andamento por documento** | Abra o item em processamento para ver cada documento (aguardando, lendo, em OCR, concluído ou com erro) e quantos processos de OCR estão rodando. |
 | 🧾 | **Relata o que leu** | O item concluído diz quantas páginas vieram do texto do PDF, do OCR ou estavam em branco, e avisa as que precisavam de OCR e ficaram sem. Um clique abre os detalhes: tempos, limpeza e os documentos para conferir no PDF original. |
 | 🔁 | **Reprocessa com outras opções** | Um item terminado pode ser refeito com outro modo de OCR, outro nível de higienização ou com Forçar OCR, só para aquele arquivo. |
@@ -113,7 +113,7 @@ flowchart LR
 - O OCR só entra quando a página não tem texto nativo suficiente e tem imagens grandes ou texto desenhado como vetor, ou quando o texto nativo sai ilegível.
 - O PDF que a biblioteca de leitura não abre passa pelo Poppler antes de ser dado como não lido.
 - Os programas de OCR e de leitura rodam com prazo: um arquivo que trava é marcado e a fila segue.
-- Documentos dos tipos que você mandou omitir não são abertos: o tempo de leitura e de OCR deles é poupado. Isso vale só para ZIP; o PDF avulso é sempre lido.
+- Documentos dos tipos que você mandou omitir não são abertos: o tempo de leitura e de OCR deles é poupado. Isso vale só para ZIP: o PDF avulso não é pulado por tipo.
 
 ## 📄 Formato da saída
 
