@@ -72,6 +72,8 @@ Comportamento esperado:
 - Cada PDF novo detectado vira um item próprio, com seu TXT, sem juntar PDFs que cheguem perto um do outro (e4).
 - O `Watcher` recebe a lista de extensões em `Start`. Hoje `Start` com a mesma pasta não faz nada (`watchdog.go:46-49`); passa a comparar pasta **e** extensões, e só é no-op se as duas forem iguais. Assim, mudar a opção em Configurações (o `SaveConfig` já chama `Start`, `app.go:293`) reinicia o watcher, como já acontece ao trocar de pasta.
 
+> **Nota da execução (2026-11-26, Task 6):** `jaConvertido` não aceita, para um PDF, um TXT cujo radical é o nome de outro PDF ou ZIP da pasta: `processo_2.txt` ao lado de `processo_2.pdf` é desse PDF, não de `processo.pdf`. A spec era omissa; o custo, se a regra estiver errada, é uma reconversão num `_N` novo. Falso positivo conhecido: se `processo_2.txt` for a saída de `processo.pdf`, um `processo_2.pdf` copiado depois para a pasta com mtime mais antigo que esse TXT conta como convertido e não ganha TXT.
+
 ### 2.2 Bindings
 
 `SelectFiles` e os campos `kind` e `paths` em `QueueItem`; rodar `wails generate module`.
