@@ -465,3 +465,29 @@ func TestLoad_ForcarOCRComNonePreservado(t *testing.T) {
 		t.Errorf("recarregado com ForcarOCR = false")
 	}
 }
+
+func TestLoadFromFile_GuardarHistoricoAusente(t *testing.T) {
+	def, err := DefaultConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if def.GuardarHistorico {
+		t.Errorf("DefaultConfig().GuardarHistorico = true, quero false")
+	}
+	for conteudo, quer := range map[string]bool{
+		`{"ocr_mode":"fast"}`:                          false,
+		`{"ocr_mode":"fast","guardar_historico":true}`: true,
+	} {
+		caminho := filepath.Join(t.TempDir(), "config.json")
+		if err := os.WriteFile(caminho, []byte(conteudo), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := LoadFromFile(caminho)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.GuardarHistorico != quer {
+			t.Errorf("%s: GuardarHistorico = %t, quero %t", conteudo, cfg.GuardarHistorico, quer)
+		}
+	}
+}

@@ -25,6 +25,9 @@ type Config struct {
 	// MonitorarPDF faz a pasta monitorada converter também os PDFs novos,
 	// cada um no seu item e no seu TXT. Desligado por padrão.
 	MonitorarPDF bool `json:"monitorar_pdf"`
+	// GuardarHistorico guarda a lista da fila da última sessão em
+	// historico.json, para ela voltar ao reabrir. Desligado por padrão.
+	GuardarHistorico bool `json:"guardar_historico"`
 }
 
 // ProcessFile represents a single judicial process file, inside a ZIP archive

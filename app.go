@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -17,6 +18,7 @@ import (
 	"eprocia/internal/autostart"
 	"eprocia/internal/config"
 	"eprocia/internal/etl"
+	"eprocia/internal/historico"
 	"eprocia/internal/janela"
 	"eprocia/internal/models"
 	"eprocia/internal/registro"
@@ -87,6 +89,17 @@ type App struct {
 	apagarAnterior func(pasta string) error
 	sinalUmaVez    sync.Once
 	limpezaUmaVez  sync.Once
+
+	// Histórico da fila (app_historico.go). historicoMu protege historico,
+	// historicoAdiado e historicoProtegido. historicoAdiado: processo novo da
+	// atualização ainda à espera do antigo (o gravador só nasce depois);
+	// historicoProtegido: o Protegido do gravador adiado. avisoHistorico
+	// limita o evento de falha a um por sessão.
+	historicoMu        sync.Mutex
+	historico          *historico.Gravador
+	historicoAdiado    bool
+	historicoProtegido bool
+	avisoHistorico     sync.Once
 }
 
 // eventoVisibilidade avisa o frontend que a janela sumiu na bandeja (false)
@@ -320,6 +333,7 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 	defer a.gravarMu.Unlock()
 	atual := a.configAtual()
 	autoAnterior := atual != nil && atual.AutoStart
+	historicoAnterior := atual != nil && atual.GuardarHistorico
 	if atual != nil {
 		cfg.Theme = atual.Theme
 	}
@@ -347,6 +361,9 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 	a.guardarConfig(cfg)
 	if a.queue != nil {
 		a.queue.SetConfig(cfg)
+	}
+	if cfg.GuardarHistorico != historicoAnterior {
+		a.aplicarHistorico(cfg.GuardarHistorico)
 	}
 	if err := a.aplicarMonitor(cfg); err != nil {
 		return err
@@ -430,6 +447,13 @@ func (a *App) CopyOutput(path string) error {
 // transferência.
 func (a *App) copiarSaida(path string, itens []*etl.QueueItem) error {
 	texto, err := lerSaidaParaCopiar(path, itens)
+	var ausente *erroSaidaAusente
+	if errors.As(err, &ausente) {
+		if a.queue != nil {
+			a.queue.MarcarSaidaAusente(ausente.caminho)
+		}
+		return fmt.Errorf("O TXT não está mais em %s; ele pode ter sido movido ou apagado", filepath.Dir(ausente.caminho))
+	}
 	if err != nil {
 		return err
 	}
@@ -455,6 +479,10 @@ func lerSaidaParaCopiar(path string, itens []*etl.QueueItem) (string, error) {
 		if it.Status == "success" && it.OutputPath != "" && strings.EqualFold(filepath.Clean(it.OutputPath), limpo) &&
 			saida.SaidaDoItem(it.Kind, it.Path, it.Paths, it.OutputPath) {
 			dados, err := os.ReadFile(limpo)
+			if errors.Is(err, fs.ErrNotExist) {
+				slog.Warn("o TXT a copiar não existe mais", "caminho", limpo)
+				return "", &erroSaidaAusente{caminho: limpo}
+			}
 			if err != nil {
 				slog.Warn("falha ao ler a saída para copiar", "caminho", limpo, "erro", err)
 				return "", errors.New("não foi possível ler o TXT gerado")
@@ -465,6 +493,15 @@ func lerSaidaParaCopiar(path string, itens []*etl.QueueItem) (string, error) {
 	slog.Warn("cópia recusada: o TXT não é saída de item concluído", "caminho", path)
 	return "", errors.New("este TXT não corresponde a nenhum processamento concluído")
 }
+
+// erroSaidaAusente é a leitura do TXT que falhou porque ele não existe mais.
+// O texto é fixo e sem caminho; copiarSaida o troca pela frase com a pasta e
+// marca o item.
+type erroSaidaAusente struct{ caminho string }
+
+func (e *erroSaidaAusente) Error() string { return "não foi possível ler o TXT gerado" }
+
+func (e *erroSaidaAusente) Unwrap() error { return fs.ErrNotExist }
 
 // SelectDirectory opens a native open directory dialog and returns the selected path.
 func (a *App) SelectDirectory() (string, error) {

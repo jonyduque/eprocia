@@ -134,6 +134,8 @@ func (a *App) iniciarFila(ctx context.Context) {
 	}
 	a.watcher.SetFalhas(a.falhas)
 	a.sincronizarAutostart(cfg)
+	// Antes do watcher: a varredura inicial reaproveita as linhas interrompidas.
+	a.iniciarHistorico(cfg)
 	if a.apos == 0 {
 		a.ligarMonitor(ctx)
 	}
@@ -182,7 +184,8 @@ func (a *App) iniciarAtualizacao(o atualizacao.Opcoes) {
 			a.ocultarJanela()
 			a.Quit()
 		},
-		Emitir: func(e atualizacao.Estado) { a.emitirEm(a.ctx, eventoAtualizacao, e) },
+		Emitir:   func(e atualizacao.Estado) { a.emitirEm(a.ctx, eventoAtualizacao, e) },
+		Gravador: historicoAtualizacao{a},
 	}
 	a.atualizador = atualizacao.NovoAtualizador(o, amb)
 	a.queue.SetAoFicarOciosa(a.atualizador.AoFicarOciosa)
@@ -229,6 +232,8 @@ func (a *App) arranqueApos() {
 	if !a.esperarAntigo() {
 		slog.Warn("atualização: o processo anterior não saiu no prazo; seguindo")
 	}
+	// Só agora: o gravador novo apaga os temporários que o antigo deixou.
+	a.ligarHistoricoAdiado()
 	if a.queue != nil {
 		a.queue.Soltar()
 	}
