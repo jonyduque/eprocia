@@ -272,7 +272,7 @@ func TestFila_ErroDoProcessadorViraErroEFilaSegue(t *testing.T) {
 
 // O Shutdown interrompe o item em curso: "interrupted", não "cancelled" (o
 // cancelamento é só o pedido pelo usuário).
-func TestFila_ShutdownCancelaItemEmCurso(t *testing.T) {
+func TestFila_ShutdownInterrompeItemEmCurso(t *testing.T) {
 	p := novoProcFalso()
 	q, _ := novaFilaGravada(t, p.processar)
 

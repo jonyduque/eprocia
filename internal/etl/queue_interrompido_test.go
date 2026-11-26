@@ -259,7 +259,7 @@ func TestReprocessar_ExisteFalso(t *testing.T) {
 	if err == nil || err.Error() != "arquivo de origem não encontrado: "+filepath.Base(ausente) {
 		t.Fatalf("erro = %v", err)
 	}
-	if len(vistos) < 2 {
-		t.Errorf("existe viu %v", vistos)
+	if quer := []string{it.Paths[0], it.Paths[1]}; !reflect.DeepEqual(vistos, quer) {
+		t.Errorf("existe viu %v, esperado %v", vistos, quer)
 	}
 }
