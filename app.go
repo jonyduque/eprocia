@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -19,6 +20,7 @@ import (
 	"eprocia/internal/janela"
 	"eprocia/internal/models"
 	"eprocia/internal/registro"
+	"eprocia/internal/saida"
 	"eprocia/internal/watchdog"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -421,28 +423,40 @@ func (a *App) CopyOutput(path string) error {
 	if a.ctx == nil {
 		return fmt.Errorf("contexto não inicializado")
 	}
-	texto, err := lerSaidaParaCopiar(path, a.GetQueue())
+	return a.copiarSaida(path, a.GetQueue())
+}
+
+// copiarSaida lê a saída conferida contra os itens e a manda para a área de
+// transferência.
+func (a *App) copiarSaida(path string, itens []*etl.QueueItem) error {
+	texto, err := lerSaidaParaCopiar(path, itens)
 	if err != nil {
 		return err
 	}
 	if err := a.clipboard(a.ctx, texto); err != nil {
-		return fmt.Errorf("não foi possível copiar para a área de transferência: %w", err)
+		slog.Warn("falha ao copiar a saída para a área de transferência", "erro", err)
+		return errors.New("não foi possível copiar para a área de transferência")
 	}
 	return nil
 }
 
 // lerSaidaParaCopiar só lê arquivos que a própria fila gerou, para que o
-// binding exposto ao WebView não sirva para ler qualquer arquivo do disco.
+// binding exposto ao WebView não sirva para ler qualquer arquivo do disco: o
+// item precisa estar concluído, ter gravado esse caminho e o caminho precisa
+// passar em saida.SaidaDoItem. O erro de leitura vai à interface sem caminho
+// nem erro cru; o detalhe fica no log.
 func lerSaidaParaCopiar(path string, itens []*etl.QueueItem) (string, error) {
 	if path == "" || !strings.EqualFold(filepath.Ext(path), ".txt") {
 		return "", fmt.Errorf("arquivo %q não é uma saída .txt", path)
 	}
 	limpo := filepath.Clean(path)
 	for _, it := range itens {
-		if it.Status == "success" && it.OutputPath != "" && strings.EqualFold(filepath.Clean(it.OutputPath), limpo) {
+		if it.Status == "success" && it.OutputPath != "" && strings.EqualFold(filepath.Clean(it.OutputPath), limpo) &&
+			saida.SaidaDoItem(it.Kind, it.Path, it.Paths, it.OutputPath) {
 			dados, err := os.ReadFile(limpo)
 			if err != nil {
-				return "", fmt.Errorf("não foi possível ler %q: %w", limpo, err)
+				slog.Warn("falha ao ler a saída para copiar", "caminho", limpo, "erro", err)
+				return "", errors.New("não foi possível ler o TXT gerado")
 			}
 			return string(dados), nil
 		}
@@ -489,6 +503,27 @@ func (a *App) SelectZipFiles() ([]string, error) {
 				Pattern:     "*.zip",
 			},
 		},
+	})
+}
+
+// filtrosSelecao são os filtros do diálogo de seleção de arquivos.
+func filtrosSelecao() []runtime.FileFilter {
+	return []runtime.FileFilter{
+		{DisplayName: "ZIP do Eproc e PDF (*.zip;*.pdf)", Pattern: "*.zip;*.pdf"},
+		{DisplayName: "Somente ZIP (*.zip)", Pattern: "*.zip"},
+		{DisplayName: "Somente PDF (*.pdf)", Pattern: "*.pdf"},
+	}
+}
+
+// SelectFiles abre o diálogo de vários arquivos para ZIP do Eproc e PDF e
+// devolve os caminhos escolhidos.
+func (a *App) SelectFiles() ([]string, error) {
+	if a.ctx == nil {
+		return nil, fmt.Errorf("context not initialized")
+	}
+	return runtime.OpenMultipleFilesDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:   "Selecionar arquivos ZIP do Eproc ou PDF",
+		Filters: filtrosSelecao(),
 	})
 }
 

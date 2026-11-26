@@ -126,6 +126,10 @@ export function SelectDirectory() {
   return window['go']['main']['App']['SelectDirectory']();
 }
 
+export function SelectFiles() {
+  return window['go']['main']['App']['SelectFiles']();
+}
+
 export function SelectZipFile() {
   return window['go']['main']['App']['SelectZipFile']();
 }

@@ -66,6 +66,8 @@ export function SaveConfig(arg1:models.Config):Promise<void>;
 
 export function SelectDirectory():Promise<string>;
 
+export function SelectFiles():Promise<Array<string>>;
+
 export function SelectZipFile():Promise<string>;
 
 export function SelectZipFiles():Promise<Array<string>>;

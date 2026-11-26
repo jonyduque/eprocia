@@ -130,6 +130,8 @@ export namespace etl {
 	    total_docs: number;
 	    processed_pages: number;
 	    total_pages: number;
+	    kind: string;
+	    paths?: string[];
 	    unread_docs: number;
 	    relatorio?: models.RelatorioZip;
 	    error?: string;
@@ -158,6 +160,8 @@ export namespace etl {
 	        this.total_docs = source["total_docs"];
 	        this.processed_pages = source["processed_pages"];
 	        this.total_pages = source["total_pages"];
+	        this.kind = source["kind"];
+	        this.paths = source["paths"];
 	        this.unread_docs = source["unread_docs"];
 	        this.relatorio = this.convertValues(source["relatorio"], models.RelatorioZip);
 	        this.error = source["error"];
@@ -199,6 +203,7 @@ export namespace models {
 	    theme: string;
 	    omitir_tipos: string[];
 	    forcar_ocr: boolean;
+	    monitorar_pdf: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -214,6 +219,7 @@ export namespace models {
 	        this.theme = source["theme"];
 	        this.omitir_tipos = source["omitir_tipos"];
 	        this.forcar_ocr = source["forcar_ocr"];
+	        this.monitorar_pdf = source["monitorar_pdf"];
 	    }
 	}
 	export class DocAtencao {

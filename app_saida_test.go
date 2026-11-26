@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,9 +26,9 @@ func TestLerSaidaParaCopiar_SoAceitaTxtDeItemConcluido(t *testing.T) {
 		t.Fatal(err)
 	}
 	itens := []*etl.QueueItem{
-		{Status: "success", OutputPath: saida},
-		{Status: "success", OutputPath: naoTxt},
-		{Status: "error", OutputPath: outro},
+		{Status: "success", Kind: "zip", Path: filepath.Join(dir, "processo.zip"), OutputPath: saida},
+		{Status: "success", Kind: "zip", Path: filepath.Join(dir, "processo.zip"), OutputPath: naoTxt},
+		{Status: "error", Kind: "zip", Path: filepath.Join(dir, "segredo.zip"), OutputPath: outro},
 	}
 
 	texto, err := lerSaidaParaCopiar(strings.ToUpper(saida[:1])+saida[1:], itens)
@@ -114,5 +115,86 @@ func TestMensagemFim_NaoLidos(t *testing.T) {
 		if _, corpo := mensagemFim(item); corpo != c.esperado {
 			t.Errorf("não lidos %d: %q, esperava %q", c.naoLidos, corpo, c.esperado)
 		}
+	}
+}
+
+func escreverTxt(t *testing.T, caminho, texto string) {
+	t.Helper()
+	if err := os.WriteFile(caminho, []byte(texto), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestLerSaidaParaCopiar_SaidaDoItem(t *testing.T) {
+	dir := t.TempDir()
+	cnj := "5000000-00.2026.8.26.0001"
+	lote := filepath.Join(dir, cnj+".txt")
+	escreverTxt(t, lote, "lote")
+	umPDF := filepath.Join(dir, "processo_2.txt")
+	escreverTxt(t, umPDF, "um pdf")
+	b := filepath.Join(dir, "b.txt")
+	escreverTxt(t, b, "alheio")
+	semKind := filepath.Join(dir, "sem-kind.txt")
+	escreverTxt(t, semKind, "sem kind")
+
+	pdfs := []string{
+		filepath.Join(dir, cnj+" Evento 1 PET1.pdf"),
+		filepath.Join(dir, cnj+" Evento 2 DESPADEC1.pdf"),
+		filepath.Join(dir, cnj+" Evento 3 SENT1.pdf"),
+	}
+	itens := []*etl.QueueItem{
+		{Status: "success", Kind: "pdf", Path: pdfs[0], Paths: pdfs, OutputPath: lote},
+		{Status: "success", Kind: "pdf", Path: filepath.Join(dir, "processo.pdf"), Paths: []string{filepath.Join(dir, "processo.pdf")}, OutputPath: umPDF},
+		{Status: "success", Kind: "zip", Path: filepath.Join(dir, "a.zip"), OutputPath: b},
+		{Status: "success", Path: filepath.Join(dir, "sem-kind.zip"), OutputPath: semKind},
+	}
+
+	for caminho, esperado := range map[string]string{lote: "lote", umPDF: "um pdf"} {
+		texto, err := lerSaidaParaCopiar(caminho, itens)
+		if err != nil || texto != esperado {
+			t.Errorf("%s: texto %q, erro %v", filepath.Base(caminho), texto, err)
+		}
+	}
+	for nome, caminho := range map[string]string{"zip com saída alheia": b, "item sem Kind": semKind} {
+		if _, err := lerSaidaParaCopiar(caminho, itens); err == nil {
+			t.Errorf("%s: aceitou %q", nome, caminho)
+		}
+	}
+}
+
+func TestLerSaidaParaCopiar_ErroDeLeituraSemCaminho(t *testing.T) {
+	dir := t.TempDir()
+	saida := filepath.Join(dir, "processo.txt") // não existe: a leitura falha
+	itens := []*etl.QueueItem{{Status: "success", Kind: "zip", Path: filepath.Join(dir, "processo.zip"), OutputPath: saida}}
+
+	_, err := lerSaidaParaCopiar(saida, itens)
+	if err == nil {
+		t.Fatal("leitura de arquivo inexistente não falhou")
+	}
+	if strings.Contains(err.Error(), dir) || strings.Contains(err.Error(), "processo.txt") {
+		t.Fatalf("mensagem leva o caminho: %q", err.Error())
+	}
+	if err.Error() != "não foi possível ler o TXT gerado" {
+		t.Fatalf("mensagem: %q", err.Error())
+	}
+}
+
+func TestCopiarSaida_ErroDaAreaDeTransferenciaSemDetalhe(t *testing.T) {
+	dir := t.TempDir()
+	saida := filepath.Join(dir, "processo.txt")
+	escreverTxt(t, saida, "texto")
+	itens := []*etl.QueueItem{{Status: "success", Kind: "zip", Path: filepath.Join(dir, "processo.zip"), OutputPath: saida}}
+
+	app := NewApp()
+	app.ctx = context.Background()
+	app.clipboard = func(context.Context, string) error {
+		return errors.New("OpenClipboard falhou em " + dir)
+	}
+	err := app.copiarSaida(saida, itens)
+	if err == nil {
+		t.Fatal("falha da área de transferência não chegou")
+	}
+	if err.Error() != "não foi possível copiar para a área de transferência" {
+		t.Fatalf("mensagem: %q", err.Error())
 	}
 }
