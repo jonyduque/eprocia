@@ -101,7 +101,10 @@ type App struct {
 	historico          *historico.Gravador
 	historicoAdiado    bool
 	historicoProtegido bool
-	avisoHistorico     sync.Once
+	// historicoFechadoTroca: o Fechar da troca de versão já rodou e o Reabrir
+	// ainda não; ligar o interruptor nesse meio-tempo não cria gravador.
+	historicoFechadoTroca bool
+	avisoHistorico        sync.Once
 }
 
 // eventoVisibilidade avisa o frontend que a janela sumiu na bandeja (false)
@@ -447,7 +450,8 @@ func (a *App) OpenDirectory(path string) error {
 	if di, derr := os.Stat(pasta); derr == nil && di.IsDir() {
 		return abrir(pasta)
 	}
-	return fmt.Errorf("a pasta não existe mais: %s", pasta)
+	slog.Warn("a pasta do arquivo não existe mais", "pasta", pasta)
+	return errors.New("a pasta do arquivo não existe mais")
 }
 
 // CopyOutput copia para a área de transferência o TXT gerado por um item concluído.

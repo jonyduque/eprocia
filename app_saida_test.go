@@ -265,7 +265,7 @@ func TestOpenDirectory_PastaAusente(t *testing.T) {
 	dir := t.TempDir()
 	a, chamadas := explorerFalso()
 	err := a.OpenDirectory(filepath.Join(dir, "nao", "sumiu.txt"))
-	if err == nil || !strings.Contains(err.Error(), "a pasta não existe mais") {
+	if err == nil || err.Error() != "a pasta do arquivo não existe mais" || strings.Contains(err.Error(), dir) {
 		t.Fatalf("err = %v", err)
 	}
 	if len(*chamadas) != 0 {
