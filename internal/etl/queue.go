@@ -285,8 +285,10 @@ func (q *Queue) AddFiles(paths []string) int {
 // "arrastada" ou "manual"), que vai para o log e a telemetria. Só .zip e
 // .pdf entram (sem diferença de caixa): cada ZIP vira um item, e todos os
 // PDFs da chamada, sem repetidos e sem os que já estão num item pendente ou
-// em processamento, viram um item só, que entra depois dos ZIPs. Devolve o
-// número de arquivos que entraram.
+// em processamento, viram um item só, que entra depois dos ZIPs. Um ZIP (ou o
+// mesmo conjunto de PDFs) de uma linha "interrupted" reaproveita essa linha,
+// na mesma posição, em vez de criar outra. Devolve o número de arquivos que
+// entraram.
 func (q *Queue) AddFilesComOrigem(paths []string, origem string) int {
 	q.mu.Lock()
 	hasPending := false
@@ -321,6 +323,15 @@ func (q *Queue) AddFilesComOrigem(paths []string, origem string) int {
 			slog.Info("ZIP duplicado ignorado", "zip", filepath.Base(path))
 			continue
 		}
+		// Uma linha interrompida do mesmo ZIP volta à fila no lugar dela.
+		if idx := q.interrompidoLocked("zip", []string{path}); idx >= 0 {
+			item := q.items[idx]
+			q.reaproveitarLocked(item, origem)
+			hasPending = true
+			adicionados++
+			slog.Info("ZIP interrompido de volta à fila", "item_id", item.ID, "zip", item.Name, "origem", origem)
+			continue
+		}
 
 		name := filepath.Base(path)
 		item := &QueueItem{
@@ -341,7 +352,15 @@ func (q *Queue) AddFilesComOrigem(paths []string, origem string) int {
 		adicionados++
 		slog.Info("ZIP adicionado à fila", "item_id", item.ID, "zip", item.Name, "origem", origem)
 	}
-	if len(pdfs) > 0 {
+	if idx := q.interrompidoLocked("pdf", pdfs); len(pdfs) > 0 && idx >= 0 {
+		// Os mesmos PDFs de uma linha interrompida: ela volta à fila no lugar
+		// dela, com os Paths que já tinha.
+		item := q.items[idx]
+		q.reaproveitarLocked(item, origem)
+		hasPending = true
+		adicionados += len(pdfs)
+		slog.Info("PDF interrompido de volta à fila", "item_id", item.ID, "zip", rotuloLog(item), "pdfs", len(pdfs), "origem", origem)
+	} else if len(pdfs) > 0 {
 		ordem := ordenarPorEvento(pdfs)
 		item := &QueueItem{
 			ID:        uuid.NewString(),

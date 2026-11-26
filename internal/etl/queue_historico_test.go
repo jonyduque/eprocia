@@ -457,3 +457,349 @@ func TestFecharHistorico_SemGravador(t *testing.T) {
 		t.Errorf("FecharHistorico sem gravador: %v", err)
 	}
 }
+
+// recebido é o que o processar falso de processarQueEntrega viu.
+type recebido struct {
+	e   Entrada
+	cfg *models.Config
+}
+
+func processarQueEntrega(c chan<- recebido) processarFunc {
+	return func(_ context.Context, e Entrada, cfg *models.Config, _ func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+		c <- recebido{e, cfg}
+		return "saida.txt", 1, 1, 0, nil
+	}
+}
+
+func esperarRecebido(t *testing.T, c <-chan recebido) recebido {
+	t.Helper()
+	select {
+	case r := <-c:
+		return r
+	case <-time.After(5 * time.Second):
+		t.Fatal("processar não foi chamado")
+	}
+	return recebido{}
+}
+
+func origemDe(q *Queue, id string) string {
+	q.mu.RLock()
+	defer q.mu.RUnlock()
+	for _, it := range q.items {
+		if it.ID == id {
+			return it.origem
+		}
+	}
+	return ""
+}
+
+const dl = `C:\Users\fulano\Downloads\`
+
+func interrompidoZip(path string) historico.Item {
+	return historico.Item{
+		Name: "x.zip", Path: path, Kind: "zip", Status: "interrupted", Message: "Interrompido",
+		OutputPath: dl + "x.txt", Error: "falhou antes", DocsCount: 3, PagesCount: 9,
+		EstimatedTokens: 100, UnreadDocs: 1, Timestamp: 1, FinishedAt: 2,
+		OcrMode: "best", CleaningLevel: "aggressive",
+	}
+}
+
+func conferirReaberto(t *testing.T, it *QueueItem) {
+	t.Helper()
+	if it.Status != "pending" || it.Message != "Na fila..." {
+		t.Errorf("status %q, mensagem %q", it.Status, it.Message)
+	}
+	if it.OutputPath != "" || it.Error != "" || it.DocsCount != 0 || it.PagesCount != 0 || it.EstimatedTokens != 0 || it.UnreadDocs != 0 || it.FinishedAt != 0 {
+		t.Errorf("campos não zerados: %+v", it)
+	}
+	if it.Timestamp <= 2 {
+		t.Errorf("Timestamp %d não é novo", it.Timestamp)
+	}
+	if it.Restaurado {
+		t.Error("continua Restaurado")
+	}
+}
+
+func TestAddFiles_ReaproveitaInterrompido(t *testing.T) {
+	t.Run("zip", func(t *testing.T) {
+		c := make(chan recebido, 1)
+		q, _ := novaFilaGravada(t, processarQueEntrega(c))
+		q.Reter()
+		zip := dl + "x.zip"
+		q.Restaurar([]historico.Item{
+			{Name: "a.zip", Path: dl + "a.zip", Kind: "zip", Status: "success", OutputPath: dl + "a.txt"},
+			interrompidoZip(zip),
+			{Name: "b.zip", Path: dl + "b.zip", Kind: "zip", Status: "success", OutputPath: dl + "b.txt"},
+		})
+		id := q.GetItems()[1].ID
+		if n := q.AddFilesComOrigem([]string{zip}, "monitorada"); n != 1 {
+			t.Fatalf("AddFilesComOrigem devolveu %d", n)
+		}
+		itens := q.GetItems()
+		if len(itens) != 3 || itens[1].ID != id {
+			t.Fatalf("itens: %+v", itens)
+		}
+		conferirReaberto(t, itens[1])
+		if o := origemDe(q, id); o != "monitorada" {
+			t.Errorf("origem %q", o)
+		}
+		if !sessaoComEntrada(q) {
+			t.Error("sessaoComEntrada desligado")
+		}
+		q.Soltar()
+		r := esperarRecebido(t, c)
+		if r.cfg.OcrMode != "none" || r.cfg.CleaningLevel != "none" {
+			t.Errorf("config recebida %+v, esperada a global", r.cfg)
+		}
+		esperarTerminoID(t, q, id)
+	})
+	t.Run("pdf", func(t *testing.T) {
+		c := make(chan recebido, 1)
+		q, _ := novaFilaGravada(t, processarQueEntrega(c))
+		pdf := dl + "a.pdf"
+		q.Restaurar([]historico.Item{{
+			Name: "a", Path: pdf, Paths: []string{pdf}, Kind: "pdf", Status: "interrupted",
+			OutputPath: dl + "a.txt", Timestamp: 1, FinishedAt: 2,
+		}})
+		id := q.GetItems()[0].ID
+		if n := q.AddFilesComOrigem([]string{pdf}, "monitorada"); n != 1 {
+			t.Fatalf("AddFilesComOrigem devolveu %d", n)
+		}
+		if itens := q.GetItems(); len(itens) != 1 || itens[0].ID != id {
+			t.Fatalf("itens: %+v", itens)
+		}
+		if r := esperarRecebido(t, c); r.e.SaidaAnterior != dl+"a.txt" {
+			t.Errorf("SaidaAnterior = %q", r.e.SaidaAnterior)
+		}
+		esperarTerminoID(t, q, id)
+	})
+}
+
+func TestAddFiles_ReaproveitaMantemSaidaAnterior(t *testing.T) {
+	c := make(chan recebido, 1)
+	q, _ := novaFilaGravada(t, processarQueEntrega(c))
+	pdf := dl + "a.pdf"
+	q.mu.Lock()
+	q.items = []*QueueItem{{ID: "i", Name: "a", Path: pdf, Paths: []string{pdf}, Kind: "pdf", Status: "interrupted", saidaAnterior: dl + "a_2.txt"}}
+	q.mu.Unlock()
+	if n := q.AddFiles([]string{pdf}); n != 1 {
+		t.Fatalf("AddFiles devolveu %d", n)
+	}
+	if itens := q.GetItems(); len(itens) != 1 || itens[0].ID != "i" {
+		t.Fatalf("itens: %+v", itens)
+	}
+	if r := esperarRecebido(t, c); r.e.SaidaAnterior != dl+"a_2.txt" {
+		t.Errorf("SaidaAnterior = %q", r.e.SaidaAnterior)
+	}
+	esperarTerminoID(t, q, "i")
+}
+
+func TestAddFiles_ReaproveitaSemCaixa(t *testing.T) {
+	t.Run("zip", func(t *testing.T) {
+		q, _ := novaFilaGravada(t, sucesso)
+		q.Reter()
+		q.Restaurar([]historico.Item{interrompidoZip(`c:\users\fulano\downloads\x.zip`)})
+		id := q.GetItems()[0].ID
+		if n := q.AddFilesComOrigem([]string{`C:\Users\fulano\Downloads\x.zip`}, "monitorada"); n != 1 {
+			t.Fatalf("AddFilesComOrigem devolveu %d", n)
+		}
+		itens := q.GetItems()
+		if len(itens) != 1 || itens[0].ID != id {
+			t.Fatalf("itens: %+v", itens)
+		}
+		conferirReaberto(t, itens[0])
+	})
+	t.Run("pdf", func(t *testing.T) {
+		q, _ := novaFilaGravada(t, sucesso)
+		q.Reter()
+		pdf := `c:\users\fulano\downloads\a.pdf`
+		q.Restaurar([]historico.Item{{Name: "a", Path: pdf, Paths: []string{pdf}, Kind: "pdf", Status: "interrupted", Timestamp: 1, FinishedAt: 2}})
+		id := q.GetItems()[0].ID
+		if n := q.AddFiles([]string{`C:\Users\fulano\Downloads\A.pdf`}); n != 1 {
+			t.Fatalf("AddFiles devolveu %d", n)
+		}
+		itens := q.GetItems()
+		if len(itens) != 1 || itens[0].ID != id {
+			t.Fatalf("itens: %+v", itens)
+		}
+		conferirReaberto(t, itens[0])
+	})
+}
+
+func TestAddFiles_SoAInterrompida(t *testing.T) {
+	q, _ := novaFilaGravada(t, sucesso)
+	q.Reter()
+	zip := dl + "x.zip"
+	q.Restaurar([]historico.Item{
+		{Name: "x.zip", Path: zip, Kind: "zip", Status: "success", Message: "Concluído", OutputPath: dl + "x.txt", DocsCount: 2, Timestamp: 5, FinishedAt: 6},
+		interrompidoZip(zip),
+	})
+	antes := q.GetItems()
+	if n := q.AddFilesComOrigem([]string{zip}, "monitorada"); n != 1 {
+		t.Fatalf("AddFilesComOrigem devolveu %d", n)
+	}
+	itens := q.GetItems()
+	if len(itens) != 2 || itens[0].ID != antes[0].ID || itens[1].ID != antes[1].ID {
+		t.Fatalf("itens: %+v", itens)
+	}
+	if s := itens[0]; s.Status != "success" || s.OutputPath != dl+"x.txt" || s.DocsCount != 2 || s.FinishedAt != 6 || !s.Restaurado {
+		t.Errorf("a linha success mudou: %+v", s)
+	}
+	conferirReaberto(t, itens[1])
+}
+
+func TestAddFiles_SuccessCriaNova(t *testing.T) {
+	q, _ := novaFilaGravada(t, sucesso)
+	q.Reter()
+	zip := dl + "x.zip"
+	q.Restaurar([]historico.Item{{Name: "x.zip", Path: zip, Kind: "zip", Status: "success", OutputPath: dl + "x.txt", FinishedAt: 6}})
+	antigo := q.GetItems()[0].ID
+	if n := q.AddFiles([]string{zip}); n != 1 {
+		t.Fatalf("AddFiles devolveu %d", n)
+	}
+	itens := q.GetItems()
+	if len(itens) != 2 || itens[1].ID != antigo || itens[0].ID == antigo {
+		t.Fatalf("itens: %+v", itens)
+	}
+	if itens[0].Status != "pending" || itens[0].Restaurado {
+		t.Errorf("linha nova: %+v", itens[0])
+	}
+	if s := itens[1]; s.Status != "success" || s.OutputPath != dl+"x.txt" || !s.Restaurado {
+		t.Errorf("a linha success mudou: %+v", s)
+	}
+}
+
+func TestAddFiles_PDFsDoLote(t *testing.T) {
+	lote := []string{dl + "a.pdf", dl + "b.pdf", dl + "c.pdf"}
+	restaurar := func(t *testing.T) (*Queue, string) {
+		q, _ := novaFilaGravada(t, sucesso)
+		q.Reter()
+		q.Restaurar([]historico.Item{{Name: "a (3 PDFs)", Path: lote[0], Paths: lote, Kind: "pdf", Status: "interrupted", OutputPath: dl + "a.txt", Timestamp: 1, FinishedAt: 2}})
+		return q, q.GetItems()[0].ID
+	}
+	t.Run("um dos PDFs cria item novo", func(t *testing.T) {
+		q, id := restaurar(t)
+		if n := q.AddFiles([]string{lote[1]}); n != 1 {
+			t.Fatalf("AddFiles devolveu %d", n)
+		}
+		itens := q.GetItems()
+		if len(itens) != 2 || itens[1].ID != id || itens[0].ID == id {
+			t.Fatalf("itens: %+v", itens)
+		}
+		if len(itens[0].Paths) != 1 || itens[0].Paths[0] != lote[1] {
+			t.Errorf("item novo com Paths %v", itens[0].Paths)
+		}
+		if l := itens[1]; l.Status != "interrupted" || l.OutputPath != dl+"a.txt" || !l.Restaurado || l.FinishedAt != 2 {
+			t.Errorf("a linha interrompida mudou: %+v", l)
+		}
+	})
+	t.Run("os três, em outra ordem e caixa, reaproveitam", func(t *testing.T) {
+		q, id := restaurar(t)
+		n := q.AddFiles([]string{`C:\USERS\FULANO\DOWNLOADS\C.PDF`, `c:\users\fulano\downloads\a.pdf`, `C:\Users\fulano\Downloads\B.pdf`})
+		if n != 3 {
+			t.Fatalf("AddFiles devolveu %d", n)
+		}
+		itens := q.GetItems()
+		if len(itens) != 1 || itens[0].ID != id {
+			t.Fatalf("itens: %+v", itens)
+		}
+		conferirReaberto(t, itens[0])
+	})
+}
+
+func TestConferirArquivos(t *testing.T) {
+	t.Run("com restaurados", func(t *testing.T) {
+		q, ev := novaFilaGravada(t, sucesso)
+		q.Reter()
+		presentes := map[string]bool{
+			dl + "ok.zip": true, dl + "ok.txt": true,
+			dl + "semtxt.zip": true,
+			dl + "semzip.txt": true,
+			dl + "p1.pdf":     true, dl + "lote.txt": true,
+		}
+		q.Restaurar([]historico.Item{
+			{Name: "ok.zip", Path: dl + "ok.zip", Kind: "zip", Status: "success", OutputPath: dl + "ok.txt"},
+			{Name: "semtxt.zip", Path: dl + "semtxt.zip", Kind: "zip", Status: "success", OutputPath: dl + "semtxt.txt"},
+			{Name: "semzip.zip", Path: dl + "semzip.zip", Kind: "zip", Status: "success", OutputPath: dl + "semzip.txt"},
+			{Name: "lote", Path: dl + "p1.pdf", Paths: []string{dl + "p1.pdf", dl + "p2.pdf"}, Kind: "pdf", Status: "success", OutputPath: dl + "lote.txt"},
+		})
+		q.AddFiles([]string{dl + "novo.zip"})
+		antes := len(ev.doTipo("queue:update"))
+		q.ConferirArquivos(func(c string) bool { return presentes[c] })
+		if n := len(ev.doTipo("queue:update")) - antes; n != 1 {
+			t.Errorf("queue:update emitido %d vezes, esperado 1", n)
+		}
+		// SourceMissing, OutputMissing esperados por nome.
+		quer := map[string][2]bool{
+			"ok.zip": {false, false}, "semtxt.zip": {false, true}, "semzip.zip": {true, false}, "lote": {true, false}, "novo.zip": {false, false},
+		}
+		for _, it := range q.GetItems() {
+			esp, ok := quer[it.Name]
+			if !ok {
+				t.Errorf("item inesperado %s", it.Name)
+				continue
+			}
+			if it.SourceMissing != esp[0] || it.OutputMissing != esp[1] {
+				t.Errorf("%s: SourceMissing %v, OutputMissing %v; esperado %v, %v", it.Name, it.SourceMissing, it.OutputMissing, esp[0], esp[1])
+			}
+		}
+	})
+	t.Run("sem restaurados", func(t *testing.T) {
+		q, ev := novaFilaGravada(t, sucesso)
+		q.Reter()
+		q.AddFiles([]string{dl + "novo.zip"})
+		antes := len(ev.doTipo("queue:update"))
+		q.ConferirArquivos(func(string) bool { return false })
+		if n := len(ev.doTipo("queue:update")) - antes; n != 0 {
+			t.Errorf("queue:update emitido %d vezes sem restaurados", n)
+		}
+		if it := q.GetItems()[0]; it.SourceMissing || it.OutputMissing {
+			t.Errorf("item novo marcado: %+v", it)
+		}
+	})
+}
+
+func TestConferirArquivos_ItemQueVoltouAFila(t *testing.T) {
+	q, _ := novaFilaGravada(t, sucesso)
+	q.Reter()
+	zip := dl + "x.zip"
+	q.Restaurar([]historico.Item{interrompidoZip(zip)})
+	id := q.GetItems()[0].ID
+	var uma sync.Once
+	chamou := false
+	q.ConferirArquivos(func(string) bool {
+		uma.Do(func() {
+			chamou = true
+			q.AddFilesComOrigem([]string{zip}, "monitorada")
+		})
+		return false
+	})
+	if !chamou {
+		t.Fatal("ConferirArquivos não chamou existe; o teste não prova nada")
+	}
+	itens := q.GetItems()
+	if len(itens) != 1 || itens[0].ID != id {
+		t.Fatalf("itens: %+v", itens)
+	}
+	if it := itens[0]; it.Restaurado || it.SourceMissing || it.OutputMissing || it.Status != "pending" {
+		t.Errorf("linha reaproveitada: %+v", it)
+	}
+}
+
+func TestMarcarSaidaAusente(t *testing.T) {
+	q, ev := novaFilaGravada(t, sucesso)
+	q.Restaurar([]historico.Item{
+		{Name: "a.zip", Path: dl + "a.zip", Kind: "zip", Status: "success", OutputPath: dl + "a.txt"},
+		{Name: "b.zip", Path: dl + "b.zip", Kind: "zip", Status: "success", OutputPath: dl + "b.txt"},
+	})
+	antes := len(ev.doTipo("queue:update"))
+	q.MarcarSaidaAusente(`c:\users\fulano\downloads\.\A.TXT`)
+	if n := len(ev.doTipo("queue:update")) - antes; n != 1 {
+		t.Errorf("queue:update emitido %d vezes, esperado 1", n)
+	}
+	for _, it := range q.GetItems() {
+		if quer := it.Name == "a.zip"; it.OutputMissing != quer {
+			t.Errorf("%s: OutputMissing %v, esperado %v", it.Name, it.OutputMissing, quer)
+		}
+	}
+}
