@@ -935,8 +935,16 @@ func (q *Queue) processItem(item *QueueItem) {
 			item.Progress = 0.0
 		} else {
 			item.Status = "error"
-			item.Message = err.Error()
-			item.Error = err.Error()
+			// No item de PDF, o erro cru (o *fs.PathError da gravação traz a
+			// pasta, com o nome do usuário) não chega à interface: vai o texto
+			// fixo de textoErroSaida, e o erro completo fica no log ("zip com
+			// erro", em processarEntrada). O ZIP segue com o erro cru.
+			texto := err.Error()
+			if entrada.Kind == "pdf" {
+				texto = textoErroSaida(err)
+			}
+			item.Message = texto
+			item.Error = texto
 			classeErro = string(classificarErro(err))
 			if ee, ok := errors.AsType[ErroEtapa](err); ok {
 				etapaErro = ee.Etapa
