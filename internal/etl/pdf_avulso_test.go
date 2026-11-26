@@ -6,8 +6,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -349,6 +351,31 @@ func TestExtrairPDF_AvulsoNaoConferido(t *testing.T) {
 		if txt := textoErroSaida(err); txt != "falha de leitura ou gravação em disco" {
 			t.Errorf("%s: texto = %q", filepath.Base(c), txt)
 		}
+	}
+}
+
+// Uma entrada de ZIP (Avulso=false) que traz um byte além do tamanho
+// declarado não é truncada calada: falha com a frase do ZIP, não com a de
+// arquivo trocado, e devolve a reserva de memória.
+func TestExtrairPDF_EntradaDoZipMaiorQueODeclarado(t *testing.T) {
+	dados := pdfComTexto("Texto ficticio de FULANO DE TAL")
+	mem := &memoriaPDF{bufs: make(chan []byte, 2)}
+	mem.disponivel.Store(maxTotalPDFEmMemoria)
+	f := ParseNome("Evento 1 - SENT1.pdf")
+	f.Tamanho = int64(len(dados))
+	f.Abrir = func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(append(slices.Clone(dados), 'x'))), nil
+	}
+	fonte, err := extrairPDF(f, mem)
+	if err == nil {
+		fonte.liberar()
+		t.Fatal("extrairPDF deveria falhar com a entrada maior que o declarado")
+	}
+	if got := err.Error(); got != "entrada do ZIP maior que o tamanho declarado" {
+		t.Errorf("erro = %q", got)
+	}
+	if got := mem.disponivel.Load(); got != maxTotalPDFEmMemoria {
+		t.Errorf("memória disponível = %d, esperava %d (reserva devolvida)", got, maxTotalPDFEmMemoria)
 	}
 }
 

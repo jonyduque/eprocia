@@ -162,15 +162,17 @@ func trocasDoArquivo(acimaDoTeto bool) []trocaDoArquivo {
 		gravarArquivo(t, c, original[:len(original)/2])
 	}
 	zero := func(t *testing.T, c string, _ []byte) { gravarArquivo(t, c, nil) }
-	trocas := []trocaDoArquivo{{"maior", maior, fraseMudou}, {"menor", menor, fraseMudou}, {"zero_bytes", zero, fraseMudou}}
-	if !acimaDoTeto {
-		trocas = append(trocas, trocaDoArquivo{"apagado", func(t *testing.T, c string, _ []byte) {
-			if err := os.Remove(c); err != nil {
-				t.Errorf("apagar: %v", err)
-			}
-		}, fraseDisco})
+	// Acima do teto, o apagado some antes da própria extração na pré-contagem
+	// (a troca acontece quando o outro PDF é contado): a extração falha, a
+	// fonte não fica guardada, e o worker, que tenta de novo, também não o
+	// acha. Termina com a frase de disco, como o apagado abaixo do teto.
+	apagado := func(t *testing.T, c string, _ []byte) {
+		if err := os.Remove(c); err != nil {
+			t.Errorf("apagar: %v", err)
+		}
 	}
-	return trocas
+	return []trocaDoArquivo{{"maior", maior, fraseMudou}, {"menor", menor, fraseMudou}, {"zero_bytes", zero, fraseMudou},
+		{"apagado", apagado, fraseDisco}}
 }
 
 func TestProcessarEntrada_ArquivoTrocadoNoMeio(t *testing.T) {
