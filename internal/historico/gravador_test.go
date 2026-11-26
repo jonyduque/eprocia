@@ -159,6 +159,38 @@ func TestGravador_RenameFalha(t *testing.T) {
 		}
 	})
 
+	t.Run("AoFalhar reentrante", func(t *testing.T) {
+		arq := filepath.Join(t.TempDir(), "historico.json")
+		renomear = func(_, _ string) error { return errors.New("acesso negado") }
+		var g *Gravador
+		var falhas atomic.Int32
+		g = novoGravadorTeste(t, arq, Opcoes{AoFalhar: func(error) {
+			falhas.Add(1)
+			g.Agendar(lista("de-novo"))
+			_ = g.GravarAgora(lista("de-novo"))
+		}})
+		pronto := make(chan error, 1)
+		go func() { pronto <- g.GravarAgora(lista("a")) }()
+		select {
+		case err := <-pronto:
+			if err == nil {
+				t.Fatal("GravarAgora não devolveu erro")
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("GravarAgora travou com AoFalhar reentrante")
+		}
+		if falhas.Load() == 0 {
+			t.Fatal("AoFalhar não foi chamado")
+		}
+		fechou := make(chan struct{})
+		go func() { _ = g.Fechar(nil); close(fechou) }()
+		select {
+		case <-fechou:
+		case <-time.After(5 * time.Second):
+			t.Fatal("Fechar travou com AoFalhar reentrante")
+		}
+	})
+
 	t.Run("falha só na primeira", func(t *testing.T) {
 		arq := filepath.Join(t.TempDir(), "historico.json")
 		var chamadas atomic.Int32
@@ -197,6 +229,8 @@ func TestGravador_Concorrencia(t *testing.T) {
 	enviadas[string(b)] = true
 
 	var wg sync.WaitGroup
+	var depoisPrimeiro atomic.Bool // o primeiro GravarAgora já voltou
+	var validasDepois atomic.Int32 // leituras válidas depois dele
 	parar := make(chan struct{})
 	for i := range 8 {
 		wg.Go(func() {
@@ -208,6 +242,7 @@ func TestGravador_Concorrencia(t *testing.T) {
 	wg.Go(func() {
 		for range 30 {
 			_ = g.GravarAgora(agora)
+			depoisPrimeiro.Store(true)
 		}
 	})
 	leitora := make(chan error, 1)
@@ -233,6 +268,9 @@ func TestGravador_Concorrencia(t *testing.T) {
 				leitora <- fmt.Errorf("lista lida não foi enviada: %s", c)
 				return
 			}
+			if depoisPrimeiro.Load() {
+				validasDepois.Add(1)
+			}
 		}
 	}()
 	wg.Wait()
@@ -240,6 +278,9 @@ func TestGravador_Concorrencia(t *testing.T) {
 	close(parar)
 	if err := <-leitora; err != nil {
 		t.Fatal(err)
+	}
+	if validasDepois.Load() == 0 {
+		t.Fatal("nenhuma leitura válida depois do primeiro GravarAgora")
 	}
 
 	l, m := lista("L"), lista("M")
@@ -254,6 +295,53 @@ func TestGravador_Concorrencia(t *testing.T) {
 	if got := lerItens(t, arq); !reflect.DeepEqual(got, m) {
 		t.Fatalf("depois de Agendar(M): %+v", got)
 	}
+}
+
+func TestGravador_DebounceComTeto(t *testing.T) {
+	// Agendar a cada ~300 ms não pode adiar a escrita sem limite: ela sai
+	// perto do primeiro Atraso, não depois do último Agendar.
+	const atraso = 400 * time.Millisecond
+	var primeira atomic.Int64
+	inicio := time.Now()
+	aoGravarTeste = func() { primeira.CompareAndSwap(0, int64(time.Since(inicio))) }
+	t.Cleanup(func() { aoGravarTeste = nil })
+	arq := filepath.Join(t.TempDir(), "historico.json")
+	g := novoGravadorTeste(t, arq, Opcoes{Atraso: atraso})
+	for i := range 5 {
+		g.Agendar(lista(fmt.Sprintf("v%d", i)))
+		time.Sleep(300 * time.Millisecond)
+	}
+	ultimoAgendar := 4 * 300 * time.Millisecond
+	p := time.Duration(primeira.Load())
+	if p == 0 || p >= ultimoAgendar {
+		t.Fatalf("primeira escrita em %v; want antes do último Agendar (%v)", p, ultimoAgendar)
+	}
+	if p > atraso+300*time.Millisecond {
+		t.Fatalf("primeira escrita em %v; want perto de %v", p, atraso)
+	}
+	time.Sleep(3 * atraso)
+	if got := lerItens(t, arq); !reflect.DeepEqual(got, lista("v4")) {
+		t.Fatalf("arquivo: %+v; want a última lista", got)
+	}
+}
+
+func TestGravador_ApagaTemporariosAbandonados(t *testing.T) {
+	dir := t.TempDir()
+	for _, nome := range []string{"historico-123.tmp", "historico-abc.tmp", "outro.tmp", "historico.json", "config.json"} {
+		escreverArquivo(t, filepath.Join(dir, nome), []byte("{}"))
+	}
+	NovoGravador(filepath.Join(dir, "historico.json"), Opcoes{})
+	var restam []string
+	todos, _ := os.ReadDir(dir)
+	for _, e := range todos {
+		restam = append(restam, e.Name())
+	}
+	want := []string{"config.json", "historico.json", "outro.tmp"}
+	if !reflect.DeepEqual(restam, want) {
+		t.Fatalf("restam %v; want %v", restam, want)
+	}
+	// Pasta inexistente não é erro.
+	NovoGravador(filepath.Join(dir, "nao", "existe", "historico.json"), Opcoes{})
 }
 
 func TestGravador_FecharComTimerPendente(t *testing.T) {

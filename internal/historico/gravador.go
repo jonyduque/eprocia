@@ -50,6 +50,7 @@ type Gravador struct {
 	pendente  []Item
 	timer     *time.Timer
 	geracao   uint64 // invalida um timer já disparado e ainda sem o mutex
+	avisando  bool   // AoFalhar em curso: uma falha dentro dele não o chama de novo
 }
 
 // NovoGravador cria o gravador do arquivo, sem gravar nada.
@@ -58,7 +59,19 @@ func NovoGravador(arquivo string, o Opcoes) *Gravador {
 	if atraso <= 0 {
 		atraso = atrasoPadrao
 	}
+	apagarTemporarios(filepath.Dir(arquivo))
 	return &Gravador{arquivo: arquivo, atraso: atraso, aoFalhar: o.AoFalhar, protegido: o.Protegido}
+}
+
+// apagarTemporarios remove os historico-*.tmp que uma escrita interrompida
+// (queda de energia, processo encerrado) deixou na pasta.
+func apagarTemporarios(pasta string) {
+	sobras, _ := filepath.Glob(filepath.Join(pasta, "historico-*.tmp"))
+	for _, f := range sobras {
+		if err := os.Remove(f); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			slog.Warn("não foi possível apagar um temporário do histórico", "erro", err)
+		}
+	}
 }
 
 // aceitaLocked diz se a lista deve ser gravada e, com uma lista não vazia,
@@ -83,16 +96,20 @@ func (g *Gravador) cancelarLocked() {
 	g.pendente = nil
 }
 
-// Agendar guarda a lista e a grava depois do Atraso; chamadas seguidas dentro
-// do Atraso geram uma escrita só, com a última lista.
+// Agendar guarda a lista e a grava no máximo um Atraso depois da primeira
+// chamada ainda não gravada: com timer pendente, só troca a lista (não rearma),
+// para uma rajada contínua não adiar a escrita sem limite. Chamadas dentro do
+// Atraso geram uma escrita só, com a última lista.
 func (g *Gravador) Agendar(itens []Item) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if g.fechado || !g.aceitaLocked(itens) {
 		return
 	}
-	g.cancelarLocked()
 	g.pendente = append([]Item{}, itens...)
+	if g.timer != nil {
+		return
+	}
 	gen := g.geracao
 	g.timer = time.AfterFunc(g.atraso, func() { g.disparar(gen) })
 }
@@ -168,15 +185,31 @@ func (g *Gravador) Reabrir() error {
 	return nil
 }
 
-// avisar registra a falha e chama AoFalhar, fora do mutex.
+// avisar registra a falha e chama AoFalhar, fora do mutex. Uma falha que
+// acontece enquanto AoFalhar roda (ele chamou Agendar ou GravarAgora, ou outra
+// goroutine falhou ao mesmo tempo) só vai para o log: sem isso, um AoFalhar
+// que grava de novo com o disco falhando entraria em recursão sem fim.
 func (g *Gravador) avisar(err error) {
 	if err == nil {
 		return
 	}
 	slog.Warn("não foi possível gravar o histórico", "erro", err)
-	if g.aoFalhar != nil {
-		g.aoFalhar(err)
+	if g.aoFalhar == nil {
+		return
 	}
+	g.mu.Lock()
+	if g.avisando {
+		g.mu.Unlock()
+		return
+	}
+	g.avisando = true
+	g.mu.Unlock()
+	defer func() {
+		g.mu.Lock()
+		g.avisando = false
+		g.mu.Unlock()
+	}()
+	g.aoFalhar(err)
 }
 
 // escreverLocked grava {versao, itens} num temporário da pasta e o renomeia
@@ -200,6 +233,9 @@ func (g *Gravador) escreverLocked(itens []Item) error {
 	}
 	nomeTmp := tmp.Name()
 	_, err = tmp.Write(dados)
+	if err == nil {
+		err = tmp.Sync()
+	}
 	if errFechar := tmp.Close(); err == nil {
 		err = errFechar
 	}
