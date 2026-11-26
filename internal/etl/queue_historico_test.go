@@ -165,6 +165,14 @@ func TestHistorico_ShutdownGravaInterrompido(t *testing.T) {
 	q.AddFiles([]string{`C:\Users\fulano\Downloads\b.zip`})
 	q.Shutdown()
 
+	// Na fila, b.zip continua pending: só a lista gravada o marca interrupted.
+	for _, it := range q.GetItems() {
+		if it.Name == "b.zip" && it.Status != "pending" {
+			t.Errorf("b.zip na fila com status %q, esperado pending", it.Status)
+		}
+	}
+	idPorNome(t, q, "b.zip")
+
 	g.mu.Lock()
 	fechar := append([][]historico.Item(nil), g.fechar...)
 	g.mu.Unlock()
@@ -245,7 +253,7 @@ func TestRestaurar_Converte(t *testing.T) {
 	q.Restaurar([]historico.Item{
 		{Name: "p.zip", Path: `C:\x\p.zip`, Kind: "zip", Status: "pending", Message: "Na fila..."},
 		{Name: "r.zip", Path: `C:\x\r.zip`, Kind: "zip", Status: "processing", Message: "Iniciando..."},
-		{Name: "s.zip", Path: `C:\x\s.zip`, Kind: "zip", Status: "success", Message: "Concluído", OutputPath: `C:\x\s.txt`},
+		{Name: "s.zip", Path: `C:\x\s.zip`, Kind: "zip", Status: "success", Message: "Concluído", OutputPath: `C:\x\s.txt`, DocsCount: 3, PagesCount: 7},
 	})
 	time.Sleep(200 * time.Millisecond)
 	if n := chamadas.Load(); n != 0 {
@@ -269,6 +277,9 @@ func TestRestaurar_Converte(t *testing.T) {
 		if it.Kind != "zip" {
 			t.Errorf("item %d: Kind %q", i+1, it.Kind)
 		}
+	}
+	if s := itens[3]; s.Progress != 1 || s.ProcessedDocs != 3 || s.TotalDocs != 3 || s.ProcessedPages != 7 || s.TotalPages != 7 {
+		t.Errorf("s.zip: Progress %v, docs %d/%d, páginas %d/%d; esperado 1, 3/3, 7/7", s.Progress, s.ProcessedDocs, s.TotalDocs, s.ProcessedPages, s.TotalPages)
 	}
 	if itens[1].Message != "Interrompido" || itens[2].Message != "Interrompido" {
 		t.Errorf("mensagens %q, %q", itens[1].Message, itens[2].Message)

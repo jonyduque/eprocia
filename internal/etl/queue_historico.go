@@ -12,7 +12,11 @@ import (
 )
 
 // GravadorHistorico é o que a fila usa do gravador do histórico
-// (*historico.Gravador a implementa).
+// (*historico.Gravador a implementa). A fila chama os três métodos com
+// q.emitMu travado, o que garante a ordem das listas; por isso o AoFalhar do
+// gravador, síncrono em GravarAgora e Fechar, não pode chamar a fila
+// (broadcast nem os métodos *Historico): só emitir um evento ou registrar no
+// log, e nada além disso.
 type GravadorHistorico interface {
 	Agendar(itens []historico.Item)
 	GravarAgora(itens []historico.Item) error
@@ -133,6 +137,9 @@ func (q *Queue) Restaurar(itens []historico.Item) {
 }
 
 // SetGravador liga o gravador do histórico; nil o solta. Não grava nada.
+// O AoFalhar do gravador roda de forma síncrona, com q.emitMu travado, dentro
+// de GravarAgora e Fechar: não pode chamar a fila (broadcast nem os métodos
+// *Historico), só emitir um evento ou registrar no log.
 func (q *Queue) SetGravador(g GravadorHistorico) {
 	q.emitMu.Lock()
 	defer q.emitMu.Unlock()
