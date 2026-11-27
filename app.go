@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -66,6 +67,8 @@ type App struct {
 	atualizador *atualizacao.Atualizador
 	// abrirURL é trocado nos testes; o padrão é runtime.BrowserOpenURL.
 	abrirURL func(url string)
+	// arranque é o que a main leu sobre a troca (lerArranque).
+	arranque arranque
 	// apos é o PID do processo antigo (--apos-atualizar); 0 = abertura normal.
 	apos int
 	// limparAnterior: --limpar-anterior, apagar eprocia.anterior.exe depois
@@ -295,6 +298,16 @@ func (a *App) GetConfig() (*models.Config, error) {
 	return config.Load()
 }
 
+// Textos fixos que SaveConfig, SetTheme e o evento watchdog:error levam à
+// interface: sem caminho nem erro cru (o detalhe vai só ao slog). As falhas
+// parciais começam por "configurações salvas", que o frontend reconhece.
+const (
+	msgConfigNaoGravada = "o arquivo de configuração não pôde ser gravado"
+	msgMonitorFalhou    = "não foi possível monitorar a pasta escolhida"
+	msgAutostartFalhou  = "configurações salvas, mas não foi possível alterar a inicialização com o Windows"
+	msgTemaNaoGravado   = "não foi possível salvar o tema"
+)
+
 // SaveConfig grava a configuração e reaplica o watchdog e a inicialização com
 // o Windows. O tema não vem do formulário: só SetTheme o altera.
 func (a *App) SaveConfig(cfg *models.Config) error {
@@ -313,17 +326,18 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 		if err := a.autostart(cfg.AutoStart); err != nil {
 			slog.Warn("falha ao alterar a inicialização com o Windows", "erro", err)
 			cfg.AutoStart = autoAnterior
-			errAuto = fmt.Errorf("configurações salvas, mas não foi possível alterar a inicialização com o Windows: %w", err)
+			errAuto = errors.New(msgAutostartFalhou)
 		}
 	}
 
 	if err := config.Save(cfg); err != nil {
+		slog.Warn("falha ao gravar as configurações", "erro", err)
 		if errAuto == nil && cfg.AutoStart != autoAnterior {
 			if errVolta := a.autostart(autoAnterior); errVolta != nil {
 				slog.Warn("falha ao desfazer a inicialização com o Windows", "erro", errVolta)
 			}
 		}
-		return err
+		return errors.New(msgConfigNaoGravada)
 	}
 
 	a.guardarConfig(cfg)
@@ -350,7 +364,7 @@ func (a *App) aplicarMonitor(cfg *models.Config) error {
 		}
 		if err := a.watcher.Start(cfg.MonitoredPath); err != nil {
 			slog.Warn("falha ao iniciar o monitoramento da pasta", "pasta", cfg.MonitoredPath, "erro", err)
-			return fmt.Errorf("configurações salvas, mas não foi possível monitorar a pasta %q: %w", cfg.MonitoredPath, err)
+			return errors.New("configurações salvas, mas " + msgMonitorFalhou)
 		}
 	} else {
 		a.watcher.Stop()
@@ -374,7 +388,8 @@ func (a *App) SetTheme(tema string) error {
 	novo := *cfg
 	novo.Theme = tema
 	if err := config.Save(&novo); err != nil {
-		return fmt.Errorf("não foi possível salvar o tema: %w", err)
+		slog.Warn("falha ao gravar o tema", "erro", err)
+		return errors.New(msgTemaNaoGravado)
 	}
 	a.guardarConfig(&novo)
 	if a.queue != nil {

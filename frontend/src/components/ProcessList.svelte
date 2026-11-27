@@ -53,6 +53,7 @@
   import { dica } from '../lib/dica.js';
   import { rotuloNaoLidos, avisoCopiaNaoLidos, tituloNaoLidos } from '../lib/naoLidos.js';
   import { rolagem } from '../lib/rolagem.js';
+  import { avisoErroEntrada } from '../lib/atualizacao.js';
   import { marcosFila, anuncioCopia, anuncioPausa, anuncioFiltro } from '../lib/anuncios.js';
   import {
     formatarHora,
@@ -234,7 +235,8 @@
       atividadesBuscadas = resto;
     } catch (err) {
       console.error('Erro ao reprocessar com OCR:', err);
-      avisoAcao.mostrar('Erro ao reprocessar: ' + (err?.message ?? err), 'error');
+      const r = avisoErroEntrada(err, 'Erro ao reprocessar: ');
+      avisoAcao.mostrar(r.texto, r.tipo);
     } finally {
       lendoOCR = { ...lendoOCR, [item.id]: false };
     }
@@ -255,7 +257,8 @@
       atividadesBuscadas = resto;
     } catch (err) {
       console.error('Erro ao reprocessar:', err);
-      avisoAcao.mostrar('Erro ao reprocessar: ' + (err?.message ?? err), 'error');
+      const r = avisoErroEntrada(err, 'Erro ao reprocessar: ');
+      avisoAcao.mostrar(r.texto, r.tipo);
     }
   }
 

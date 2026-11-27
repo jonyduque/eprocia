@@ -34,3 +34,8 @@ func EsperarSair(pid int, prazo time.Duration) bool {
 
 // atributosFilho fora do Windows: nada a ajustar.
 func atributosFilho() *syscall.SysProcAttr { return nil }
+
+// PaiDoProcesso fora do Windows: só o pid do pai, sem o nome da imagem.
+func PaiDoProcesso() (ppid int, exe string, err error) {
+	return os.Getppid(), "", nil
+}

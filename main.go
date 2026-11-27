@@ -29,8 +29,9 @@ func main() {
 	// iniciado depois da trava: a segunda cópia não mexe no log da primeira.
 	app := NewApp()
 	app.pastaDados = pastaDadosApp()
-	app.apos, _ = atualizacao.AposAtualizar(os.Args)
-	app.limparAnterior = atualizacao.LimparAnteriorPedido(os.Args)
+	app.arranque = lerArranque(os.Args, atualizacao.PaiDoProcesso)
+	app.apos = app.arranque.apos
+	app.limparAnterior = app.arranque.limparAnterior
 	travar := func() (func(), bool, error) {
 		return travarInstancia(nomeTravaInstancia(caminhoExecutavel()))
 	}
@@ -45,6 +46,8 @@ func main() {
 		func() {
 			app.guardarConfig(carregarConfig(config.Load))
 			iniciarRegistro(os.Getenv("EPROCIA_LOG"), app.pastaDados, app.configAtual())
+			app.logarRecusaApos()
+			app.logarAposSemConfirmar()
 		},
 	)
 	if sair {

@@ -31,6 +31,78 @@ var intervaloTravaAdiada = 500 * time.Millisecond
 // chamado, depois de o antigo sair (ou do prazo de esperá-lo).
 var prazoTravaAdiada = atualizacao.PrazoAntigoSair
 
+// arranque é o que a main leu da linha de comando sobre a troca.
+type arranque struct {
+	apos           int // pid do antigo aceito; 0 = partida normal
+	limparAnterior bool
+	pidFlag        int    // pid pedido na flag, mesmo recusado
+	recusa         string // motivo fixo da recusa; "" = aceito ou sem flag
+	paiPID         int
+	paiExe         string // só o nome da imagem do pai
+	semConfirmar   string // motivo fixo de a flag ter sido aceita sem conferir o pai
+	errPai         error  // erro da leitura do pai, só para o log
+}
+
+// Motivos fixos de aceitar o --apos-atualizar sem conferir o pai (vão só ao log).
+const (
+	motivoPaiIlegivel      = "não foi possível ler o processo pai"
+	motivoPaiForaDoRetrato = "o processo pai não está no instantâneo"
+)
+
+// lerArranque lê --apos-atualizar e --limpar-anterior e confere a origem da
+// flag: o processo novo da troca é filho do antigo (troca.go, exec.Command),
+// e o nome da imagem no instantâneo é o da criação, por isso
+// eprocia.anterior.exe (o antigo já renomeado) também vale. Recusada, a
+// partida é normal: trava imediata, sem sinal de vida nem --limpar-anterior.
+// pai só é chamado quando a flag existe.
+func lerArranque(args []string, pai func() (int, string, error)) arranque {
+	pid, ok := atualizacao.AposAtualizar(args)
+	if !ok {
+		return arranque{}
+	}
+	ppid, exe, err := pai()
+	r := arranque{pidFlag: pid, paiPID: ppid, paiExe: exe}
+	aceito, motivo := atualizacao.ConfirmarAposAtualizar(pid, ppid, exe, err)
+	if !aceito {
+		r.recusa = motivo
+		return r
+	}
+	r.apos = pid
+	r.limparAnterior = atualizacao.LimparAnteriorPedido(args)
+	switch {
+	case err != nil:
+		r.semConfirmar, r.errPai = motivoPaiIlegivel, err
+	case exe == "":
+		r.semConfirmar = motivoPaiForaDoRetrato
+	}
+	return r
+}
+
+// logarRecusaApos registra por que o --apos-atualizar foi ignorado; roda
+// depois de iniciar o registro.
+func (a *App) logarRecusaApos() {
+	r := a.arranque
+	if r.recusa == "" {
+		return
+	}
+	slog.Warn("atualização: --apos-atualizar ignorado; partida normal",
+		"motivo", r.recusa, "pid_flag", r.pidFlag, "ppid", r.paiPID, "pai_exe", r.paiExe)
+}
+
+// logarAposSemConfirmar registra quando o --apos-atualizar foi aceito sem
+// conferir o pai; roda depois de iniciar o registro, junto de logarRecusaApos.
+func (a *App) logarAposSemConfirmar() {
+	r := a.arranque
+	if r.semConfirmar == "" {
+		return
+	}
+	attrs := []any{"motivo", r.semConfirmar, "pid_flag", r.pidFlag, "ppid", r.paiPID}
+	if r.errPai != nil {
+		attrs = append(attrs, "erro", r.errPai)
+	}
+	slog.Info("atualização: --apos-atualizar aceito sem conferir o processo pai", attrs...)
+}
+
 // travaAposAtualizar adia a trava de instância do processo aberto pela troca
 // (--apos-atualizar): o antigo a segura até sair, e o novo não pode sair por
 // achá-la ocupada. A envolvida devolve ok com a trava ocupada; depois tenta de
@@ -98,7 +170,7 @@ func (a *App) ligarMonitor(ctx context.Context) {
 	}
 	if err := a.watcher.Start(cfg.MonitoredPath); err != nil {
 		slog.Warn("falha ao iniciar o monitoramento da pasta", "pasta", cfg.MonitoredPath, "erro", err)
-		a.emitirEm(ctx, "watchdog:error", err.Error())
+		a.emitirEm(ctx, "watchdog:error", msgMonitorFalhou)
 	}
 }
 
