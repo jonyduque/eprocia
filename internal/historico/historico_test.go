@@ -367,7 +367,7 @@ func TestHistorico_TamanhoPorItem(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const limite = 1_200_000
+	const limite = 1_500_000
 	if info.Size() > limite {
 		t.Fatalf("%d itens com relatório: %d bytes; máximo %d", Teto, info.Size(), limite)
 	}

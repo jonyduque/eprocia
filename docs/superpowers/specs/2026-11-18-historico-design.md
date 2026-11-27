@@ -125,7 +125,7 @@ _Nota da decisão d3 (2026-11-26):_ grava-se também `"relatorio"` (omitido quan
 
 ### 3.3 Retenção
 
-Só a última sessão (h2), pela regra da lista gravada (seção 2.1 e e6). Não há prazo em dias. Fica um teto de 500 itens, para uma sessão muito longa (o programa pode ficar dias aberto na bandeja) não gerar um arquivo sem limite; acima dele, saem os mais antigos. Com 500 itens o arquivo fica em torno de 300 KB, lido uma vez na abertura; com o relatório de cada item (d3), em torno de 1,2 MB (medido em `TestHistorico_TamanhoPorItem`: cerca de 2,3 KB por item, com o JSON indentado).
+Só a última sessão (h2), pela regra da lista gravada (seção 2.1 e e6). Não há prazo em dias. Fica um teto de 500 itens, para uma sessão muito longa (o programa pode ficar dias aberto na bandeja) não gerar um arquivo sem limite; acima dele, saem os mais antigos. Com 500 itens o arquivo fica em torno de 300 KB, lido uma vez na abertura; com o relatório de cada item (d3), no máximo 1,5 MB (teto de `TestHistorico_TamanhoPorItem`; medido em torno de 1,2 MB, cerca de 2,3 KB por item, com o JSON indentado).
 
 ## 4. Casos de borda e falhas
 

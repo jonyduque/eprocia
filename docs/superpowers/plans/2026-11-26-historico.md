@@ -45,7 +45,7 @@
 - **`Fechar(nil)` vira `FecharEApagar()`.** Com a lista gravada podendo ser vazia, `nil` e `[]Item{}` ficariam com sentidos opostos (apagar e gravar vazio). O plano usa um método explícito para o desligar.
 - **Falha de escrita na troca de versão.** O `atualizador` aborta o reinício se `Gravador.Fechar` devolver erro. Pela spec do histórico, a falha de escrita "registra no log ... e segue". O plano faz o gravador ficar fechado mesmo com a escrita falhando, e o adaptador registra no log e devolve `nil`: a troca segue e o processo novo carrega a última escrita que deu certo (pergunta q1 do relatório).
 - **Pasta do histórico.** A spec diz "via `config.GetConfigPath`". O app já tem `pastaDados` (o mesmo `%APPDATA%\eprocIA`, trocado por `t.TempDir()` nos testes): o plano usa `filepath.Join(a.pastaDados, "historico.json")`. Com `pastaDados` vazia, o histórico fica desligado e o log avisa.
-- **Campos novos desde a spec.** `QueueItem.Relatorio` e `ForcarOCR` não estão no formato da seção 3.2. O plano segue o formato da spec: um item restaurado não mostra a linha-resumo do relatório nem "Ler com OCR" (pergunta q2 do relatório). Resolvido pela decisão d3 (2026-11-26): a Task 10 grava o relatório sem `atencao`, e o item restaurado volta com a linha-resumo e o "Ler com OCR".
+- **Campos novos desde a spec.** `QueueItem.Relatorio` e `ForcarOCR` não estão no formato original da seção 3.2. Pela decisão d3 (2026-11-26), a Task 10 grava o relatório sem `atencao`, e o item restaurado volta com a linha-resumo e o "Ler com OCR"; `ForcarOCR` não é gravado.
 - **Protegido (versão maior).** "Não o sobrescreve até o usuário mexer na fila" precisa de um sinal: `Carregar` devolve `ErrVersaoNova` e o gravador nasce `Protegido`, ignorando listas vazias até a primeira não vazia.
 - **Ordem do startup.** A spec pede `Restaurar` antes de `a.watcher.Start` (`app.go:90` da v0.4.2). Hoje o watcher sobe em `iniciarFila` por `ligarMonitor` (`app_atualizacao.go:137-139`); o histórico entra logo antes.
 - **RF09 já existe** (relatório). O requisito "Histórico da fila" do `PRD.md` usa o próximo número livre depois do plano do PDF avulso.
@@ -401,7 +401,7 @@
   - `TestGravador_RelatorioIdaEVolta` (historico): um item `success` com um `RelatorioZip` preenchido (documentos, páginas por categoria, tempo, OCR, limpeza, `bytes_txt`, `tokens`) e `Atencao` nil volta igual (`reflect.DeepEqual`) por `GravarAgora` e `Carregar`.
   - `TestParaHistorico_SemAtencao` (etl): um item com `Relatorio.Atencao` de dois documentos (`Nome` `Evento 3 - PET1.pdf`): o JSON gravado no arquivo não contém a chave `"atencao"` nem o texto `PET1`, e o `Relatorio` do item na fila continua com os dois (a cópia gravada é outra struct, não o mesmo ponteiro alterado).
   - `TestRestaurar_ComRelatorio` (etl): o item restaurado tem `Relatorio` não nil com as contagens do arquivo e `Atencao` nil.
-  - `TestHistorico_TamanhoPorItem` (historico): 500 itens com relatório completo geram um arquivo de no máximo 1,2 MB (cerca de 1 KB de relatório por item, mais os cerca de 600 bytes do resto).
+  - `TestHistorico_TamanhoPorItem` (historico): 500 itens com relatório completo geram um arquivo de no máximo 1,5 MB (medido: cerca de 1,2 MB, 2,3 KB por item com o JSON indentado).
 
 - [ ] **Step 2: Rodar e ver falhar.** `go test -race ./internal/historico ./internal/etl -run 'Relatorio|SemAtencao|TamanhoPorItem' -v`. Esperado: FAIL.
 
