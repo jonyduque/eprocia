@@ -38,7 +38,10 @@ wails build -clean -nsis -tags ensaio
 # elevated shells ask, then re-run it unelevated as the session user via a
 # one-off scheduled task; a running eprocIA is closed only after the user
 # confirms, right before the swap). Internal args to a -File child go as
-# -ClosePids:<list>: powershell.exe 5.1 exits 5 on a bare '-' value. Must
+# -ClosePids:<list>: powershell.exe 5.1 exits 5 on a bare '-' value. Under
+# `irm | iex` the script runs in the caller's scope, so the body runs inside
+# `& { }` (unindented, for the here-strings) with no `$script:` (shared state
+# in the `$estado` table) and no Set-Location (Push/Pop-Location). Must
 # stay Windows PowerShell 5.1 compatible and saved WITHOUT a BOM (a BOM breaks
 # `irm | iex`); under -File the 5.1 re-reads itself as UTF-8, so never put
 # characters whose UTF-8 bytes include 0x91-0x94 (arrows, Ó, Ô) in the source:
