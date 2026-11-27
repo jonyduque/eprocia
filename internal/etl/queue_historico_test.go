@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -905,5 +907,77 @@ func TestHistorico_SaidaAnteriorIdaEVolta(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "peticao_2.txt")); err == nil {
 		t.Error("criou peticao_2.txt")
+	}
+}
+
+// relatorioComAtencao é um relatório com contagens e dois documentos a
+// conferir, como o pipeline o deixa no item ao terminar.
+func relatorioComAtencao() *models.RelatorioZip {
+	return &models.RelatorioZip{
+		Documentos: models.DocsRelatorio{Total: 5, Lidos: 5, PDF: 5},
+		Paginas:    models.PaginasRelatorio{Total: 20, LidaNativa: 15, LidaOCR: 2, SemOCR: 2, ComErro: 1},
+		Tempo:      models.TempoRelatorio{TotalMs: 4000},
+		Limpeza:    models.LimpezaRelatorio{Nivel: "standard", BytesAntes: 1000, BytesDepois: 800},
+		BytesTxt:   800,
+		Tokens:     200,
+		Atencao: []models.DocAtencao{
+			{Nome: "Evento 3 - PET1.pdf", Evento: 3, SemOCR: []int{1, 2}, TotalSemOCR: 2},
+			{Nome: "Evento 3 - PET1.pdf", Evento: 3, ComErro: []int{4}, TotalComErro: 1},
+		},
+	}
+}
+
+func TestParaHistorico_SemAtencao(t *testing.T) {
+	rel := relatorioComAtencao()
+	item := &QueueItem{
+		ID: "i", Name: "p.zip", Path: `C:\Users\fulano\Downloads\p.zip`, Kind: "zip",
+		Status: "success", Message: "Concluído", OutputPath: `C:\Users\fulano\Downloads\p.txt`,
+		DocsCount: 5, PagesCount: 20, Relatorio: rel,
+	}
+	arquivo := filepath.Join(t.TempDir(), "historico.json")
+	g := historico.NovoGravador(arquivo, historico.Opcoes{})
+	if err := g.Fechar([]historico.Item{paraHistorico(item)}); err != nil {
+		t.Fatal(err)
+	}
+	dados := string(lerHistorico(t, arquivo))
+	if strings.Contains(dados, `"atencao"`) || strings.Contains(dados, "PET1") {
+		t.Errorf("o arquivo traz os documentos a conferir:\n%s", dados)
+	}
+	if !strings.Contains(dados, `"relatorio":`) || !strings.Contains(dados, `"sem_ocr": 2`) {
+		t.Errorf("o arquivo não traz o relatório com as contagens:\n%s", dados)
+	}
+	if item.Relatorio != rel || len(rel.Atencao) != 2 {
+		t.Errorf("o relatório do item na fila mudou: ponteiro igual %v, %d em atencao", item.Relatorio == rel, len(rel.Atencao))
+	}
+	if h := paraHistorico(item); h.Relatorio == rel {
+		t.Error("paraHistorico devolve o mesmo ponteiro do item")
+	}
+}
+
+func TestRestaurar_ComRelatorio(t *testing.T) {
+	item := &QueueItem{
+		ID: "i", Name: "p.zip", Path: `C:\Users\fulano\Downloads\p.zip`, Kind: "zip",
+		Status: "success", Message: "Concluído", OutputPath: `C:\Users\fulano\Downloads\p.txt`,
+		DocsCount: 5, PagesCount: 20, Relatorio: relatorioComAtencao(),
+	}
+	arquivo := filepath.Join(t.TempDir(), "historico.json")
+	g := historico.NovoGravador(arquivo, historico.Opcoes{})
+	if err := g.Fechar([]historico.Item{paraHistorico(item)}); err != nil {
+		t.Fatal(err)
+	}
+	carregados, err := historico.Carregar(arquivo)
+	if err != nil || len(carregados) != 1 {
+		t.Fatalf("Carregar: %+v, %v", carregados, err)
+	}
+	q, _ := novaFilaGravada(t, sucesso)
+	q.Restaurar(carregados)
+	it := q.GetItems()[0]
+	if it.Relatorio == nil {
+		t.Fatal("item restaurado sem Relatorio")
+	}
+	want := *relatorioComAtencao()
+	want.Atencao = nil
+	if !reflect.DeepEqual(*it.Relatorio, want) {
+		t.Errorf("Relatorio restaurado:\n got %+v\nwant %+v", *it.Relatorio, want)
 	}
 }

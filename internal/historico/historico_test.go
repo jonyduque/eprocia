@@ -10,6 +10,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"eprocia/internal/models"
 )
 
 // pasta é a pasta fictícia dos itens de teste (não precisa existir).
@@ -286,4 +288,100 @@ func TestItem_SaidaAnteriorOmitidaVazia(t *testing.T) {
 	if !bytes.Contains(b, []byte(`"saida_anterior":`)) {
 		t.Errorf("saida_anterior não gravada: %s", b)
 	}
+}
+
+// relatorioCompleto é um models.RelatorioZip com todos os campos de contagem
+// preenchidos e sem Atencao, como o paraHistorico o grava.
+func relatorioCompleto() *models.RelatorioZip {
+	return &models.RelatorioZip{
+		Documentos: models.DocsRelatorio{
+			Total: 42, Lidos: 38, NaoLidos: 2, Omitidos: 2, DuplicadosH7: 1, PDF: 40, HTML: 2,
+			TiposOmitidos: []string{"PROCURACAO"},
+			PorLeitura:    map[string]int{"sem_ocr": 1, "senha": 1},
+		},
+		Paginas: models.PaginasRelatorio{
+			Total: 310, LidaNativa: 250, LidaOCR: 50, Vazia: 4, SemOCR: 3, ComErro: 3,
+			OCRSemGanho: 2, OCRFalhouComReserva: 1, DeNaoLidos: 12, DeOmitidos: 6, Duplicadas: 5,
+			PorMotivo: map[string]int{"padrao": 40, "imagem_descoberta": 8, "isca": 2},
+		},
+		Tempo: models.TempoRelatorio{
+			TotalMs: 95000, AbrirMs: 120, PreContagemMs: 800, LeituraParedeMs: 80000,
+			LeituraSomaMs: 300000, OCRTrabalhoMs: 240000, OCRParedeMs: 70000,
+			FormatacaoMs: 900, GravacaoMs: 40,
+		},
+		OCR: models.OCRRelatorio{
+			Processos: 12, Blocos: 4, PaginasEmBloco: 40, Refacoes: 1, Prazos: 1,
+			BlocoMedioMs: 18000, BlocoMedianaMs: 17000, BlocoP95Ms: 30000, PaginaEstimadaMs: 4800,
+		},
+		Limpeza: models.LimpezaRelatorio{
+			Nivel: "standard", BytesAntes: 900000, BytesDepois: 700000, BytesDuplicatas: 20000,
+			TokensAntes: 225000, TokensDepois: 175000,
+		},
+		BytesTxt: 700000,
+		Tokens:   175000,
+	}
+}
+
+func TestGravador_RelatorioIdaEVolta(t *testing.T) {
+	arq := filepath.Join(t.TempDir(), "historico.json")
+	itens := tresItens()
+	itens[0].Relatorio = relatorioCompleto()
+	g := novoGravadorTeste(t, arq, Opcoes{})
+	if err := g.GravarAgora(itens); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Carregar(arq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := tresItens()
+	want[0].Relatorio = relatorioCompleto()
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ida e volta:\n got %+v\nwant %+v", got[0].Relatorio, want[0].Relatorio)
+	}
+	dados, _ := os.ReadFile(arq)
+	if n := strings.Count(string(dados), `"relatorio":`); n != 1 {
+		t.Errorf(`"relatorio": aparece %d vezes; want 1 (omitempty nos itens sem relatório)`, n)
+	}
+}
+
+func TestHistorico_TamanhoPorItem(t *testing.T) {
+	itens := make([]Item, Teto)
+	for i := range itens {
+		nome := fmt.Sprintf("%s-%03d.zip", cnj, i)
+		itens[i] = Item{
+			Name: nome, Path: em(nome), Status: "success", Message: "Concluído",
+			OutputPath: em(strings.TrimSuffix(nome, ".zip") + ".txt"),
+			DocsCount:  42, PagesCount: 310, EstimatedTokens: 175000, UnreadDocs: 2,
+			Timestamp: 1795000000000, FinishedAt: 1795000095000,
+			OcrMode: "normal", CleaningLevel: "standard", Kind: "zip",
+			Relatorio: relatorioCompleto(),
+		}
+	}
+	arq := filepath.Join(t.TempDir(), "historico.json")
+	g := novoGravadorTeste(t, arq, Opcoes{})
+	if err := g.GravarAgora(itens); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(arq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const limite = 1_200_000
+	if info.Size() > limite {
+		t.Fatalf("%d itens com relatório: %d bytes; máximo %d", Teto, info.Size(), limite)
+	}
+	if !bytes.Contains(lerArquivo(t, arq), []byte(`"relatorio":`)) {
+		t.Fatal("o relatório não foi gravado")
+	}
+	t.Logf("%d itens com relatório: %d bytes (%d por item)", Teto, info.Size(), info.Size()/Teto)
+}
+
+func lerArquivo(t *testing.T, arq string) []byte {
+	t.Helper()
+	dados, err := os.ReadFile(arq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return dados
 }

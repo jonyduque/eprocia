@@ -62,6 +62,10 @@ describe('estados visuais', () => {
     assert.ok(concluido && concluido.finished_at > 0, 'concluído com finished_at');
     assert.ok(ausente, 'concluído com output_missing');
     assert.ok(interrompido, 'interrompido');
+    // O histórico grava o relatório só com contagens (decisão d3 de 2026-11-26):
+    // o concluído restaurado traz relatorio, sem atencao.
+    assert.ok(concluido.relatorio?.paginas?.total > 0, 'concluído restaurado com relatorio');
+    assert.equal(concluido.relatorio.atencao, undefined, 'relatorio restaurado sem atencao');
     for (const i of fila) assert.match(i.name, /^5000000-00\.2026\.4\.00\.\d{4}(\.zip)?$/);
   });
 

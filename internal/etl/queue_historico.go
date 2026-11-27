@@ -50,12 +50,21 @@ func paraHistorico(item *QueueItem) historico.Item {
 	if kind == "pdf" {
 		h.Paths = slices.Clone(item.Paths)
 	}
+	if item.Relatorio != nil {
+		// Cópia por valor: o relatório do item é imutável e dividido entre as
+		// cópias do item; só a cópia gravada perde Atencao, que traz os nomes
+		// dos documentos. Os demais campos são contagens, tempos e enumerações.
+		rel := *item.Relatorio
+		rel.Atencao = nil
+		h.Relatorio = &rel
+	}
 	return h
 }
 
 // deHistorico monta o QueueItem de uma linha restaurada: ID novo, Restaurado,
-// pending e processing viram interrupted, e a saida_anterior gravada (ou, sem
-// ela, o TXT gravado) vira saidaAnterior.
+// pending e processing viram interrupted, a saida_anterior gravada (ou, sem
+// ela, o TXT gravado) vira saidaAnterior, e o relatório gravado (sem Atencao)
+// volta como está.
 func deHistorico(h historico.Item) *QueueItem {
 	kind := h.Kind
 	if kind == "" {
@@ -81,6 +90,7 @@ func deHistorico(h historico.Item) *QueueItem {
 		FinishedAt:      h.FinishedAt,
 		OcrMode:         h.OcrMode,
 		CleaningLevel:   h.CleaningLevel,
+		Relatorio:       h.Relatorio,
 		Restaurado:      true,
 	}
 	if kind == "pdf" {

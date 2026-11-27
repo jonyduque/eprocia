@@ -16,7 +16,7 @@
 
 - O histórico nasce desligado: `Config.GuardarHistorico bool` (`json:"guardar_historico"`), padrão `false` em `DefaultConfig` e no overlay de `LoadFromFile`. Desligado, nenhuma leitura nem escrita de `historico.json`, e `Restaurar` não é chamado.
 - Arquivo: `historico.json` na pasta de dados (`App.pastaDados`, `%APPDATA%\eprocIA`, a mesma de `config.json` e `falhas.json`). UTF-8 sem BOM. Formato `{"versao": 1, "itens": [...]}`, itens do mais novo para o mais antigo.
-- Campos gravados por item, com estas chaves exatas: `name`, `path`, `status`, `message`, `output_path`, `docs_count`, `pages_count`, `estimated_tokens`, `unread_docs`, `error`, `timestamp`, `finished_at`, `ocr_mode`, `cleaning_level`, e, no item de PDF, `kind` e `paths`; e `saida_anterior` (omitido quando vazio), acrescentado na revisão final. Não se grava `id`, `restaurado`, progresso, contadores parciais, atividade, ajuste de reprocessamento, `relatorio` nem `forcar_ocr`.
+- Campos gravados por item, com estas chaves exatas: `name`, `path`, `status`, `message`, `output_path`, `docs_count`, `pages_count`, `estimated_tokens`, `unread_docs`, `error`, `timestamp`, `finished_at`, `ocr_mode`, `cleaning_level`, e, no item de PDF, `kind` e `paths`; e `saida_anterior` (omitido quando vazio), acrescentado na revisão final. Não se grava `id`, `restaurado`, progresso, contadores parciais, atividade, ajuste de reprocessamento nem `forcar_ocr`. Grava-se `relatorio` sem `atencao` (omitido quando o item não tem relatório): decisão d3 do dono (2026-11-26), Task 10; a cópia gravada perde só a lista `atencao`, que traz os nomes dos documentos.
 - `kind` é sempre gravado, inclusive `"zip"` (sem `omitempty`). A carga só deriva `kind` da extensão do `path` quando o campo vem vazio (arquivo escrito à mão ou de versão anterior do formato).
 - Teto de 500 itens (os mais antigos saem). Debounce de 1 s. Nova tentativa de rename uma vez após 200 ms.
 - Arquivo corrompido vira `historico.json.corrompido-AAAAMMDD-HHMMSS` (hora local) e a lista abre vazia; `versao` maior que 1 é ignorada e o arquivo não é sobrescrito até a sessão ter um item.
@@ -45,7 +45,7 @@
 - **`Fechar(nil)` vira `FecharEApagar()`.** Com a lista gravada podendo ser vazia, `nil` e `[]Item{}` ficariam com sentidos opostos (apagar e gravar vazio). O plano usa um método explícito para o desligar.
 - **Falha de escrita na troca de versão.** O `atualizador` aborta o reinício se `Gravador.Fechar` devolver erro. Pela spec do histórico, a falha de escrita "registra no log ... e segue". O plano faz o gravador ficar fechado mesmo com a escrita falhando, e o adaptador registra no log e devolve `nil`: a troca segue e o processo novo carrega a última escrita que deu certo (pergunta q1 do relatório).
 - **Pasta do histórico.** A spec diz "via `config.GetConfigPath`". O app já tem `pastaDados` (o mesmo `%APPDATA%\eprocIA`, trocado por `t.TempDir()` nos testes): o plano usa `filepath.Join(a.pastaDados, "historico.json")`. Com `pastaDados` vazia, o histórico fica desligado e o log avisa.
-- **Campos novos desde a spec.** `QueueItem.Relatorio` e `ForcarOCR` não estão no formato da seção 3.2. O plano segue o formato da spec: um item restaurado não mostra a linha-resumo do relatório nem "Ler com OCR" (pergunta q2 do relatório).
+- **Campos novos desde a spec.** `QueueItem.Relatorio` e `ForcarOCR` não estão no formato da seção 3.2. O plano segue o formato da spec: um item restaurado não mostra a linha-resumo do relatório nem "Ler com OCR" (pergunta q2 do relatório). Resolvido pela decisão d3 (2026-11-26): a Task 10 grava o relatório sem `atencao`, e o item restaurado volta com a linha-resumo e o "Ler com OCR".
 - **Protegido (versão maior).** "Não o sobrescreve até o usuário mexer na fila" precisa de um sinal: `Carregar` devolve `ErrVersaoNova` e o gravador nasce `Protegido`, ignorando listas vazias até a primeira não vazia.
 - **Ordem do startup.** A spec pede `Restaurar` antes de `a.watcher.Start` (`app.go:90` da v0.4.2). Hoje o watcher sobe em `iniciarFila` por `ligarMonitor` (`app_atualizacao.go:137-139`); o histórico entra logo antes.
 - **RF09 já existe** (relatório). O requisito "Histórico da fila" do `PRD.md` usa o próximo número livre depois do plano do PDF avulso.
@@ -386,7 +386,7 @@
 
 ### Task 10: Relatório no histórico, sem atencao (condicional)
 
-**Condicional: só se o dono escolher gravar o relatório (pergunta q2, decisão d4).** Se ele escolher a opção (a), esta tarefa não é executada e o plano termina na Task 9.
+**Executada: o dono escolheu gravar o relatório só com contagens, sem nomes de documento (decisão d3 de 2026-11-26).**
 
 **Files:**
 - Modify: `internal/historico/historico.go` (`Item`), `internal/etl/queue_historico.go` (`paraHistorico`, `deHistorico`)

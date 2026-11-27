@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"eprocia/internal/models"
 	"eprocia/internal/saida"
 )
 
@@ -50,6 +51,10 @@ type Item struct {
 	// (QueueItem.saidaAnterior): sem ele, um PDF interrompido no meio de um
 	// reprocesso voltaria sem saída e gravaria <nome>_2.txt.
 	SaidaAnterior string `json:"saida_anterior,omitempty"`
+	// Relatorio é o relatório do último sucesso, só com contagens: Atencao
+	// (os nomes dos documentos a conferir) nunca é gravado (decisão d3 de
+	// 2026-11-26).
+	Relatorio *models.RelatorioZip `json:"relatorio,omitempty"`
 }
 
 // arquivoHistorico é o conteúdo de historico.json.

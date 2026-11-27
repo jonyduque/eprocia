@@ -218,7 +218,10 @@ const FILA_PDF = [
 
 // Fila do estado `historico`: um item processado nesta sessão e três restaurados
 // da sessão anterior, de ontem (o relógio da captura fica em BASE_TS + 2 h, 02:00
-// de 02/01/2026 em São Paulo; capturar.mjs). Restaurado não traz relatorio.
+// de 02/01/2026 em São Paulo; capturar.mjs). O histórico grava o relatório só com
+// contagens, sem atencao (decisão d3 de 2026-11-26): o concluído restaurado traz
+// REL_HISTORICO, com páginas sem OCR (linha-resumo, aviso e "Ler com OCR"); o de
+// TXT ausente fica sem relatorio, como uma linha gravada antes dessa decisão.
 const ONTEM_1432 = BASE_TS - (9 * 60 + 28) * 60000; // 01/01/2026 14:32 em São Paulo
 const restaurado = (n, status, extra) => item(n, status, {
   timestamp: ONTEM_1432 - 20 * 60000,
@@ -238,10 +241,14 @@ const concluidoAntes = (n, fim, extra = {}) => restaurado(n, 'success', {
   finished_at: fim,
   ...extra,
 });
+const REL_HISTORICO = relatorioZip({
+  docs: 57, pdf: 55, html: 2, porLeitura: { lido: 57 },
+  paginas: { lida_nativa: 138, sem_ocr: 4 }, totalMs: 8100, bytesTxt: 393800, tokens: 98450,
+});
 const FILA_HISTORICO = [
   { ...sucesso(31), finished_at: BASE_TS + 95 * 60000, relatorio: REL_NATIVO },
   restaurado(32, 'interrupted', { timestamp: ONTEM_1432 + 3 * 60000 }),
-  concluidoAntes(33, ONTEM_1432),
+  concluidoAntes(33, ONTEM_1432, { relatorio: REL_HISTORICO }),
   concluidoAntes(34, ONTEM_1432 - 12 * 60000, { output_missing: true, unread_docs: 2 }),
 ];
 
