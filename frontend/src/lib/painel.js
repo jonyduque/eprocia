@@ -1,8 +1,9 @@
 // Largura e estado recolhido do painel lateral, salvos entre sessões.
+// Sem nada salvo (ou com o valor ilegível), o painel começa recolhido.
 import { limitarPainel } from './divisor.js';
 
 export const CHAVE_PAINEL = 'eprocia.sidebar';
-export const PAINEL_PADRAO = Object.freeze({ largura: 320, recolhido: false });
+export const PAINEL_PADRAO = Object.freeze({ largura: 320, recolhido: true });
 
 export function lerPainel(storage, larguraJanela) {
   let salvo = null;

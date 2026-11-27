@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CATEGORIAS, CHAVE_CATEGORIAS, gravarCategorias, lerCategorias } from './src/lib/categorias.js';
+import { ABERTURA_INICIAL, CATEGORIAS, CHAVE_CATEGORIAS, aberturaAtualizacoes, gravarCategorias, lerCategorias } from './src/lib/categorias.js';
 
 const raiz = dirname(fileURLToPath(import.meta.url));
 const ler = (...p) => readFileSync(join(raiz, ...p), 'utf8').replace(/\r\n/g, '\n');
@@ -14,6 +14,8 @@ const settings = ler('src', 'components', 'Settings.svelte');
 const design = ler('..', 'DESIGN.md');
 
 const TODAS_EXPANDIDAS = { monitoramento: false, processamento: false, sistema: false, atualizacoes: false };
+// Pedido do dono (2026-11-27): sem valor salvo, as categorias começam recolhidas.
+const TODAS_RECOLHIDAS = { monitoramento: true, processamento: true, sistema: true, atualizacoes: true };
 
 function memoria(inicial = {}) {
   const dados = { ...inicial };
@@ -40,26 +42,28 @@ test('categorias: as quatro do painel, nessa ordem', () => {
   assert.equal(CHAVE_CATEGORIAS, 'eprocia.categorias');
 });
 
-test('lerCategorias: sem nada salvo, todas expandidas', () => {
-  assert.deepEqual(lerCategorias(memoria()), TODAS_EXPANDIDAS);
-  assert.deepEqual(lerCategorias(null), TODAS_EXPANDIDAS);
+test('lerCategorias: sem nada salvo, todas recolhidas', () => {
+  assert.deepEqual(lerCategorias(memoria()), TODAS_RECOLHIDAS);
+  assert.deepEqual(lerCategorias(null), TODAS_RECOLHIDAS);
 });
 
 test('lerCategorias: devolve o que foi salvo e ignora o que não é booleano', () => {
-  const s = memoria({ [CHAVE_CATEGORIAS]: JSON.stringify({ processamento: true, sistema: 'sim', outra: true }) });
-  assert.deepEqual(lerCategorias(s), { ...TODAS_EXPANDIDAS, processamento: true });
+  const s = memoria({ [CHAVE_CATEGORIAS]: JSON.stringify({ monitoramento: false, processamento: false, sistema: 'sim', outra: true }) });
+  assert.deepEqual(lerCategorias(s), { ...TODAS_RECOLHIDAS, monitoramento: false, processamento: false });
+  // Quem já salvou tudo expandido continua expandido.
+  assert.deepEqual(lerCategorias(memoria({ [CHAVE_CATEGORIAS]: JSON.stringify(TODAS_EXPANDIDAS) })), TODAS_EXPANDIDAS);
 });
 
 test('lerCategorias: o valor salvo antes de Atualizações, sem a chave nova, continua válido', () => {
   const s = memoria({ [CHAVE_CATEGORIAS]: JSON.stringify({ monitoramento: true, processamento: false, sistema: true }) });
-  assert.deepEqual(lerCategorias(s), { monitoramento: true, processamento: false, sistema: true, atualizacoes: false });
+  assert.deepEqual(lerCategorias(s), { monitoramento: true, processamento: false, sistema: true, atualizacoes: true });
 });
 
-test('lerCategorias: valor ilegível ou storage que lança, todas expandidas', () => {
-  assert.deepEqual(lerCategorias(memoria({ [CHAVE_CATEGORIAS]: '{quebrado' })), TODAS_EXPANDIDAS);
-  assert.deepEqual(lerCategorias(memoria({ [CHAVE_CATEGORIAS]: '[true]' })), TODAS_EXPANDIDAS);
+test('lerCategorias: valor ilegível ou storage que lança, todas recolhidas', () => {
+  assert.deepEqual(lerCategorias(memoria({ [CHAVE_CATEGORIAS]: '{quebrado' })), TODAS_RECOLHIDAS);
+  assert.deepEqual(lerCategorias(memoria({ [CHAVE_CATEGORIAS]: '[false]' })), TODAS_RECOLHIDAS);
   const lanca = { getItem: () => { throw new Error('SecurityError'); } };
-  assert.deepEqual(lerCategorias(lanca), TODAS_EXPANDIDAS);
+  assert.deepEqual(lerCategorias(lanca), TODAS_RECOLHIDAS);
 });
 
 test('gravarCategorias: grava só as quatro chaves e não lança sem storage', () => {
@@ -92,10 +96,16 @@ for (const [chave, rotulo] of [['monitoramento', 'Monitoramento'], ['processamen
 
 test('categorias: estado lido do storage e gravado a cada troca', () => {
   assert.match(settings, /import ChevronDown from 'lucide-svelte\/icons\/chevron-down'/);
-  assert.match(settings, /let recolhidas = lerCategorias\(armazenamento\(\)\)/);
+  // preferidas = o que o usuário escolheu (o que se grava); recolhidas = o que
+  // está na tela, que a abertura automática de Atualizações muda só em memória.
+  assert.match(settings, /let preferidas = lerCategorias\(armazenamento\(\)\)/);
+  assert.match(settings, /let recolhidas = \{ \.\.\.preferidas \}/);
   const f = settings.slice(settings.indexOf('function alternar('), settings.indexOf('}', settings.indexOf('gravarCategorias(')) + 1);
-  assert.match(f, /recolhidas = \{ \.\.\.recolhidas, \[chave\]: !recolhidas\[chave\] \}/);
-  assert.match(f, /gravarCategorias\(armazenamento\(\), recolhidas\)/);
+  assert.match(f, /const valor = !recolhidas\[chave\]/);
+  assert.match(f, /recolhidas = \{ \.\.\.recolhidas, \[chave\]: valor \}/);
+  assert.match(f, /preferidas = \{ \.\.\.preferidas, \[chave\]: valor \}/);
+  assert.match(f, /gravarCategorias\(armazenamento\(\), preferidas\)/);
+  assert.doesNotMatch(f, /gravarCategorias\(armazenamento\(\), recolhidas\)/);
 });
 
 test('categorias: seta gira e o conteúdo entra com fade curto, zerado em movimento reduzido', () => {
@@ -116,4 +126,54 @@ test('DESIGN.md descreve as categorias colapsáveis', () => {
   assert.match(design, /eprocia\.categorias/);
   assert.match(design, /aria-expanded/);
   assert.match(design, /ChevronDown/);
+});
+
+// Decisão do dono (2026-11-27): abrir sozinha a categoria Atualizações quando
+// houver versão nova, uma vez por versão, só em memória.
+const est = (o) => ({ ativo: true, fase: '', versao: '', modo: 'trocar', ...o });
+
+test('aberturaAtualizacoes: versão nova abre uma vez por versão', () => {
+  assert.deepEqual({ ...ABERTURA_INICIAL }, { versao: '', visto: false });
+  // Estado inicial do App (inativo, antes da consulta): não abre nem marca visto.
+  let r = aberturaAtualizacoes({ ativo: false, fase: '' }, ABERTURA_INICIAL);
+  assert.deepEqual(r, { abrir: false, animar: false, memoria: ABERTURA_INICIAL });
+  r = aberturaAtualizacoes(null, ABERTURA_INICIAL);
+  assert.equal(r.abrir, false);
+  // Primeiro estado ativo sem versão: só marca visto.
+  r = aberturaAtualizacoes(est({ fase: 'em_dia', versao: '0.5.0' }), ABERTURA_INICIAL);
+  assert.deepEqual(r, { abrir: false, animar: false, memoria: { versao: '', visto: true } });
+  // Passou a disponível depois: abre com a animação do clique.
+  r = aberturaAtualizacoes(est({ fase: 'disponivel', versao: '0.6.0' }), r.memoria);
+  assert.deepEqual(r, { abrir: true, animar: true, memoria: { versao: '0.6.0', visto: true } });
+  // A mesma versão de novo (outro evento, ou depois de um erro): não reabre.
+  const m = r.memoria;
+  assert.equal(aberturaAtualizacoes(est({ fase: 'disponivel', versao: '0.6.0' }), m).abrir, false);
+  assert.equal(aberturaAtualizacoes(est({ fase: 'erro', versao: '0.6.0' }), m).abrir, false);
+  // Outra versão: abre de novo.
+  r = aberturaAtualizacoes(est({ fase: 'disponivel', versao: '0.6.1', modo: 'so_avisar' }), m);
+  assert.deepEqual(r, { abrir: true, animar: true, memoria: { versao: '0.6.1', visto: true } });
+});
+
+test('aberturaAtualizacoes: disponível já no primeiro estado abre sem animar', () => {
+  const r = aberturaAtualizacoes(est({ fase: 'disponivel', versao: '0.6.0', modo: 'instalador' }), ABERTURA_INICIAL);
+  assert.deepEqual(r, { abrir: true, animar: false, memoria: { versao: '0.6.0', visto: true } });
+});
+
+test('aberturaAtualizacoes: só a fase disponível com versão abre', () => {
+  for (const fase of ['', 'verificando', 'em_dia', 'incompleta', 'baixando', 'conferindo', 'instalando', 'instalada', 'aguardando_fila', 'reiniciando', 'abrindo_instalador', 'erro']) {
+    assert.equal(aberturaAtualizacoes(est({ fase, versao: '0.6.0' }), { versao: '', visto: true }).abrir, false, fase);
+  }
+  assert.equal(aberturaAtualizacoes(est({ fase: 'disponivel', versao: '' }), { versao: '', visto: true }).abrir, false);
+});
+
+test('Settings abre Atualizações pela versão nova sem gravar a preferência', () => {
+  assert.match(settings, /import \{[^}]*\baberturaAtualizacoes\b[^}]*\} from '\.\.\/lib\/categorias\.js'/);
+  assert.match(settings, /\$: verAberturaAtualizacoes\(estadoAtualizacao\)/);
+  const i = settings.indexOf('function verAberturaAtualizacoes(');
+  assert.ok(i >= 0, 'verAberturaAtualizacoes ausente');
+  const corpo = settings.slice(i, settings.indexOf('\n  }\n', i));
+  assert.match(corpo, /aberturaAtualizacoes\(estado, aberturaAtual\)/);
+  assert.match(corpo, /recolhidas = \{ \.\.\.recolhidas, atualizacoes: false \}/);
+  assert.match(corpo, /animar = \{ \.\.\.animar, atualizacoes: r\.animar \}/);
+  assert.doesNotMatch(corpo, /gravarCategorias|preferidas/);
 });
