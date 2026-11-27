@@ -107,14 +107,26 @@ if ($PSCommandPath -and -not $Self -and $PSVersionTable.PSVersion.Major -lt 6) {
         return
     }
 }
+
+# Sob `irm | iex` o script roda no escopo de quem chamou: StrictMode, preferencias, funcoes
+# e variaveis ficariam na sessao dele depois do fim. Por isso o resto roda dentro de
+# `& { }` (sem recuo: os here-strings precisam comecar na coluna 0) e o estado mutavel fica
+# na tabela $estado, nunca no escopo script (sob iex, ele e o global). `exit` so
+# roda com -Log, que existe so na copia interna com -File; sob iex ele fecharia o terminal.
+& {
 $selfPath = if ($Self) { $Self } elseif ($PSCommandPath) { $PSCommandPath } else { '' }
-# Texto do bloco em execucao (o da branch, quando rodado por [scriptblock]::Create). Lido
-# aqui, no nivel do script: dentro de uma funcao, $MyInvocation seria o da funcao.
-$selfText = ''; try { if ($MyInvocation.MyCommand.ScriptBlock) { $selfText = $MyInvocation.MyCommand.ScriptBlock.ToString() } } catch { }
+# Texto do bloco em execucao (o da branch, quando rodado por [scriptblock]::Create). E o
+# $MyInvocation do nivel do script, um escopo acima deste bloco: aqui dentro (ou numa
+# funcao) $MyInvocation seria o do bloco.
+$selfText = ''; try { $outer = Get-Variable -Name MyInvocation -Scope 1 -ValueOnly; if ($outer.MyCommand.ScriptBlock) { $selfText = $outer.MyCommand.ScriptBlock.ToString() } } catch { }
 
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+
+# Estado mutavel compartilhado pelas funcoes (elas enxergam $estado por escopo dinamico; a
+# atribuicao $estado.x = ... muda a tabela, nao cria variavel local).
+$estado = @{ Log = $Log; prevTitle = $null; confirmed = $false; closePids = @(); dryRunPids = @(); token = $null }
 
 $repo = 'jonyduque/eprocia'
 $app = 'eprocIA'
@@ -189,15 +201,15 @@ if ($Purge -and -not $Uninstall) {
 }
 
 # Título da janela durante a execução; Restore-Window devolve o anterior.
-$script:prevTitle = $null
+$estado.prevTitle = $null
 function Set-WindowTitle([string]$Title) {
     try {
-        if ($null -eq $script:prevTitle) { $script:prevTitle = $Host.UI.RawUI.WindowTitle }
+        if ($null -eq $estado.prevTitle) { $estado.prevTitle = $Host.UI.RawUI.WindowTitle }
         $Host.UI.RawUI.WindowTitle = $Title
     } catch { }
 }
 function Restore-Window {
-    try { if ($null -ne $script:prevTitle) { $Host.UI.RawUI.WindowTitle = $script:prevTitle; $script:prevTitle = $null } } catch { }
+    try { if ($null -ne $estado.prevTitle) { $Host.UI.RawUI.WindowTitle = $estado.prevTitle; $estado.prevTitle = $null } } catch { }
 }
 
 # Banner: o ícone do app (quadrado azul em degradê com o "e" e a estrela brancos) e o nome,
@@ -272,7 +284,7 @@ function Show-Banner {
 # A cópia sem privilégios grava cada linha no -Log (tipo, texto, valor) e o terminal
 # elevado as reapresenta com os mesmos estilos.
 function Add-Log([string]$Kind, [string]$Text, [string]$Value = '') {
-    if ($Log) { Add-Content -LiteralPath $Log -Value "$Kind`t$Text`t$Value" -Encoding UTF8 }
+    if ($estado.Log) { Add-Content -LiteralPath $estado.Log -Value "$Kind`t$Text`t$Value" -Encoding UTF8 }
 }
 function Write-Title([string]$Text) {
     Write-Host "$cBold$cPink`n$Text$cReset`n"
@@ -300,8 +312,8 @@ function Write-Done([string]$Text) { Write-Host ''; Write-Host "  $cGreen$(Forma
 
 function Show-Log([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path)) { return }
-    $saved = $Log
-    $script:Log = ''
+    $saved = $estado.Log
+    $estado.Log = ''
     try {
         foreach ($line in Get-Content -LiteralPath $Path -Encoding UTF8) {
             $kind, $text, $value = $line -split "`t", 3
@@ -315,7 +327,7 @@ function Show-Log([string]$Path) {
                 'fail'  { Write-Fail $text }
             }
         }
-    } finally { $script:Log = $saved }
+    } finally { $estado.Log = $saved }
 }
 
 # Atalhos: chave = tecla; valor = ação.
@@ -403,11 +415,11 @@ function Test-Interactive {
 }
 
 # Verdadeiro depois do "Sim" da simulação: a execução real que vem em seguida não pergunta de novo.
-$script:confirmed = $false
+$estado.confirmed = $false
 # PIDs do eprocIA que o usuario aceitou encerrar (Confirm-Close); o Stop-App so encerra estes.
-$script:closePids = @()
+$estado.closePids = @()
 # PIDs que a simulacao mostrou (e o "Sim" dela aceitou).
-$script:dryRunPids = @()
+$estado.dryRunPids = @()
 
 # Pergunta antes de mudar a máquina, com a escolha por setas: a ação ($Action, descrita por
 # $Detail) ou Cancelar; Enter escolhe, Esc cancela. Com -Yes não pergunta; na simulação só
@@ -415,8 +427,8 @@ $script:dryRunPids = @()
 # -Fresh: pergunta de novo mesmo depois do "Sim" da simulacao (algo que ela nao mostrou).
 function Confirm-Plan([string]$Question, [string]$Action, [string]$Detail, [switch]$Fresh) {
     if ($Yes) { return $true }
-    if ($script:confirmed -and -not $Fresh) { return $true }
-    if ($DryRun -and -not $script:confirmed) { Write-Note "Perguntaria: $Question ($Action ou Cancelar)"; return $true }
+    if ($estado.confirmed -and -not $Fresh) { return $true }
+    if ($DryRun -and -not $estado.confirmed) { Write-Note "Perguntaria: $Question ($Action ou Cancelar)"; return $true }
     if (-not (Test-Interactive)) { Fail 'Sem console para confirmar. Rode de novo com -Yes para seguir sem pergunta.' }
     $options = [ordered]@{}
     $options[$Action] = $Detail
@@ -476,17 +488,17 @@ function Get-Shortcuts {
 
 # --- GitHub -----------------------------------------------------------------------------
 
-$script:token = $null
+$estado.token = $null
 function Get-Token {
-    if ($null -ne $script:token) { return $script:token }
-    $script:token = ''
-    if ($env:GITHUB_TOKEN) { $script:token = $env:GITHUB_TOKEN }
-    elseif ($env:GH_TOKEN) { $script:token = $env:GH_TOKEN }
+    if ($null -ne $estado.token) { return $estado.token }
+    $estado.token = ''
+    if ($env:GITHUB_TOKEN) { $estado.token = $env:GITHUB_TOKEN }
+    elseif ($env:GH_TOKEN) { $estado.token = $env:GH_TOKEN }
     elseif (Get-Command gh -ErrorAction SilentlyContinue) {
         $t = & gh auth token 2>$null
-        if ($LASTEXITCODE -eq 0 -and $t) { $script:token = ([string]$t).Trim() }
+        if ($LASTEXITCODE -eq 0 -and $t) { $estado.token = ([string]$t).Trim() }
     }
-    $script:token
+    $estado.token
 }
 
 # Código HTTP do erro, ou 0 se a conexão caiu. Um erro de um método .NET (HttpWebRequest)
@@ -743,11 +755,11 @@ function Confirm-Close([string]$Exe) {
     $ids = @($procs | ForEach-Object { [int]$_.ProcessId })
     # O "Sim" da simulacao so vale para os PIDs que ela mostrou; um eprocIA aberto depois
     # disso faz perguntar de novo (sem console, para sem mudar nada).
-    $unseen = @($ids | Where-Object { $script:dryRunPids -notcontains $_ })
-    $fresh = $script:confirmed -and $unseen.Count -gt 0
+    $unseen = @($ids | Where-Object { $estado.dryRunPids -notcontains $_ })
+    $fresh = $estado.confirmed -and $unseen.Count -gt 0
     if (-not (Confirm-Plan 'Encerrar o eprocIA aberto?' 'Encerrar' 'Fecha o eprocIA na hora de trocar' -Fresh:$fresh)) { return $false }
-    if ($DryRun -and -not $script:confirmed) { $script:dryRunPids = $ids }
-    $script:closePids = $ids
+    if ($DryRun -and -not $estado.confirmed) { $estado.dryRunPids = $ids }
+    $estado.closePids = $ids
     $true
 }
 
@@ -762,7 +774,7 @@ function Get-ClosePidList {
 # forma -ClosePids:<valor>: com -File, o powershell.exe 5.1 recusa um '-' solto como valor
 # (sai com 5 sem rodar o script).
 function Get-ClosePidText {
-    $ids = @($script:closePids)
+    $ids = @($estado.closePids)
     if ($ids.Count -gt 0) { $ids -join ',' } else { '-' }
 }
 
@@ -776,7 +788,7 @@ function Stop-App([string]$Exe) {
     if (@($procs | Where-Object { $_.SessionId -ne $session }).Count -gt 0) {
         Fail 'O eprocIA esta aberto em outra sessao; feche-o la e rode de novo. Nada foi alterado.'
     }
-    $accepted = @($script:closePids) + @(Get-ClosePidList)
+    $accepted = @($estado.closePids) + @(Get-ClosePidList)
     $closeAny = $CloseAny -or ($Yes -and -not $Log)
     $extra = @($procs | Where-Object { $accepted -notcontains $_.ProcessId })
     if ($extra.Count -gt 0 -and -not $closeAny) {
@@ -1018,30 +1030,35 @@ function Uninstall-App {
     if (-not (Confirm-Uninstall $installDir)) { Write-Cancelled; return }
     if (-not (Confirm-Close $exe)) { Write-Cancelled; return }
     Stop-App $exe
-    # A pasta pode ser a atual (desinstalação por Aplicativos instalados).
-    Set-Location -LiteralPath ([IO.Path]::GetTempPath())
-
-    $run = Get-ItemProperty -LiteralPath $runKey -Name $app -ErrorAction SilentlyContinue
-    if ($run -and $run.$app -like "*$exe*") {
-        Remove-ItemProperty -LiteralPath $runKey -Name $app
-        Write-Step '"Iniciar com o Windows" desligado'
-    }
-    foreach ($s in Get-Shortcuts) {
-        if (Test-Path -LiteralPath $s) { Remove-Item -LiteralPath $s -Force; Write-Step 'Atalho removido' $s }
-    }
-    Remove-Item -LiteralPath $uninstallKey -Recurse -Force -ErrorAction SilentlyContinue
-    if (Test-Path -LiteralPath $installDir) { Remove-Item -LiteralPath $installDir -Recurse -Force }
-    Write-Ok "Removido: $installDir"
-
-    $config = Join-Path $env:APPDATA $app
-    if ($Purge) {
-        foreach ($d in Get-PurgeDirs) {
-            if (Test-Path -LiteralPath $d) { Remove-Item -LiteralPath $d -Recurse -Force; Write-Step 'Apagado' $d }
+    # A pasta pode ser a atual (desinstalação por Aplicativos instalados). Push/Pop: sob
+    # `irm | iex` a pasta de quem rodou volta no fim (a não ser que fosse a removida).
+    Push-Location -LiteralPath ([IO.Path]::GetTempPath())
+    try {
+        $run = Get-ItemProperty -LiteralPath $runKey -Name $app -ErrorAction SilentlyContinue
+        if ($run -and $run.$app -like "*$exe*") {
+            Remove-ItemProperty -LiteralPath $runKey -Name $app
+            Write-Step '"Iniciar com o Windows" desligado'
         }
-    } else {
-        Write-Note "Configurações mantidas em $config (-Purge apaga)"
+        foreach ($s in Get-Shortcuts) {
+            if (Test-Path -LiteralPath $s) { Remove-Item -LiteralPath $s -Force; Write-Step 'Atalho removido' $s }
+        }
+        Remove-Item -LiteralPath $uninstallKey -Recurse -Force -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $installDir) { Remove-Item -LiteralPath $installDir -Recurse -Force }
+        Write-Ok "Removido: $installDir"
+
+        $config = Join-Path $env:APPDATA $app
+        if ($Purge) {
+            foreach ($d in Get-PurgeDirs) {
+                if (Test-Path -LiteralPath $d) { Remove-Item -LiteralPath $d -Recurse -Force; Write-Step 'Apagado' $d }
+            }
+        } else {
+            Write-Note "Configurações mantidas em $config (-Purge apaga)"
+        }
+        Write-Done 'Pronto: eprocIA removido'
+    } finally {
+        # Pasta original apagada (era a instalada): fica na temporária.
+        try { Pop-Location } catch { }
     }
-    Write-Done 'Pronto: eprocIA removido'
 }
 
 # Num terminal elevado, roda este script de novo sem privilégios como o usuário da sessão,
@@ -1539,7 +1556,7 @@ function Invoke-Main {
     if ($DryRun) {
         if (-not (Invoke-DryRun $elevated $target)) { return }
         # O "Sim" da simulação já confirmou; a cópia elevada passa -Yes adiante.
-        $script:confirmed = $true
+        $estado.confirmed = $true
     }
     if ($target.Kind -eq 'machine') {
         $rel = $null
@@ -1607,5 +1624,7 @@ try {
     Write-Fail $_.Exception.Message
     Add-Log 'fail' $_.Exception.Message
 } finally { Restore-Console; Restore-Window }
-# A cópia da tarefa agendada roda com -File: o código de saída chega ao terminal elevado.
+# A cópia da tarefa agendada roda com -File: o código de saída chega ao terminal elevado
+# (dentro de `& { }` o exit encerra o script inteiro, com o código).
 if ($Log -and $failed) { exit 1 }
+}
