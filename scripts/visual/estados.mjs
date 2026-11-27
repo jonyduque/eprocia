@@ -287,7 +287,18 @@ export const ESTADOS = {
 // with fakes that serve the given state. Unknown calls resolve to undefined.
 export function instalarStubs({ estado, tema, versao }) {
   localStorage.setItem('theme', tema === 'claro' ? 'light' : 'dark');
-  if (estado.categorias) localStorage.setItem('eprocia.categorias', JSON.stringify(estado.categorias));
+  // Sem nada salvo, o app abre com o painel recolhido e as categorias fechadas
+  // (lib/painel.js, lib/categorias.js). As capturas mostram o conteúdo de cada
+  // estado: gravam o painel aberto (320 px) e as categorias expandidas, salvo a
+  // que o estado pede recolhida. Só quando a chave falta: este script roda de
+  // novo no page.reload(), e o que a captura gravou antes dele fica.
+  if (localStorage.getItem('eprocia.sidebar') === null) {
+    localStorage.setItem('eprocia.sidebar', JSON.stringify({ largura: 320, recolhido: false }));
+  }
+  if (localStorage.getItem('eprocia.categorias') === null) {
+    const abertas = { monitoramento: false, processamento: false, sistema: false, atualizacoes: false };
+    localStorage.setItem('eprocia.categorias', JSON.stringify({ ...abertas, ...estado.categorias }));
+  }
   const dados = {
     GetConfig: estado.config,
     GetQueue: estado.fila,

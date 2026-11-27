@@ -14,6 +14,8 @@ const settings = ler('src', 'components', 'Settings.svelte');
 const design = ler('..', 'DESIGN.md');
 
 const TODAS_EXPANDIDAS = { monitoramento: false, processamento: false, sistema: false, atualizacoes: false };
+// Pedido do dono (2026-11-27): sem valor salvo, as categorias começam recolhidas.
+const TODAS_RECOLHIDAS = { monitoramento: true, processamento: true, sistema: true, atualizacoes: true };
 
 function memoria(inicial = {}) {
   const dados = { ...inicial };
@@ -40,26 +42,28 @@ test('categorias: as quatro do painel, nessa ordem', () => {
   assert.equal(CHAVE_CATEGORIAS, 'eprocia.categorias');
 });
 
-test('lerCategorias: sem nada salvo, todas expandidas', () => {
-  assert.deepEqual(lerCategorias(memoria()), TODAS_EXPANDIDAS);
-  assert.deepEqual(lerCategorias(null), TODAS_EXPANDIDAS);
+test('lerCategorias: sem nada salvo, todas recolhidas', () => {
+  assert.deepEqual(lerCategorias(memoria()), TODAS_RECOLHIDAS);
+  assert.deepEqual(lerCategorias(null), TODAS_RECOLHIDAS);
 });
 
 test('lerCategorias: devolve o que foi salvo e ignora o que não é booleano', () => {
-  const s = memoria({ [CHAVE_CATEGORIAS]: JSON.stringify({ processamento: true, sistema: 'sim', outra: true }) });
-  assert.deepEqual(lerCategorias(s), { ...TODAS_EXPANDIDAS, processamento: true });
+  const s = memoria({ [CHAVE_CATEGORIAS]: JSON.stringify({ monitoramento: false, processamento: false, sistema: 'sim', outra: true }) });
+  assert.deepEqual(lerCategorias(s), { ...TODAS_RECOLHIDAS, monitoramento: false, processamento: false });
+  // Quem já salvou tudo expandido continua expandido.
+  assert.deepEqual(lerCategorias(memoria({ [CHAVE_CATEGORIAS]: JSON.stringify(TODAS_EXPANDIDAS) })), TODAS_EXPANDIDAS);
 });
 
 test('lerCategorias: o valor salvo antes de Atualizações, sem a chave nova, continua válido', () => {
   const s = memoria({ [CHAVE_CATEGORIAS]: JSON.stringify({ monitoramento: true, processamento: false, sistema: true }) });
-  assert.deepEqual(lerCategorias(s), { monitoramento: true, processamento: false, sistema: true, atualizacoes: false });
+  assert.deepEqual(lerCategorias(s), { monitoramento: true, processamento: false, sistema: true, atualizacoes: true });
 });
 
-test('lerCategorias: valor ilegível ou storage que lança, todas expandidas', () => {
-  assert.deepEqual(lerCategorias(memoria({ [CHAVE_CATEGORIAS]: '{quebrado' })), TODAS_EXPANDIDAS);
-  assert.deepEqual(lerCategorias(memoria({ [CHAVE_CATEGORIAS]: '[true]' })), TODAS_EXPANDIDAS);
+test('lerCategorias: valor ilegível ou storage que lança, todas recolhidas', () => {
+  assert.deepEqual(lerCategorias(memoria({ [CHAVE_CATEGORIAS]: '{quebrado' })), TODAS_RECOLHIDAS);
+  assert.deepEqual(lerCategorias(memoria({ [CHAVE_CATEGORIAS]: '[false]' })), TODAS_RECOLHIDAS);
   const lanca = { getItem: () => { throw new Error('SecurityError'); } };
-  assert.deepEqual(lerCategorias(lanca), TODAS_EXPANDIDAS);
+  assert.deepEqual(lerCategorias(lanca), TODAS_RECOLHIDAS);
 });
 
 test('gravarCategorias: grava só as quatro chaves e não lança sem storage', () => {

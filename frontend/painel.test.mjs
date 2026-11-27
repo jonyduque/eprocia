@@ -42,6 +42,8 @@ const quebrado = {
 
 test('painel sem nada salvo usa o padrão', () => {
   assert.equal(CHAVE_PAINEL, 'eprocia.sidebar');
+  // Pedido do dono (2026-11-27): o painel começa recolhido.
+  assert.deepEqual({ ...PAINEL_PADRAO }, { largura: 320, recolhido: true });
   assert.deepEqual(lerPainel(memoria(), 1280), PAINEL_PADRAO);
   assert.deepEqual(lerPainel(null, 1280), PAINEL_PADRAO);
   assert.deepEqual(lerPainel(quebrado, 1280), PAINEL_PADRAO);
@@ -65,7 +67,7 @@ test('valor salvo inválido cai no padrão campo a campo', () => {
   );
   assert.deepEqual(
     lerPainel(memoria({ [CHAVE_PAINEL]: '{"largura":350,"recolhido":"sim"}' }), 1280),
-    { largura: 350, recolhido: false }
+    { largura: 350, recolhido: true }
   );
 });
 
