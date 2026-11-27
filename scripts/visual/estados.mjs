@@ -240,7 +240,8 @@ export const ESTADOS = {
   // Bloco Atualizações (EstadoAtualizacao), um estado por situação. A fila de
   // fundo é a mesma do estado fila, salvo onde o estado pede outra.
   'atualizacao-em-dia': estadoAtualizacao({ fase: 'em_dia', versao: VERSAO_ATUAL }),
-  'atualizacao-disponivel': estadoAtualizacao({ fase: 'disponivel' }),
+  // Atualizações salva recolhida: a versão nova a abre sozinha, só em memória.
+  'atualizacao-disponivel': { ...estadoAtualizacao({ fase: 'disponivel' }), categorias: { atualizacoes: true } },
   'atualizacao-instalador': estadoAtualizacao({ fase: 'disponivel', modo: 'instalador' }),
   'atualizacao-so-avisar': estadoAtualizacao({ fase: 'disponivel', modo: 'so_avisar', motivo: 'executável fora da pasta de instalação' }),
   'atualizacao-incompleta': estadoAtualizacao({ fase: 'incompleta' }),

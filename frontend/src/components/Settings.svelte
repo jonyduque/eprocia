@@ -18,7 +18,7 @@
   import { OPCOES_OCR, OPCOES_LIMPEZA, descricaoOpcao } from '../lib/atividade.js';
   import { estadoMonitoramento, reticenciasMeio } from '../lib/monitoramento.js';
   import { itensLog } from '../lib/log.js';
-  import { gravarCategorias, lerCategorias } from '../lib/categorias.js';
+  import { ABERTURA_INICIAL, aberturaAtualizacoes, gravarCategorias, lerCategorias } from '../lib/categorias.js';
   import { armazenamento } from '../lib/tema.js';
   import {
     AJUDA_FORCAR_OCR_CONFIG,
@@ -54,14 +54,32 @@
   };
 
   // Categorias recolhidas (true) por chave, lembradas entre sessões. A entrada
-  // animada só vale depois de um clique, não na abertura do painel.
-  let recolhidas = lerCategorias(armazenamento());
+  // animada só vale depois de um clique (ou da abertura automática de
+  // Atualizações fora do primeiro estado), não na abertura do painel.
+  // preferidas é o que o usuário escolheu e se grava; recolhidas é o que está
+  // na tela, que a abertura automática de Atualizações muda só em memória.
+  let preferidas = lerCategorias(armazenamento());
+  let recolhidas = { ...preferidas };
   let animar = {};
 
   function alternar(chave) {
-    recolhidas = { ...recolhidas, [chave]: !recolhidas[chave] };
+    const valor = !recolhidas[chave];
+    recolhidas = { ...recolhidas, [chave]: valor };
+    preferidas = { ...preferidas, [chave]: valor };
     animar = { ...animar, [chave]: true };
-    gravarCategorias(armazenamento(), recolhidas);
+    gravarCategorias(armazenamento(), preferidas);
+  }
+
+  // Versão nova disponível abre Atualizações uma vez por versão (lib/categorias.js).
+  let aberturaAtual = ABERTURA_INICIAL;
+  $: verAberturaAtualizacoes(estadoAtualizacao);
+
+  function verAberturaAtualizacoes(estado) {
+    const r = aberturaAtualizacoes(estado, aberturaAtual);
+    aberturaAtual = r.memoria;
+    if (!r.abrir || !recolhidas.atualizacoes) return;
+    recolhidas = { ...recolhidas, atualizacoes: false };
+    animar = { ...animar, atualizacoes: r.animar };
   }
 
   // Opção sob o ponteiro em cada controle: a ajuda a descreve antes de gravar.

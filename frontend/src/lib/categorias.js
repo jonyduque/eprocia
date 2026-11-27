@@ -27,3 +27,20 @@ export function gravarCategorias(storage, recolhidas) {
     return false;
   }
 }
+
+// Atualizações abre sozinha quando o estado passa a "versão nova disponível",
+// uma vez por versão nesta sessão: se o usuário recolher, só reabre com outra
+// versão. É só em memória; a preferência salva continua a do usuário.
+// memoria = { versao (a última que abriu a categoria), visto (já chegou um
+// estado ativo) }. Se a versão já vem disponível no primeiro estado ativo
+// (abertura do painel), abre sem animar; depois, anima como o clique.
+export const ABERTURA_INICIAL = Object.freeze({ versao: '', visto: false });
+
+export function aberturaAtualizacoes(estado, memoria = ABERTURA_INICIAL) {
+  if (!estado || !estado.ativo) return { abrir: false, animar: false, memoria };
+  const primeiro = !memoria.visto;
+  if (estado.fase === 'disponivel' && estado.versao && estado.versao !== memoria.versao) {
+    return { abrir: true, animar: !primeiro, memoria: { versao: estado.versao, visto: true } };
+  }
+  return { abrir: false, animar: false, memoria: { versao: memoria.versao, visto: true } };
+}

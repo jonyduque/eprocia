@@ -91,6 +91,9 @@ describe('estados visuais', () => {
       for (const [k, v] of Object.entries(campos)) assert.equal(a[k], v, nome + '.' + k);
     }
     assert.match(ESTADOS['atualizacao-so-avisar'].atualizacao.motivo, /fora da pasta de instalação/);
+    // Atualizações salva recolhida: a captura mostra a categoria aberta sozinha
+    // pela versão nova (lib/categorias.js, aberturaAtualizacoes).
+    assert.deepEqual(ESTADOS['atualizacao-disponivel'].categorias, { atualizacoes: true });
     assert.ok(ESTADOS['atualizacao-aguardando-fila'].fila.some((i) => i.status === 'processing'));
     assert.ok(ESTADOS['atualizacao-reiniciando'].fila.some((i) => i.status === 'success'));
     for (const [nome, e] of Object.entries(ESTADOS)) {
