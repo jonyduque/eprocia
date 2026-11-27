@@ -29,13 +29,15 @@ const (
 	noDocNum = math.MaxInt32
 )
 
-// ParseFileInfo extracts metadata from a zip.File to build a ProcessFile.
+// ParseNome extrai as chaves de ordenação do nome de um documento (entrada de
+// ZIP ou caminho de um PDF avulso). Name fica como recebido; DocName é o nome
+// base.
 //
 // Ordering keys, per the spec (§3.2): the cover ("Capa do processo.pdf") is
 // event 0; "Evento N" files use N as event and the trailing number as the
 // document ID; anything else is sent to the end.
-func ParseFileInfo(f *zip.File) models.ProcessFile {
-	name := filepath.Base(f.Name)
+func ParseNome(nome string) models.ProcessFile {
+	name := filepath.Base(nome)
 	ext := strings.ToLower(filepath.Ext(name))
 
 	eventNum := noEventNum
@@ -57,19 +59,46 @@ func ParseFileInfo(f *zip.File) models.ProcessFile {
 	}
 
 	return models.ProcessFile{
-		Name:       f.Name,
-		EventNum:   eventNum,
-		DocNum:     docNum,
-		DocName:    name,
-		Extension:  ext,
-		ZipFileRef: f,
+		Name:      nome,
+		EventNum:  eventNum,
+		DocNum:    docNum,
+		DocName:   name,
+		Extension: ext,
 	}
+}
+
+// ParseFileInfo extracts metadata from a zip.File to build a ProcessFile.
+func ParseFileInfo(f *zip.File) models.ProcessFile {
+	pf := ParseNome(f.Name)
+	pf.ZipFileRef = f
+	pf.Abrir = f.Open
+	pf.Tamanho = int64(f.UncompressedSize64)
+	return pf
+}
+
+// ordenarPorEvento devolve uma cópia dos caminhos na ordem de
+// SortProcessFiles sobre o nome base de cada um; empates ficam na ordem
+// recebida.
+func ordenarPorEvento(caminhos []string) []string {
+	arquivos := make([]models.ProcessFile, len(caminhos))
+	for i, c := range caminhos {
+		arquivos[i] = ParseNome(filepath.Base(c))
+		arquivos[i].Name = c
+	}
+	SortProcessFiles(arquivos)
+	ordem := make([]string, len(arquivos))
+	for i, f := range arquivos {
+		ordem[i] = f.Name
+	}
+	return ordem
 }
 
 // SortProcessFiles sorts process files chronologically: by event number, then
 // by document number inside the event, falling back to a natural name compare.
+// Estável: nomes iguais (PDFs avulsos de pastas diferentes) ficam na ordem
+// recebida, a mesma na fila e no pipeline.
 func SortProcessFiles(files []models.ProcessFile) {
-	slices.SortFunc(files, func(a, b models.ProcessFile) int {
+	slices.SortStableFunc(files, func(a, b models.ProcessFile) int {
 		return cmp.Or(
 			cmp.Compare(a.EventNum, b.EventNum),
 			cmp.Compare(a.DocNum, b.DocNum),

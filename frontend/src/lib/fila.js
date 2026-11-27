@@ -1,19 +1,31 @@
 // Funções puras da lista da fila (ProcessList.svelte).
 import { resumoPaginas, mostrarLerComOCR } from './relatorio.js';
 
-// Criado uma vez: toLocaleTimeString monta um formatador novo a cada chamada,
+// Criados uma vez: toLocaleTimeString monta um formatador novo a cada chamada,
 // e a lista inteira é redesenhada a cada queue:update.
-const FORMATO_HORA = new Intl.DateTimeFormat('pt-BR', {
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-});
+const FORMATO_HORA = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
+const FORMATO_DIA = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' });
+const FORMATO_DIA_ANO = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-export function formatarHora(timestamp) {
-  if (!timestamp) return '';
-  const data = new Date(timestamp);
+const mesmoDia = (a, b) =>
+  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+// Data da linha: "14:32" hoje, "ontem 14:32", "12/11 14:32" no mesmo ano,
+// "12/11/2025 14:32" em outro. Usa finished_at quando houver, senão timestamp.
+// "Ontem" é o dia de calendário local anterior ao de agora, não 24 h antes.
+export function formatarQuando(item, agora = Date.now()) {
+  const fim = item?.finished_at;
+  const valor = typeof fim === 'number' && fim > 0 ? fim : item?.timestamp;
+  if (typeof valor !== 'number' || !(valor > 0)) return '';
+  const data = new Date(valor);
   if (Number.isNaN(data.getTime())) return '';
-  return FORMATO_HORA.format(data);
+  const hoje = new Date(agora);
+  const hora = FORMATO_HORA.format(data);
+  if (mesmoDia(data, hoje)) return hora;
+  const ontem = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 1);
+  if (mesmoDia(data, ontem)) return `ontem ${hora}`;
+  const dia = data.getFullYear() === hoje.getFullYear() ? FORMATO_DIA : FORMATO_DIA_ANO;
+  return `${dia.format(data)} ${hora}`;
 }
 
 const FORMATO_CURTO = new Intl.NumberFormat('pt-BR', { notation: 'compact' });
@@ -127,7 +139,7 @@ export function criarMovimentoFila() {
   };
 }
 
-const CONCLUIDO = new Set(['success', 'error', 'cancelled']);
+const CONCLUIDO = new Set(['success', 'error', 'cancelled', 'interrupted']);
 
 export function contarConcluidos(items) {
   return items.filter((i) => CONCLUIDO.has(i.status)).length;
@@ -148,6 +160,7 @@ export function textoConfirmarLimpeza(items) {
 export function paradasItem(item, expansivel) {
   const p = expansivel ? ['info'] : [];
   if (item.status === 'processing' || item.status === 'pending') return [...p, 'cancelar'];
+  // TXT ausente: o Copiar fica com aria-disabled e segue como parada.
   if (item.status === 'success' && item.output_path) return [...p, 'reprocessar', 'copiar', 'abrir', 'remover', ...paradasRelatorio(item)];
   if (item.status === 'error') p.push('detalhes');
   return [...p, 'reprocessar', 'remover', ...paradasRelatorio(item)];
@@ -210,5 +223,5 @@ export function acaoDelete(status) {
 }
 
 export function copiavel(item) {
-  return item.status === 'success' && !!item.output_path;
+  return item.status === 'success' && !!item.output_path && !item.output_missing;
 }

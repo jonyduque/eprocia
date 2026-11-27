@@ -4,7 +4,7 @@
 
 # eprocIA
 
-**Transforma o ZIP de um processo do Eproc num único texto organizado, pronto para colar numa IA.**
+**Transforma o ZIP de um processo do Eproc, ou PDFs soltos, num único texto organizado, pronto para colar numa IA.**
 
 Offline (a rede só é usada ao clicar em Procurar atualização) · OCR embutido · ordem cronológica por evento
 
@@ -40,20 +40,21 @@ Offline (a rede só é usada ao clicar em Procurar atualização) · OCR embutid
 
 Quem trabalha com o Eproc baixa o processo como um ZIP cheio de PDFs e HTMLs soltos, com nomes como `Evento 12 - DESPADEC1.pdf`. Para mandar isso a um modelo de linguagem, é preciso abrir cada arquivo, copiar o texto, rodar OCR nas peças escaneadas e manter a ordem dos eventos.
 
-O eprocIA faz tudo isso sozinho. Ele fica na bandeja do Windows, vigia a pasta de downloads e, quando um ZIP do Eproc chega, gera ao lado dele um `.txt` com o processo inteiro, em ordem, marcado com tags que a IA entende.
+O eprocIA faz tudo isso sozinho. Ele fica na bandeja do Windows, vigia a pasta de downloads e, quando um ZIP do Eproc chega, gera ao lado dele um `.txt` com o processo inteiro, em ordem, marcado com tags que a IA entende. Uma peça avulsa (a petição inicial, uma sentença, um laudo recebido por e-mail) também entra: arraste ou selecione o PDF, sem precisar zipar.
 
 ## ✨ O que ele faz
 
 | | Recurso | Detalhe |
 |---|---|---|
-| 👀 | **Vigia a pasta** | Detecta ZIPs novos na pasta escolhida e espera o download terminar antes de começar. ZIPs que chegaram com o app fechado são processados ao abrir (janela de 24 h). |
-| 📚 | **Lê sem descompactar** | PDFs e HTMLs são lidos direto de dentro do ZIP, sem espalhar arquivos pelo disco. |
+| 👀 | **Vigia a pasta** | Detecta ZIPs novos na pasta escolhida e espera o download terminar antes de começar. ZIPs que chegaram com o app fechado são processados ao abrir (janela de 24 h). Com a opção ligada, converte também os PDFs novos da pasta. |
+| 📄 | **Aceita PDF avulso** | Arraste ou selecione um ou vários PDFs. Os PDFs soltos juntos viram um TXT só, em ordem de evento, com o número do processo no nome quando todos o trazem. O TXT se chama `processo.txt` ou, se o nome estiver ocupado, `processo_2.txt`, e nunca grava por cima de arquivo alheio; só o reprocessamento do próprio item regrava o TXT que ele gerou. |
+| 📚 | **Lê sem descompactar** | PDFs e HTMLs são lidos direto de dentro do ZIP, sem espalhar arquivos pelo disco. O PDF avulso nunca é alterado. |
 | 🔢 | **Ordena por evento** | "Evento 2" vem antes de "Evento 10" (ordenação natural); arquivos sem número de evento vão para o fim. |
 | 🔍 | **OCR embutido** | Páginas escaneadas, desenhadas como vetor ou com texto nativo ilegível passam pelo Tesseract em português, já incluso no executável. O OCR roda em lote, por bloco de páginas. |
 | 🛟 | **Segundo leitor de PDF** | O PDF que a biblioteca de leitura recusa (versão 2.0, envelope de assinatura PKCS#7, cifra AES, tabela de referências inconsistente) é lido pelo Poppler, também embutido. |
 | ⚠️ | **Avisa o que não leu** | Documento protegido por senha, ilegível, sem nenhum texto ou digitalizado com o OCR desligado conta como não lido: o item da fila mostra "N não lidos", a notificação e o botão de copiar avisam, e o `.txt` traz a contagem e o motivo. |
 | 🧹 | **Higieniza o texto** | Quatro níveis. O Padrão remove cabeçalhos, rodapés e timbres que se repetem, resume as chancelas de assinatura numa linha e troca páginas e documentos repetidos por uma referência ao original. O Máxima também tira ruído de OCR e junta parágrafos quebrados. |
-| 🚫 | **Omite tipos de documento** | Informe os códigos (por exemplo `EXTR, COMP`) e esses documentos não são lidos nem passam por OCR: viram um aviso de uma linha no texto. |
+| 🚫 | **Omite tipos de documento** | Informe os códigos (por exemplo `EXTR, COMP`) e esses documentos de um ZIP não são lidos nem passam por OCR: viram um aviso de uma linha no texto. Isso não vale para o PDF avulso, que não é pulado por tipo. |
 | 📊 | **Mostra o andamento por documento** | Abra o item em processamento para ver cada documento (aguardando, lendo, em OCR, concluído ou com erro) e quantos processos de OCR estão rodando. |
 | 🧾 | **Relata o que leu** | O item concluído diz quantas páginas vieram do texto do PDF, do OCR ou estavam em branco, e avisa as que precisavam de OCR e ficaram sem. Um clique abre os detalhes: tempos, limpeza e os documentos para conferir no PDF original. |
 | 🔁 | **Reprocessa com outras opções** | Um item terminado pode ser refeito com outro modo de OCR, outro nível de higienização ou com Forçar OCR, só para aquele arquivo. |
@@ -97,25 +98,26 @@ O eprocIA faz tudo isso sozinho. Ele fica na bandeja do Windows, vigia a pasta d
 ```mermaid
 flowchart LR
     A["📥 ZIP do Eproc<br>na pasta vigiada"] --> B["📚 Lista PDFs e HTMLs<br>dentro do ZIP"]
+    A2["📄 PDFs avulsos<br>arrastados ou selecionados"] --> C
     B --> C["🔢 Ordena por<br>número do evento"]
     C --> D{"Página tem<br>texto legível?"}
     D -- sim --> E["📝 Texto nativo"]
     D -- "não: imagem, vetor<br>ou texto ilegível" --> F["🔍 OCR em lote<br>(Tesseract)"]
     E --> G["🧹 Higienização"]
     F --> G
-    G --> H["📄 processo.txt<br>ao lado do ZIP"]
+    G --> H["📄 processo.txt<br>ao lado do ZIP ou do PDF"]
 ```
 
-- A fila processa **um ZIP por vez**, do mais antigo para o mais novo, e pode ser pausada, retomada ou cancelada.
+- A fila processa **um item por vez** (um ZIP, ou os PDFs soltos de uma vez), do mais antigo para o mais novo, e pode ser pausada, retomada ou cancelada.
 - Dentro de um ZIP, os documentos são processados **em paralelo**, limitados ao número de núcleos da máquina.
 - O OCR só entra quando a página não tem texto nativo suficiente e tem imagens grandes ou texto desenhado como vetor, ou quando o texto nativo sai ilegível.
 - O PDF que a biblioteca de leitura não abre passa pelo Poppler antes de ser dado como não lido.
 - Os programas de OCR e de leitura rodam com prazo: um arquivo que trava é marcado e a fila segue.
-- Documentos dos tipos que você mandou omitir não são abertos: o tempo de leitura e de OCR deles é poupado.
+- Documentos dos tipos que você mandou omitir não são abertos: o tempo de leitura e de OCR deles é poupado. Isso vale só para ZIP: o PDF avulso não é pulado por tipo.
 
 ## 📄 Formato da saída
 
-O `.txt` sai com o mesmo nome do ZIP e segue o formato do [PRD §6](PRD.md):
+O `.txt` sai com o mesmo nome do ZIP, na mesma pasta, e regrava o TXT anterior desse ZIP. De PDF avulso, sai com o nome do PDF (vários PDFs: o número do processo comum a todos os nomes ou, sem ele, o nome do primeiro na ordem por evento), na pasta do primeiro PDF; se esse nome estiver ocupado, ou se houver um ZIP com o mesmo nome ao lado, vira `processo_2.txt`, `processo_3.txt` e assim por diante, sem gravar por cima de nada. O formato é o do [PRD §6](PRD.md):
 
 ```xml
 <contexto>
@@ -185,7 +187,7 @@ Antes de confiar numa análise, veja a linha `Documentos não lidos:` no começo
 2. Escolha o arquivo:
    - 🧩 **`eprocia-X.Y.Z-windows-amd64-instalador.exe`** (recomendado): instala em Arquivos de Programas e mantém "Iniciar com o Windows" funcionando.
    - 📦 **`eprocia-X.Y.Z-windows-amd64.exe`** (portátil): roda de qualquer pasta. Se você movê-lo depois de ligar "Iniciar com o Windows", ligue a opção de novo.
-3. Abra o app. Ele já vigia a pasta **Downloads**; se o navegador salva os ZIPs do Eproc em outro lugar, troque em **Alterar**, abaixo de **Monitorar a pasta** nas Configurações.
+3. Abra o app. Ele já vigia a pasta **Downloads**; se o navegador salva os ZIPs do Eproc em outro lugar, troque em **Alterar**, abaixo de **Monitorar a pasta** nas Configurações. Para um PDF solto, arraste-o para a janela ou use **Selecionar arquivos...**, na fila vazia.
 
 > [!NOTE]
 > O executável não tem assinatura digital, então o SmartScreen pode avisar na primeira execução. Clique em **Mais informações** e depois em **Executar assim mesmo**. Confira o arquivo com o `SHA256SUMS.txt` da release, se quiser.
@@ -220,7 +222,7 @@ Com opções:
 | `-NoStart` | Não abre o app ao terminar. |
 | `-DryRun` | Mostra o que faria e pergunta se deve fazer. |
 | `-Uninstall` | Remove app, atalhos e entrada de desinstalação; mantém as configurações. |
-| `-Uninstall -Purge` | Remove também configurações, dados do WebView2 e cache do OCR. |
+| `-Uninstall -Purge` | Remove também configurações, histórico da fila, dados do WebView2 e cache do OCR. |
 
 ## ⚙️ Configurações
 
@@ -230,8 +232,10 @@ Com opções:
 | 🔎 **Forçar OCR** | liga/desliga (**desligado**) | Toda página de PDF passa pelo OCR, inclusive as que já têm texto. Veja abaixo. |
 | 🧹 **Higienização de texto** | Nenhuma · Básica · **Padrão** · Máxima | Nenhuma preserva o texto como extraído; Básica remove espaços e linhas vazias; Padrão também remove cabeçalhos, rodapés e duplicatas e resume assinaturas; Máxima acrescenta a limpeza de ruído de OCR e junta parágrafos. |
 | 🚫 **Omitir documentos dos tipos** | códigos separados por vírgula (ex.: `EXTR, COMP`) | O documento desses tipos vira um aviso no texto e não é lido. |
-| 👀 **Monitoramento ativo** | liga/desliga | Vigia ou não a pasta escolhida. Arrastar ZIPs para a janela funciona sempre. |
+| 👀 **Monitoramento ativo** | liga/desliga | Vigia ou não a pasta escolhida. Arrastar ZIPs ou PDFs para a janela funciona sempre. |
+| 📄 **Também converter PDFs novos nesta pasta** | liga/desliga (**desligado**) | A pasta monitorada passa a converter cada PDF que aparecer nela, inclusive boletos e outros PDFs que não são de processo, num TXT ao lado. Ao ligar a opção e a cada abertura do eprocIA, a varredura da pasta também converte os PDFs das últimas 24 h que ainda não têm TXT. Um PDF que já tem TXT mais novo não é convertido de novo. |
 | 🚀 **Iniciar com o Windows** | liga/desliga | Abre oculto na bandeja no logon. |
+| 🕘 **Guardar a lista da última sessão** | liga/desliga (**desligado**) | Ao reabrir, a fila mostra os processos da última sessão em que algo foi processado (até 500), com data e hora na linha e as ações de antes. O que estava processando ou aguardando ao fechar aparece como **Interrompido**, com **Processar de novo**; com o monitoramento ligado, um ZIP das últimas 24 h sem TXT volta a processar sozinho na mesma linha. Se o TXT sumiu, a linha diz **TXT não encontrado**. Veja [Privacidade](#-privacidade). |
 
 As configurações ficam em `%APPDATA%\eprocIA\config.json`.
 
@@ -297,6 +301,8 @@ go run ./scripts/anonimizar-log eprocia.log eprocia.1.log
 
 Nada sai da sua máquina. O eprocIA só usa a rede quando você clica em "Procurar atualização" (veja acima); fora isso, não faz nenhuma chamada: o OCR, as fontes e a interface vêm embutidos no executável. O texto só vai para uma IA quando **você** cola. O log e a telemetria, quando ligados por `EPROCIA_LOG`, ficam só no computador.
 
+Com **Guardar a lista da última sessão** ligado (vem desligado), o eprocIA grava em `%APPDATA%\eprocIA\historico.json` os nomes dos arquivos da fila (no Eproc, números de processo) e as pastas deles, que trazem o nome do seu usuário do Windows, e o relatório de cada item concluído só com contagens (páginas, OCR, limpeza, tempos), sem nomes de documento; nenhum texto de documento. Fica só a última sessão com processamento, até 500 itens, e o arquivo nunca sai da máquina. Em computador compartilhado com o mesmo login, outra pessoa vê esses processos ao abrir o programa. Para limpar: o **X** da linha apaga o item, **Limpar tudo** apaga a lista inteira, desligar a opção apaga o arquivo, e `install.ps1 -Uninstall -Purge` apaga todos os dados do eprocIA.
+
 ## 🛠️ Desenvolvimento
 
 **Stack:** [Wails v2](https://wails.io) (Go 1.27 no backend, Svelte 5 + Vite no frontend), Tesseract e Poppler embutidos com `go:embed`.
@@ -340,7 +346,8 @@ Para relatar uma vulnerabilidade, siga o [`SECURITY.md`](SECURITY.md).
 | `internal/models/` | Tipos compartilhados entre os pacotes |
 | `internal/janela/` | Animação de ocultar e mostrar a janela |
 | `internal/ocr/` | Extração dos binários embutidos e execução do pdftoppm e do Tesseract |
-| `internal/watchdog/` | Vigia da pasta (fsnotify) e varredura de ZIPs pendentes ao abrir |
+| `internal/saida/` | Regra única do nome do TXT de saída e gravação sem sobrescrever |
+| `internal/watchdog/` | Vigia da pasta (fsnotify) e varredura de ZIPs (e, com a opção, PDFs) pendentes ao abrir |
 | `internal/config/` | `config.json` com valores padrão e gravação atômica |
 | `internal/autostart/` | Chave `Run` do registro para iniciar com o Windows |
 | `internal/registro/` | Log em arquivo com `EPROCIA_LOG`: rotação, retenção e troca do nome do usuário |

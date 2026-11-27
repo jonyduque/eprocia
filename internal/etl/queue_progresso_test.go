@@ -12,7 +12,7 @@ import (
 func TestProgresso_SoAvanca(t *testing.T) {
 	liberar := make(chan struct{})
 	lido := make(chan struct{})
-	q, _ := novaFilaGravada(t, func(_ context.Context, _ string, _ *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+	q, _ := novaFilaGravada(t, func(_ context.Context, _ Entrada, _ *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error) {
 		onProgress(0.6, "doc B", 2, 4, 6, 10)
 		onProgress(0.5, "doc A", 1, 4, 5, 10) // chegou atrasado
 		lido <- struct{}{}

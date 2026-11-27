@@ -70,6 +70,10 @@ export function Hide() {
   return window['go']['main']['App']['Hide']();
 }
 
+export function HistoricoFalhou() {
+  return window['go']['main']['App']['HistoricoFalhou']();
+}
+
 export function InstalarAtualizacao() {
   return window['go']['main']['App']['InstalarAtualizacao']();
 }
@@ -124,6 +128,10 @@ export function SaveConfig(arg1) {
 
 export function SelectDirectory() {
   return window['go']['main']['App']['SelectDirectory']();
+}
+
+export function SelectFiles() {
+  return window['go']['main']['App']['SelectFiles']();
 }
 
 export function SelectZipFile() {

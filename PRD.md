@@ -29,8 +29,8 @@ Abaixo estão as funcionalidades obrigatórias que o sistema deve executar.
 
 | ID | Área | Descrição do Requisito | Critério de Aceite |
 | --- | --- | --- | --- |
-| **RF01** | **Entrada** | Leitura de arquivos `.zip` sem necessidade de descompactação prévia no disco. | O sistema deve ler o stream de bytes diretamente do ZIP. |
-| **RF02** | **Automação** | Monitoramento de diretório (Watchdog). | O sistema deve detectar novos arquivos ZIP na pasta configurada e iniciar o processamento automaticamente. |
+| **RF01** | **Entrada** | ZIP do Eproc ou PDF avulso (vários PDFs de uma vez viram um TXT, por evento). Leitura de arquivos `.zip` sem necessidade de descompactação prévia no disco. | O sistema deve ler o stream de bytes diretamente do ZIP; o PDF avulso é lido sem nunca alterar o original. |
+| **RF02** | **Automação** | Monitoramento de diretório (Watchdog). | O sistema deve detectar novos arquivos ZIP na pasta configurada e, se a opção estiver ligada, PDFs novos, e iniciar o processamento automaticamente. |
 | **RF03** | **Ordenação** | Ordenação "Natural" baseada no padrão de nomenclatura do Eproc/PJe. | Arquivos devem ser ordenados pelo número do evento (`Evento X`) e não alfabeticamente. Ex: Evento 2 deve vir antes de Evento 10. |
 | **RF04** | **Extração PDF** | Extração de texto de arquivos PDF nativos (digital). | Deve-se utilizar alternativa técnica de maior performance para obter o texto limpo. |
 | **RF05** | **Extração HTML** | Parsing de arquivos HTML (Eventos do sistema). | O sistema deve extrair apenas o texto visível no corpo do documento, ignorando tags de script e estilo. |
@@ -39,6 +39,7 @@ Abaixo estão as funcionalidades obrigatórias que o sistema deve executar.
 | **RF08** | **Estrutura** | Tagueamento XML/Markdown no texto final. | Cada documento deve ser envolvido por tags indicando seu ID e nome original. Ex: `<doc id="Evento 1">...</doc>`. |
 | **RF09** | **Relatório** | Relatório do processamento de cada ZIP concluído. | O item da fila mostra quantas páginas vieram do texto do PDF, do OCR ou estavam em branco, e avisa só o que pede atenção: páginas com imagem ou desenho que precisavam de OCR e ficaram sem (OCR desligado), páginas com erro, páginas em que o OCR falhou e ficou o texto do PDF, documentos digitalizados não lidos por falta de OCR. Quando faltou OCR, oferece "Ler com OCR", que refaz só aquele ZIP com o OCR ligado, sem mudar a configuração. Os detalhes trazem tempos, a redução da higienização, os tipos omitidos e os documentos e páginas a conferir no PDF original. O `.txt` traz a linha de páginas sem OCR no cabeçalho (seção 6). |
 | **RF10** | **OCR** | Forçar OCR em todas as páginas de PDF. | Opção desligada por padrão, nas configurações (vale para todo ZIP) e no reprocessamento de um item (vale só para ele). Ligada, toda página de PDF vai ao OCR, inclusive as que têm texto nativo e as repetidas; sem efeito com o OCR desligado. Uma página que só foi ao OCR por essa opção nunca fica pior do que sem ela quando o OCR falha, sai em branco ou ilegível: fica o texto nativo, com o aviso de falha do OCR quando houve falha. |
+| **RF11** | **Histórico da fila** | Lista da última sessão ao reabrir o programa. | Opcional e desligado por padrão (interruptor "Guardar a lista da última sessão", em Configurações). Ligado, ao reabrir a lista mostra os itens da última sessão em que algo foi processado (uma sessão sem processamento não apaga a anterior), no máximo 500, com data e hora na linha, a linha-resumo do relatório (sem a lista de documentos a conferir) e as ações de antes (copiar, abrir pasta, reprocessar, "Ler com OCR") enquanto os arquivos existirem. O item que processava ou aguardava ao fechar aparece como "Interrompido", com "Processar de novo"; com o monitoramento ligado, a varredura da abertura o processa de novo sozinha na mesma linha quando ele é das últimas 24 h e não tem TXT mais novo. TXT apagado ou movido mostra "TXT não encontrado" e desativa o copiar. Tudo fica só neste computador (RNF07). |
 
 ## 4. Requisitos Não-Funcionais
 
@@ -50,6 +51,7 @@ Abaixo estão as funcionalidades obrigatórias que o sistema deve executar.
 | **RNF04** | **Dependência** | Eventuais binários devem ser empacotados no binário final |
 | **RNF05** | **Diagnóstico** | Log em arquivo e telemetria só com a variável de ambiente `EPROCIA_LOG` (`1` ou `detalhado`), lida na partida; sem ela, nada é gravado e a interface não mostra nada sobre log. Os dois ficam só no computador, sem envio pela rede. O log leva nomes de ZIP e de documento, com o nome do usuário do Windows trocado; a telemetria não leva nome nenhum. |
 | **RNF06** | **Atualização** | A única conexão de rede do programa é a consulta e o download de versões no GitHub (`jonyduque/eprocia`), e ela só acontece quando o usuário clica em "Procurar atualização" (e, depois, em "Atualizar"). Não há procura automática, periódica nem na abertura. A consulta não envia conteúdo, nome nem caminho de processo; o GitHub vê só o IP, a hora e o `User-Agent` `eprocIA/<versão>`. Sem telemetria, nem contagem de atualizações. O log local (RNF05, quando ligado) registra hora e resultado de cada consulta e de cada troca. |
+| **RNF07** | **Privacidade do histórico** | O histórico da fila (RF11) guarda nomes de arquivos, que no Eproc são números de processo, e caminhos de pasta, que trazem o nome do usuário do Windows, e o relatório de cada item concluído (RF09) só com contagens, sem nomes de documento (a lista de documentos a conferir não vai para o arquivo); não guarda texto de documento. Só existe com o interruptor ligado (o padrão é desligado), só em `%APPDATA%\eprocIA\historico.json`, no perfil do usuário, e nunca sai da máquina. Guarda só a última sessão com processamento, no máximo 500 itens. Limpa-se pelo X da linha (apaga o item), por "Limpar tudo" (apaga a lista inteira), desligando o interruptor (apaga o arquivo) e por `install.ps1 -Uninstall -Purge`. Em máquina compartilhada com o mesmo login, com o interruptor ligado, outra pessoa vê os processos da última sessão; a frase do interruptor diz isso. |
 
 ## 5. Arquitetura Técnica Proposta
 
@@ -72,7 +74,7 @@ Abaixo estão as funcionalidades obrigatórias que o sistema deve executar.
 4. **Loop de Processamento:**
 Itera sobre cada arquivo:
 Verifica extensão -> Seleciona Extrator (HTML/PDF) -> Valida se tem texto -> Se não, aplica OCR -> Se tem, extrai -> Limpa string -> Adiciona buffer.
-5. **Gravação:** Salva `processo.txt` na mesma pasta do ZIP original.
+5. **Gravação:** Salva `processo.txt` na mesma pasta do ZIP original. PDF avulso grava `<nome>.txt` na pasta do PDF (com vários PDFs, o nome é o número CNJ comum a todos ou o do primeiro PDF por evento, e a pasta é a desse primeiro) e nunca sobrescreve arquivo alheio: se o nome estiver ocupado (ou, só para o nome base, existir `<nome>.zip` na mesma pasta), usa `<nome>_2.txt` até `<nome>_999.txt`.
 
 ## 6. Estrutura do Arquivo de Saída (Output Design)
 

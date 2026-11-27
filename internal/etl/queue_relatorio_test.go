@@ -17,6 +17,7 @@ func TestQueue_RelatorioZeradoAoReprocessarECancelar(t *testing.T) {
 	q := NewQueue(NewPipeline())
 	defer q.Shutdown()
 	q.cfg = cfgSemOCR()
+	q.existe = func(string) bool { return true } // caminhos fictícios
 	q.SetContext(context.Background())
 	q.emitir = func(_ context.Context, nome string, dados ...any) {
 		if nome != "queue:item" && nome != "queue:update" {
@@ -32,11 +33,11 @@ func TestQueue_RelatorioZeradoAoReprocessarECancelar(t *testing.T) {
 	// chamá-lo) e grava o relatório; o modo diz como a execução termina.
 	var modo string // "ok", "erro" ou "cancelar"
 	var vistoAntes *models.RelatorioZip
-	q.processar = func(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+	q.processar = func(ctx context.Context, e Entrada, cfg *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error) {
 		q.mu.Lock()
 		var item *QueueItem
 		for _, it := range q.items {
-			if it.Path == zipPath {
+			if it.Path == e.Caminhos[0] {
 				item = it
 			}
 		}

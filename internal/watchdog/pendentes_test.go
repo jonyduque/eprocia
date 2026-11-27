@@ -35,7 +35,7 @@ func TestPendingZips_FiltraPorDataESaida(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := pendingZips(dir, desde, nil)
+	got, err := pendingZips(dir, desde, []string{".zip"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestWatcher_StartProcessaZipBaixadoAntes(t *testing.T) {
 
 	detectados := make(chan string, 1)
 	w := NewWatcher(func(p string) { detectados <- p })
-	if err := w.Start(dir); err != nil {
+	if err := w.Start(dir, nil); err != nil {
 		t.Fatal(err)
 	}
 	defer w.Stop()

@@ -30,6 +30,10 @@ func escapeAttr(s string) string {
 	return attrEscaper.Replace(s)
 }
 
+// agoraFormatter é o relógio da linha "Data de Consolidação"; os testes o
+// fixam para comparar saídas byte a byte.
+var agoraFormatter = time.Now
+
 var attrEscaper = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;")
 
 // eventPrefixRegex matches the "Evento N - " opener of an Eproc file name.
@@ -493,7 +497,7 @@ func GerarSaida(eventos map[string]any, cleaningLevel string, paginasSemOCR int)
 	if paginasSemOCR > 0 {
 		sb.WriteString(fmt.Sprintf("Páginas que precisavam de OCR e ficaram sem: %d\n", paginasSemOCR))
 	}
-	sb.WriteString(fmt.Sprintf("Data de Consolidação: %s\n", time.Now().Format("02/01/2006 15:04:05")))
+	sb.WriteString(fmt.Sprintf("Data de Consolidação: %s\n", agoraFormatter().Format("02/01/2006 15:04:05")))
 	tokensAt := sb.Len()
 	sb.WriteString("\n<summary>\n")
 

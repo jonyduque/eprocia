@@ -5,8 +5,8 @@ import { ESTADOS, instalarStubs, listaAltoContraste } from './estados.mjs';
 
 // Fields of etl.QueueItem (internal/etl/queue.go) the UI reads.
 const CAMPOS = ['id', 'name', 'path', 'status', 'progress', 'message', 'output_path', 'docs_count', 'pages_count', 'estimated_tokens',
-  'processed_docs', 'total_docs', 'processed_pages', 'total_pages', 'timestamp', 'unread_docs'];
-const STATUS = new Set(['pending', 'processing', 'paused', 'cancelled', 'success', 'error']);
+  'processed_docs', 'total_docs', 'processed_pages', 'total_pages', 'timestamp', 'unread_docs', 'kind'];
+const STATUS = new Set(['pending', 'processing', 'paused', 'cancelled', 'success', 'error', 'interrupted']);
 
 // Chaves de models.RelatorioZip (internal/models, frontend/src/wailsjs/go/models.ts),
 // sem as opcionais (omitempty).
@@ -26,12 +26,12 @@ const CATEGORIAS = ['lida_nativa', 'lida_ocr', 'vazia', 'sem_ocr', 'com_erro'];
 const ATUALIZACAO = ['atualizacao-em-dia', 'atualizacao-disponivel', 'atualizacao-instalador', 'atualizacao-so-avisar',
   'atualizacao-incompleta', 'atualizacao-baixando', 'atualizacao-instalada', 'atualizacao-aguardando-fila', 'atualizacao-erro',
   'atualizacao-reiniciando'];
-const NOVOS = ['relatorio', 'configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida', ...ATUALIZACAO];
+const NOVOS = ['historico', 'relatorio', 'fila-pdf', 'configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida', ...ATUALIZACAO];
 
 describe('estados visuais', () => {
   it('cobre os estados da review.json', () => {
     assert.deepEqual(Object.keys(ESTADOS).sort(),
-      ['configuracoes', 'configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida', 'erro', 'fila', 'nao-lidos', 'processando', 'relatorio', 'vazio', ...ATUALIZACAO].sort());
+      ['configuracoes', 'configuracoes-log', 'configuracoes-none', 'configuracoes-recolhida', 'erro', 'fila', 'fila-pdf', 'historico', 'nao-lidos', 'processando', 'relatorio', 'vazio', ...ATUALIZACAO].sort());
   });
 
   it('relatorio: três concluídos, um só nativo, um com OCR e em branco, um com os três avisos e atencao', () => {
@@ -47,6 +47,43 @@ describe('estados visuais', () => {
     assert.equal(comOCR.sem_ocr + comOCR.com_erro + comOCR.ocr_falhou_com_reserva, 0);
     assert.ok(avisos.sem_ocr > 0 && avisos.com_erro > 0 && avisos.ocr_falhou_com_reserva > 0);
     assert.ok(fila[2].relatorio.atencao?.length > 0, 'atencao vazia');
+  });
+
+  it('historico: um item de hoje e três da sessão anterior em outro dia (concluído, TXT ausente, interrompido)', () => {
+    const fila = ESTADOS.historico.fila;
+    assert.equal(fila.length, 4);
+    const dia = (ms) => new Date(ms).toISOString().slice(0, 10);
+    const quando = (i) => i.finished_at || i.timestamp;
+    const [hoje, ...anteriores] = fila;
+    for (const i of anteriores) assert.notEqual(dia(quando(i)), dia(quando(hoje)), `${i.name}: mesmo dia de hoje`);
+    const concluido = anteriores.find((i) => i.status === 'success' && !i.output_missing);
+    const ausente = anteriores.find((i) => i.status === 'success' && i.output_missing === true);
+    const interrompido = anteriores.find((i) => i.status === 'interrupted');
+    assert.ok(concluido && concluido.finished_at > 0, 'concluído com finished_at');
+    assert.ok(ausente, 'concluído com output_missing');
+    assert.ok(interrompido, 'interrompido');
+    // O histórico grava o relatório só com contagens (decisão d3 de 2026-11-26):
+    // o concluído restaurado traz relatorio, sem atencao.
+    assert.ok(concluido.relatorio?.paginas?.total > 0, 'concluído restaurado com relatorio');
+    assert.equal(concluido.relatorio.atencao, undefined, 'relatorio restaurado sem atencao');
+    for (const i of fila) assert.match(i.name, /^5000000-00\.2026\.4\.00\.\d{4}(\.zip)?$/);
+  });
+
+  it('fila-pdf: um ZIP, um PDF avulso e um item de três PDFs, todos concluídos', () => {
+    const [zip, pdf, lote] = ESTADOS['fila-pdf'].fila;
+    assert.equal(ESTADOS['fila-pdf'].fila.length, 3);
+    for (const i of [zip, pdf, lote]) assert.equal(i.status, 'success');
+    assert.equal(zip.kind, 'zip');
+    assert.match(zip.name, /\.zip$/);
+    assert.equal(pdf.kind, 'pdf');
+    assert.match(pdf.name, /^5000000-00\.2026\.4\.00\.\d{4}$/);
+    assert.equal(pdf.paths.length, 1);
+    assert.equal(lote.kind, 'pdf');
+    assert.match(lote.name, / \(3 PDFs\)$/);
+    assert.equal(lote.paths.length, 3);
+    for (const [nome, e] of Object.entries(ESTADOS)) {
+      for (const i of e.fila) assert.ok(i.kind === 'zip' || i.kind === 'pdf', `${nome}/${i.name}: kind`);
+    }
   });
 
   it('fila e nao-lidos: todo concluído tem relatorio, como no app real; nao-lidos mostra "Ler com OCR"', () => {
@@ -121,7 +158,9 @@ describe('estados visuais', () => {
         assert.ok(m[0].startsWith('C:\\\\Usuarios\\\\exemplo'), `caminho fora do exemplo: ${m[0]}`);
       }
       for (const i of ESTADOS[nome].fila) {
-        assert.match(i.name, /^5000000-00\.2026\.4\.00\.\d{4}\.zip$/, `nome fora de processo(n): ${i.name}`);
+        assert.match(i.name, /^5000000-00\.2026\.4\.00\.\d{4}(\.zip| \(\d+ PDFs\))?$/, `nome fora de processo(n): ${i.name}`);
+        if (i.kind === 'zip') assert.match(i.name, /\.zip$/, `ZIP sem .zip no nome: ${i.name}`);
+        for (const p of i.paths ?? []) assert.ok(p.startsWith('C:\\Usuarios\\exemplo'), `caminho fora do exemplo: ${p}`);
       }
     });
   }
@@ -229,6 +268,13 @@ describe('lista de alto contraste', () => {
     for (const s of ["'-relatorio'", "'-relatorio-fim'", "'-ler-ocr'", '.btn-ler-ocr', '.resumo-relatorio', '.btn-log', '[LIMITE_BOTOES, LIMITE_BOTOES + 1]', '`-fila-${alvo}`']) {
       assert.ok(src.includes(s), `capturar.mjs sem ${s}`);
     }
+  });
+
+  it('capturar.mjs fixa o relógio e o fuso, e o historico ganha a lista estreita', () => {
+    const src = readFileSync(new URL('./capturar.mjs', import.meta.url), 'utf8');
+    assert.match(src, /page\.clock\.setFixedTime\(BASE_TS \+ 2 \* 60 \* 60000\)/);
+    assert.equal(src.match(/timezoneId: 'America\/Sao_Paulo'/g)?.length, 2, 'fuso nos dois newContext');
+    assert.match(src, /\['relatorio', 'historico'\]\.includes\(nome\)/);
   });
 
   it('capturar.mjs usa o mesmo limite dos botões da fila que o ProcessList.svelte', () => {

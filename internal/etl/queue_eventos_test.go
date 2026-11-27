@@ -39,7 +39,7 @@ func (g *gravadorEventos) doTipo(nome string) []eventoGravado {
 	return r
 }
 
-type processarFunc = func(context.Context, string, *models.Config, func(float64, string, int, int, int, int)) (string, int, int, int, error)
+type processarFunc = func(context.Context, Entrada, *models.Config, func(float64, string, int, int, int, int)) (string, int, int, int, error)
 
 func novaFilaGravada(t *testing.T, processar processarFunc) (*Queue, *gravadorEventos) {
 	t.Helper()
@@ -71,7 +71,7 @@ func esperarFim(t *testing.T, q *Queue, nome string) {
 // status, 200 vezes. O progresso deve sair como item único e limitado.
 func TestProgresso_NaoReenviaListaNemStatusPorPagina(t *testing.T) {
 	const paginas = 200
-	q, g := novaFilaGravada(t, func(_ context.Context, _ string, _ *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+	q, g := novaFilaGravada(t, func(_ context.Context, _ Entrada, _ *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error) {
 		for i := 1; i <= paginas; i++ {
 			onProgress(float64(i)/paginas, fmt.Sprintf("pág. %d", i), 0, 1, i, paginas)
 		}
@@ -117,7 +117,7 @@ func TestProgresso_NaoReenviaListaNemStatusPorPagina(t *testing.T) {
 func TestProgresso_LimitaTaxaEEnviaUltimaAtualizacao(t *testing.T) {
 	const paginas = 60
 	var duracao time.Duration
-	q, g := novaFilaGravada(t, func(_ context.Context, _ string, _ *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+	q, g := novaFilaGravada(t, func(_ context.Context, _ Entrada, _ *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error) {
 		inicio := time.Now()
 		for i := 1; i <= paginas; i++ {
 			onProgress(float64(i)/paginas, "processando", 0, 1, i, paginas)
@@ -170,7 +170,7 @@ func TestStatus_EmitidoSoQuandoMuda(t *testing.T) {
 func TestProgresso_ItemRemovidoNaoEhEnviado(t *testing.T) {
 	solta := make(chan struct{})
 	reportou := make(chan struct{})
-	q, g := novaFilaGravada(t, func(ctx context.Context, _ string, _ *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+	q, g := novaFilaGravada(t, func(ctx context.Context, _ Entrada, _ *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error) {
 		onProgress(0.1, "a", 0, 1, 1, 10)
 		onProgress(0.2, "b", 0, 1, 2, 10)
 		close(reportou)

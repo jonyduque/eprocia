@@ -130,10 +130,16 @@ export namespace etl {
 	    total_docs: number;
 	    processed_pages: number;
 	    total_pages: number;
+	    kind: string;
+	    paths?: string[];
 	    unread_docs: number;
 	    relatorio?: models.RelatorioZip;
 	    error?: string;
 	    timestamp: number;
+	    finished_at: number;
+	    output_missing: boolean;
+	    source_missing: boolean;
+	    restaurado: boolean;
 	    ocr_mode?: string;
 	    cleaning_level?: string;
 	    forcar_ocr?: boolean;
@@ -158,10 +164,16 @@ export namespace etl {
 	        this.total_docs = source["total_docs"];
 	        this.processed_pages = source["processed_pages"];
 	        this.total_pages = source["total_pages"];
+	        this.kind = source["kind"];
+	        this.paths = source["paths"];
 	        this.unread_docs = source["unread_docs"];
 	        this.relatorio = this.convertValues(source["relatorio"], models.RelatorioZip);
 	        this.error = source["error"];
 	        this.timestamp = source["timestamp"];
+	        this.finished_at = source["finished_at"];
+	        this.output_missing = source["output_missing"];
+	        this.source_missing = source["source_missing"];
+	        this.restaurado = source["restaurado"];
 	        this.ocr_mode = source["ocr_mode"];
 	        this.cleaning_level = source["cleaning_level"];
 	        this.forcar_ocr = source["forcar_ocr"];
@@ -199,6 +211,8 @@ export namespace models {
 	    theme: string;
 	    omitir_tipos: string[];
 	    forcar_ocr: boolean;
+	    monitorar_pdf: boolean;
+	    guardar_historico: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -214,6 +228,8 @@ export namespace models {
 	        this.theme = source["theme"];
 	        this.omitir_tipos = source["omitir_tipos"];
 	        this.forcar_ocr = source["forcar_ocr"];
+	        this.monitorar_pdf = source["monitorar_pdf"];
+	        this.guardar_historico = source["guardar_historico"];
 	    }
 	}
 	export class DocAtencao {

@@ -38,6 +38,8 @@ export function Greet(arg1:string):Promise<string>;
 
 export function Hide():Promise<void>;
 
+export function HistoricoFalhou():Promise<boolean>;
+
 export function InstalarAtualizacao():Promise<void>;
 
 export function IsQueuePaused():Promise<boolean>;
@@ -65,6 +67,8 @@ export function ResumeQueue():Promise<void>;
 export function SaveConfig(arg1:models.Config):Promise<void>;
 
 export function SelectDirectory():Promise<string>;
+
+export function SelectFiles():Promise<Array<string>>;
 
 export function SelectZipFile():Promise<string>;
 

@@ -295,11 +295,11 @@ describe('interface da atualização', () => {
   it('App: seleção manual confere antes do diálogo e de novo antes de pôr na fila', () => {
     const f = corpoFuncao(app, 'async function triggerManualSelect');
     const a1 = f.indexOf('aceitaEntrada(');
-    const sel = f.indexOf('SelectZipFiles(');
+    const sel = f.indexOf('SelectFiles(');
     const add = f.indexOf('AddFilesToQueue(');
-    assert.ok(a1 >= 0 && a1 < sel, 'aceitaEntrada antes de SelectZipFiles');
+    assert.ok(a1 >= 0 && a1 < sel, 'aceitaEntrada antes de SelectFiles');
     const a2 = f.indexOf('aceitaEntrada(', sel);
-    assert.ok(a2 > sel && a2 < add, 'aceitaEntrada entre SelectZipFiles e AddFilesToQueue');
+    assert.ok(a2 > sel && a2 < add, 'aceitaEntrada entre SelectFiles e AddFilesToQueue');
     assert.match(f, /avisarPainel\([\w.]*soltarDepois/);
   });
 
@@ -316,7 +316,8 @@ describe('interface da atualização', () => {
     assert.equal(bs.length, 2);
     for (const b of bs) {
       // aria-disabled, e não disabled: o botão segue no foco itinerante da linha.
-      assert.match(b, /aria-disabled=\{entradaBloqueada\}/);
+      // O histórico soma a origem ausente (historico.test.mjs).
+      assert.match(b, /aria-disabled=\{entradaBloqueada(?: \|\| !!item\.source_missing)?\}/);
       assert.doesNotMatch(b, /\sdisabled=/);
       assert.match(b, /use:dica=\{entradaBloqueada \? ATUALIZACAO\.soltarDepois : /);
       assert.doesNotMatch(b, /\btitle=/, 'a explicação vai na dica, não no title');
@@ -331,7 +332,7 @@ describe('interface da atualização', () => {
   it('ProcessList: Ler com OCR bloqueado por aria-disabled e com a dica da troca', () => {
     const [b] = botoesCom(lista, 'class="btn-ler-ocr"');
     assert.ok(b, 'falta o botão btn-ler-ocr');
-    assert.match(b, /aria-disabled=\{!!lendoOCR\[item\.id\] \|\| entradaBloqueada\}/);
+    assert.match(b, /aria-disabled=\{!!lendoOCR\[item\.id\] \|\| entradaBloqueada \|\| !!item\.source_missing\}/);
     assert.match(b, /use:dica=\{entradaBloqueada \? ATUALIZACAO\.soltarDepois : /);
     assert.doesNotMatch(b, /\sdisabled=\{/);
   });

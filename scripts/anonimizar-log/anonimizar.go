@@ -31,8 +31,10 @@ type rotulos struct {
 	rotulo map[string]string
 	// radicais: radical de ZIP -> rótulo, trocado só quando delimitado.
 	radicais map[string]string
-	nZip     int
-	nDoc     int
+	// sufixos: radical de TXT -> rótulo, para <radical>_N.txt.
+	sufixos map[string]string
+	nZip    int
+	nDoc    int
 }
 
 func (r *rotulos) zip(nome string) {
@@ -47,14 +49,37 @@ func (r *rotulos) zip(nome string) {
 	// para o Replacer. O radical sozinho só é trocado onde aparece
 	// delimitado (trocarDelimitado) e só com 4 ou mais caracteres: um nome
 	// curto ("1", "abc") casaria números e palavras soltas e não carrega
-	// número de processo.
-	if ext := filepath.Ext(nome); strings.EqualFold(ext, ".zip") {
-		radical := strings.TrimSuffix(nome, ext)
-		r.definir(radical+".txt", rotulo+".txt")
-		if utf8.RuneCountInString(radical) >= radicalMinimo && r.radicais[radical] == "" {
-			r.radicais[radical] = rotulo
-		}
+	// número de processo. Num item de PDF o TXT pode ser <radical>_N.txt
+	// (N de 2 a 999, internal/saida): trocarSufixoN cuida dele, para
+	// qualquer tamanho de radical.
+	radical, ok := radicalDe(nome)
+	if !ok || radical == "" {
+		return
 	}
+	r.definir(radical+".txt", rotulo+".txt")
+	if r.sufixos[radical] == "" {
+		r.sufixos[radical] = rotulo
+	}
+	if utf8.RuneCountInString(radical) >= radicalMinimo && r.radicais[radical] == "" {
+		r.radicais[radical] = rotulo
+	}
+}
+
+// contagemPDFs é o sufixo do nome de um item de vários PDFs
+// ("<radical do TXT> (N PDFs)").
+var contagemPDFs = regexp.MustCompile(` \(\d+ PDFs\)$`)
+
+// radicalDe devolve o radical do TXT de saída do item cujo atributo zip é
+// nome: sem a contagem " (N PDFs)" e sem a extensão .zip ou .pdf (sem
+// diferença de caixa). O nome do item de vários PDFs, sem extensão, já é o
+// radical. Outro nome não tem radical.
+func radicalDe(nome string) (string, bool) {
+	semContagem := contagemPDFs.ReplaceAllString(nome, "")
+	ext := filepath.Ext(semContagem)
+	if strings.EqualFold(ext, ".zip") || strings.EqualFold(ext, ".pdf") {
+		return strings.TrimSuffix(semContagem, ext), true
+	}
+	return semContagem, semContagem != nome
 }
 
 // radicalMinimo é o tamanho mínimo, em caracteres, do radical de ZIP que é
@@ -94,7 +119,7 @@ func anonimizar(r io.Reader, w io.Writer) (sobras []int, err error) {
 }
 
 func novosRotulos() *rotulos {
-	return &rotulos{rotulo: map[string]string{}, radicais: map[string]string{}}
+	return &rotulos{rotulo: map[string]string{}, radicais: map[string]string{}, sufixos: map[string]string{}}
 }
 
 // coletarLinhas registra os nomes de todas as linhas, na ordem.
@@ -214,7 +239,11 @@ func (rt *rotulos) substituidor() *trocador {
 	for _, p := range pares {
 		args = append(args, p.de, p.para)
 	}
-	return &trocador{nomes: strings.NewReplacer(args...), radicais: formas(rt.radicais)}
+	return &trocador{
+		nomes:    strings.NewReplacer(args...),
+		radicais: formas(rt.radicais),
+		sufixos:  formas(rt.sufixos),
+	}
 }
 
 // par é uma troca de texto.
@@ -246,10 +275,18 @@ func formas(rotulo map[string]string) []par {
 type trocador struct {
 	nomes    *strings.Replacer
 	radicais []par
+	// sufixos: radicais de TXT, para <radical>_N.txt (trocarSufixoN).
+	sufixos []par
 }
 
+// Replace troca primeiro os nomes inteiros: processo_2.txt, quando é o TXT
+// de processo_2.pdf, vira o rótulo desse item antes que o laço de sufixos o
+// leia como o segundo TXT de processo.pdf.
 func (t *trocador) Replace(linha string) string {
 	linha = t.nomes.Replace(linha)
+	for _, p := range t.sufixos {
+		linha = trocarSufixoN(linha, p.de, p.para)
+	}
 	for _, p := range t.radicais {
 		linha = trocarDelimitado(linha, p.de, p.para)
 	}
@@ -295,6 +332,51 @@ func trocarDelimitado(linha, de, para string) string {
 			b.WriteString(para)
 			ini = fim
 			i = fim
+			continue
+		}
+		i = j + 1
+	}
+	if ini == 0 {
+		return linha
+	}
+	b.WriteString(linha[ini:])
+	return b.String()
+}
+
+// trocarSufixoN troca de por para em cada <de>_N.txt com N de 2 a 999 sem
+// zero à esquerda e, antes de de, o início da linha ou um byte de delimAntes, os nomes que internal/saida dá ao TXT quando <de>.txt
+// está ocupado. A busca é à mão, como em trocarDelimitado: uma regex por
+// radical, compilada para cada item do log, custaria mais que a busca, e o
+// Replacer precisaria de 998 entradas por radical em cada grafia.
+func trocarSufixoN(linha, de, para string) string {
+	alvo := de + "_"
+	if de == "" || !strings.Contains(linha, alvo) {
+		return linha
+	}
+	var b strings.Builder
+	ini := 0
+	for i := 0; ; {
+		j := strings.Index(linha[i:], alvo)
+		if j < 0 {
+			break
+		}
+		j += i
+		k := j + len(alvo)
+		n := k
+		for n < len(linha) && n-k < 4 && linha[n] >= '0' && linha[n] <= '9' {
+			n++
+		}
+		digitos := linha[k:n]
+		// Antes do radical, o início da linha ou um byte de delimAntes:
+		// abc_2.txt não é trocado dentro de xabc_2.txt.
+		valido := (j == 0 || strings.IndexByte(delimAntes, linha[j-1]) >= 0) &&
+			len(digitos) >= 1 && len(digitos) <= 3 && digitos[0] != '0' &&
+			digitos != "1" && strings.HasPrefix(linha[n:], ".txt")
+		if valido {
+			b.WriteString(linha[ini:j])
+			b.WriteString(para)
+			ini = j + len(de)
+			i = n
 			continue
 		}
 		i = j + 1

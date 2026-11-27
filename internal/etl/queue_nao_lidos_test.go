@@ -45,7 +45,8 @@ func TestQueue_ContaNaoLidos(t *testing.T) {
 
 func TestQueue_ReprocessarZeraNaoLidos(t *testing.T) {
 	q := &Queue{items: []*QueueItem{{ID: "1", Name: "a.zip", Path: "a.zip", Status: "success", UnreadDocs: 2}}}
-	q.encerrada = true // startProcessing não inicia nada
+	q.encerrada = true                           // startProcessing não inicia nada
+	q.existe = func(string) bool { return true } // caminhos fictícios
 	if err := q.Reprocessar("1", "none", "none", nil); err != nil {
 		t.Fatalf("Reprocessar: %v", err)
 	}

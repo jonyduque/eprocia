@@ -47,6 +47,9 @@ func DefaultConfig() (*models.Config, error) {
 		Theme:           "system",
 		OmitirTipos:     []string{},
 		ForcarOCR:       false,
+		MonitorarPDF:    false,
+		// O histórico só existe se o usuário ligar.
+		GuardarHistorico: false,
 	}, nil
 }
 
@@ -90,14 +93,16 @@ func Load() (*models.Config, error) {
 // would otherwise silently zero out any bool field (e.g. WatchdogEnabled)
 // that defaults to true but is missing from an older config.json.
 type configOverlay struct {
-	MonitoredPath   *string  `json:"monitored_path"`
-	OcrMode         *string  `json:"ocr_mode"`
-	CleaningLevel   *string  `json:"cleaning_level"`
-	AutoStart       *bool    `json:"auto_start"`
-	WatchdogEnabled *bool    `json:"watchdog_enabled"`
-	Theme           *string  `json:"theme"`
-	OmitirTipos     []string `json:"omitir_tipos"`
-	ForcarOCR       *bool    `json:"forcar_ocr"`
+	MonitoredPath    *string  `json:"monitored_path"`
+	OcrMode          *string  `json:"ocr_mode"`
+	CleaningLevel    *string  `json:"cleaning_level"`
+	AutoStart        *bool    `json:"auto_start"`
+	WatchdogEnabled  *bool    `json:"watchdog_enabled"`
+	Theme            *string  `json:"theme"`
+	OmitirTipos      []string `json:"omitir_tipos"`
+	ForcarOCR        *bool    `json:"forcar_ocr"`
+	MonitorarPDF     *bool    `json:"monitorar_pdf"`
+	GuardarHistorico *bool    `json:"guardar_historico"`
 }
 
 // LoadFromFile loads the configuration from a specific file path.
@@ -147,6 +152,12 @@ func LoadFromFile(path string) (*models.Config, error) {
 	// Preservado mesmo com ocr_mode "none": lá ele só não tem efeito.
 	if overlay.ForcarOCR != nil {
 		cfg.ForcarOCR = *overlay.ForcarOCR
+	}
+	if overlay.MonitorarPDF != nil {
+		cfg.MonitorarPDF = *overlay.MonitorarPDF
+	}
+	if overlay.GuardarHistorico != nil {
+		cfg.GuardarHistorico = *overlay.GuardarHistorico
 	}
 
 	return cfg, nil

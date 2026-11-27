@@ -1,6 +1,9 @@
 package models
 
-import "archive/zip"
+import (
+	"archive/zip"
+	"io"
+)
 
 // Config represents the application configuration settings.
 type Config struct {
@@ -19,9 +22,16 @@ type Config struct {
 	// de texto nativo legível. Sem efeito com OcrMode "none" (o valor salvo é
 	// preservado).
 	ForcarOCR bool `json:"forcar_ocr"`
+	// MonitorarPDF faz a pasta monitorada converter também os PDFs novos,
+	// cada um no seu item e no seu TXT. Desligado por padrão.
+	MonitorarPDF bool `json:"monitorar_pdf"`
+	// GuardarHistorico guarda a lista da fila da última sessão em
+	// historico.json, para ela voltar ao reabrir. Desligado por padrão.
+	GuardarHistorico bool `json:"guardar_historico"`
 }
 
-// ProcessFile represents a single judicial process file within a ZIP archive.
+// ProcessFile represents a single judicial process file, inside a ZIP archive
+// or loose on disk (Avulso).
 type ProcessFile struct {
 	Name       string    `json:"name"`
 	EventNum   int       `json:"event_num"`
@@ -29,4 +39,11 @@ type ProcessFile struct {
 	DocName    string    `json:"doc_name"`
 	Extension  string    `json:"extension"`
 	ZipFileRef *zip.File `json:"-"`
+	// Abrir abre o conteúdo do documento (entrada do ZIP ou PDF solto).
+	Abrir func() (io.ReadCloser, error) `json:"-"`
+	// Tamanho é o tamanho descomprimido declarado; 0 num PDF avulso que não
+	// passou nas conferências de LerEntrada.
+	Tamanho int64 `json:"-"`
+	// Avulso marca um PDF solto, fora de ZIP.
+	Avulso bool `json:"-"`
 }

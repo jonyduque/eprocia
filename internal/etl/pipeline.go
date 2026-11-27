@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"maps"
 	"os"
@@ -15,7 +16,6 @@ import (
 	stdRuntime "runtime"
 	"runtime/debug"
 	"slices"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,6 +23,7 @@ import (
 	"eprocia/internal/models"
 	"eprocia/internal/ocr"
 	"eprocia/internal/registro"
+	"eprocia/internal/saida"
 
 	"github.com/dslipak/pdf"
 )
@@ -204,16 +205,39 @@ func (f *fontePDF) manterSoDisco() {
 	f.leitor = nil
 }
 
-// extrairPDF lê a entrada do ZIP para memória, se couber no orçamento, ou para
-// um temporário em disco mantido aberto.
+// errAvulsoNaoConferido é a leitura de um PDF avulso que não passou em
+// LerEntrada (Tamanho 0) e ainda assim trouxe bytes: o estado do arquivo não é
+// o conferido. Vai ao TXT como falha de disco (textoErroSaida), nunca como
+// arquivo trocado.
+var errAvulsoNaoConferido = &fs.PathError{Op: "read", Err: errors.New("PDF avulso não passou na conferência de LerEntrada")}
+
+// errArquivoMudou é a leitura de um PDF avulso cujo tamanho não é mais o
+// conferido por LerEntrada (maior, menor ou zerado): o arquivo foi trocado
+// entre a conferência e a leitura. É a única linha a trocar se a frase mudar.
+var errArquivoMudou = errors.New("o arquivo mudou durante a leitura")
+
+// errAvulsoMudou escolhe o erro de um PDF avulso lido com tamanho diferente
+// do declarado: sem conferência (Tamanho 0), falha de disco; senão, arquivo
+// trocado.
+func errAvulsoMudou(tamanho int64) error {
+	if tamanho == 0 {
+		return errAvulsoNaoConferido
+	}
+	return errArquivoMudou
+}
+
+// extrairPDF lê o documento (entrada do ZIP ou PDF avulso, por f.Abrir) para
+// memória, se couber no orçamento, ou para um temporário próprio em disco
+// mantido aberto. O caminho de um PDF avulso nunca vira fontePDF.caminho: só o
+// temporário é apagado em liberar.
 func extrairPDF(f models.ProcessFile, mem *memoriaPDF) (*fontePDF, error) {
-	zr, err := f.ZipFileRef.Open()
+	zr, err := f.Abrir()
 	if err != nil {
 		return nil, err
 	}
 	defer zr.Close()
 
-	tamanho := int64(f.ZipFileRef.UncompressedSize64)
+	tamanho := f.Tamanho
 	if tamanho <= maxPDFEmMemoria {
 		if mem.disponivel.Add(-tamanho) >= 0 {
 			dados := mem.buffer(tamanho)
@@ -222,11 +246,16 @@ func extrairPDF(f models.ProcessFile, mem *memoriaPDF) (*fontePDF, error) {
 				// Lê até o EOF para o archive/zip conferir o CRC e para não
 				// truncar calado uma entrada maior que o tamanho declarado.
 				var extra [1]byte
-				if n, errEOF := zr.Read(extra[:]); n > 0 {
+				if n, errEOF := zr.Read(extra[:]); n > 0 && f.Avulso {
+					err = errAvulsoMudou(tamanho)
+				} else if n > 0 {
 					err = fmt.Errorf("entrada do ZIP maior que o tamanho declarado")
 				} else if errEOF != io.EOF {
 					err = errEOF
 				}
+			} else if f.Avulso && (errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF)) {
+				// O PDF encolheu (ou zerou) depois da conferência.
+				err = errAvulsoMudou(tamanho)
 			}
 			if err != nil {
 				mem.disponivel.Add(tamanho)
@@ -242,6 +271,9 @@ func extrairPDF(f models.ProcessFile, mem *memoriaPDF) (*fontePDF, error) {
 		return nil, err
 	}
 	n, err := io.Copy(tmp, zr)
+	if err == nil && f.Avulso && n != tamanho {
+		err = errAvulsoMudou(tamanho)
+	}
 	if err != nil {
 		tmp.Close()
 		os.Remove(tmp.Name())
@@ -301,24 +333,28 @@ func NewPipeline() *Pipeline {
 	return &Pipeline{}
 }
 
-// ProcessZip extracts, parses, OCRs (if needed), sorts, and formats a ZIP file.
-// It returns the output path, document and page counts and the estimated tokens.
-func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int)) (string, int, int, int, error) {
-	return p.ProcessZipComAtividade(ctx, zipPath, cfg, onProgress, nil)
+// Entrada é o que um item da fila manda processar: um ZIP só (Kind "zip") ou
+// uma lista de PDFs avulsos (Kind "pdf"); Kind vazio aceita o que LerEntrada
+// reconhecer. SaidaAnterior é o TXT que o item gerou antes (reprocessamento de
+// item de PDF), regravado se ainda pertencer ao item e existir.
+type Entrada struct {
+	Kind          string
+	Caminhos      []string
+	SaidaAnterior string
 }
 
-// ProcessZipComAtividade é ProcessZip registrando em atv o estado de cada
-// documento e dos processos de OCR. atv pode ser nil.
-func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int), atv *Atividade) (string, int, int, int, error) {
+// ProcessarEntrada processa uma Entrada e grava o TXT pela regra de
+// internal/saida.
+func (p *Pipeline) ProcessarEntrada(ctx context.Context, e Entrada, cfg *models.Config, onProgress func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int), atv *Atividade) (string, int, int, int, error) {
 	// O logger do ctx já traz o item_id (Queue.processItem); as linhas de ZIP
 	// e de documento são INFO, as por página ficam em Debug.
 	lg := registro.Logger(ctx)
 	inicio := time.Now()
 	var bytesTxt int
 	var rel *models.RelatorioZip
-	saida, docs, paginas, tokens, err := p.processarZip(ctx, lg, zipPath, cfg, onProgress, atv, &bytesTxt, &rel)
+	out, docs, paginas, tokens, err := p.processarEntrada(ctx, lg, e, cfg, onProgress, atv, &bytesTxt, &rel)
 	duracao := time.Since(inicio)
-	attrs := []any{"zip", filepath.Base(zipPath), "duracao_ms", duracao.Milliseconds(),
+	attrs := []any{"zip", nomeDaEntrada(e), "duracao_ms", duracao.Milliseconds(),
 		"bytes_txt", bytesTxt, "tokens", tokens}
 	switch {
 	case err == nil:
@@ -333,28 +369,64 @@ func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, c
 	default:
 		lg.Warn("zip com erro", append(attrs, atributosErro(err)...)...)
 	}
-	return saida, docs, paginas, tokens, err
+	return out, docs, paginas, tokens, err
 }
 
-func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath string, cfg *models.Config, onProgress func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int), atv *Atividade, bytesTxt *int, rel **models.RelatorioZip) (string, int, int, int, error) {
+// nomeDaEntrada é o atributo "zip" das linhas de log: o nome do ZIP ou do
+// primeiro PDF recebido.
+func nomeDaEntrada(e Entrada) string {
+	if len(e.Caminhos) == 0 {
+		return ""
+	}
+	return filepath.Base(e.Caminhos[0])
+}
+
+// ProcessZip extracts, parses, OCRs (if needed), sorts, and formats a ZIP file.
+// It returns the output path, document and page counts and the estimated tokens.
+func (p *Pipeline) ProcessZip(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int)) (string, int, int, int, error) {
+	return p.ProcessarEntrada(ctx, Entrada{Kind: "zip", Caminhos: []string{zipPath}}, cfg, onProgress, nil)
+}
+
+// ProcessZipComAtividade é ProcessZip registrando em atv o estado de cada
+// documento e dos processos de OCR. atv pode ser nil.
+func (p *Pipeline) ProcessZipComAtividade(ctx context.Context, zipPath string, cfg *models.Config, onProgress func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int), atv *Atividade) (string, int, int, int, error) {
+	return p.ProcessarEntrada(ctx, Entrada{Kind: "zip", Caminhos: []string{zipPath}}, cfg, onProgress, atv)
+}
+
+func (p *Pipeline) processarEntrada(ctx context.Context, lg *slog.Logger, e Entrada, cfg *models.Config, onProgress func(progress float64, message string, processedDocs, totalDocs, processedPages, totalPages int), atv *Atividade, bytesTxt *int, rel **models.RelatorioZip) (string, int, int, int, error) {
 	var fases fasesZip
-	// 1. Read ZIP files
+	// 1. Lê a entrada: um ZIP ou uma lista de PDFs avulsos. Os workers só
+	// chamam f.Abrir dentro deste escopo, antes do rc.Close.
 	inicioFase := time.Now()
-	files, rc, err := ReadZipFiles(zipPath)
+	files, rc, err := LerEntrada(e.Caminhos)
 	fases.abrir = time.Since(inicioFase)
 	if err != nil {
 		return "", 0, 0, 0, comEtapa(EtapaAbrirZip, err)
 	}
 	defer rc.Close()
+	zr, ehZip := rc.(*zip.ReadCloser)
+	tipo := "pdf"
+	if ehZip {
+		tipo = "zip"
+	}
+	if e.Kind != "" && e.Kind != tipo {
+		return "", 0, 0, 0, comEtapa(EtapaAbrirZip, ErrTipoNaoSuportado)
+	}
 
-	if len(files) == 0 {
+	if len(files) == 0 && ehZip {
 		errNoFiles := fmt.Errorf("no PDF or HTML documents found in ZIP")
 		return "", 0, 0, 0, comEtapa(EtapaAbrirZip, errNoFiles)
 	}
 
 	var bytesZip int64
-	if st, errStat := os.Stat(zipPath); errStat == nil {
-		bytesZip = st.Size()
+	if ehZip {
+		if st, errStat := os.Stat(e.Caminhos[0]); errStat == nil {
+			bytesZip = st.Size()
+		}
+	} else {
+		for _, f := range files {
+			bytesZip += f.Tamanho
+		}
 	}
 	nPDF, nHTML := 0, 0
 	for _, f := range files {
@@ -364,7 +436,7 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 			nHTML++
 		}
 	}
-	lg.Info("zip iniciado", "zip", filepath.Base(zipPath), "bytes", bytesZip, "pdf", nPDF, "html", nHTML,
+	lg.Info("zip iniciado", "zip", nomeDaEntrada(e), "bytes", bytesZip, "pdf", nPDF, "html", nHTML,
 		slog.Group("config", "ocr_mode", cfg.OcrMode, "cleaning_level", cfg.CleaningLevel,
 			"forcar_ocr", forcarOCREfetivo(cfg), "forcar_ocr_pedido", cfg.ForcarOCR))
 
@@ -389,7 +461,9 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 	// duas extrações de cada PDF sem segurar memória de todos os workers.
 	mem := &memoriaPDF{bufs: make(chan []byte, 2)}
 	mem.disponivel.Store(maxTotalPDFEmMemoria)
-	rc.RegisterDecompressor(zip.Deflate, descompressorReciclavel(make(chan io.ReadCloser, 2)))
+	if ehZip {
+		zr.RegisterDecompressor(zip.Deflate, descompressorReciclavel(make(chan io.ReadCloser, 2)))
+	}
 	// Libera os PDFs extraídos em qualquer saída, inclusive por panic.
 	defer func() {
 		for _, fonte := range fontes {
@@ -401,10 +475,13 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 
 	// O tipo omitido (H10) é decidido antes da pré-contagem: o documento
 	// omitido só tem as páginas contadas pela biblioteca, como antes do segundo
-	// leitor, e nunca vai ao Poppler.
+	// leitor, e nunca vai ao Poppler. Não vale para o PDF avulso: quem o soltou
+	// quer aquele PDF.
 	tiposOmitidos := make([]string, totalFiles)
 	for i, f := range files {
-		tiposOmitidos[i] = tipoOmitido(cfg, f.DocName)
+		if !f.Avulso {
+			tiposOmitidos[i] = tipoOmitido(cfg, f.DocName)
+		}
 	}
 
 	inicioFase = time.Now()
@@ -590,7 +667,7 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 				}
 				encerrado = true
 				attrs := []any{"doc", f.DocName, "evento", f.EventNum, "extensao", f.Extension,
-					"bytes", int64(f.ZipFileRef.UncompressedSize64), "paginas", contagens[i]}
+					"bytes", f.Tamanho, "paginas", contagens[i]}
 				leitura := string(leituraDoc)
 				switch {
 				case omitidos[i]:
@@ -729,7 +806,11 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 					if err != nil {
 						errDoc = comEtapa(EtapaLerPDF, err)
 						texto := textoErroSaida(err)
-						naoLido(classificarErro(err), fmt.Sprintf("[ERRO ao extrair PDF do ZIP: %s]", texto),
+						formato := "[ERRO ao extrair PDF do ZIP: %s]"
+						if f.Avulso {
+							formato = "[ERRO ao abrir PDF: %s]"
+						}
+						naoLido(classificarErro(err), fmt.Sprintf(formato, texto),
 							texto, fmt.Sprintf("Erro ao abrir %s", f.DocName))
 						return
 					}
@@ -775,7 +856,7 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 				// Copy the pages map returned by ParsePages into the document's paginas map
 				maps.Copy(paginasMap, pdfPages)
 			} else if f.Extension == ".html" || f.Extension == ".htm" {
-				zipReader, err := f.ZipFileRef.Open()
+				zipReader, err := f.Abrir()
 				if err != nil {
 					errDoc = comEtapa(EtapaHTML, err)
 					texto := textoErroSaida(err)
@@ -834,18 +915,9 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 	fases.formatacao = time.Since(inicioFase)
 	outputText, tokens := s.Texto, s.Tokens
 
-	// 5. Save consolidated output to the same directory
-	outputPath := strings.TrimSuffix(zipPath, filepath.Ext(zipPath)) + ".txt"
-	// WriteString não copia o texto para um []byte, como os.WriteFile exigiria.
+	// 5. Grava a saída pela regra de internal/saida.
 	inicioFase = time.Now()
-	out, err := os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		return "", 0, 0, 0, comEtapa(EtapaGravar, err)
-	}
-	_, err = out.WriteString(outputText)
-	if errClose := out.Close(); err == nil {
-		err = errClose
-	}
+	outputPath, err := gravarSaidaEntrada(e, ehZip, outputText)
 	if err != nil {
 		return "", 0, 0, 0, comEtapa(EtapaGravar, err)
 	}
@@ -871,4 +943,22 @@ func (p *Pipeline) processarZip(ctx context.Context, lg *slog.Logger, zipPath st
 	}
 
 	return outputPath, totalFiles, totalPages, tokens, nil
+}
+
+// gravarSaidaEntrada grava o TXT: o ZIP sempre em saida.Base, por cima do
+// próprio TXT; o item de PDF por cima de SaidaAnterior quando ela ainda
+// pertence ao item e existe (reprocessamento, e1), senão no primeiro nome livre
+// a partir de saida.NomeLote, sem sobrescrever nada.
+func gravarSaidaEntrada(e Entrada, ehZip bool, texto string) (string, error) {
+	if ehZip {
+		caminho := saida.Base(e.Caminhos[0])
+		return caminho, saida.Gravar(caminho, texto)
+	}
+	ordenados := ordenarPorEvento(e.Caminhos)
+	if e.SaidaAnterior != "" && saida.SaidaDoItem("pdf", ordenados[0], ordenados, e.SaidaAnterior) {
+		if info, err := os.Stat(e.SaidaAnterior); err == nil && info.Mode().IsRegular() {
+			return e.SaidaAnterior, saida.Gravar(e.SaidaAnterior, texto)
+		}
+	}
+	return saida.GravarSemSobrescrever(saida.NomeLote(ordenados), texto)
 }

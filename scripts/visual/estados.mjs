@@ -3,7 +3,7 @@
 
 import { readFileSync } from 'node:fs';
 
-const BASE_TS = 1767322800000; // 2026-01-02 03:00 UTC, fixed so captures are stable
+export const BASE_TS = 1767322800000; // 2026-01-02 03:00 UTC, fixed so captures are stable
 
 const CONFIG = {
   monitored_path: 'C:\\Usuarios\\exemplo\\Downloads\\Processos',
@@ -43,6 +43,7 @@ function item(n, status, extra = {}) {
     total_pages: 0,
     timestamp: BASE_TS + n * 60000,
     unread_docs: 0,
+    kind: 'zip',
     ...extra,
   };
 }
@@ -188,6 +189,69 @@ const REL_NAO_LIDOS = relatorioZip({
   totalMs: 21300, bytesTxt: 393800, tokens: 98450,
 });
 
+// Fila do estado `fila-pdf`: um ZIP, um PDF avulso e um item de três PDFs do
+// mesmo processo (o nome do item é o do TXT sem extensão e "(N PDFs)").
+const pdfDe = (n, peca) => `${CONFIG.monitored_path}\\${processo(n)} - ${peca}.pdf`;
+const FILA_PDF = [
+  concluido(21, REL_NATIVO),
+  {
+    ...concluido(22, relatorioZip({
+      docs: 1, pdf: 1, html: 0, porLeitura: { lido: 1 },
+      paginas: { lida_nativa: 12 }, totalMs: 900, bytesTxt: 31200, tokens: 7800,
+    })),
+    kind: 'pdf',
+    name: processo(22),
+    path: `${CONFIG.monitored_path}\\${processo(22)}.pdf`,
+    paths: [`${CONFIG.monitored_path}\\${processo(22)}.pdf`],
+  },
+  {
+    ...concluido(23, relatorioZip({
+      docs: 3, pdf: 3, html: 0, porLeitura: { lido: 3 },
+      paginas: { lida_nativa: 27 }, totalMs: 2100, bytesTxt: 70400, tokens: 17600,
+    })),
+    kind: 'pdf',
+    name: `${processo(23)} (3 PDFs)`,
+    path: pdfDe(23, 'Evento 1 - INIC1'),
+    paths: [pdfDe(23, 'Evento 1 - INIC1'), pdfDe(23, 'Evento 5 - CONT1'), pdfDe(23, 'Evento 9 - SENT1')],
+  },
+];
+
+// Fila do estado `historico`: um item processado nesta sessão e três restaurados
+// da sessão anterior, de ontem (o relógio da captura fica em BASE_TS + 2 h, 02:00
+// de 02/01/2026 em São Paulo; capturar.mjs). O histórico grava o relatório só com
+// contagens, sem atencao (decisão d3 de 2026-11-26): o concluído restaurado traz
+// REL_HISTORICO, com páginas sem OCR (linha-resumo, aviso e "Ler com OCR"); o de
+// TXT ausente fica sem relatorio, como uma linha gravada antes dessa decisão.
+const ONTEM_1432 = BASE_TS - (9 * 60 + 28) * 60000; // 01/01/2026 14:32 em São Paulo
+const restaurado = (n, status, extra) => item(n, status, {
+  timestamp: ONTEM_1432 - 20 * 60000,
+  finished_at: 0,
+  restaurado: true,
+  source_missing: false,
+  output_missing: false,
+  ocr_mode: 'normal',
+  cleaning_level: 'standard',
+  ...extra,
+});
+const concluidoAntes = (n, fim, extra = {}) => restaurado(n, 'success', {
+  progress: 100,
+  message: 'Concluído',
+  output_path: `${CONFIG.monitored_path}\\${processo(n)}.txt`,
+  docs_count: 57, pages_count: 142, estimated_tokens: 98450, processed_docs: 57, total_docs: 57, processed_pages: 142, total_pages: 142,
+  finished_at: fim,
+  ...extra,
+});
+const REL_HISTORICO = relatorioZip({
+  docs: 57, pdf: 55, html: 2, porLeitura: { lido: 57 },
+  paginas: { lida_nativa: 138, sem_ocr: 4 }, totalMs: 8100, bytesTxt: 393800, tokens: 98450,
+});
+const FILA_HISTORICO = [
+  { ...sucesso(31), finished_at: BASE_TS + 95 * 60000, relatorio: REL_NATIVO },
+  restaurado(32, 'interrupted', { timestamp: ONTEM_1432 + 3 * 60000 }),
+  concluidoAntes(33, ONTEM_1432, { relatorio: REL_HISTORICO }),
+  concluidoAntes(34, ONTEM_1432 - 12 * 60000, { output_missing: true, unread_docs: 2 }),
+];
+
 // listaAltoContraste: states captured with forced colors, from review.json
 // (visual.alto_contraste). A missing list or key is an empty list.
 export function listaAltoContraste(config) {
@@ -208,6 +272,10 @@ export const ESTADOS = {
       item(5, 'cancelled', { message: 'Cancelado pelo usuário' })],
     pausado: false,
   },
+  'fila-pdf': { config: CONFIG, fila: FILA_PDF, pausado: false },
+  // Histórico ligado: a fila da sessão anterior restaurada, com data, TXT
+  // ausente e o estado Interrompido.
+  historico: { config: { ...CONFIG, guardar_historico: true }, fila: FILA_HISTORICO, pausado: false },
   processando: {
     config: CONFIG,
     fila: [sucesso(1), processando(2, 42), item(3, 'pending'), item(4, 'pending')],
@@ -316,6 +384,7 @@ export function instalarStubs({ estado, tema, versao }) {
     AbrirPastaLogs: undefined,
     ReprocessQueueItem: (_id, _ocr, _limpeza, _forcar) => undefined,
     SelectZipFiles: [],
+    SelectFiles: [],
     SelectDirectory: '',
     SelectZipFile: '',
   };

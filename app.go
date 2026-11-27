@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -17,9 +18,11 @@ import (
 	"eprocia/internal/autostart"
 	"eprocia/internal/config"
 	"eprocia/internal/etl"
+	"eprocia/internal/historico"
 	"eprocia/internal/janela"
 	"eprocia/internal/models"
 	"eprocia/internal/registro"
+	"eprocia/internal/saida"
 	"eprocia/internal/watchdog"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -46,6 +49,8 @@ type App struct {
 	autostart func(ativo bool) error
 	// clipboard é trocado nos testes; o padrão é runtime.ClipboardSetText.
 	clipboard func(ctx context.Context, texto string) error
+	// explorer é trocado nos testes; nil abre o explorer.exe de verdade.
+	explorer func(args ...string) error
 	// notificar fica nil quando o sistema não oferece notificações.
 	notificar func(titulo, corpo string) error
 	// falhas guarda os ZIPs com erro para a varredura inicial não repeti-los.
@@ -88,12 +93,45 @@ type App struct {
 	apagarAnterior func(pasta string) error
 	sinalUmaVez    sync.Once
 	limpezaUmaVez  sync.Once
+
+	// Histórico da fila (app_historico.go). historicoMu protege historico,
+	// historicoAdiado e historicoProtegido. historicoAdiado: processo novo da
+	// atualização ainda à espera do antigo (o gravador só nasce depois);
+	// historicoProtegido: o Protegido do gravador adiado.
+	historicoMu        sync.Mutex
+	historico          *historico.Gravador
+	historicoAdiado    bool
+	historicoProtegido bool
+	// historicoFechadoTroca: o Fechar da troca de versão já rodou e o Reabrir
+	// ainda não; ligar o interruptor nesse meio-tempo não cria gravador.
+	historicoFechadoTroca bool
+	// historicoFalhou (sob falhaHistoricoMu): uma gravação do histórico já
+	// falhou nesta sessão. Limita o evento a um e fica para HistoricoFalhou,
+	// porque o evento pode sair antes de o frontend registrar o EventsOn.
+	falhaHistoricoMu sync.Mutex
+	historicoFalhou  bool
 }
 
 // eventoVisibilidade avisa o frontend que a janela sumiu na bandeja (false)
 // ou voltou (true). Oculta, a WebView2 segue renderizando: o frontend para as
 // animações e segura a fila até reabrir.
 const eventoVisibilidade = "janela:visivel"
+
+// filaMonitorada é a parte da fila que o callback do watcher usa.
+type filaMonitorada interface {
+	ReprocessarMonitorado(string) bool
+	AddFilesComOrigem([]string, string) int
+}
+
+// encaminharMonitorado leva um arquivo da pasta monitorada à fila: um PDF
+// editado depois de convertido reaproveita o item concluído (q1); senão vira
+// item novo.
+func encaminharMonitorado(f filaMonitorada, caminho string) {
+	if f.ReprocessarMonitorado(caminho) {
+		return
+	}
+	f.AddFilesComOrigem([]string{caminho}, "monitorada")
+}
 
 // NewApp creates a new App application struct
 func NewApp() *App {
@@ -105,7 +143,7 @@ func NewApp() *App {
 	}
 	app.watcher = watchdog.NewWatcher(func(filePath string) {
 		if app.queue != nil {
-			app.queue.AddFilesComOrigem([]string{filePath}, "monitorada")
+			encaminharMonitorado(app.queue, filePath)
 		}
 	})
 	return app
@@ -315,6 +353,7 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 	defer a.gravarMu.Unlock()
 	atual := a.configAtual()
 	autoAnterior := atual != nil && atual.AutoStart
+	historicoAnterior := atual != nil && atual.GuardarHistorico
 	if atual != nil {
 		cfg.Theme = atual.Theme
 	}
@@ -344,6 +383,9 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 	if a.queue != nil {
 		a.queue.SetConfig(cfg)
 	}
+	if cfg.GuardarHistorico != historicoAnterior {
+		a.aplicarHistorico(cfg.GuardarHistorico)
+	}
 	if err := a.aplicarMonitor(cfg); err != nil {
 		return err
 	}
@@ -362,7 +404,7 @@ func (a *App) aplicarMonitor(cfg *models.Config) error {
 		if a.monitorRetido.Load() {
 			return nil
 		}
-		if err := a.watcher.Start(cfg.MonitoredPath); err != nil {
+		if err := a.watcher.Start(cfg.MonitoredPath, watchdog.Extensoes(cfg.MonitorarPDF)); err != nil {
 			slog.Warn("falha ao iniciar o monitoramento da pasta", "pasta", cfg.MonitoredPath, "erro", err)
 			return errors.New("configurações salvas, mas " + msgMonitorFalhou)
 		}
@@ -404,15 +446,29 @@ func (a *App) ProcessFile(filePath string) (string, error) {
 	return "", err
 }
 
-// OpenDirectory opens the native Windows Explorer selecting the file, or opens the directory.
+// OpenDirectory abre o Explorer selecionando o arquivo ou abrindo a pasta. Se
+// o arquivo sumiu, abre a pasta dele; se a pasta também sumiu, devolve erro.
 func (a *App) OpenDirectory(path string) error {
 	cleanPath := filepath.Clean(path)
-	info, err := os.Stat(cleanPath)
-	if err == nil && !info.IsDir() {
-		// If it's a file, select it in Windows Explorer
-		return exec.Command("explorer.exe", "/select,", cleanPath).Start()
+	abrir := a.explorer
+	if abrir == nil {
+		abrir = func(args ...string) error {
+			return exec.Command("explorer.exe", args...).Start()
+		}
 	}
-	return exec.Command("explorer.exe", cleanPath).Start()
+	info, err := os.Stat(cleanPath)
+	if err == nil {
+		if info.IsDir() {
+			return abrir(cleanPath)
+		}
+		return abrir("/select,", cleanPath)
+	}
+	pasta := filepath.Dir(cleanPath)
+	if di, derr := os.Stat(pasta); derr == nil && di.IsDir() {
+		return abrir(pasta)
+	}
+	slog.Warn("a pasta do arquivo não existe mais", "pasta", pasta)
+	return errors.New("a pasta do arquivo não existe mais")
 }
 
 // CopyOutput copia para a área de transferência o TXT gerado por um item concluído.
@@ -420,34 +476,70 @@ func (a *App) CopyOutput(path string) error {
 	if a.ctx == nil {
 		return fmt.Errorf("contexto não inicializado")
 	}
-	texto, err := lerSaidaParaCopiar(path, a.GetQueue())
+	return a.copiarSaida(path, a.GetQueue())
+}
+
+// copiarSaida lê a saída conferida contra os itens e a manda para a área de
+// transferência.
+func (a *App) copiarSaida(path string, itens []*etl.QueueItem) error {
+	texto, err := lerSaidaParaCopiar(path, itens)
+	var ausente *erroSaidaAusente
+	if errors.As(err, &ausente) {
+		if a.queue != nil {
+			a.queue.MarcarSaidaAusente(ausente.caminho)
+		}
+		// d9: a interface recebe o texto fixo, sem caminho; o caminho fica no log.
+		slog.Warn("o TXT não está mais na pasta", "caminho", ausente.caminho)
+		return errors.New("O TXT não está mais na pasta; ele pode ter sido movido ou apagado")
+	}
 	if err != nil {
 		return err
 	}
 	if err := a.clipboard(a.ctx, texto); err != nil {
-		return fmt.Errorf("não foi possível copiar para a área de transferência: %w", err)
+		slog.Warn("falha ao copiar a saída para a área de transferência", "erro", err)
+		return errors.New("não foi possível copiar para a área de transferência")
 	}
 	return nil
 }
 
 // lerSaidaParaCopiar só lê arquivos que a própria fila gerou, para que o
-// binding exposto ao WebView não sirva para ler qualquer arquivo do disco.
+// binding exposto ao WebView não sirva para ler qualquer arquivo do disco: o
+// item precisa estar concluído, ter gravado esse caminho e o caminho precisa
+// passar em saida.SaidaDoItem. O erro de leitura vai à interface sem caminho
+// nem erro cru; o detalhe fica no log.
 func lerSaidaParaCopiar(path string, itens []*etl.QueueItem) (string, error) {
 	if path == "" || !strings.EqualFold(filepath.Ext(path), ".txt") {
-		return "", fmt.Errorf("arquivo %q não é uma saída .txt", path)
+		slog.Warn("cópia recusada: o arquivo pedido não é um TXT", "caminho", path)
+		return "", errors.New("o arquivo pedido não é um TXT de saída")
 	}
 	limpo := filepath.Clean(path)
 	for _, it := range itens {
-		if it.Status == "success" && it.OutputPath != "" && strings.EqualFold(filepath.Clean(it.OutputPath), limpo) {
+		if it.Status == "success" && it.OutputPath != "" && strings.EqualFold(filepath.Clean(it.OutputPath), limpo) &&
+			saida.SaidaDoItem(it.Kind, it.Path, it.Paths, it.OutputPath) {
 			dados, err := os.ReadFile(limpo)
+			if errors.Is(err, fs.ErrNotExist) {
+				slog.Warn("o TXT a copiar não existe mais", "caminho", limpo)
+				return "", &erroSaidaAusente{caminho: limpo}
+			}
 			if err != nil {
-				return "", fmt.Errorf("não foi possível ler %q: %w", limpo, err)
+				slog.Warn("falha ao ler a saída para copiar", "caminho", limpo, "erro", err)
+				return "", errors.New("não foi possível ler o TXT gerado")
 			}
 			return string(dados), nil
 		}
 	}
-	return "", fmt.Errorf("arquivo %q não corresponde a nenhum processamento concluído", path)
+	slog.Warn("cópia recusada: o TXT não é saída de item concluído", "caminho", path)
+	return "", errors.New("este TXT não corresponde a nenhum processamento concluído")
 }
+
+// erroSaidaAusente é a leitura do TXT que falhou porque ele não existe mais.
+// O texto é fixo e sem caminho; copiarSaida o troca pela frase com a pasta e
+// marca o item.
+type erroSaidaAusente struct{ caminho string }
+
+func (e *erroSaidaAusente) Error() string { return "não foi possível ler o TXT gerado" }
+
+func (e *erroSaidaAusente) Unwrap() error { return fs.ErrNotExist }
 
 // SelectDirectory opens a native open directory dialog and returns the selected path.
 func (a *App) SelectDirectory() (string, error) {
@@ -488,6 +580,27 @@ func (a *App) SelectZipFiles() ([]string, error) {
 				Pattern:     "*.zip",
 			},
 		},
+	})
+}
+
+// filtrosSelecao são os filtros do diálogo de seleção de arquivos.
+func filtrosSelecao() []runtime.FileFilter {
+	return []runtime.FileFilter{
+		{DisplayName: "ZIP do Eproc e PDF (*.zip;*.pdf)", Pattern: "*.zip;*.pdf"},
+		{DisplayName: "Somente ZIP (*.zip)", Pattern: "*.zip"},
+		{DisplayName: "Somente PDF (*.pdf)", Pattern: "*.pdf"},
+	}
+}
+
+// SelectFiles abre o diálogo de vários arquivos para ZIP do Eproc e PDF e
+// devolve os caminhos escolhidos.
+func (a *App) SelectFiles() ([]string, error) {
+	if a.ctx == nil {
+		return nil, fmt.Errorf("contexto não inicializado")
+	}
+	return runtime.OpenMultipleFilesDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:   "Selecionar arquivos ZIP do Eproc ou PDF",
+		Filters: filtrosSelecao(),
 	})
 }
 

@@ -40,7 +40,8 @@ func (p *procFalso) canal(path string) chan error {
 // libera termina o processamento de path com o erro dado (nil = sucesso).
 func (p *procFalso) libera(path string, err error) { p.canal(path) <- err }
 
-func (p *procFalso) processar(ctx context.Context, path string, _ *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+func (p *procFalso) processar(ctx context.Context, e Entrada, _ *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+	path := e.Caminhos[0]
 	p.mu.Lock()
 	p.emCurso++
 	if p.emCurso > p.maxEmCurso {
@@ -231,11 +232,11 @@ func TestFila_PausaImpedeProximoEResumeRetoma(t *testing.T) {
 
 func TestFila_PanicViraErroEFilaSegue(t *testing.T) {
 	p := novoProcFalso()
-	processar := func(ctx context.Context, path string, cfg *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error) {
-		if path == "a.zip" {
+	processar := func(ctx context.Context, e Entrada, cfg *models.Config, onProgress func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+		if e.Caminhos[0] == "a.zip" {
 			panic("pdf corrompido")
 		}
-		return p.processar(ctx, path, cfg, onProgress)
+		return p.processar(ctx, e, cfg, onProgress)
 	}
 	q, _ := novaFilaGravada(t, processar)
 
@@ -269,7 +270,9 @@ func TestFila_ErroDoProcessadorViraErroEFilaSegue(t *testing.T) {
 	esperarFim(t, q, "b.zip")
 }
 
-func TestFila_ShutdownCancelaItemEmCurso(t *testing.T) {
+// O Shutdown interrompe o item em curso: "interrupted", não "cancelled" (o
+// cancelamento é só o pedido pelo usuário).
+func TestFila_ShutdownInterrompeItemEmCurso(t *testing.T) {
 	p := novoProcFalso()
 	q, _ := novaFilaGravada(t, p.processar)
 
@@ -279,7 +282,7 @@ func TestFila_ShutdownCancelaItemEmCurso(t *testing.T) {
 	if !q.shutdownComPrazo(2 * time.Second) {
 		t.Fatal("Shutdown estourou o prazo")
 	}
-	if it := itemPorNome(t, q, "a.zip"); it.Status != "cancelled" {
+	if it := itemPorNome(t, q, "a.zip"); it.Status != "interrupted" {
 		t.Fatalf("item em curso após Shutdown: status %q", it.Status)
 	}
 	if it := itemPorNome(t, q, "b.zip"); it.Status != "pending" {
@@ -434,7 +437,7 @@ func TestFila_AddFilesIgnoraDuplicadoEmAndamento(t *testing.T) {
 
 func TestFila_SetConfigChegaAoProcessador(t *testing.T) {
 	recebida := make(chan *models.Config, 1)
-	q, _ := novaFilaGravada(t, func(_ context.Context, _ string, cfg *models.Config, _ func(float64, string, int, int, int, int)) (string, int, int, int, error) {
+	q, _ := novaFilaGravada(t, func(_ context.Context, _ Entrada, cfg *models.Config, _ func(float64, string, int, int, int, int)) (string, int, int, int, error) {
 		recebida <- cfg
 		return "", 0, 0, 0, nil
 	})

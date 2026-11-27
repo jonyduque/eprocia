@@ -42,8 +42,8 @@
     Configurações em %APPDATA%\eprocIA ficam, a não ser com -Purge.
 
 .PARAMETER Purge
-    Com -Uninstall: apaga também configurações, histórico de falhas, dados do WebView2 e o
-    cache do OCR.
+    Com -Uninstall: apaga também configurações, histórico de falhas, histórico da fila,
+    dados do WebView2 e o cache do OCR.
 
 .PARAMETER NoDesktop
     Não cria (e remove, se houver) o atalho na área de trabalho.

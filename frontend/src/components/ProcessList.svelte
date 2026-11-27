@@ -7,9 +7,12 @@
   import CircleCheck from 'lucide-svelte/icons/circle-check';
   import CirclePause from 'lucide-svelte/icons/circle-pause';
   import CircleSlash from 'lucide-svelte/icons/circle-slash';
+  import CircleStop from 'lucide-svelte/icons/circle-stop';
   import Clock from 'lucide-svelte/icons/clock';
   import Coins from 'lucide-svelte/icons/coins';
   import Copy from 'lucide-svelte/icons/copy';
+  import FileIcon from 'lucide-svelte/icons/file';
+  import FileArchive from 'lucide-svelte/icons/file-archive';
   import FileText from 'lucide-svelte/icons/file-text';
   import Files from 'lucide-svelte/icons/files';
   import FolderOpen from 'lucide-svelte/icons/folder-open';
@@ -49,14 +52,14 @@
   import { criarAviso, duracaoMovimento, DUR_FAST, DUR_BASE } from '../lib/aviso.js';
   import { aplicarReprocessarComOCR, alvoAoFecharReprocessar, argumentosLerComOCR, limpezaInicialReprocessar } from '../lib/reprocessar.js';
   import { resumoPaginas, avisosPaginas, mostrarLerComOCR } from '../lib/relatorio.js';
-  import { ATUALIZACAO, EXPLICACAO_OCR, ROTULO_LER_COM_OCR, DICA_LER_COM_OCR, DICA_ABRIR_RELATORIO, DICA_FECHAR_RELATORIO } from '../lib/textos.js';
+  import { ATUALIZACAO, HISTORICO, EXPLICACAO_OCR, ROTULO_LER_COM_OCR, DICA_LER_COM_OCR, DICA_ABRIR_RELATORIO, DICA_FECHAR_RELATORIO, TIPO_ENTRADA } from '../lib/textos.js';
   import { dica } from '../lib/dica.js';
   import { rotuloNaoLidos, avisoCopiaNaoLidos, tituloNaoLidos } from '../lib/naoLidos.js';
   import { rolagem } from '../lib/rolagem.js';
   import { avisoErroEntrada } from '../lib/atualizacao.js';
   import { marcosFila, anuncioCopia, anuncioPausa, anuncioFiltro } from '../lib/anuncios.js';
   import {
-    formatarHora,
+    formatarQuando,
     filtrarItens,
     alvoFoco,
     escolherAcao,
@@ -74,13 +77,16 @@
     copiavel
   } from '../lib/fila.js';
 
+  // Ícone do tipo da entrada, antes do nome (DESIGN §4 e §5.1).
+  const ICONE_TIPO = { zip: FileArchive, pdf: FileIcon };
+
   export let items = [];
   export let isPaused = false;
   // Instantâneos de queue:atividade por id de item (App.svelte).
   export let atividades = {};
   // Config atual: valores iniciais do reprocessamento de itens antigos.
   export let config = null;
-  // Abre a seleção de ZIPs do App: o vazio oferece a ação sem depender do painel.
+  // Abre a seleção de ZIPs e PDFs do App: o vazio oferece a ação sem depender do painel.
   export let aoSelecionarZip = () => {};
   // Durante a troca de versão (aceitaEntrada falso) nada volta à fila:
   // os botões que reprocessam o item ficam bloqueados, com a dica do motivo.
@@ -94,7 +100,8 @@
     aguardando: 'Aguardando',
     sucesso: 'Concluído',
     erro: 'Erro',
-    cancelado: 'Cancelado'
+    cancelado: 'Cancelado',
+    interrompido: HISTORICO.interrompido
   };
 
   $: aviso = avisoFila(items, isPaused);
@@ -120,6 +127,8 @@
   $: registrarPausa(isPaused);
 
   $: filteredItems = filtrarItens(items, filterText);
+  // Referência de "hoje" e "ontem" da data da linha: recalculada a cada mudança da lista, sem timer.
+  $: agora = (items, Date.now());
 
   let ultimoFiltro = '';
   function registrarFiltro(texto, n) {
@@ -143,7 +152,7 @@
   let atividadesBuscadas = {};
 
   function temAtividade(estado) {
-    return estado === 'processando' || estado === 'sucesso' || estado === 'erro' || estado === 'cancelado';
+    return estado === 'processando' || estado === 'sucesso' || estado === 'erro' || estado === 'cancelado' || estado === 'interrompido';
   }
 
   async function alternarAtividade(item) {
@@ -178,6 +187,8 @@
     const abrir = !reprocessarAberto[id];
     // Durante a troca só abrir é barrado; fechar pelo ícone continua.
     if (entradaBloqueada && abrir) return;
+    // Origem sumida (item do histórico): não há o que reprocessar.
+    if (abrir && items.find((i) => i.id === id)?.source_missing) return;
     reprocessarAberto = { ...reprocessarAberto, [id]: abrir };
     const { [id]: _, ...resto } = ocrSugerido;
     ocrSugerido = resto;
@@ -220,7 +231,7 @@
   // sem Forçar OCR e com a limpeza do item (a config global não muda).
   async function lerComOCR(item) {
     if (lendoOCR[item.id]) return;
-    if (entradaBloqueada) return;
+    if (entradaBloqueada || item.source_missing) return;
     lendoOCR = { ...lendoOCR, [item.id]: true };
     const a = argumentosLerComOCR(item, config);
     try {
@@ -259,6 +270,22 @@
       console.error('Erro ao reprocessar:', err);
       const r = avisoErroEntrada(err, 'Erro ao reprocessar: ');
       avisoAcao.mostrar(r.texto, r.tipo);
+    }
+  }
+
+  // "Processar de novo" do item interrompido: volta à fila com a config atual,
+  // sem formulário. O foco espera no botão e vai ao Cancelar quando a linha troca.
+  async function processarDeNovo(item, evento) {
+    if (entradaBloqueada || item.source_missing) return;
+    guardarFoco(item.id, evento, 'cancelar');
+    try {
+      await ReprocessQueueItem(item.id, config?.ocr_mode || 'normal', config?.cleaning_level || 'standard', !!config?.forcar_ocr);
+      const { [item.id]: _, ...resto } = atividadesBuscadas;
+      atividadesBuscadas = resto;
+    } catch (err) {
+      focoPendente = null;
+      console.error('Erro ao processar de novo:', err);
+      avisoAcao.mostrar('Erro ao reprocessar: ' + (err?.message ?? err), 'error');
     }
   }
 
@@ -559,7 +586,7 @@
           </button>
         {/if}
         {#if concluidos > 0}
-          <button class="btn-clear" on:click={handleLimparConcluidos} title="Remover da lista os concluídos, com erro e cancelados" aria-label="Limpar concluídos">
+          <button class="btn-clear" on:click={handleLimparConcluidos} title={HISTORICO.tituloLimparConcluidos} aria-label="Limpar concluídos">
             <Icone icone={ListX} tamanho={12} />
             <span class="rotulo-acao">Limpar concluídos</span>
           </button>
@@ -600,9 +627,9 @@
         <p>Nenhum processo no histórico.</p>
         <button type="button" class="manual-select-btn" on:click={aoSelecionarZip}>
           <Icone icone={Upload} tamanho={14} />
-          <span>Selecionar arquivos ZIP...</span>
+          <span>Selecionar arquivos...</span>
         </button>
-        <p class="sub-text">ou arraste os ZIPs para a janela</p>
+        <p class="sub-text">ou arraste ZIPs do Eproc ou PDFs para a janela</p>
       </div>
     {:else}
       <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -610,6 +637,7 @@
         {#each filteredItems as item (item.id)}
           {@const estado = estadoItem(item.status, isPaused)}
           {@const expansivel = temAtividade(estado)}
+          {@const tipo = item.kind === 'pdf' ? 'pdf' : 'zip'}
           <div
             class="item-row {item.status}"
             role="listitem"
@@ -636,6 +664,8 @@
                     <Icone icone={CircleAlert} cor="var(--error)" />
                   {:else if estado === 'cancelado'}
                     <Icone icone={CircleSlash} cor="var(--text-secondary)" />
+                  {:else if estado === 'interrompido'}
+                    <Icone icone={CircleStop} cor="var(--warning)" />
                   {/if}
                 </span>
               {/key}
@@ -657,10 +687,15 @@
               title={expansivel ? (atividadeAberta[item.id] ? 'Ocultar a atividade dos documentos' : 'Ver a atividade dos documentos') : undefined}
               on:click={() => { if (expansivel) alternarAtividade(item); }}
             >
+              <span class="icone-tipo"><Icone icone={ICONE_TIPO[tipo]} tamanho={12} cor="var(--text-secondary)" /></span>
+              <span class="sr-only">{TIPO_ENTRADA[tipo]}</span>
               <span class="file-name" title={item.path}>{nomeExibido(item.name)}</span>
               <span class="details-row">
-                <span class="timestamp">{formatarHora(item.timestamp)}</span>
+                <span class="timestamp">{formatarQuando(item, agora)}</span>
                 {#if estado === 'sucesso'}
+                  {#if item.output_missing}
+                    <span class="txt-ausente">{HISTORICO.txtAusente}</span>
+                  {/if}
                   {#if copiadoId === item.id}
                     <span class="copiado-texto" in:fade={{ duration: duracaoMovimento(DUR_FAST) }}>Copiado</span>
                   {:else}
@@ -694,6 +729,8 @@
                   <span class="pending-message">Aguardando na fila...</span>
                 {:else if estado === 'cancelado'}
                   <span class="cancelled-message">Cancelado</span>
+                {:else if estado === 'interrompido'}
+                  <span class="interrupted-message">{HISTORICO.interrompido}</span>
                 {:else if estado === 'erro'}
                   <span class="error-message truncate">{item.message || 'Erro no processamento'}</span>
                 {/if}
@@ -753,9 +790,9 @@
                     data-acao="reprocessar"
                     data-parada="reprocessar"
                     tabindex={tabParada(item.id, 'reprocessar', paradaAtiva)}
-                    aria-disabled={entradaBloqueada}
+                    aria-disabled={entradaBloqueada || !!item.source_missing}
                     on:click={(e) => alternarReprocessar(item.id, e)}
-                    use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : 'Reprocessar com outras configurações'}
+                    use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : item.source_missing ? HISTORICO.origemAusente : 'Reprocessar com outras configurações'}
                     aria-label={rotuloAcao('Reprocessar', item.name)}
                     aria-expanded={!!reprocessarAberto[item.id]}
                     aria-controls="reprocessar-{item.id}"
@@ -767,9 +804,10 @@
                     data-acao="copiar"
                     data-parada="copiar"
                     tabindex={tabParada(item.id, 'copiar', paradaAtiva)}
+                    aria-disabled={!!item.output_missing}
                     class:copiado={copiadoId === item.id}
-                    on:click={() => handleCopy(item)}
-                    use:dica={copiadoId === item.id ? 'Copiado!' : 'Copiar o TXT para colar na IA'}
+                    on:click={() => { if (copiavel(item)) handleCopy(item); }}
+                    use:dica={item.output_missing ? HISTORICO.txtAusente : copiadoId === item.id ? 'Copiado!' : 'Copiar o TXT para colar na IA'}
                     aria-label={rotuloAcao('Copiar o TXT', item.name)}
                   >
                     {#key copiadoId === item.id}
@@ -792,6 +830,33 @@
                     aria-label={rotuloAcao('Abrir pasta contendo o TXT', item.name)}
                   >
                     <Icone icone={FolderOpen} tamanho={14} />
+                  </button>
+                  <button
+                    class="btn-action btn-remove"
+                    data-acao="remover"
+                    data-parada="remover"
+                    tabindex={tabParada(item.id, 'remover', paradaAtiva)}
+                    on:click={(e) => handleRemove(item.id, e)}
+                    use:dica={'Remover da lista'}
+                    aria-label={rotuloAcao('Remover da lista', item.name)}
+                  >
+                    <Icone icone={Trash2} tamanho={14} />
+                  </button>
+                </div>
+              {:else if item.status === 'interrupted'}
+                <!-- Interrompido pelo fechamento: volta à fila com a config atual. -->
+                <div class="error-actions">
+                  <button
+                    class="btn-action"
+                    data-acao="processar"
+                    data-parada="reprocessar"
+                    tabindex={tabParada(item.id, 'reprocessar', paradaAtiva)}
+                    aria-disabled={entradaBloqueada || !!item.source_missing}
+                    on:click={(e) => processarDeNovo(item, e)}
+                    use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : item.source_missing ? HISTORICO.origemAusente : HISTORICO.processarDeNovo}
+                    aria-label={rotuloAcao(HISTORICO.processarDeNovo, item.name)}
+                  >
+                    <Icone icone={Play} tamanho={14} />
                   </button>
                   <button
                     class="btn-action btn-remove"
@@ -829,9 +894,9 @@
                     data-acao="reprocessar"
                     data-parada="reprocessar"
                     tabindex={tabParada(item.id, 'reprocessar', paradaAtiva)}
-                    aria-disabled={entradaBloqueada}
+                    aria-disabled={entradaBloqueada || !!item.source_missing}
                     on:click={(e) => alternarReprocessar(item.id, e)}
-                    use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : 'Reprocessar com outras configurações'}
+                    use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : item.source_missing ? HISTORICO.origemAusente : 'Reprocessar com outras configurações'}
                     aria-label={rotuloAcao('Reprocessar', item.name)}
                     aria-expanded={!!reprocessarAberto[item.id]}
                     aria-controls="reprocessar-{item.id}"
@@ -904,9 +969,9 @@
                       class="btn-ler-ocr"
                       data-parada="lerocr"
                       tabindex={tabParada(item.id, 'lerocr', paradaAtiva)}
-                      aria-disabled={!!lendoOCR[item.id] || entradaBloqueada}
-                      title={entradaBloqueada ? undefined : DICA_LER_COM_OCR}
-                      use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : ''}
+                      aria-disabled={!!lendoOCR[item.id] || entradaBloqueada || !!item.source_missing}
+                      title={entradaBloqueada || item.source_missing ? undefined : DICA_LER_COM_OCR}
+                      use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : item.source_missing ? HISTORICO.origemAusente : ''}
                       on:click={() => lerComOCR(item)}
                     >
                       <Icone icone={RotateCcw} tamanho={12} />
@@ -925,6 +990,7 @@
                 id="atividade-{item.id}"
                 atividade={atividadeDe(item.id, atividades, atividadesBuscadas)}
                 emAndamento={estado === 'processando'}
+                restaurado={item.restaurado}
                 aoReprocessarComOCR={(e) => reprocessarComOCR(item.id, e)}
               />
             {/if}
@@ -1247,7 +1313,7 @@
     max-width: 250px;
   }
 
-  /* Botão "Selecionar arquivos ZIP..." da fila vazia. */
+  /* Botão "Selecionar arquivos..." (ZIP ou PDF) da fila vazia. */
   .manual-select-btn {
     background-color: var(--bg-main);
     border: 1px solid var(--border);
@@ -1387,6 +1453,13 @@
     outline-offset: -2px;
   }
 
+  /* Tipo da entrada (ZIP ou PDF), colado ao nome. */
+  .icone-tipo {
+    display: inline-flex;
+    flex-shrink: 0;
+    margin-right: -4px;
+  }
+
   .chevron {
     display: inline-flex;
     flex-shrink: 0;
@@ -1471,7 +1544,9 @@
   .details-row > .paused-message,
   .details-row > .pending-message,
   .details-row > .cancelled-message,
-  .details-row > .error-message {
+  .details-row > .interrupted-message,
+  .details-row > .error-message,
+  .details-row > .txt-ausente {
     flex: 1 1 0;
     min-width: 48px;
     max-width: max-content;
@@ -1551,6 +1626,20 @@
 
   .cancelled-message {
     color: var(--text-secondary);
+  }
+
+  .interrupted-message {
+    color: var(--warning-strong);
+  }
+
+  /* Encolhe como as mensagens (regra acima); à frente dos contadores, cede
+     depois deles e do horário. */
+  .details-row > .txt-ausente {
+    order: -1;
+    color: var(--warning-strong);
+    font-size: var(--fs-meta);
+    font-weight: 500;
+    white-space: nowrap;
   }
 
   .error-message {
@@ -1635,7 +1724,9 @@
     background-color: var(--surface-hover);
   }
 
-  /* Reprocessar durante a troca de versão (entradaBloqueada); a dica diz por quê.
+  /* Reprocessar e Processar de novo durante a troca de versão (entradaBloqueada) ou
+     com a origem ausente (source_missing), e Copiar com o TXT ausente
+     (output_missing); a dica diz por quê.
      aria-disabled, e não disabled: o botão segue no foco itinerante da linha. */
   .btn-action[aria-disabled='true'] {
     opacity: 0.6;
@@ -1677,7 +1768,7 @@
 
   .erro-detalhe {
     flex-basis: 100%;
-    margin-left: 30px;
+    margin-left: 46px;
     padding: 6px 8px;
     border-left: 2px solid var(--error);
     border-radius: 0 4px 4px 0;
@@ -1694,7 +1785,7 @@
   /* Linha-resumo do relatório: largura inteira, abaixo da linha do item. */
   .relatorio-linha {
     flex-basis: 100%;
-    margin-left: 30px;
+    margin-left: 46px;
     display: flex;
     flex-direction: column;
     align-items: flex-start;

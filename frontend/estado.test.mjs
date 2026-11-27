@@ -53,6 +53,8 @@ test('item em curso continua processando com a fila pausada', () => {
   assert.equal(estadoItem('success', true), 'sucesso');
   assert.equal(estadoItem('error', true), 'erro');
   assert.equal(estadoItem('cancelled', true), 'cancelado');
+  assert.equal(estadoItem('interrupted', false), 'interrompido');
+  assert.equal(estadoItem('interrupted', true), 'interrompido');
 });
 
 test('aviso da fila pausada e contador de ativos', () => {

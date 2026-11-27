@@ -58,7 +58,7 @@ Comportamento esperado:
 
 - `startup`: logo após a config e antes de `a.watcher.Start` (`app.go:90`), se `GuardarHistorico` estiver ligado, carrega `historico.json` (mesma pasta de `config.json` e `falhas.json`, via `config.GetConfigPath`), cria o `Gravador` e chama `queue.Restaurar`. A ordem importa: se o watcher começar antes, a varredura dos pendentes entra antes do histórico e a reutilização da linha interrompida não acontece. O filtro `ignorar` de `pendingZips` não muda: o interrompido volta pela varredura (h1).
 - Em seguida, numa goroutine, confere a existência de `Path` (e de `Paths`) e `OutputPath` de cada item restaurado (`os.Stat`) e emite um broadcast com `OutputMissing`/`SourceMissing`. Fica fora do caminho de abertura porque um item numa pasta de rede fora do ar pode levar segundos por `Stat`.
-- `CopyOutput`: se a leitura falhar com `fs.ErrNotExist`, marca `OutputMissing` no item, faz broadcast e devolve "O TXT não está mais em <pasta>; ele pode ter sido movido ou apagado".
+- `CopyOutput`: se a leitura falhar com `fs.ErrNotExist`, marca `OutputMissing` no item, faz broadcast e devolve o texto fixo "O TXT não está mais na pasta; ele pode ter sido movido ou apagado", sem caminho; o caminho vai só ao `slog.Warn` (d9).
 - `OpenDirectory` (`app.go:334-342`): hoje, com o `Stat` falhando, chama `explorer.exe` com o próprio caminho inexistente, e o Explorer abre em Documentos ou dá erro. Passa a usar `filepath.Dir(path)` quando o arquivo não existe, e a pasta só se ela existir. (Vale com o histórico ligado ou não.)
 - Interruptor no `SaveConfig` (h3): desligar chama `g.Fechar(nil)`, que apaga o arquivo sob a trava, e solta o gravador da fila (os itens na tela ficam até fechar). Ligar cria um gravador novo e grava na hora a lista atual (todos os itens da sessão; não há restaurados, porque nada foi restaurado com o histórico desligado).
 
@@ -119,9 +119,13 @@ Nenhum método novo é obrigatório. `QueueItem` ganha campos e `Config` ganha `
 
 Um item de vários PDFs (spec do PDF avulso, p3) leva também `"kind": "pdf"` e `"paths": [...]`. Não se grava o `id` (gerado de novo ao restaurar), `restaurado`, progresso, contadores parciais, atividade por documento nem o ajuste de reprocessamento de um item que ainda aguardava.
 
+_Nota da revisão final (2026-11-26):_ grava-se também `"saida_anterior"` (omitido quando vazio), o `saidaAnterior` do item. Sem ele, um PDF reprocessado que ainda aguardava ou processava ao fechar voltava interrompido sem saída, e "Processar de novo" gravava `<nome>_2.txt`. Na carga ele passa pela mesma regra do `output_path` (`saida.SaidaDoItem`); inválido, só o campo é descartado, não o item. Ao restaurar, `saidaAnterior` vem dele e, sem ele, do `output_path`.
+
+_Nota da decisão d3 (2026-11-26):_ grava-se também `"relatorio"` (omitido quando o item não tem), o `models.RelatorioZip` do último sucesso, **só com contagens**: documentos, páginas por categoria e por motivo de OCR, tempos, OCR, limpeza, `bytes_txt`, `tokens` e os tipos omitidos (os códigos de tipo da config, como `EXTR`). A lista `atencao`, que traz os nomes dos documentos a conferir, nunca vai para o arquivo: `paraHistorico` grava uma cópia do relatório com `atencao` vazia, e o relatório do item na fila não muda. Ao restaurar, o item concluído volta com a linha-resumo, os avisos de OCR, o "Ler com OCR" e o painel Detalhes (sem a lista de documentos a conferir). Um arquivo gravado antes disso não tem `relatorio`, e o item restaurado fica sem a linha-resumo, como antes.
+
 ### 3.3 Retenção
 
-Só a última sessão (h2), pela regra da lista gravada (seção 2.1 e e6). Não há prazo em dias. Fica um teto de 500 itens, para uma sessão muito longa (o programa pode ficar dias aberto na bandeja) não gerar um arquivo sem limite; acima dele, saem os mais antigos. Com 500 itens o arquivo fica em torno de 300 KB, lido uma vez na abertura.
+Só a última sessão (h2), pela regra da lista gravada (seção 2.1 e e6). Não há prazo em dias. Fica um teto de 500 itens, para uma sessão muito longa (o programa pode ficar dias aberto na bandeja) não gerar um arquivo sem limite; acima dele, saem os mais antigos. Com 500 itens o arquivo fica em torno de 300 KB, lido uma vez na abertura; com o relatório de cada item (d3), no máximo 1,5 MB (teto de `TestHistorico_TamanhoPorItem`; medido em torno de 1,2 MB, cerca de 2,3 KB por item, com o JSON indentado).
 
 ## 4. Casos de borda e falhas
 
@@ -141,7 +145,7 @@ Só a última sessão (h2), pela regra da lista gravada (seção 2.1 e e6). Não
 
 ## 5. Privacidade
 
-O histórico guarda nomes de arquivos, que no Eproc são números de processo (ex.: `5000000-00.2026.4.00.0001`), e caminhos de pasta, que trazem o nome do usuário do Windows. Não guarda texto de documento.
+O histórico guarda nomes de arquivos, que no Eproc são números de processo (ex.: `5000000-00.2026.4.00.0001`), e caminhos de pasta, que trazem o nome do usuário do Windows. Não guarda texto de documento. Desde a decisão d3 (2026-11-26) guarda também o relatório de cada item concluído só com contagens, sem nomes de documento (a lista `atencao` fica fora).
 
 - **Se:** só com o interruptor ligado; o padrão é desligado (h3).
 - **Onde:** só em `%APPDATA%\eprocIA\historico.json`, no perfil do usuário. Nunca sai da máquina.
@@ -217,6 +221,12 @@ De 2026-11-19:
 De 2026-11-20:
 
 - **e6.** Histórico só da última sessão e o item interrompido: uma sessão vazia (nada processado) não apaga a anterior; o item interrompido sai na sessão seguinte, se não for processado de novo. Aplicado nas seções 1, 2.1, 3.3, 4 e 8 (regra da lista gravada, testes de `queue_historico_test.go`). Vale também para a troca de versão do autoupdate: abrir e fechar sem processar não apaga a lista.
+
+De 2026-11-26:
+
+- **d3.** Relatório no histórico: "Gravar o relatório só com contagens, sem nomes de documento". O item concluído restaurado volta com a linha-resumo, os avisos, o "Ler com OCR" e o painel Detalhes; a lista de documentos a conferir (`atencao`) não é gravada. Aplicado nas seções 3.2, 3.3 e 5 (Task 10 do plano `2026-11-26-historico.md`).
+- **d8.** Ícone do Interrompido: `CircleStop` em `--warning`, próprio do estado; o `CirclePause` fica só no pendente pausado e no monitoramento. Task 11.
+- **d9.** `CopyOutput` com o TXT ausente devolve "O TXT não está mais na pasta; ele pode ter sido movido ou apagado", sem caminho; o caminho vai ao log. Aplicado na seção 2.1. Task 11.
 
 ## 11. Resposta à revisão
 

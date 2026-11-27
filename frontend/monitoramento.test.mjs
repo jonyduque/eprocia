@@ -148,8 +148,9 @@ test('F-AC-08: estado vazio da fila tem o botão de selecionar ZIP', () => {
   const vazio = lista.slice(i, lista.indexOf('{:else}', i));
   assert.match(vazio, /class="manual-select-btn"[^>]*on:click=\{aoSelecionarZip\}|on:click=\{aoSelecionarZip\}[^>]*class="manual-select-btn"/);
   assert.match(vazio, /<Icone icone=\{Upload\} tamanho=\{14\} \/>/);
-  assert.match(vazio, /Selecionar arquivos ZIP\.\.\./);
-  assert.match(vazio, /ou arraste os ZIPs para a janela/);
+  assert.match(vazio, /Selecionar arquivos\.\.\./);
+  assert.doesNotMatch(vazio, /Selecionar arquivos ZIP/);
+  assert.match(vazio, /ou arraste ZIPs do Eproc ou PDFs para a janela/);
   assert.match(lista, /import Upload from 'lucide-svelte\/icons\/upload'/);
   assert.match(app, /<ProcessList[^>]*aoSelecionarZip=\{triggerManualSelect\}/);
 });

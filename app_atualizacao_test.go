@@ -764,20 +764,26 @@ func (r *redeFalsa) chamadas() (int, int) {
 	return r.consultas, r.baixados
 }
 
-// trocadorFalso conta as criações e os reinícios.
+// trocadorFalso conta as criações e os reinícios. antes, se não nil, roda no
+// começo do Reiniciar; erro é o que o Reiniciar devolve.
 type trocadorFalso struct {
 	mu        sync.Mutex
 	criados   int
 	reiniciou int
+	antes     func()
+	erro      error
 }
 
 func (tf *trocadorFalso) Instalar(context.Context, atualizacao.Baixado) error { return nil }
 
 func (tf *trocadorFalso) Reiniciar(context.Context, atualizacao.Versao) error {
+	if tf.antes != nil {
+		tf.antes()
+	}
 	tf.mu.Lock()
 	tf.reiniciou++
 	tf.mu.Unlock()
-	return nil
+	return tf.erro
 }
 
 func (tf *trocadorFalso) contar() (int, int) {

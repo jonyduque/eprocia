@@ -65,16 +65,18 @@ export function criarConfirmacao(definir, duracao = 1500, relogio = globalThis) 
   };
 }
 
-export function separarZips(caminhos) {
+// ZIP do Eproc e PDF avulso, sem diferença de caixa. O Go recusa o resto de
+// novo (AddFilesComOrigem); aqui é só para avisar sem esperar a fila.
+export function separarEntradas(caminhos) {
   const lista = caminhos || [];
-  const zips = lista.filter((c) => c.toLowerCase().endsWith('.zip'));
-  return { zips, ignorados: lista.length - zips.length };
+  const aceitos = lista.filter((c) => /\.(zip|pdf)$/i.test(c));
+  return { aceitos, ignorados: lista.length - aceitos.length };
 }
 
-// Nada aceito é erro; parte aceita é só atenção, porque os ZIPs seguiram.
-export function avisoSoltura(zips, ignorados) {
+// Nada aceito é erro; parte aceita é só atenção, porque os outros seguiram.
+export function avisoSoltura(aceitos, ignorados) {
   if (!ignorados) return null;
-  if (!zips) return { texto: `Só arquivos ZIP do eproc são aceitos. Ignorados: ${ignorados}`, tipo: 'error' };
+  if (!aceitos) return { texto: `Arraste arquivos ZIP do Eproc ou PDF. Ignorados: ${ignorados}`, tipo: 'error' };
   const qtd = ignorados === 1 ? '1 arquivo ignorado' : `${ignorados} arquivos ignorados`;
-  return { texto: `${qtd}: só arquivos ZIP do eproc são aceitos.`, tipo: 'aviso' };
+  return { texto: `${qtd}: só ZIP do Eproc ou PDF`, tipo: 'aviso' };
 }

@@ -112,7 +112,7 @@
 <style>
   .painel-relatorio {
     flex-basis: 100%;
-    margin-left: 30px;
+    margin-left: 46px;
     padding: 8px;
     border-left: 2px solid var(--accent);
     border-radius: 0 4px 4px 0;
