@@ -160,7 +160,7 @@ test('Assert-Closed nao existe mais', () => {
 
 test('ordem: acao, app aberto, download, encerramento, troca', () => {
   emOrdem(corpoDe('Install-App'), ['Confirm-Install', 'Confirm-Close', 'Save-ReleaseExe', 'Stop-App', 'Move-ExeWithRetry $tmp'], 'Install-App');
-  emOrdem(corpoDe('Uninstall-App'), ['Confirm-Uninstall', 'Confirm-Close', 'Stop-App', 'Set-Location'], 'Uninstall-App');
+  emOrdem(corpoDe('Uninstall-App'), ['Confirm-Uninstall', 'Confirm-Close', 'Stop-App', 'Push-Location'], 'Uninstall-App');
   const asUser = corpoDe('Invoke-AsUser');
   emOrdem(asUser, ['janela oculta', 'Confirm-Install', 'Confirm-Close', 'New-Item -ItemType Directory', 'Register-ScheduledTask'], 'Invoke-AsUser');
   for (const nome of ['Install-App', 'Uninstall-App', 'Invoke-AsUser']) {
@@ -316,8 +316,11 @@ test('Get-ScriptText usa o texto em execucao com o marcador, guardado no nivel d
   assert.ok(corpoDe('Get-ScriptText').includes('eprocia-install: elevacao-v1'));
   assert.match(texto, /^# eprocia-install: elevacao-v1$/m);
   const primeiraFuncao = texto.indexOf('\nfunction ');
-  const sb = texto.indexOf('$MyInvocation.MyCommand.ScriptBlock');
+  // Dentro de `& { }`, o $MyInvocation do script e o do escopo de cima.
+  const sb = texto.indexOf('Get-Variable -Name MyInvocation -Scope 1 -ValueOnly');
   assert.ok(sb >= 0 && sb < primeiraFuncao);
+  const usa = texto.indexOf('.MyCommand.ScriptBlock', sb);
+  assert.ok(usa >= 0 && usa < primeiraFuncao);
   assert.ok(corpoDe('Get-ScriptText').includes("nao suporta a acao como administrador"));
 });
 
@@ -419,12 +422,12 @@ test('correcao 1/1: New-ProtectedDir recusa juncao e confere a DACL alem do dono
 test('correcao 1/2: depois do "Sim" da simulacao, so os PIDs que ela mostrou passam sem pergunta', () => {
   const plano = corpoDe('Confirm-Plan');
   assert.ok(plano.includes('[switch]$Fresh'));
-  assert.ok(plano.includes('if ($script:confirmed -and -not $Fresh) { return $true }'));
-  assert.ok(plano.includes('if ($DryRun -and -not $script:confirmed)'));
+  assert.ok(plano.includes('if ($estado.confirmed -and -not $Fresh) { return $true }'));
+  assert.ok(plano.includes('if ($DryRun -and -not $estado.confirmed)'));
   const corpo = corpoDe('Confirm-Close');
-  assert.ok(corpo.includes('$script:dryRunPids'));
+  assert.ok(corpo.includes('$estado.dryRunPids'));
   assert.match(corpo, /Confirm-Plan [^\n]*-Fresh:\$/);
-  assert.match(texto, /^\$script:dryRunPids = @\(\)$/m);
+  assert.match(texto.match(/^\$estado = @\{\n[\s\S]*?\n\}$/m)[0], /^ {4}dryRunPids += @\(\)$/m);
 });
 
 test('correcao 1/3: Install-Machine (terminal elevado) baixa direto na pasta protegida e confere com o SHA256SUMS', () => {
@@ -464,4 +467,47 @@ test('correcao 1/7: mensagem do encerramento que nao terminou e neutra', () => {
   const corpo = corpoDe('Stop-App');
   assert.ok(corpo.includes("'O eprocIA nao fechou em 15 s; nada foi trocado.'"));
   assert.ok(!corpo.includes('Nada foi instalado'));
+});
+
+// --- Escopo de quem roda `irm | iex` -----------------------------------------------------
+// Sob iex o script roda no escopo de quem chamou: o corpo vai dentro de `& { }` e o estado
+// mutavel numa tabela local, porque `$script:` sob iex e o escopo global.
+
+test('escopo: o corpo roda dentro de & { } logo depois da re-leitura do 5.1, ate o fim do arquivo', () => {
+  const codigo = soCodigo(texto);
+  const releitura = codigo.indexOf('[scriptblock]::Create(');
+  const abre = codigo.search(/^& \{$/m);
+  assert.ok(releitura >= 0 && abre > releitura, '& { ausente ou antes da re-leitura');
+  // Entre o fim do bloco da re-leitura e o & { nao ha codigo.
+  const fimReleitura = codigo.indexOf('\n}\n', releitura);
+  assert.match(codigo.slice(fimReleitura, abre), /^\s*\}\s*$/, 'codigo solto entre a re-leitura e o & {');
+  for (const s of ['Set-StrictMode', '$ErrorActionPreference = ', '$ProgressPreference = ', '\nfunction ', '$selfPath =', '$selfText =']) {
+    const i = codigo.indexOf(s);
+    assert.ok(i > abre, `${s} fora do & {`);
+  }
+  // O bloco aberto pelo & { fecha no fim do codigo.
+  const bloco = blocoDe(codigo, abre);
+  assert.equal(codigo.slice(abre + 2 + bloco.length).trim(), '', 'codigo depois do fim do & { }');
+});
+
+test('escopo: nenhum $script: no arquivo; o estado fica na tabela $estado', () => {
+  assert.ok(!/\$script:/i.test(texto), '$script: no arquivo');
+  const m = texto.match(/^\$estado = @\{\n[\s\S]*?\n\}$/m);
+  assert.ok(m, '$estado = @{...} ausente');
+  for (const k of ['Log', 'prevTitle', 'confirmed', 'closePids', 'dryRunPids', 'token']) {
+    assert.match(m[0], new RegExp(`^ {4}${k} += `, 'm'), k);
+    // O valor inicial fica so no literal: nenhuma linha solta o reafirma no nivel do bloco.
+    assert.ok(!new RegExp(`^\\$estado\\.${k} = `, 'm').test(texto), `$estado.${k} reinicializado fora do literal`);
+  }
+  assert.ok(corpoDe('Add-Log').includes('$estado.Log'));
+  assert.ok(corpoDe('Show-Log').includes("$estado.Log = ''"));
+});
+
+test('escopo: sem Set-Location; a remocao usa Push-Location e Pop-Location no finally', () => {
+  assert.ok(!/\bSet-Location\b|\bchdir\b/i.test(soCodigo(texto)), 'Set-Location no codigo');
+  emOrdem(corpoDe('Uninstall-App'), ['Push-Location', 'try {', 'Remove-Item -LiteralPath $installDir', '} finally {', 'Pop-Location'], 'Uninstall-App');
+});
+
+test('escopo: arquivo sem BOM', () => {
+  assert.ok(!(bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF));
 });

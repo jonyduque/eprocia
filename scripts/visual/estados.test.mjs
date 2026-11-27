@@ -128,6 +128,9 @@ describe('estados visuais', () => {
       for (const [k, v] of Object.entries(campos)) assert.equal(a[k], v, nome + '.' + k);
     }
     assert.match(ESTADOS['atualizacao-so-avisar'].atualizacao.motivo, /fora da pasta de instalação/);
+    // Atualizações salva recolhida: a captura mostra a categoria aberta sozinha
+    // pela versão nova (lib/categorias.js, aberturaAtualizacoes).
+    assert.deepEqual(ESTADOS['atualizacao-disponivel'].categorias, { atualizacoes: true });
     assert.ok(ESTADOS['atualizacao-aguardando-fila'].fila.some((i) => i.status === 'processing'));
     assert.ok(ESTADOS['atualizacao-reiniciando'].fila.some((i) => i.status === 'success'));
     for (const [nome, e] of Object.entries(ESTADOS)) {
@@ -200,7 +203,7 @@ describe('estados visuais', () => {
     globalThis.window = globalThis;
     // Node 24 exposes its own localStorage getter; shadow it for the test.
     const original = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
-    Object.defineProperty(globalThis, 'localStorage', { value: { setItem: (k, v) => { store[k] = v; } }, configurable: true });
+    Object.defineProperty(globalThis, 'localStorage', { value: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = v; } }, configurable: true });
     try {
       instalarStubs({ estado: ESTADOS.fila, tema: 'claro', versao: '0.4.4' });
       assert.equal(store.theme, 'light');
@@ -221,10 +224,21 @@ describe('estados visuais', () => {
       assert.deepEqual(await window.go.main.App.EstadoAtualizacao(), ESTADOS.configuracoes.atualizacao);
       instalarStubs({ estado: ESTADOS['configuracoes-log'], tema: 'escuro' });
       assert.equal(await window.go.main.App.LogAtivo(), true);
-      // Categorias recolhidas só quando o estado pede (o app lê eprocia.categorias ao abrir).
-      assert.equal(store['eprocia.categorias'], undefined, 'categorias gravadas sem o estado pedir');
+      // O app abre com o painel recolhido e as categorias fechadas quando não há
+      // nada salvo: as capturas gravam o painel aberto e as categorias
+      // expandidas, e só recolhem uma categoria quando o estado pede.
+      const ABERTAS = { monitoramento: false, processamento: false, sistema: false, atualizacoes: false };
+      assert.deepEqual(JSON.parse(store['eprocia.sidebar']), { largura: 320, recolhido: false });
+      assert.deepEqual(JSON.parse(store['eprocia.categorias']), ABERTAS);
+      for (const k of Object.keys(store)) if (k !== 'theme') delete store[k];
       instalarStubs({ estado: ESTADOS['configuracoes-recolhida'], tema: 'escuro' });
-      assert.deepEqual(JSON.parse(store['eprocia.categorias']), { monitoramento: false, processamento: true, sistema: false });
+      assert.deepEqual(JSON.parse(store['eprocia.categorias']), { ...ABERTAS, processamento: true });
+      // O init script roda de novo no page.reload(): o que a captura gravou fica.
+      store['eprocia.sidebar'] = JSON.stringify({ largura: 400, recolhido: false });
+      store['eprocia.categorias'] = JSON.stringify({ ...ABERTAS, sistema: true });
+      instalarStubs({ estado: ESTADOS.configuracoes, tema: 'escuro' });
+      assert.deepEqual(JSON.parse(store['eprocia.sidebar']), { largura: 400, recolhido: false });
+      assert.deepEqual(JSON.parse(store['eprocia.categorias']), { ...ABERTAS, sistema: true });
     } finally {
       delete globalThis.go;
       delete globalThis.runtime;

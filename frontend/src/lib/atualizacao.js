@@ -107,3 +107,11 @@ export function fraseModo(estado) {
 export function aceitaEntrada(fase) {
   return fase !== 'reiniciando' && fase !== 'abrindo_instalador';
 }
+
+// A recusa de entrada durante a troca (MsgSoltarDepois do Go, que o Wails
+// rejeita como string) sai como aviso, sem o prefixo de erro genérico.
+export function avisoErroEntrada(err, prefixo) {
+  const msg = String(err?.message ?? err);
+  if (msg === T.soltarDepois) return { texto: T.soltarDepois, tipo: 'aviso' };
+  return { texto: prefixo + msg, tipo: 'error' };
+}

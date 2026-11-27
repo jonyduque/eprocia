@@ -5,8 +5,10 @@ package atualizacao
 import (
 	"errors"
 	"math"
+	"os"
 	"syscall"
 	"time"
+	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
@@ -72,6 +74,38 @@ func EsperarSair(pid int, prazo time.Duration) bool {
 // inexistente diz se o erro do OpenProcess é o de PID sem processo.
 func inexistente(err error) bool {
 	return errors.Is(err, windows.ERROR_INVALID_PARAMETER)
+}
+
+// PaiDoProcesso devolve o pid do processo pai e o nome da imagem dele (sem
+// pasta), por um instantâneo dos processos. Pai ausente do instantâneo: exe
+// vazio e err nil.
+//
+// O pai pode vir antes ou depois do próprio processo no instantâneo, por isso
+// a decisão só vem depois de uma passada inteira.
+func PaiDoProcesso() (ppid int, exe string, err error) {
+	snap, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
+	if err != nil {
+		return 0, "", err
+	}
+	defer windows.CloseHandle(snap)
+	type entrada struct {
+		pai  uint32
+		nome string
+	}
+	processos := map[uint32]entrada{}
+	var e windows.ProcessEntry32
+	e.Size = uint32(unsafe.Sizeof(e))
+	for err = windows.Process32First(snap, &e); err == nil; err = windows.Process32Next(snap, &e) {
+		processos[e.ProcessID] = entrada{e.ParentProcessID, windows.UTF16ToString(e.ExeFile[:])}
+	}
+	if !errors.Is(err, windows.ERROR_NO_MORE_FILES) {
+		return 0, "", err
+	}
+	eu, achou := processos[uint32(os.Getpid())]
+	if !achou {
+		return 0, "", errors.New("processo atual ausente do instantâneo")
+	}
+	return int(eu.pai), processos[eu.pai].nome, nil
 }
 
 // atributosFilho: o processo novo da troca nasce sem console e sem herdar

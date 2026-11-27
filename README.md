@@ -248,7 +248,7 @@ As configurações ficam em `%APPDATA%\eprocIA\config.json`.
 
 ## 🔄 Atualização pelo programa
 
-O eprocIA **não procura atualização sozinho**: nem ao abrir, nem de tempos em tempos. Só quando você clica em **Procurar atualização**, no bloco Atualizações das Configurações, ele consulta a última versão publicada em `jonyduque/eprocia` no GitHub. O GitHub vê o IP da máquina, a hora e o `User-Agent` `eprocIA/<versão>`; nenhum nome de arquivo, caminho ou conteúdo sai (PRD, RNF06). Não há telemetria.
+O eprocIA **não procura atualização sozinho**: nem ao abrir, nem de tempos em tempos. Só quando você clica em **Procurar atualização**, no bloco Atualizações das Configurações, ele consulta a última versão publicada em `jonyduque/eprocia` no GitHub. O GitHub vê o IP da máquina, a hora e o `User-Agent` `eprocIA/<versão>`; nenhum nome de arquivo, caminho ou conteúdo sai (PRD, RNF06). Nada mais sai do computador: a telemetria local, opcional e desligada por padrão (`EPROCIA_LOG`, veja [Log e telemetria](#-log-e-telemetria-opcional)), fica só no computador.
 
 - **Instalação por usuário** (a do `install.ps1`): "Atualizar" baixa, confere o SHA-256 e instala a versão nova com o programa aberto; ela passa a valer ao reiniciar, pelo botão **Reiniciar agora** ou na próxima abertura. O programa não guarda a versão anterior: para voltar, use `install.ps1 -Version`.
 - **Instalação pelo instalador (NSIS):** "Baixar e abrir o instalador" baixa, confere e abre o instalador, que pede permissão de administrador e fecha o programa.

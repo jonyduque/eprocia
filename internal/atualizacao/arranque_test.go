@@ -3,6 +3,7 @@
 package atualizacao
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"slices"
@@ -126,4 +127,39 @@ func TestEsperarSair_AcessoNegado(t *testing.T) {
 			t.Fatalf("voltou em %v; quer o prazo de 300 ms", d)
 		}
 	})
+}
+
+func TestConfirmarAposAtualizar(t *testing.T) {
+	casos := []struct {
+		nome   string
+		ppid   int
+		exe    string
+		errPai error
+		ok     bool
+		motivo string
+	}{
+		{"pai é o eprocia.exe", 4242, "eprocia.exe", nil, true, ""},
+		{"caixa diferente", 4242, "EPROCIA.EXE", nil, true, ""},
+		{"pai já renomeado", 4242, "eprocia.anterior.exe", nil, true, ""},
+		{"pai fora do instantâneo", 4242, "", nil, true, ""},
+		{"erro do pai", 0, "", errors.New("snapshot"), true, ""},
+		{"pai não é eprocIA", 4242, "pwsh.exe", nil, false, "o processo pai não é o eprocIA"},
+		{"pid não é o pai", 777, "eprocia.exe", nil, false, "o pid informado não é o processo pai"},
+	}
+	for _, c := range casos {
+		t.Run(c.nome, func(t *testing.T) {
+			ok, motivo := ConfirmarAposAtualizar(4242, c.ppid, c.exe, c.errPai)
+			if ok != c.ok || motivo != c.motivo {
+				t.Errorf("ConfirmarAposAtualizar(4242, %d, %q, %v) = (%v, %q), quer (%v, %q)",
+					c.ppid, c.exe, c.errPai, ok, motivo, c.ok, c.motivo)
+			}
+		})
+	}
+	for _, pid := range []int{0, -1} {
+		ok, motivo := ConfirmarAposAtualizar(pid, pid, "eprocia.exe", nil)
+		if ok || motivo != MotivoPidNaoEPai {
+			t.Errorf("ConfirmarAposAtualizar(%d, %d, eprocia.exe, nil) = (%v, %q), quer (false, %q)",
+				pid, pid, ok, motivo, MotivoPidNaoEPai)
+		}
+	}
 }

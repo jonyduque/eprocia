@@ -151,6 +151,10 @@ async function main() {
             // a categoria e só então rola o bloco até a vista.
             const cab = page.locator('[aria-controls="grupo-atualizacoes"]');
             if ((await cab.getAttribute('aria-expanded')) === 'false') {
+              // Com versão nova disponível a categoria abre sozinha (lib/categorias.js).
+              if (ESTADOS[nome].atualizacao?.fase === 'disponivel') {
+                console.log(`[visual] ${w}x${h} ${tema} ${nome}: Atualizações não abriu sozinha com versão nova`);
+              }
               await cab.click();
               await page.locator('#grupo-atualizacoes').waitFor({ state: 'visible' });
               await page.waitForTimeout(300);
