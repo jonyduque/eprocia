@@ -321,7 +321,7 @@ describe('interface da atualização', () => {
   it('ProcessList: Ler com OCR bloqueado por aria-disabled e com a dica da troca', () => {
     const [b] = botoesCom(lista, 'class="btn-ler-ocr"');
     assert.ok(b, 'falta o botão btn-ler-ocr');
-    assert.match(b, /aria-disabled=\{!!lendoOCR\[item\.id\] \|\| entradaBloqueada( \|\| !!item\.source_missing)?\}/);
+    assert.match(b, /aria-disabled=\{!!lendoOCR\[item\.id\] \|\| entradaBloqueada \|\| !!item\.source_missing\}/);
     assert.match(b, /use:dica=\{entradaBloqueada \? ATUALIZACAO\.soltarDepois : /);
     assert.doesNotMatch(b, /\sdisabled=\{/);
   });

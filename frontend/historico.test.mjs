@@ -62,6 +62,7 @@ test('ProcessList: Ler com OCR barra a origem ausente', () => {
   assert.ok(b, 'falta o botão btn-ler-ocr');
   assert.match(b, /aria-disabled=\{[^}]*!!item\.source_missing[^}]*\}/);
   assert.match(b, /item\.source_missing \? HISTORICO\.origemAusente/);
+  assert.match(b, /title=\{entradaBloqueada \|\| item\.source_missing \? undefined : DICA_LER_COM_OCR\}/);
   assert.match(b, /data-parada="lerocr"/);
   const f = lista.slice(lista.indexOf('async function lerComOCR('));
   const corpo = f.slice(0, f.indexOf('\n  }\n'));
