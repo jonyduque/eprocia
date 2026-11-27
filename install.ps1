@@ -111,7 +111,7 @@ if ($PSCommandPath -and -not $Self -and $PSVersionTable.PSVersion.Major -lt 6) {
 # Sob `irm | iex` o script roda no escopo de quem chamou: StrictMode, preferencias, funcoes
 # e variaveis ficariam na sessao dele depois do fim. Por isso o resto roda dentro de
 # `& { }` (sem recuo: os here-strings precisam comecar na coluna 0) e o estado mutavel fica
-# na tabela $estado, nunca no escopo script (sob iex, ele e o global). `exit` so
+# na tabela $estado, nunca no escopo script (sob iex, ele e o escopo de quem chamou: o global, no prompt). `exit` so
 # roda com -Log, que existe so na copia interna com -File; sob iex ele fecharia o terminal.
 & {
 $selfPath = if ($Self) { $Self } elseif ($PSCommandPath) { $PSCommandPath } else { '' }
@@ -126,7 +126,20 @@ $ProgressPreference = 'SilentlyContinue'
 
 # Estado mutavel compartilhado pelas funcoes (elas enxergam $estado por escopo dinamico; a
 # atribuicao $estado.x = ... muda a tabela, nao cria variavel local).
-$estado = @{ Log = $Log; prevTitle = $null; confirmed = $false; closePids = @(); dryRunPids = @(); token = $null }
+$estado = @{
+    # Arquivo do -Log; o Show-Log o esvazia enquanto reapresenta o log da copia.
+    Log        = $Log
+    # Titulo da janela antes do Set-WindowTitle; o Restore-Window o devolve.
+    prevTitle  = $null
+    # Verdadeiro depois do "Sim" da simulacao: a execucao real que vem em seguida nao pergunta de novo.
+    confirmed  = $false
+    # PIDs do eprocIA que o usuario aceitou encerrar (Confirm-Close); o Stop-App so encerra estes.
+    closePids  = @()
+    # PIDs que a simulacao mostrou (e o "Sim" dela aceitou).
+    dryRunPids = @()
+    # Token do GitHub (Get-Token), lido uma vez; $null = ainda nao lido.
+    token      = $null
+}
 
 $repo = 'jonyduque/eprocia'
 $app = 'eprocIA'
@@ -201,7 +214,6 @@ if ($Purge -and -not $Uninstall) {
 }
 
 # Título da janela durante a execução; Restore-Window devolve o anterior.
-$estado.prevTitle = $null
 function Set-WindowTitle([string]$Title) {
     try {
         if ($null -eq $estado.prevTitle) { $estado.prevTitle = $Host.UI.RawUI.WindowTitle }
@@ -414,13 +426,6 @@ function Test-Interactive {
     try { [Environment]::UserInteractive -and -not [Console]::IsInputRedirected } catch { $false }
 }
 
-# Verdadeiro depois do "Sim" da simulação: a execução real que vem em seguida não pergunta de novo.
-$estado.confirmed = $false
-# PIDs do eprocIA que o usuario aceitou encerrar (Confirm-Close); o Stop-App so encerra estes.
-$estado.closePids = @()
-# PIDs que a simulacao mostrou (e o "Sim" dela aceitou).
-$estado.dryRunPids = @()
-
 # Pergunta antes de mudar a máquina, com a escolha por setas: a ação ($Action, descrita por
 # $Detail) ou Cancelar; Enter escolhe, Esc cancela. Com -Yes não pergunta; na simulação só
 # mostra o que perguntaria; sem console, exige -Yes.
@@ -488,7 +493,6 @@ function Get-Shortcuts {
 
 # --- GitHub -----------------------------------------------------------------------------
 
-$estado.token = $null
 function Get-Token {
     if ($null -ne $estado.token) { return $estado.token }
     $estado.token = ''

@@ -427,7 +427,7 @@ test('correcao 1/2: depois do "Sim" da simulacao, so os PIDs que ela mostrou pas
   const corpo = corpoDe('Confirm-Close');
   assert.ok(corpo.includes('$estado.dryRunPids'));
   assert.match(corpo, /Confirm-Plan [^\n]*-Fresh:\$/);
-  assert.match(texto, /^\$estado\.dryRunPids = @\(\)$/m);
+  assert.match(texto.match(/^\$estado = @\{\n[\s\S]*?\n\}$/m)[0], /^ {4}dryRunPids += @\(\)$/m);
 });
 
 test('correcao 1/3: Install-Machine (terminal elevado) baixa direto na pasta protegida e confere com o SHA256SUMS', () => {
@@ -492,10 +492,12 @@ test('escopo: o corpo roda dentro de & { } logo depois da re-leitura do 5.1, ate
 
 test('escopo: nenhum $script: no arquivo; o estado fica na tabela $estado', () => {
   assert.ok(!/\$script:/i.test(texto), '$script: no arquivo');
-  const m = texto.match(/^\$estado = @\{[^\n]*\}$/m);
+  const m = texto.match(/^\$estado = @\{\n[\s\S]*?\n\}$/m);
   assert.ok(m, '$estado = @{...} ausente');
   for (const k of ['Log', 'prevTitle', 'confirmed', 'closePids', 'dryRunPids', 'token']) {
-    assert.match(m[0], new RegExp(`\\b${k} = `), k);
+    assert.match(m[0], new RegExp(`^ {4}${k} += `, 'm'), k);
+    // O valor inicial fica so no literal: nenhuma linha solta o reafirma no nivel do bloco.
+    assert.ok(!new RegExp(`^\\$estado\\.${k} = `, 'm').test(texto), `$estado.${k} reinicializado fora do literal`);
   }
   assert.ok(corpoDe('Add-Log').includes('$estado.Log'));
   assert.ok(corpoDe('Show-Log').includes("$estado.Log = ''"));
