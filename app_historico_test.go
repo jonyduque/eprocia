@@ -548,9 +548,13 @@ func TestCopyOutput_TXTAusente(t *testing.T) {
 		t.Fatal(err)
 	}
 	err := m.app.CopyOutput(txt)
-	quer := "O TXT não está mais em " + dir + "; ele pode ter sido movido ou apagado"
+	// d9 (2026-11-26): texto fixo, sem caminho; o caminho vai só ao log.
+	quer := "O TXT não está mais na pasta; ele pode ter sido movido ou apagado"
 	if err == nil || err.Error() != quer {
 		t.Fatalf("CopyOutput = %v; quer %q", err, quer)
+	}
+	if strings.Contains(err.Error(), dir) {
+		t.Errorf("a mensagem traz a pasta %q: %q", dir, err.Error())
 	}
 	if item := itemPorCaminho(m.app, zip); item == nil || !item.OutputMissing {
 		t.Fatalf("depois do CopyOutput: %+v; quer OutputMissing", item)

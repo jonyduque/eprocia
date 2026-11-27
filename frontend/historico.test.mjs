@@ -42,6 +42,33 @@ test('ProcessList: ícone e rótulo do interrompido', () => {
   assert.match(det, /\{:else if estado === 'interrompido'\}[\s\S]*?\{HISTORICO\.interrompido\}/);
 });
 
+// d8 (2026-11-26): o Interrompido tem ícone próprio, CircleStop; o CirclePause
+// fica só no pendente pausado e no monitoramento.
+test('ProcessList: Interrompido usa CircleStop e o pausado segue com CirclePause', () => {
+  assert.match(lista, /import CircleStop from 'lucide-svelte\/icons\/circle-stop'/);
+  const i = ml.indexOf('<div class="status-col">');
+  const col = ml.slice(i, ml.indexOf('</div>', i));
+  assert.match(col, /\{:else if estado === 'interrompido'\}\s*<Icone icone=\{CircleStop\} cor="var\(--warning\)" \/>/);
+  assert.match(col, /\{:else if estado === 'pausado'\}\s*<Icone icone=\{CirclePause\} cor="var\(--warning\)" \/>/);
+  const design = readFileSync(join(raiz, '..', 'DESIGN.md'), 'utf8');
+  assert.match(design, /`CircleStop` \(interrompido, `--warning`\)/);
+  assert.doesNotMatch(design, /o mesmo do pendente pausado/);
+});
+
+// Achado da Task 10: o restaurado volta com relatório; sem a origem, o "Ler com
+// OCR" fica como o Reprocessar desativado (aria-disabled, dica, sem chamar a fila).
+test('ProcessList: Ler com OCR barra a origem ausente', () => {
+  const [b] = botoesCom(ml, 'class="btn-ler-ocr"');
+  assert.ok(b, 'falta o botão btn-ler-ocr');
+  assert.match(b, /aria-disabled=\{[^}]*!!item\.source_missing[^}]*\}/);
+  assert.match(b, /item\.source_missing \? HISTORICO\.origemAusente/);
+  assert.match(b, /data-parada="lerocr"/);
+  const f = lista.slice(lista.indexOf('async function lerComOCR('));
+  const corpo = f.slice(0, f.indexOf('\n  }\n'));
+  const guarda = corpo.search(/if \([^)]*item\.source_missing[^)]*\) return;/);
+  assert.ok(guarda >= 0 && guarda < corpo.indexOf('ReprocessQueueItem('), 'clique sem origem não pode chamar a fila');
+});
+
 test('ProcessList: Processar de novo no interrompido', () => {
   const i = ml.indexOf("{:else if item.status === 'interrupted'}");
   assert.ok(i >= 0, 'falta o ramo interrupted nas ações');

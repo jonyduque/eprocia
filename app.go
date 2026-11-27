@@ -474,7 +474,9 @@ func (a *App) copiarSaida(path string, itens []*etl.QueueItem) error {
 		if a.queue != nil {
 			a.queue.MarcarSaidaAusente(ausente.caminho)
 		}
-		return fmt.Errorf("O TXT não está mais em %s; ele pode ter sido movido ou apagado", filepath.Dir(ausente.caminho))
+		// d9: a interface recebe o texto fixo, sem caminho; o caminho fica no log.
+		slog.Warn("o TXT não está mais na pasta", "caminho", ausente.caminho)
+		return errors.New("O TXT não está mais na pasta; ele pode ter sido movido ou apagado")
 	}
 	if err != nil {
 		return err

@@ -7,6 +7,7 @@
   import CircleCheck from 'lucide-svelte/icons/circle-check';
   import CirclePause from 'lucide-svelte/icons/circle-pause';
   import CircleSlash from 'lucide-svelte/icons/circle-slash';
+  import CircleStop from 'lucide-svelte/icons/circle-stop';
   import Clock from 'lucide-svelte/icons/clock';
   import Coins from 'lucide-svelte/icons/coins';
   import Copy from 'lucide-svelte/icons/copy';
@@ -229,7 +230,7 @@
   // sem Forçar OCR e com a limpeza do item (a config global não muda).
   async function lerComOCR(item) {
     if (lendoOCR[item.id]) return;
-    if (entradaBloqueada) return;
+    if (entradaBloqueada || item.source_missing) return;
     lendoOCR = { ...lendoOCR, [item.id]: true };
     const a = argumentosLerComOCR(item, config);
     try {
@@ -661,7 +662,7 @@
                   {:else if estado === 'cancelado'}
                     <Icone icone={CircleSlash} cor="var(--text-secondary)" />
                   {:else if estado === 'interrompido'}
-                    <Icone icone={CirclePause} cor="var(--warning)" />
+                    <Icone icone={CircleStop} cor="var(--warning)" />
                   {/if}
                 </span>
               {/key}
@@ -965,9 +966,9 @@
                       class="btn-ler-ocr"
                       data-parada="lerocr"
                       tabindex={tabParada(item.id, 'lerocr', paradaAtiva)}
-                      aria-disabled={!!lendoOCR[item.id] || entradaBloqueada}
-                      title={entradaBloqueada ? undefined : DICA_LER_COM_OCR}
-                      use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : ''}
+                      aria-disabled={!!lendoOCR[item.id] || entradaBloqueada || !!item.source_missing}
+                      title={entradaBloqueada || item.source_missing ? undefined : DICA_LER_COM_OCR}
+                      use:dica={entradaBloqueada ? ATUALIZACAO.soltarDepois : item.source_missing ? HISTORICO.origemAusente : ''}
                       on:click={() => lerComOCR(item)}
                     >
                       <Icone icone={RotateCcw} tamanho={12} />

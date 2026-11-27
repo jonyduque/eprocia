@@ -58,7 +58,7 @@ Comportamento esperado:
 
 - `startup`: logo após a config e antes de `a.watcher.Start` (`app.go:90`), se `GuardarHistorico` estiver ligado, carrega `historico.json` (mesma pasta de `config.json` e `falhas.json`, via `config.GetConfigPath`), cria o `Gravador` e chama `queue.Restaurar`. A ordem importa: se o watcher começar antes, a varredura dos pendentes entra antes do histórico e a reutilização da linha interrompida não acontece. O filtro `ignorar` de `pendingZips` não muda: o interrompido volta pela varredura (h1).
 - Em seguida, numa goroutine, confere a existência de `Path` (e de `Paths`) e `OutputPath` de cada item restaurado (`os.Stat`) e emite um broadcast com `OutputMissing`/`SourceMissing`. Fica fora do caminho de abertura porque um item numa pasta de rede fora do ar pode levar segundos por `Stat`.
-- `CopyOutput`: se a leitura falhar com `fs.ErrNotExist`, marca `OutputMissing` no item, faz broadcast e devolve "O TXT não está mais em <pasta>; ele pode ter sido movido ou apagado".
+- `CopyOutput`: se a leitura falhar com `fs.ErrNotExist`, marca `OutputMissing` no item, faz broadcast e devolve o texto fixo "O TXT não está mais na pasta; ele pode ter sido movido ou apagado", sem caminho; o caminho vai só ao `slog.Warn` (d9).
 - `OpenDirectory` (`app.go:334-342`): hoje, com o `Stat` falhando, chama `explorer.exe` com o próprio caminho inexistente, e o Explorer abre em Documentos ou dá erro. Passa a usar `filepath.Dir(path)` quando o arquivo não existe, e a pasta só se ela existir. (Vale com o histórico ligado ou não.)
 - Interruptor no `SaveConfig` (h3): desligar chama `g.Fechar(nil)`, que apaga o arquivo sob a trava, e solta o gravador da fila (os itens na tela ficam até fechar). Ligar cria um gravador novo e grava na hora a lista atual (todos os itens da sessão; não há restaurados, porque nada foi restaurado com o histórico desligado).
 
@@ -225,6 +225,8 @@ De 2026-11-20:
 De 2026-11-26:
 
 - **d3.** Relatório no histórico: "Gravar o relatório só com contagens, sem nomes de documento". O item concluído restaurado volta com a linha-resumo, os avisos, o "Ler com OCR" e o painel Detalhes; a lista de documentos a conferir (`atencao`) não é gravada. Aplicado nas seções 3.2, 3.3 e 5 (Task 10 do plano `2026-11-26-historico.md`).
+- **d8.** Ícone do Interrompido: `CircleStop` em `--warning`, próprio do estado; o `CirclePause` fica só no pendente pausado e no monitoramento. Task 11.
+- **d9.** `CopyOutput` com o TXT ausente devolve "O TXT não está mais na pasta; ele pode ter sido movido ou apagado", sem caminho; o caminho vai ao log. Aplicado na seção 2.1. Task 11.
 
 ## 11. Resposta à revisão
 

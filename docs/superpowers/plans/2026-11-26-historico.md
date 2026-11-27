@@ -22,7 +22,7 @@
 - Arquivo corrompido vira `historico.json.corrompido-AAAAMMDD-HHMMSS` (hora local) e a lista abre vazia; `versao` maior que 1 é ignorada e o arquivo não é sobrescrito até a sessão ter um item.
 - Status novo `"interrupted"`. Rótulo "Interrompido", ação "Processar de novo".
 - Textos exatos da interface: "Guardar a lista da última sessão"; "Ao reabrir, a lista mostra os processos da última sessão. Os nomes dos arquivos ficam guardados neste computador até a sessão seguinte em que algo for processado."; "TXT não encontrado"; "Detalhes por documento só ficam disponíveis durante a sessão em que o item foi processado"; "Não foi possível guardar o histórico"; título do botão "Remover da lista os concluídos, com erro, cancelados e interrompidos".
-- Erros do Go com texto exato: "arquivo de origem não encontrado: <nome>" (`Reprocessar`), "O TXT não está mais em <pasta>; ele pode ter sido movido ou apagado" (`CopyOutput`).
+- Erros do Go com texto exato: "arquivo de origem não encontrado: <nome>" (`Reprocessar`), "O TXT não está mais na pasta; ele pode ter sido movido ou apagado" (`CopyOutput`, sem caminho desde a decisão d9 de 2026-11-26, Task 11; o caminho vai ao log).
 - Data na linha: "14:32" hoje, "ontem 14:32", "12/11 14:32" em outro dia do mesmo ano, "12/11/2025 14:32" em outro ano; usa `finished_at` quando houver, senão `timestamp`.
 - Linhas de log e mensagens em pt-BR. O pacote `historico` não importa `etl` nem `net`.
 - Nenhum teste grava em `%APPDATA%` real: o caminho do histórico é parâmetro e os testes usam `t.TempDir()` (e `t.Setenv("APPDATA", t.TempDir())` onde `SaveConfig` roda).
