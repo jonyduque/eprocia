@@ -41,9 +41,24 @@ func (sink) Write(p []byte) (int, error) { return len(p), nil }
 
 var _ io.Writer = sink{}
 
+// TestMain aponta o %TEMP% para uma pasta própria deste processo antes de
+// qualquer extração dos binários do OCR. No %TEMP% real, o eprocIA_bin é
+// dividido com os testes de internal/ocr (que rodam em paralelo, noutro
+// processo, e executam o tesseract.exe de lá: o rename da extração daqui
+// falhava com "Access is denied" no CI) e com o eprocia.exe do dono.
 func TestMain(m *testing.M) {
 	log.SetOutput(sink{})
-	os.Exit(m.Run())
+	dir, err := os.MkdirTemp("", "eprocia_testes_bench_*")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "falha ao criar a pasta temporária dos testes:", err)
+		os.Exit(1)
+	}
+	for _, v := range []string{"TMP", "TEMP", "TMPDIR"} {
+		os.Setenv(v, dir)
+	}
+	codigo := m.Run()
+	os.RemoveAll(dir)
+	os.Exit(codigo)
 }
 
 func ocrMode() string {

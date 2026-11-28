@@ -176,8 +176,10 @@ func TestRodarPoppler_CancelamentoNaoEPrazo(t *testing.T) {
 	time.AfterFunc(200*time.Millisecond, cancel)
 	inicio := time.Now()
 	_, err := rodarPoppler(ctx, dir, "pdfinfo.exe", time.Minute, "x.pdf")
-	if d := time.Since(inicio); d > 5*time.Second {
-		t.Errorf("voltou em %v, quero menos de 5 s", d)
+	// Bem abaixo do prazo de 30 s do jorrarPoppler: prova que o teto encerra
+	// o processo cedo. Com 5 s, o -race num runner lento do CI passava (5,29 s).
+	if d := time.Since(inicio); d > 15*time.Second {
+		t.Errorf("voltou em %v, quero menos de 15 s", d)
 	}
 	if !errors.Is(err, context.Canceled) {
 		t.Errorf("erro = %v, quero context.Canceled", err)
@@ -199,8 +201,10 @@ func TestInfoPDF_Prazo(t *testing.T) {
 	}
 	inicio := time.Now()
 	_, err := rodarPoppler(context.Background(), dir, "pdfinfo.exe", prazoInfo, "x.pdf")
-	if d := time.Since(inicio); d > 5*time.Second {
-		t.Errorf("voltou em %v, quero menos de 5 s", d)
+	// Bem abaixo do prazo de 30 s do jorrarPoppler: prova que o teto encerra
+	// o processo cedo. Com 5 s, o -race num runner lento do CI passava (5,29 s).
+	if d := time.Since(inicio); d > 15*time.Second {
+		t.Errorf("voltou em %v, quero menos de 15 s", d)
 	}
 	if !errors.Is(err, ErrPrazo) {
 		t.Fatalf("erro = %v, quero ErrPrazo", err)
@@ -308,8 +312,10 @@ func TestRodarPoppler_UmByteAcimaDoTetoFalha(t *testing.T) {
 func TestRodarPoppler_SaidaAcimaDoTetoFalha(t *testing.T) {
 	inicio := time.Now()
 	_, err := jorrarPoppler(t, "1048576")
-	if d := time.Since(inicio); d > 5*time.Second {
-		t.Errorf("voltou em %v, quero menos de 5 s", d)
+	// Bem abaixo do prazo de 30 s do jorrarPoppler: prova que o teto encerra
+	// o processo cedo. Com 5 s, o -race num runner lento do CI passava (5,29 s).
+	if d := time.Since(inicio); d > 15*time.Second {
+		t.Errorf("voltou em %v, quero menos de 15 s", d)
 	}
 	if !errors.Is(err, errSaidaGrande) {
 		t.Fatalf("erro = %v, quero errSaidaGrande", err)

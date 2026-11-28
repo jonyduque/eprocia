@@ -1576,6 +1576,19 @@ func TestAtualizador_GravadorNaoFechou(t *testing.T) {
 		if err := c.a.Instalar(); err != nil {
 			t.Fatalf("Instalar de novo: %v", err)
 		}
+		// A segunda instalação baixa numa subpasta própria e só a apaga
+		// depois de o gravador falhar de novo: sem esperar por isso, o
+		// t.TempDir é limpo com a subpasta ainda em uso (flake no CI).
+		c.esperarChamada("Gravador.Fechar", 2)
+		c.esperar(func() bool {
+			c.mu.Lock()
+			defer c.mu.Unlock()
+			if len(c.baixados) < 2 {
+				return false
+			}
+			_, err := os.Stat(filepath.Dir(c.baixados[1]))
+			return errors.Is(err, os.ErrNotExist)
+		}, "a subpasta do segundo instalador ser apagada")
 	})
 }
 
